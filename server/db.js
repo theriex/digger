@@ -38,6 +38,9 @@ module.exports = (function () {
         //  fq: frequency. See waitcodedays values and comments
         //  lp: last played. Local time ISO (easier to read, not critical)
         //  rv: rating. 0 is unrated, then 1-10 (5 stars with halves)
+        //  al: attention level (Social/Challenging) 0-99 default 49
+        //  el: energy level (Chill/Amped) 0-99 default 49
+        //  kws: CSV of selected keywords (case normalized to declared vals)
         //  pt: path tuple. artistFolder/albumFolder/songFileName
         //  ar: artist (from file metadata)
         //  ab: album (from file metatdata)
