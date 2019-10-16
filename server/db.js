@@ -78,7 +78,14 @@ module.exports = (function () {
     }
 
 
+    function serveDatabase (req, res) {
+        res.writeHead(200, {"Content-Type": "application/json"});
+        res.end(JSON.stringify(dbo));
+    }
+
+
     return {
-        init: function () { initialize(); }
+        init: function () { initialize(); },
+        dbo: function (req, res) { return serveDatabase(req, res); }
     };
 }());
