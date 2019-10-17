@@ -26,7 +26,7 @@ module.exports = (function () {
                keywords:["Dance", "Workout", "Morning"], 
                keysacc:false,  //customization option presented
                waitcodedays:{  //days required since last played before pulling
-                   //"D": Deleted song file.  Kept for rating only
+                   //"D": Deleted song file.  Kept for rating only.
                    //"R": Reference only.  Never suggest.
                    "O":365,  //Overplayed.
                    "Z":180,  //Resting.

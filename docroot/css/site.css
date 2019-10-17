@@ -1,0 +1,23 @@
+html {
+  min-height: 100%; margin:0; padding:0;
+}
+
+body {
+  margin:0px;
+  color:#111111;
+  height:100%;
+  font-family: "Open Sans", "Helvetica", sans-serif;
+  font-size:large;
+  background:#000;
+}
+
+A:link {text-decoration:none; color:#008688; }
+A:visited {text-decoration:none; color:#008688; }
+A:active {text-decoration:none; color:#008688; }
+A:hover {text-decoration:underline; color:#00989a; }
+
+#contentdiv { margin:5px auto; padding:10px; background:#999; display:table; }
+.titlespan { font-size:x-large; font-weight:bold; }
+#countspan { font-size:medium; padding-left:10px; }
+.paneldiv { margin:10px 0px 0px 0px; padding:10px; background:#ccc; }
+
