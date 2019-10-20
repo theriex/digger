@@ -10,9 +10,13 @@ var portnum = 6980;
 //start the server
 require("http").createServer(function (request, response) {
     request.addListener("end", function () {
-        console.log(request.url);
+        var quieturls = ["/songscount"];
+        if(!quieturls.includes(request.url)) {
+            console.log(request.url); }
         switch(request.url) {
         case "/dbo": db.dbo(request, response); break;
+        case "/dbread": db.dbread(request, response); break;
+        case "/songscount": db.songscount(request, response); break;
         default:
             fileserver.serve(request, response); }
     }).resume();
@@ -21,7 +25,7 @@ require("http").createServer(function (request, response) {
 
 //open the browser to avoid having to do that as a separate step
 setTimeout(function () {
-    const { spawn } = require('child_process');
+    const { spawn } = require("child_process");
     //Mac platform
     spawn("open", ["http://localhost:" + portnum], {stdio:"ignore"});
 }, 800);
