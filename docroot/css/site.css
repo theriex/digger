@@ -18,7 +18,8 @@ A:hover {text-decoration:underline; color:#00989a; }
 
 #contentdiv { margin:5px auto; padding:10px; background:#999; display:table; }
 .titlespan { font-size:x-large; font-weight:bold; }
-#countspan { font-size:medium; padding-left:10px; }
+#countspan { font-size:medium; padding:0px 10px; }
 #statspan { font-size:small; padding-left:10px; }
 .paneldiv { margin:10px 0px 0px 0px; padding:10px; background:#ccc; }
 
+.buttonico { max-height:30px; vertical-align:middle; padding:0px 5px; }

@@ -29,7 +29,21 @@ app = {
         if(href.indexOf("?") > 0) {
             href = href.slice(0, href.indexOf("?")); }
         jt.loadAppModules(app, modules.map((x) => "js/amd/" + x), 
-                          href, init2, "?v=191014"); }
+                          href, init2, "?v=191014");
+    },
+
+    togdivdisp: function (divid, display) {
+        var div = jt.byId(divid);
+        if(!div) {  //div not available yet, so nothing to do
+            return; }
+        if(!display) {
+            display = div.style.display;
+            if(display === "none") {
+                display = "block"; }
+            else {
+                display = "none"; } }
+        div.style.display = display;
+    }
 
 };
 }());

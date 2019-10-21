@@ -108,7 +108,8 @@ module.exports = (function () {
             rec = {fq:"N", rv:3, al:49, el:49, kws:""};
             dbo.songs[rpath] = rec; }
         if(!tagdata) {  //tags could not be read, mark as unreadable
-            rec.fq = "U" + rec.fq; }
+            if(!rec.fq.startsWith("U")) {
+                rec.fq = "U" + rec.fq; } }
         else { 
             rec.ar = tagdata.tags.artist;
             rec.ab = tagdata.tags.album;
@@ -152,7 +153,11 @@ module.exports = (function () {
 
     function readFiles (req, res) {
         if(state === "reading") {
-            return console.log("readFiles already in progress"); }
+            var msg = "readFiles already in progress";
+            res.statusCode = 409;
+            res.statusMessage = msg;
+            res.end();
+            return console.log(msg); }
         state = "reading";
         dbo.songcount = 0;
         //mark everything deleted, then undo as the songs are found.
@@ -169,7 +174,7 @@ module.exports = (function () {
 
     function songCount (ignore /*req*/, res) {
         res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(String(dbo.songcount));
+        res.end(JSON.stringify({count:dbo.songcount, status:state}));
     }
 
 
