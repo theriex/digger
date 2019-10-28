@@ -16,12 +16,17 @@ module.exports = (function () {
     var dbo = null;
     var mt = require("jsmediatags");
     var state = "initializing";
+    var mostRecentRelativePathRead = "";
+    var formidable = require("formidable");
+    var util = require("util");
+    var mergestat = null;
+    //var mergeobj = null;
 
 
     function createDatabaseFile () {
         dbo = {version:"dv0.1", 
                scanned:"",  //ISO latest walk of song files
-               keywords:["Dance", "Workout", "Morning"], 
+               keywords:["Dance", "Office", "Morning", "Workout"],
                keysacc:false,  //customization option presented
                waitcodedays:{  //days required since last played before pulling
                    //Prefix flag values:
@@ -44,6 +49,7 @@ module.exports = (function () {
         //  al: attention level (Social/Challenging) 0-99 default 49
         //  el: energy level (Chill/Amped) 0-99 default 49
         //  kws: CSV of selected keywords (case normalized to declared vals)
+        //  nt: arbitrary comment text
         //  ar: artist (from file metadata)
         //  ab: album (from file metatdata)
         //  ti: title (from file metatdata
@@ -98,6 +104,7 @@ module.exports = (function () {
     function addSongToDb (fn, tagdata) {
         dbo.songcount += 1;
         var rpath = fn.slice(musicPath.length);  //make path relative
+        mostRecentRelativePathRead = rpath;
         var rec = dbo.songs[rpath];
         if(rec) {  //updating existing entry
             //console.log(dbo.songcount + " updating " + rpath);
@@ -174,7 +181,46 @@ module.exports = (function () {
 
     function songCount (ignore /*req*/, res) {
         res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify({count:dbo.songcount, status:state}));
+        res.end(JSON.stringify({count:dbo.songcount,
+                                status:state,
+                                lastrpath:mostRecentRelativePathRead,
+                                musicpath:musicPath}));
+    }
+
+
+    function mergeData (data, req, res) {
+        mergestat.state = "merging";
+        console.log(data.slice(0, 500));
+        res.writeHead(200, {"Content-Type": "text/html"});
+        res.end("Error: mergeData not implemented yet.");
+    }
+
+
+    function mergeFile (req, res) {
+        mergestat = {batchsize:500, pausems:200, idx:0, applied:0, saved:0,
+                     state:"starting", errmsg:""};
+        if(req.method === "GET") {
+            res.writeHead(200, {"Content-Type": "text/html"});
+            res.end("Ready"); }
+        else {  //POST
+            var form = new formidable.IncomingForm();  //utf-8 by default
+            form.uploadDir = ".";
+            // console.log("mergeFile uploadDir: " + form.uploadDir);
+            form.parse(req, function (err, fields, files) {
+                if(err) {
+                    throw err; }
+                else {  //have file with no contents if no file specified.
+                    var path = files.mergefilein.path;
+                    fs.readFile(path, "utf8", function (err, data) {
+                        if(err) {
+                            throw err; }
+                        mergeData(data, req, res); }); } }); }
+    }
+
+
+    function mergeStatus (ignore /*req*/, res) {
+        res.writeHead(200, {"Content-Type": "application/json"});
+        res.end(JSON.stringify(mergestat));
     }
 
 
@@ -182,6 +228,8 @@ module.exports = (function () {
         init: function () { initialize(); },
         dbo: function (req, res) { return serveDatabase(req, res); },
         dbread: function (req, res) { return readFiles(req, res); },
-        songscount: function (req, res) { return songCount(req, res); }
+        songscount: function (req, res) { return songCount(req, res); },
+        mergefile: function (req, res) { return mergeFile(req, res); },
+        mergestat: function (req, res) { return mergeStatus(req, res); }
     };
 }());
