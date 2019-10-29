@@ -6,7 +6,7 @@ db.init();
 var nodestatic = require("node-static");
 var fileserver = new nodestatic.Server("./docroot");
 var portnum = 6980;
-var quieturls = ["/songscount"];
+var quieturls = ["/songscount", "/mergestat"];
 
 //start the server
 require("http").createServer(function (request, response) {

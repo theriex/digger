@@ -18,9 +18,7 @@ module.exports = (function () {
     var state = "initializing";
     var mostRecentRelativePathRead = "";
     var formidable = require("formidable");
-    var util = require("util");
-    var mergestat = null;
-    //var mergeobj = null;
+    var mrg = {stat:null, obj:null, dict:null};
 
 
     function createDatabaseFile () {
@@ -188,17 +186,133 @@ module.exports = (function () {
     }
 
 
-    function mergeData (data, req, res) {
-        mergestat.state = "merging";
-        console.log(data.slice(0, 500));
-        res.writeHead(200, {"Content-Type": "text/html"});
-        res.end("Error: mergeData not implemented yet.");
+    function canonicalKeyForSong (song) {
+        return song.ar + "|" + song.ab + "|" + song.ti;
+    }
+
+
+    function csvmerge(a, b) {
+        a = a || "";
+        b = b || "";
+        if(a) {
+            a = a.split(","); }
+        else {
+            a = []; }
+        if(b) {
+            b = b.split(","); }
+        else {
+            b = []; }
+        b.forEach(function (kwd) {
+            if(a.indexOf(kwd) < 0) {
+                a.push(kwd); } });
+        return a.join(",");
+    }
+
+
+    //The merge is an outer join.  Reason being that if you are merging your
+    //own data from one location to another, you don't want to lose info
+    //just because you have fewer songs on another machine.  The outer join
+    //approach also makes sense in terms of general discovery and utility,
+    //though there is a risk of accumulating information you don't need.
+    //Could add a flag to the form to do an inner join if needed, then just
+    //skip adding.
+    function mergeEntry (key, dat) {
+        if(!key || !dat) {
+            return console.log("bad mergeEntry " + key + ": " + dat); }
+        var dbd = dbo.songs[key];
+        if(!dbd) {
+            var cankey = canonicalKeyForSong(dat);
+            var dbkey = mrg.dict[cankey];
+            if(dbkey) {
+                dbd = dbo.songs[dbkey]; } }
+        if(dbd) {  //supplement local entry if better info
+            //fq: use dat frequency if db is default and dat is not.
+            if((dat.fq && dat.fq.indexOf("N") < 0 && dat.fq.indexOf("P") < 0) &&
+               (dbd.fq.indexOf("N") >= 0 || dbd.fq.indexOf("P") >= 0)) {
+                var prefix = "";  //preserve existing marker prefix if any
+                if(dbd.fq.startsWith("U") || dbd.fq.startsWith("D")) {
+                    prefix = dbd.fq.slice(0, 1); }
+                dbd.fq = dat.fq;
+                if(dbd.fq.length > 1) {  //get rid of any "U" or "D" prefix
+                    dbd.fq = dbd.fq.slice(1); }
+                dbd.fq = prefix + dbd.fq; }
+            //rv: use dat rating if db unspecified or default and dat id not.
+            if((!dbd.rv || dbd.rv === 3) && (dat.rv && dat.rv !== 3)) {
+                dbd.rv = dat.rv; }
+            //al: If there is a non-default value, then use it
+            if((!dbd.al || dbd.al === 49) && (dat.al && dat.al !== 49)) {
+                dbd.al = dat.al; }
+            //el: If there is a non-default value, then use it
+            if((!dbd.el || dbd.el === 49) && (dat.el && dat.el !== 49)) {
+                dbd.el = dat.el; }
+            //kws: outer join keywords for maximum search leverage
+            dbd.kws = csvmerge(dbd.kws, dat.kws);
+            //nt: pull in comment text only if nothing set locally
+            if((!dbd.nt || !dbd.nt.trim()) && dat.nt) {
+                dbd.nt = dat.nt; } }
+        else {  //entry not in current db (so no song file). Add entry.
+            dat.fq = dat.fq || "P";
+            if(dat.fq.length > 1) {  //remove any "U" or "D" prefix
+                dat.fq = dat.fq.slice(1); }
+            dat.fq = "D" + dat.fq;  //no song file or would have had entry
+            dbo.songs[key] = dat; }
+        mrg.stat.merged += 1;
+    }
+
+
+    function mergeDataChunk () {
+        var keys = Object.keys(mrg.obj.songs);
+        var key = "";
+        mrg.stat.cb = mrg.stat.batchsize;
+        while(mrg.stat.idx < keys.length) {
+            key = keys[mrg.stat.idx];
+            mergeEntry(key, mrg.obj.songs[key]);
+            mrg.stat.idx += 1;
+            mrg.stat.cb -= 1;
+            if(mrg.stat.cb <= 0) {  //done with this batch
+                setTimeout(mergeDataChunk, mrg.stat.pausems);
+                break; } }
+        if(mrg.stat.idx >= keys.length) {
+            fs.writeFile(dbPath, JSON.stringify(dbo), "utf8", function (err) {
+                if(err) {
+                    throw err; }
+                mrg.stat.state = "ready"; }); }
+    }
+
+
+    function makeMergeDictionary () {
+        mrg.dict = {};
+        Object.keys(dbo.songs).forEach(function (key) {
+            var song = dbo.songs[key];
+            var cankey = canonicalKeyForSong(song);
+            mrg.dict[cankey] = key; });
+        setTimeout(mergeDataChunk, 50);
+    }
+
+
+    function mergeData (data, ignore /*req*/, res) {
+        mrg.stat.state = "merging";
+        if(!data || !data.trim().length) {
+            mrg.stat.errmsg = "No data sent"; }
+        else {
+            try {
+                mrg.obj = JSON.parse(data);
+            } catch(e) {
+                mrg.stat.errmsg = String(e);
+            } }
+        if(mrg.stat.errmsg) {
+            res.writeHead(200, {"Content-Type": "text/html"});
+            res.end("Error: " + mrg.stat.errmsg); }
+        else {
+            setTimeout(makeMergeDictionary, 50);
+            res.writeHead(200, {"Content-Type": "text/html"});
+            res.end("Received."); }
     }
 
 
     function mergeFile (req, res) {
-        mergestat = {batchsize:500, pausems:200, idx:0, applied:0, saved:0,
-                     state:"starting", errmsg:""};
+        mrg.stat = {batchsize:500, pausems:200, idx:0, merged:0,
+                    state:"starting", errmsg:""};
         if(req.method === "GET") {
             res.writeHead(200, {"Content-Type": "text/html"});
             res.end("Ready"); }
@@ -206,21 +320,22 @@ module.exports = (function () {
             var form = new formidable.IncomingForm();  //utf-8 by default
             form.uploadDir = ".";
             // console.log("mergeFile uploadDir: " + form.uploadDir);
-            form.parse(req, function (err, fields, files) {
+            form.parse(req, function (err, ignore /*fields*/, files) {
                 if(err) {
                     throw err; }
-                else {  //have file with no contents if no file specified.
-                    var path = files.mergefilein.path;
-                    fs.readFile(path, "utf8", function (err, data) {
-                        if(err) {
-                            throw err; }
-                        mergeData(data, req, res); }); } }); }
+                //have file with no contents if no file specified.
+                var path = files.mergefilein.path;
+                mrg.stat.state = "received";
+                fs.readFile(path, "utf8", function (err, data) {
+                    if(err) {
+                        throw err; }
+                    mergeData(data, req, res); }); }); }
     }
 
 
     function mergeStatus (ignore /*req*/, res) {
         res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify(mergestat));
+        res.end(JSON.stringify(mrg.stat));
     }
 
 

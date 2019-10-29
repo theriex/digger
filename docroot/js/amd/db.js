@@ -21,28 +21,13 @@ app.db = (function () {
     }
 
 
-    function setDBState(state) {
-        dbstat.currstat = state;
-        jt.out("statspan", dbstat[state]);
-        if(state === "quiet" || state === "ready") {
-            app.togdivdisp("dbctrlsdiv", "none");
-            jt.byId("rfbutton").disabled = false;
-            jt.byId("mdbutton").disabled = false; }
-        else {  //some kind of work ongoing
-            app.togdivdisp("dbctrlsdiv", "block");
-            jt.byId("rfbutton").disabled = true;
-            jt.byId("mdbutton").disabled = true; }
-    }
-
-
     function mergeData () {
         jt.out("dbdlgdiv", jt.tac2html(
             [["div", {id:"mergefileformdiv"},
               [["form", {action:"/mergefile", method:"post", id:"mergeform",
                          target:"subframe", enctype: "multipart/form-data"},
-                [["input", {type:"hidden", name:"hello", value:"world"}],
-                 ["input", {type:"file", name:"mergefilein", id:"mergefilein"}],
-                 ["input", {type:"hidden", name:"foo", value:"bar"}]]],
+                [["input", {type:"file", name:"mergefilein", id:"mergefilein"}],
+                 ["input", {type:"hidden", name:"debug", value:"test"}]]],
                ["iframe", {id:"subframe", name:"subframe", src:"/mergefile",
                            style:"display:none"}]]],
              ["div", {cla:"dlgbuttonsdiv", id:"mergeformbuttonsdiv"},
@@ -54,9 +39,10 @@ app.db = (function () {
 
 
     function updateMergeStatus (info) {
-        dbstat.curstat = info.state;
-        jt.out("mergeappliedspan", String(info.applied));
-        jt.out("mergesavedspan", String(info.saved));
+        jt.log("updateMergeStatus " + info.state);
+        dbstat.currstat = info.state;
+        jt.out("mergereadspan", String(info.idx));
+        jt.out("mergemergedspan", String(info.merged));
         jt.out("mergestatespan", info.state.capitalize());
         if(info.state === "failed") {
             dbstat.currstat = "ready";
@@ -71,6 +57,7 @@ app.db = (function () {
             if(fc && fc.body) {  //body unavailable if error write in progress
                 var txt = fc.body.innerHTML;
                 if(txt.startsWith("Received")) {  //successful upload
+                    jt.byId("mergefileformdiv").style.display = "none";
                     jt.call("GET", "/mergestat", null,
                             function (info) {
                                 updateMergeStatus(info);
@@ -86,24 +73,26 @@ app.db = (function () {
                 if(txt.startsWith("Error")) {
                     dbstat.currstat = "ready";
                     jt.out("mergestatespan", "Upload error");
-                    jt.out("mergemsgdiv", txt);
+                    jt.out("mergemsgdiv", jt.tac2html(
+                        [txt + "&nbsp; ",
+                         ["button", {type:"button",
+                                     onclick:jt.fs("app.db.merge()")},
+                          "Reset"]]));
                     return; } } }
         setTimeout(monitorMergeProgress, 500);
     }
 
 
     function mergeClick () {
-        dbstat.currstat = "merging"
+        dbstat.currstat = "merging";
         jt.out("mergeformbuttonsdiv", jt.tac2html(
             [["span", {cla:"statespan", id:"mergestatespan"}, "Uploading..."],
-             ["span", {cla:"counterlabel"}, "Applied:"],
-             ["span", {cla:"countspan", id:"mergeappliedspan"}, "0"],
-             ["span", {cla:"counterlabel"}, "Saved:"],
-             ["span", {cla:"countspan", id:"mergesavedspan"}, "0"]]));
+             ["span", {cla:"counterlabel"}, "Read:"],
+             ["span", {cla:"countspan", id:"mergereadspan"}, "0"],
+             ["span", {cla:"counterlabel"}, "Merged:"],
+             ["span", {cla:"countspan", id:"mergemergedspan"}, "0"]]));
         setTimeout(monitorMergeProgress, 500);
-        var form = jt.byId("mergeform");
-        form.display = "none";
-        form.submit();
+        jt.byId("mergeform").submit();
     }
 
 
