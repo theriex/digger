@@ -189,6 +189,7 @@ app.db = (function () {
                     dbo = databaseobj;
                     jt.out("countspan", String(dbo.songcount) + " songs");
                     dbstat.currstat = "ready";
+                    app.filter.init();
                     if(!dbo.scanned) {
                         readSongFiles(); }
                     else {
@@ -212,7 +213,8 @@ return {
     },
     reread: function (confirmed) { reReadSongFiles(confirmed); },
     merge: function () { mergeData(); },
-    mergeClick: function () { mergeClick(); }
+    mergeClick: function () { mergeClick(); },
+    data: function () { return dbo; }
 
 };  //end of returned functions
 }());

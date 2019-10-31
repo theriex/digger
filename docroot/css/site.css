@@ -16,7 +16,7 @@ A:visited {text-decoration:none; color:#008688; }
 A:active {text-decoration:none; color:#008688; }
 A:hover {text-decoration:underline; color:#00989a; }
 
-#contentdiv { margin:5px auto; width:100vw; max-width:800px; background:#999; 
+#contentdiv { margin:5px auto; width:100vw; max-width:600px; background:#999; 
   padding:5px 0px; }
 #titlediv { padding-bottom:5px; }
 .titlespan { font-size:x-large; font-weight:bold; }
@@ -33,3 +33,32 @@ A:hover {text-decoration:underline; color:#00989a; }
 .counterlabel { font-size:medium; font-style:italic; padding-right:5px; }
 .countspan { font-size:medium; padding-right:5px; }
 .mergemsgdiv { font-size:small; }
+
+/****************************************/
+/* Filter Panel */
+
+
+.rangectrldiv { display:inline-block; position:relative; 
+  margin:5px 10px 5px 0px; }
+.rangetitlediv { position:absolute; top:5px; left:87px; font-size:large; }
+.rangelowlabeldiv, .rangehighlabeldiv { position:absolute; top:36px;
+  font-size:medium; color:#333; }
+.rangelowlabeldiv { left:42px; }
+.rangehighlabeldiv { right:15px; }
+.vnobdiv { position:absolute; top:0px; left:0px; background:blue; }
+.hnobdiv { position:absolute; top:0px; left:0px; background:blue; }
+.mouseareadiv { position:absolute; top:0px; left:0px; background:red; opacity:0.2}
+
+#bowtiesdiv { text-align:center; }
+.bowtiediv { display:inline-block; font-size:medium;
+  margin:5px 10px 5px 0px; padding:5px;
+  border:2px solid #777; border-radius:10px;
+}
+.btlabeldiv { text-align:center; }
+.btleftb, .btmidb, .btrightb { color:white; background:#333; 
+  font-size:18px; font-weight:normal; padding:5px 8px; 
+  box-shadow:1px 1px 1px #666; }
+.btleftb { border-radius:10px 0px 0px 10px; }
+.btrightb { border-radius:0px 10px 10px 0px; }
+
+#ratdiv { margin:5px 10px 5px 0px; }
