@@ -9,11 +9,12 @@ app.filter = (function () {
                      low:"Social", high:"Challenging"},
                  el:{fld:"el", pn:"Energy Level",
                      low:"Chill", high:"Amped"}};
-    var ranger = {panel:{outer:{x:25, y:0, w:244, h:56},
+    var ranger = {entire:{x:0, y:0, w:270, h:80},
+                  panel:{outer:{x:25, y:0, w:244, h:56},
                          inner:{x:27, y:2, w:240, h:54},
                          gradient:{left:"0cd8e5", right:"faee0a"}},
-                  vnob:{x:0, y:0, w:21, h:10, maxy:51},
-                  hnob:{x:27, y:59, w:10, h:21, maxx:263}};
+                  vnob:{x:0, y:5, w:21, h:10, maxy:52},
+                  hnob:{x:25, y:59, w:10, h:21, maxx:263}};
     var bowtie = {activecolor:ctrls.activecolor,
                   inactivecolor:"#ffffff"};
 
@@ -21,10 +22,8 @@ app.filter = (function () {
     function dimstyle (dims, mousearea) {
         var rd = {x:dims.x, y:dims.y, w:dims.w, h:dims.h};
         if(mousearea === "maxy") {
-            rd.y += Math.floor(dims.h / 2);
             rd.h = dims.maxy - rd.y; }
         else if(mousearea === "maxx") {
-            rd.x += Math.floor(dims.w / 2);
             rd.w = dims.maxx - rd.x; }
         var style = "left:" + rd.x + "px;" +
                     "top:" + rd.y + "px;" +
@@ -34,22 +33,65 @@ app.filter = (function () {
     }
 
 
-    function attachMovementListeners (div, posf) {
-        //TODO: attach listeners to get the coords and call the position func
+    function touchEventToOffsetCoords (event) {
+        var rect = event.target.getBoundingClientRect();
+        var coords = {x:event.targetTouches[0].pageX - rect.left,
+                      y:event.targetTouches[0].pageY - rect.top};
+        return coords;
+    }
+
+
+    function attachMovementListeners (divid, stat, posf) {
+        var div = jt.byId(divid);
+        jt.on(div, "mousedown", function (event) {
+            stat.pointingActive = true;
+            posf(event.offsetX, event.offsetY); });
+        jt.on(div, "mouseup", function (event) {
+            stat.pointingActive = false; });
+        //Not tracking mouseout to stop pointing, since it is easy to drag
+        //past the bounding tracking div while trying to adjust.  Rather err
+        //on the side of live than dead for dragging.  Right approach is to
+        //capture mouseup at the panel level and stop all pointing.
+        // jt.on(div, "mouseout", function (event) {
+        //     stat.pointingActive = false; });
+        jt.on(div, "mousemove", function (event) {
+            if(stat.pointingActive) {
+                posf(event.offsetX, event.offsetY); } });
+        jt.on(div, "click", function (event) {
+            stat.pointingActive = false;
+            posf(event.offsetX, event.offsetY); });
+        //Touch interfaces are essentially the same as the mouse actions.
+        //They may be intermixed on devices that support both interfaces.
+        jt.on(div, "touchstart", function (event) {
+            stat.pointingActive = true;
+            var coords = touchEventToOffsetCoords(event);
+            posf(coords.x, coords.y); });
+        jt.on(div, "touchend", function (event) {
+            stat.pointingActive = false; });
+        jt.on(div, "touchcancel", function (event) {
+            stat.pointingActive = false; });
+        jt.on(div, "touchmove", function (event) {
+            if(stat.pointingActive) {
+                posf(event.offsetX, event.offsetY); } });
     }
 
 
     function attachPointerMovement (cid) {
-        ctrls[cid].vpos = function (x, y) {
-            ctrls[cid].cy = y - Math.floor(ranger.vnob.h / 2);
-            jt.byId(cid + "vnd").style.top = ctrls[cid].cy + "px"; };
-        attachMovementListeners(jt.byId(cid + "vmad"), ctrls[cid].vpos);
-        ctrls[cid].vpos(0, Math.floor(ranger.vnob.maxy / 2));
-        ctrls[cid].hpos = function (x, y) {
-            ctrls[cid].cx = x - Math.floor(ranger.hnob.w / 2);
-            jt.byId(cid + "hnd").style.left = ctrls[cid].cx + "px"; };
-        attachMovementListeners(jt.byId(cid + "hmad"), ctrls[cid].hpos);
-        ctrls[cid].hpos(Math.floor(ranger.hnob.maxx / 2), 0);
+        var rcr = ctrls[cid];
+        //vertical
+        rcr.vstat = {pointingActive:false};
+        rcr.vpos = function (x, y) {
+            rcr.cy = y;  //base vertical offset is zero
+            jt.byId(cid + "vnd").style.top = rcr.cy + "px"; };
+        attachMovementListeners(cid + "vmad", rcr.vstat, rcr.vpos);
+        rcr.vpos(0, Math.floor(ranger.vnob.maxy / 2));
+        //horizontal
+        rcr.hstat = {pointingActive:false};
+        rcr.hpos = function (x, y) {
+            rcr.cx = x + ranger.hnob.x;
+            jt.byId(cid + "hnd").style.left = rcr.cx + "px"; };
+        attachMovementListeners(cid + "hmad", rcr.hstat, rcr.hpos);
+        rcr.hpos(Math.floor(ranger.hnob.maxx / 2), 0);
     }
 
 
@@ -146,7 +188,7 @@ app.filter = (function () {
         createRangeControl("el");
         ctrls.bts = [];
         var btdivs = [];
-        //manage which keywords are used from db panel
+        //changing which keywords will be in use is done from the db panel.
         dbo.keywords.forEach(function (kwd, idx) {
             ctrls.bts.push({pn:kwd, tog:"off"});
             btdivs.push(["div", {cla:"bowtiediv", id:"btdiv" + idx}]); });
@@ -154,6 +196,8 @@ app.filter = (function () {
         ctrls.bts.forEach(function (bt, idx) {
             createBowTieControl(bt, idx); });
         createMinRatingControl("ratdiv");
+        jt.on("panfiltdiv", "mousedown", function (event) {
+            jt.evtend(event); });
     }
 
 
