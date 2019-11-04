@@ -46,7 +46,7 @@ app.filter = (function () {
         jt.on(div, "mousedown", function (event) {
             stat.pointingActive = true;
             posf(event.offsetX, event.offsetY); });
-        jt.on(div, "mouseup", function (event) {
+        jt.on(div, "mouseup", function (ignore /*event*/) {
             stat.pointingActive = false; });
         //Not tracking mouseout to stop pointing, since it is easy to drag
         //past the bounding tracking div while trying to adjust.  Rather err
@@ -66,9 +66,9 @@ app.filter = (function () {
             stat.pointingActive = true;
             var coords = touchEventToOffsetCoords(event);
             posf(coords.x, coords.y); });
-        jt.on(div, "touchend", function (event) {
+        jt.on(div, "touchend", function (ignore /*event*/) {
             stat.pointingActive = false; });
-        jt.on(div, "touchcancel", function (event) {
+        jt.on(div, "touchcancel", function (ignore /*event*/) {
             stat.pointingActive = false; });
         jt.on(div, "touchmove", function (event) {
             if(stat.pointingActive) {
@@ -76,31 +76,59 @@ app.filter = (function () {
     }
 
 
-    function attachPointerMovement (cid) {
+    function updateRangeControlFocus (cid, rcr) {
+        //set the width of the range focus using the percentage indicated by
+        //the position of the vertical slider
+        var invy = ranger.vnob.maxy - rcr.cy - ranger.vnob.y;
+        var rangemax = ranger.vnob.maxy - ranger.vnob.y;
+        var pcnt = invy / rangemax;
+        var focw = Math.round(pcnt * ranger.panel.inner.w);
+        //adjust the percentage so the midpoint of the focus is zero
+        var basex = rcr.cx - ranger.hnob.x;
+        rangemax = ranger.hnob.maxx - ranger.hnob.x;
+        pcnt = -1 * (0.5 - (basex / rangemax));
+        //update the left and right curtains to reflect the focus.
+        var curtw = Math.floor((ranger.panel.inner.w - focw) / 2);
+        var ladj = curtw + Math.round(2 * pcnt * curtw);
+        var radj = curtw - Math.round(2 * pcnt * curtw);
+        jt.byId(cid + "lcdiv").style.width = ladj + "px";
+        jt.byId(cid + "rcdiv").style.width = radj + "px";
+        //update the current range focus min/max search values
+        rcr.rgfoc.min = Math.round((ladj / rangemax) * 100);
+        rcr.rgfoc.max = 99 - Math.round((radj / rangemax) * 100);
+        //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
+    }
+
+
+    function attachRangeCtrlMovement (cid) {
         var rcr = ctrls[cid];
         //vertical
         rcr.vstat = {pointingActive:false};
-        rcr.vpos = function (x, y) {
+        rcr.vpos = function (ignore /*x*/, y) {
             rcr.cy = y;  //base vertical offset is zero
-            jt.byId(cid + "vnd").style.top = rcr.cy + "px"; };
+            jt.byId(cid + "vnd").style.top = rcr.cy + "px";
+            updateRangeControlFocus(cid, rcr); };
         attachMovementListeners(cid + "vmad", rcr.vstat, rcr.vpos);
         rcr.vpos(0, Math.floor(ranger.vnob.maxy / 2));
         //horizontal
         rcr.hstat = {pointingActive:false};
-        rcr.hpos = function (x, y) {
+        rcr.hpos = function (x, ignore /*y*/) {
             rcr.cx = x + ranger.hnob.x;
-            jt.byId(cid + "hnd").style.left = rcr.cx + "px"; };
+            jt.byId(cid + "hnd").style.left = rcr.cx + "px";
+            updateRangeControlFocus(cid, rcr); };
         attachMovementListeners(cid + "hmad", rcr.hstat, rcr.hpos);
-        rcr.hpos(Math.floor(ranger.hnob.maxx / 2), 0);
+        rcr.hpos(Math.floor((ranger.hnob.maxx - ranger.hnob.x) / 2), 0);
     }
 
 
     function createRangeControl (cid) {
         jt.out(cid + "div", jt.tac2html(
             [["img", {src:"img/ranger.png"}],
-             ["div", {cla:"rangetitlediv"}, ctrls[cid].pn],
+             ["div", {cla:"rangetitlediv", id:cid + "tit"}, ctrls[cid].pn],
              ["div", {cla:"rangelowlabeldiv"}, ctrls[cid].low],
              ["div", {cla:"rangehighlabeldiv"}, ctrls[cid].high],
+             ["div", {cla:"rangeleftcurtdiv", id:cid + "lcdiv"}],
+             ["div", {cla:"rangerightcurtdiv", id:cid + "rcdiv"}],
              ["div", {cla:"vnobdiv", id:cid + "vnd",
                       style:dimstyle(ranger.vnob)}],
              ["div", {cla:"hnobdiv", id:cid + "hnd",
@@ -109,7 +137,8 @@ app.filter = (function () {
                       style:dimstyle(ranger.vnob, "maxy")}],
              ["div", {cla:"mouseareadiv", id:cid + "hmad",
                       style:dimstyle(ranger.hnob, "maxx")}]]));
-        attachPointerMovement(cid);
+        ctrls[cid].rgfoc = {min:0, max:99};
+        attachRangeCtrlMovement(cid);
     }
 
 
