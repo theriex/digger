@@ -49,9 +49,9 @@ A:hover {text-decoration:underline; color:#00989a; }
   height:52px; background:black; opacity:0.2; }
 .rangeleftcurtdiv { left:26px; }
 .rangerightcurtdiv { right:2px; }
-.vnobdiv { position:absolute; top:0px; left:0px; background:blue; }
-.hnobdiv { position:absolute; top:0px; left:0px; background:blue; }
-.mouseareadiv { position:absolute; top:0px; left:0px; background:red; opacity:0.2}
+.vnobdiv { position:absolute; top:0px; left:0px; }
+.hnobdiv { position:absolute; top:0px; left:0px; }
+.mouseareadiv { position:absolute; top:0px; left:0px; }
 
 #bowtiesdiv { text-align:center; }
 .bowtiediv { display:inline-block; font-size:medium;
