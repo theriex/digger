@@ -16,6 +16,8 @@ A:visited {text-decoration:none; color:#008688; }
 A:active {text-decoration:none; color:#008688; }
 A:hover {text-decoration:underline; color:#00989a; }
 
+img { border:0px; vertical-align:middle; }
+
 #contentdiv { margin:5px auto; width:100vw; max-width:600px; background:#999; 
   padding:5px 0px; }
 #titlediv { padding-bottom:5px; }
@@ -34,9 +36,9 @@ A:hover {text-decoration:underline; color:#00989a; }
 .countspan { font-size:medium; padding-right:5px; }
 .mergemsgdiv { font-size:small; }
 
+
 /****************************************/
 /* Filter Panel */
-
 
 .rangectrldiv { display:inline-block; position:relative; 
   margin:5px 10px 5px 0px; }
@@ -51,7 +53,7 @@ A:hover {text-decoration:underline; color:#00989a; }
 .rangerightcurtdiv { right:2px; }
 .vnobdiv { position:absolute; top:0px; left:0px; }
 .hnobdiv { position:absolute; top:0px; left:0px; }
-.mouseareadiv { position:absolute; top:0px; left:0px; }
+.mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer; }
 
 #bowtiesdiv { text-align:center; }
 .bowtiediv { display:inline-block; font-size:medium;
@@ -59,10 +61,19 @@ A:hover {text-decoration:underline; color:#00989a; }
   border:2px solid #777; border-radius:10px;
 }
 .btlabeldiv { text-align:center; }
-.btleftb, .btmidb, .btrightb { color:white; background:#333; 
+.btleftb, .btmidb, .btrightb { color:white; background:#333; cursor:pointer;
   font-size:18px; font-weight:normal; padding:5px 8px; 
   box-shadow:1px 1px 1px #666; }
 .btleftb { border-radius:10px 0px 0px 10px; }
 .btrightb { border-radius:0px 10px 10px 0px; }
 
 #ratdiv { margin:5px 10px 5px 0px; }
+.gtoreqspan { font-size:large; font-weight:bold; }
+#ratstarscontainerdiv { display:inline-block; margin-right:10px; 
+  width:85px; height:15px; }
+#ratstarsanchordiv { position:relative; cursor:pointer; }
+#ratstarbgdiv { position:absolute; top:0px; left:0px; }
+#ratstarseldiv { position:absolute; top:0px; left:0px; overflow:hidden; }
+.pushtoggleb { padding:0px; border:1px solid #999; vertical-align:middle; 
+  width:22px; height:17px; background-color:black; cursor:pointer; }
+.toglabel { margin-left:2px; font-size:small; }

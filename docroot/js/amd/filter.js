@@ -8,7 +8,8 @@ app.filter = (function () {
                  al:{fld:"al", pn:"Approachability", 
                      low:"Social", high:"Challenging"},
                  el:{fld:"el", pn:"Energy Level",
-                     low:"Chill", high:"Amped"}};
+                     low:"Chill", high:"Amped"},
+                 rat:{w:85, h:15}};
     var ranger = {entire:{x:0, y:0, w:270, h:80},
                   panel:{outer:{x:25, y:0, w:244, h:56},
                          inner:{x:27, y:2, w:240, h:54},
@@ -201,7 +202,42 @@ app.filter = (function () {
 
 
     function createMinRatingControl(divid) {
-        jt.out(divid, "Min rating control goes here");
+        jt.out(divid, jt.tac2html(
+            [["span", {cla:"gtoreqspan"}, "&#x2265;&nbsp;"],
+             ["div", {id:"ratstarscontainerdiv"},
+              ["div", {id:"ratstarsanchordiv"},
+               [["div", {id:"ratstarbgdiv"},
+                 ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
+                ["div", {id:"ratstarseldiv"},
+                 ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]],
+             ["button", {type:"button", cla:"pushtoggleb", id:"inclunrb",
+                         onclick:jt.fs("app.filter.togpush('inclunrb')")},
+              ["img", {src:"img/pushtoggleb.png"}]],
+             ["label", {fo:"inclunrb", cla:"toglabel", id:"inclunrblab"},
+              "Include Unrated"]]));
+        ctrls.rat.stat = {pointingActive:false};
+        ctrls.rat.posf = function (x, ignore /*y*/) {
+            ctrls.rat.stat.minrat = Math.max(Math.round(x / 17), 1);
+            jt.byId("ratstarseldiv").style.width = x + "px"; };
+        attachMovementListeners("ratstarsanchordiv", ctrls.rat.stat, 
+                                ctrls.rat.posf);
+        ctrls.rat.posf(34); //2 stars
+        app.filter.togpush("inclunrb");  //include unrated by default
+    }
+
+
+    function togglePushbutton (bid) {
+        var label = jt.byId(bid + "lab");
+        if(ctrls[bid]) {
+            ctrls[bid] = false;
+            if(label) {
+                label.style.fontWeight = "normal"; }
+            jt.byId(bid).style.backgroundColor = "black"; }
+        else {
+            ctrls[bid] = true;
+            if(label) {
+                label.style.fontWeight = "bold"; }
+            jt.byId(bid).style.backgroundColor = ctrls.activecolor; }
     }
 
 
@@ -235,7 +271,8 @@ app.filter = (function () {
 return {
 
     init: function () { initControls(); },
-    bowtieclick: function (idx, tog) { setBowtiePosition(idx, tog); }
+    bowtieclick: function (idx, tog) { setBowtiePosition(idx, tog); },
+    togpush: function (bid) { togglePushbutton(bid); }
 
 };  //end of returned functions
 }());
