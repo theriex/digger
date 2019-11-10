@@ -9,7 +9,7 @@ app.filter = (function () {
                      low:"Social", high:"Challenging"},
                  el:{fld:"el", pn:"Energy Level",
                      low:"Chill", high:"Amped"},
-                 rat:{w:85, h:15}};
+                 rat:{w:85, h:15, includeUnrated:true}};
     var ranger = {entire:{x:0, y:0, w:270, h:80},
                   panel:{outer:{x:25, y:0, w:244, h:56},
                          inner:{x:27, y:2, w:240, h:54},
@@ -210,10 +210,9 @@ app.filter = (function () {
                  ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
                 ["div", {id:"ratstarseldiv"},
                  ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]],
-             ["button", {type:"button", cla:"pushtoggleb", id:"inclunrb",
-                         onclick:jt.fs("app.filter.togpush('inclunrb')")},
-              ["img", {src:"img/pushtoggleb.png"}]],
-             ["label", {fo:"inclunrb", cla:"toglabel", id:"inclunrblab"},
+             ["button", {type:"button", id:"inclunrb",
+                         style:"color:" + ctrls.activecolor,
+                         onclick:jt.fs("app.filter.togunrated()")},
               "Include Unrated"]]));
         ctrls.rat.stat = {pointingActive:false};
         ctrls.rat.posf = function (x, ignore /*y*/) {
@@ -222,22 +221,19 @@ app.filter = (function () {
         attachMovementListeners("ratstarsanchordiv", ctrls.rat.stat, 
                                 ctrls.rat.posf);
         ctrls.rat.posf(34); //2 stars
-        app.filter.togpush("inclunrb");  //include unrated by default
     }
 
 
-    function togglePushbutton (bid) {
-        var label = jt.byId(bid + "lab");
-        if(ctrls[bid]) {
-            ctrls[bid] = false;
-            if(label) {
-                label.style.fontWeight = "normal"; }
-            jt.byId(bid).style.backgroundColor = "black"; }
+    function toggleUnrated () {
+        var button = jt.byId("inclunrb");
+        if(ctrls.rat.includeUnrated) {
+            ctrls.rat.includeUnrated = false;
+            button.innerHTML = "Rated Songs Only";
+            button.style.color = "#ccc"; }
         else {
-            ctrls[bid] = true;
-            if(label) {
-                label.style.fontWeight = "bold"; }
-            jt.byId(bid).style.backgroundColor = ctrls.activecolor; }
+            ctrls.rat.includeUnrated = true;
+            button.innerHTML = "Include Unrated";
+            button.style.color = ctrls.activecolor; }
     }
 
 
@@ -272,7 +268,7 @@ return {
 
     init: function () { initControls(); },
     bowtieclick: function (idx, tog) { setBowtiePosition(idx, tog); },
-    togpush: function (bid) { togglePushbutton(bid); }
+    togunrated: function () { toggleUnrated(); }
 
 };  //end of returned functions
 }());

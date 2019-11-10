@@ -10,14 +10,91 @@ app.db = (function () {
                   loading: "Loading Data...",
                   reading: "Reading Files...",
                   merging: "Merging Data..."};
+    var deckstat = {filter:true, qstr:"", disp:"songs"};
     //var ws = [];  //The working set of available songs
     //when sorting the working set, prefer songs with segues to lower the
     //likelihood that the segued songs get overplayed relative to their
     //preceding tracks.
 
 
+    function makeToggle (spec) {
+        var div = jt.byId(spec.id);
+        div.style.display = "inline-block";
+        div.style.position = "relative";
+        spec.h = spec.h || 20;
+        spec.w = spec.w || 40;
+        div.style.height = spec.h + "px";
+        div.style.width = spec.w + "px";
+        div.style.verticalAlign = "middle";
+        div.style.cursor = "pointer";
+        var opas = {onimg:0.0, offimg:1.0};
+        if(spec.initialState) {
+            opas = {onimg:1.0, offimg:0.0}; }
+        var imgstyle = "position:absolute;top:0px;left:0px;" +
+            "width:" + spec.w + "px;" + "height:" + spec.h + "px;";
+        div.innerHTML = jt.tac2html(
+            [["img", {cla:"ico20", id:spec.id + "onimg", src:spec.onimg,
+                      style:imgstyle + "opacity:" + opas.onimg}],
+             ["img", {cla:"ico20", id:spec.id + "offimg", src:spec.offimg,
+                      style:imgstyle + "opacity:" + opas.offimg}]]);
+        jt.on(div, "click", function (event) {
+            var onimg = jt.byId(spec.id + "onimg");
+            var offimg = jt.byId(spec.id + "offimg");
+            if(onimg.style.opacity > 0) {  //on, so turn off
+                onimg.style.opacity = 0.0;
+                offimg.style.opacity = 1.0;
+                spec.togf(false); }
+            else {
+                onimg.style.opacity = 1.0;
+                offimg.style.opacity = 0.0;
+                spec.togf(true); } });
+    }
+
+
+    function initDeckElements () {
+        jt.out("pandeckdiv", jt.tac2html(
+            [["div", {id:"deckheaderdiv"},
+              [["div", {cla:"togbdiv", id:"togfiltb"}],
+               ["input", {type:"text", id:"srchin", size:23,
+                          placeholder:"artist/album/song...",
+                          value:deckstat.qstr,
+                          oninput:jt.fs("app.db.deckupd()")}],
+               ["a", {href:"#search", title:"Search Songs",
+                      onclick:jt.fs("app.db.deckupd()")},
+                ["img", {src:"img/search.png", cla:"ico20"}]],
+               ["div", {cla:"togbdiv", id:"toginfob"}]]],
+             ["div", {id:"deckinfodiv", style:"display:none;"}],
+             ["div", {id:"decksongsdiv"}]]));
+        makeToggle({id:"togfiltb", initialState:deckstat.filter, 
+                    w:46, h:20,
+                    togf:function (state) { 
+                        if(state) {
+                            jt.byId("panfiltdiv").style.opacity = 1.0; }
+                        else {
+                            jt.byId("panfiltdiv").style.opacity = 0.3; }
+                        deckstat.filter = state; },
+                    onimg:"img/filteron.png", onlabel:"",
+                    offimg:"img/filteroff.png", offlabel:""});
+        makeToggle({id:"toginfob", w:20, h:20,
+                    togf:function (state) {
+                        if(state) {
+                            jt.byId("deckinfodiv").style.display = "block";
+                            jt.byId("decksongsdiv").style.display = "none";
+                            deckstat.disp = "info"; }
+                        else {
+                            jt.byId("deckinfodiv").style.display = "none";
+                            jt.byId("decksongsdiv").style.display = "block";
+                            deckstat.disp = "songs"; } },
+                    onimg:"img/infoact.png", onlabel:"",
+                    offimg:"img/info.png", offlabel:""});
+    }
+
+
     function updateDeck () {
-        jt.out("pandeckdiv", "Deck panel not implemented yet");
+        if(!jt.byId("deckheaderdiv")) {
+            initDeckElements(); }
+        jt.out("deckinfodiv", "Search info not implemented yet");
+        jt.out("decksongsdiv", "Search results not implemented yet");
     }
 
 
@@ -214,7 +291,8 @@ return {
     reread: function (confirmed) { reReadSongFiles(confirmed); },
     merge: function () { mergeData(); },
     mergeClick: function () { mergeClick(); },
-    data: function () { return dbo; }
+    data: function () { return dbo; },
+    deckupd: function () { updateDeck(); }
 
 };  //end of returned functions
 }());

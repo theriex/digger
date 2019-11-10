@@ -74,6 +74,9 @@ img { border:0px; vertical-align:middle; }
 #ratstarsanchordiv { position:relative; cursor:pointer; }
 #ratstarbgdiv { position:absolute; top:0px; left:0px; }
 #ratstarseldiv { position:absolute; top:0px; left:0px; overflow:hidden; }
-.pushtoggleb { padding:0px; border:1px solid #999; vertical-align:middle; 
-  width:22px; height:17px; background-color:black; cursor:pointer; }
-.toglabel { margin-left:2px; font-size:small; }
+#inclunrb { background:#333; box-shadow:1px 1px 1px #666; cursor:pointer; 
+  font-size:12px; }
+
+.ico20 { height:20px; max-height:20px; }
+#togfiltb { margin-right:5px; }
+#toginfob { margin-left:12px; }
