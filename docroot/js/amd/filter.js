@@ -4,7 +4,7 @@
 app.filter = (function () {
     "use strict";
 
-    var ctrls = {activecolor:"#ffab00",
+    var ctrls = {activecolor:"#ffab00", movestats:[],
                  al:{fld:"al", pn:"Approachability", 
                      low:"Social", high:"Challenging"},
                  el:{fld:"el", pn:"Energy Level",
@@ -98,6 +98,7 @@ app.filter = (function () {
         rcr.rgfoc.min = Math.round((ladj / rangemax) * 100);
         rcr.rgfoc.max = 99 - Math.round((radj / rangemax) * 100);
         //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
+        app.db.deckupd();
     }
 
 
@@ -105,6 +106,7 @@ app.filter = (function () {
         var rcr = ctrls[cid];
         //vertical
         rcr.vstat = {pointingActive:false};
+        ctrls.movestats.push(rcr.vstat);
         rcr.vpos = function (ignore /*x*/, y) {
             rcr.cy = y;  //base vertical offset is zero
             jt.byId(cid + "vnd").style.top = rcr.cy + "px";
@@ -113,12 +115,23 @@ app.filter = (function () {
         rcr.vpos(0, Math.floor(ranger.vnob.maxy / 2));
         //horizontal
         rcr.hstat = {pointingActive:false};
+        ctrls.movestats.push(rcr.hstat);
         rcr.hpos = function (x, ignore /*y*/) {
             rcr.cx = x + ranger.hnob.x;
             jt.byId(cid + "hnd").style.left = rcr.cx + "px";
             updateRangeControlFocus(cid, rcr); };
         attachMovementListeners(cid + "hmad", rcr.hstat, rcr.hpos);
         rcr.hpos(Math.floor((ranger.hnob.maxx - ranger.hnob.x) / 2), 0);
+    }
+
+
+    function addSongMatchFunc (cid) {
+        //Every song should have a numeric value set.
+        ctrls[cid].match = function (song) {
+            if(song[cid] >= ctrls[cid].rgfoc.min && 
+               song[cid] <= ctrls[cid].rgfoc.max) {
+                return true; }
+            return false; };
     }
 
 
@@ -142,6 +155,7 @@ app.filter = (function () {
                       style:dimstyle(ranger.hnob, "maxx")}]]));
         ctrls[cid].rgfoc = {min:0, max:99};
         attachRangeCtrlMovement(cid);
+        addSongMatchFunc(cid);
     }
 
 
@@ -198,6 +212,20 @@ app.filter = (function () {
             colorWeight(bt.bneg, bowtie.inactivecolor, "normal");
             colorWeight(bt.bpos, bowtie.activecolor, "bold");
             break; }
+        app.db.deckupd();
+    }
+
+
+    function addBTSongMatchFunc (idx) {
+        var bt = ctrls.bts[idx];
+        bt.match = function (song) {
+            if(bt.tog === "neg" && 
+               song.kws && (song.kws.indexOf(bt.pn) >= 0)) {
+                return false; }
+            if(bt.tog === "pos" && 
+               (!song.kws || (song.kws.indexOf(bt.pn) < 0))) {
+                return false; }
+            return true; };
     }
 
 
@@ -215,11 +243,19 @@ app.filter = (function () {
                          onclick:jt.fs("app.filter.togunrated()")},
               "Include Unrated"]]));
         ctrls.rat.stat = {pointingActive:false};
+        ctrls.movestats.push(ctrls.rat.stat);
         ctrls.rat.posf = function (x, ignore /*y*/) {
-            ctrls.rat.stat.minrat = Math.max(Math.round(x / 17), 1);
-            jt.byId("ratstarseldiv").style.width = x + "px"; };
+            ctrls.rat.stat.minrat = Math.max(Math.round((x / 17) * 2), 1);
+            jt.byId("ratstarseldiv").style.width = x + "px";
+            app.db.deckupd(); };
         attachMovementListeners("ratstarsanchordiv", ctrls.rat.stat, 
                                 ctrls.rat.posf);
+        ctrls.rat.pn = "Minimum Rating";
+        ctrls.rat.match = function (song) {
+            if(!song.rv) {
+                return ctrls.rat.includeUnrated; }
+            else {  //song is rated.  Matches if over minrat
+                return song.rv >= ctrls.rat.stat.minrat; } };
         ctrls.rat.posf(34); //2 stars
     }
 
@@ -234,6 +270,7 @@ app.filter = (function () {
             ctrls.rat.includeUnrated = true;
             button.innerHTML = "Include Unrated";
             button.style.color = ctrls.activecolor; }
+        app.db.deckupd();
     }
 
 
@@ -254,13 +291,27 @@ app.filter = (function () {
         //changing which keywords will be in use is done from the db panel.
         dbo.keywords.forEach(function (kwd, idx) {
             ctrls.bts.push({pn:kwd, tog:"off"});
+            addBTSongMatchFunc(idx);
             btdivs.push(["div", {cla:"bowtiediv", id:"btdiv" + idx}]); });
         jt.out("bowtiesdiv", jt.tac2html(btdivs));
         ctrls.bts.forEach(function (bt, idx) {
             createBowTieControl(bt, idx); });
         createMinRatingControl("ratdiv");
         jt.on("panfiltdiv", "mousedown", function (event) {
+            jt.evtend(event); });  //ignore to avoid selecting ctrls
+        jt.on("panfiltdiv", "mouseup", function (event) {
+            ctrls.movestats.forEach(function (movestat) {
+                movestat.pointingActive = false; });
             jt.evtend(event); });
+        ctrls.filtersReady = true;
+    }
+
+
+    function arrayOfAllFilters () {
+        var filts = [ctrls.al, ctrls.el];
+        filts = filts.concat(ctrls.bts);
+        filts.push(ctrls.rat);
+        return filts;
     }
 
 
@@ -268,7 +319,9 @@ return {
 
     init: function () { initControls(); },
     bowtieclick: function (idx, tog) { setBowtiePosition(idx, tog); },
-    togunrated: function () { toggleUnrated(); }
+    togunrated: function () { toggleUnrated(); },
+    filtersReady: function () { return ctrls.filtersReady; },
+    filters: function () { return arrayOfAllFilters(); }
 
 };  //end of returned functions
 }());

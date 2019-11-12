@@ -77,6 +77,9 @@ img { border:0px; vertical-align:middle; }
 #inclunrb { background:#333; box-shadow:1px 1px 1px #666; cursor:pointer; 
   font-size:12px; }
 
+#deckheaderdiv { padding-bottom:5px; }
 .ico20 { height:20px; max-height:20px; }
 #togfiltb { margin-right:5px; }
 #toginfob { margin-left:12px; }
+.dinfrecdiv { font-size:medium; }
+.dinfrecnspan { font-size:small; }
