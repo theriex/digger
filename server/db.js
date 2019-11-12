@@ -124,7 +124,7 @@ module.exports = (function () {
 
     function walkFiles (ws) {
         if(!ws.files.length) {
-            dbo.scanned = new Date().toISOString();
+            dbo.scanned = new Date().toISOString();  //note completion time.
             var jsondbo = JSON.stringify(dbo);
             fs.writeFileSync(dbPath, jsondbo, "utf8");
             ws.response.writeHead(200, {"Content-Type": "application/json"});
@@ -164,6 +164,7 @@ module.exports = (function () {
             res.end();
             return console.log(msg); }
         state = "reading";
+        dbo.scanstart = new Date().toISOString();
         dbo.songcount = 0;
         //mark everything deleted, then undo as the songs are found.
         Object.keys(dbo.songs).forEach(function (key) {

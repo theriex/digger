@@ -273,12 +273,25 @@ app.db = (function () {
     }
 
 
+    function timeEstimateReadText () {
+        var et = "";
+        if(dbo.scanstart && dbo.scanned) {
+            var start = jt.isoString2Time(dbo.scanstart);
+            var end = jt.isoString2Time(dbo.scanned);
+            var elapsed = end.getTime() - start.getTime();
+            elapsed = Math.round(elapsed / (1000 * 60));
+            et = "(last scan took around " + elapsed + " minutes)"; }
+        return et;
+    }
+
+
     function reReadSongFiles (confirmed) {
         if(confirmed) {
             return readSongFiles(); }
         jt.out("dbdlgdiv", jt.tac2html(
-            [["div", {cla:"statdiv"}, "Confirm: Re-read all music files in"],
+            [["div", {cla:"cldiv"}, "Confirm: Re-read all music files in"],
              ["div", {cla:"statdiv", id:"musicfolderdiv"}],
+             ["div", {cla:"cldiv"}, timeEstimateReadText()],
              ["div", {cla:"dlgbuttonsdiv"},
               ["button", {type:"button",
                           onclick:jt.fs("app.db.reread('confirmed')")},
