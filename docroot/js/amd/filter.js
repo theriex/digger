@@ -9,7 +9,10 @@ app.filter = (function () {
                      low:"Social", high:"Challenging"},
                  el:{fld:"el", pn:"Energy Level",
                      low:"Chill", high:"Amped"},
-                 rat:{w:85, h:15, includeUnrated:true}};
+                 rat:{w:85, h:15, 
+                      unrated:{labels:["Include Unrated",
+                                       "Rated Songs Only",
+                                       "Unrated Only"], idx:0}}};
     var ranger = {entire:{x:0, y:0, w:270, h:80},
                   panel:{outer:{x:25, y:0, w:244, h:56},
                          inner:{x:27, y:2, w:240, h:54},
@@ -241,7 +244,7 @@ app.filter = (function () {
              ["button", {type:"button", id:"inclunrb",
                          style:"color:" + ctrls.activecolor,
                          onclick:jt.fs("app.filter.togunrated()")},
-              "Include Unrated"]]));
+              ctrls.rat.unrated.labels[0]]]));
         ctrls.rat.stat = {pointingActive:false};
         ctrls.movestats.push(ctrls.rat.stat);
         ctrls.rat.posf = function (x, ignore /*y*/) {
@@ -252,24 +255,31 @@ app.filter = (function () {
                                 ctrls.rat.posf);
         ctrls.rat.pn = "Minimum Rating";
         ctrls.rat.match = function (song) {
-            if(!song.rv) {
-                return ctrls.rat.includeUnrated; }
-            else {  //song is rated.  Matches if over minrat
+            if(!song.rv) {  //song is unrated, match unless rating required
+                return ctrls.rat.unrated.idx !== 1; }
+            if(ctrls.rat.unrated.idx !== 2) { //rated and not unrated only
                 return song.rv >= ctrls.rat.stat.minrat; } };
         ctrls.rat.posf(34); //2 stars
     }
 
 
     function toggleUnrated () {
+        ctrls.rat.unrated.idx = (ctrls.rat.unrated.idx + 1) % 3;
         var button = jt.byId("inclunrb");
-        if(ctrls.rat.includeUnrated) {
-            ctrls.rat.includeUnrated = false;
-            button.innerHTML = "Rated Songs Only";
-            button.style.color = "#ccc"; }
-        else {
-            ctrls.rat.includeUnrated = true;
-            button.innerHTML = "Include Unrated";
-            button.style.color = ctrls.activecolor; }
+        button.innerHTML = ctrls.rat.unrated.labels[ctrls.rat.unrated.idx];
+        switch(ctrls.rat.unrated.idx) {
+        case 0:  //Include Unrated
+            button.style.color = ctrls.activecolor;
+            jt.byId("ratstarscontainerdiv").style.opacity = 1.0;
+            break;
+        case 1:
+            button.style.color = "#ccc";
+            jt.byId("ratstarscontainerdiv").style.opacity = 1.0;
+            break;
+        case 2:
+            button.style.color = ctrls.activecolor;
+            jt.byId("ratstarscontainerdiv").style.opacity = 0.3;
+            break; }
         app.db.deckupd();
     }
 
