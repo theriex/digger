@@ -110,7 +110,7 @@ module.exports = (function () {
                 rec.fq = rec.fq.slice(1); } }
         else {  //make new entry
             //console.log(dbo.songcount + " creating " + rpath);
-            rec = {fq:"N", rv:3, al:49, el:49, kws:""};
+            rec = {fq:"N", rv:0, al:49, el:49, kws:""};
             dbo.songs[rpath] = rec; }
         if(!tagdata) {  //tags could not be read, mark as unreadable
             if(!rec.fq.startsWith("U")) {
@@ -237,8 +237,8 @@ module.exports = (function () {
                 if(dbd.fq.length > 1) {  //get rid of any "U" or "D" prefix
                     dbd.fq = dbd.fq.slice(1); }
                 dbd.fq = prefix + dbd.fq; }
-            //rv: use dat rating if db unspecified or default and dat id not.
-            if((!dbd.rv || dbd.rv === 3) && (dat.rv && dat.rv !== 3)) {
+            //rv: use dat rating if db unspecified and dat has a value
+            if(!dbd.rv && dat.rv) {
                 dbd.rv = dat.rv; }
             //al: If there is a non-default value, then use it
             if((!dbd.al || dbd.al === 49) && (dat.al && dat.al !== 49)) {

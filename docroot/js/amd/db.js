@@ -187,6 +187,12 @@ app.db = (function () {
         if(info.state === "failed") {
             dbstat.currstat = "ready";
             jt.out("mergemsgdiv", info.errmsg); }
+        else if(info.state === "ready") {  //ack merge msg and reload data
+            jt.out("dbdlgdiv", jt.tac2html(
+                ["div", {cla:"cldiv"},
+                 [String(info.merged) + " ratings merged. ",
+                  ["button", {type:"button",
+                              onclick:jt.fs("app.db.init()")}, "Ok"]]])); }
     }
 
 
@@ -355,9 +361,7 @@ app.db = (function () {
 
 return {
 
-    init: function () {
-        fetchData();
-    },
+    init: function () { fetchData(); },
     dbactions: function () { dbactions(); },
     errstat: function (src, code, errtxt) {
         var msg = src + " " + code + ": " + errtxt;
