@@ -84,3 +84,5 @@ img { border:0px; vertical-align:middle; }
 #toginfob { margin-left:12px; }
 .dinfrecdiv { font-size:medium; }
 .dinfrecnspan { font-size:small; }
+#decksongsdiv, #deckinfodiv { height:160px; min-height:160px; max-height:160px; 
+  overflow:scroll; }

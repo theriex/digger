@@ -11,7 +11,7 @@ app.db = (function () {
                   reading: "Reading Files...",
                   merging: "Merging Data..."};
     var deckstat = {filter:true, qstr:"", disp:"songs", toggles:{},
-                    ws:[], fcs:[]};
+                    maxsel:200, ws:[], fcs:[]};
 
 
     function makeToggle (spec) {
@@ -108,9 +108,9 @@ app.db = (function () {
         deckstat.fcs = [];
         Object.keys(dbo.songs).forEach(function (path) {
             var song = dbo.songs[path];
-            if(!song.fq.startsWith("D") && !song.fq.startsWith("U")) {
-                //song file exists, and metadata read did not fail, but
-                //Artist/Album/Title info may be incomplete.
+            if(!song.fq.startsWith("D") && !song.fq.startsWith("U") &&
+               song.fq !== "R") {
+                //song file eligible. Artist/Album/Title may be incomplete.
                 song.path = path;
                 deckstat.ws.push(song); } });
         updateDeckInfoDisplay("Readable files");
@@ -140,24 +140,95 @@ app.db = (function () {
     }
 
 
+    function sortByLastPlayedAndFrequency () {
+        var fqps = ["N", "P", "B", "Z", "O"];
+        deckstat.ws.sort(function (a, b) {
+            //sort by last played, oldest first
+            if(a.lp < b.lp) { return -1; }
+            if(a.lp > b.lp) { return 1; }
+            var afqi = fqps.indexOf(a.fq); if(afqi < 0) { afqi = fqps.length; }
+            var bfqi = fqps.indexOf(b.fq); if(bfqi < 0) { bfqi = fqps.length; }
+            return afqi - bfqi; });
+    }
+
+
+    function getOffsetTS (iso, ms) {
+        if(!iso) { return ""; }
+        var date = jt.isoString2Time(iso);
+        date = new Date(date.getTime() + ms);
+        return date.toISOString();
+    }
+
+
+    function truncateAndShuffle () {
+        if(deckstat.ws.length <= 2) { return; }
+        //select all unplayed, or played within a day of first item
+        var idx = 1;
+        var slp = deckstat.ws[0].lp;
+        var maxday = getOffsetTS(slp, 24 * 60 * 60 * 1000);
+        while((deckstat.ws[idx].lp === slp ||  //same, or both unplayed
+               (slp && deckstat.ws[idx].lp <= maxday)) && 
+              idx < deckstat.maxsel) {
+            idx += 1; }
+        deckstat.ws = deckstat.ws.slice(0, idx);
+        //shuffle
+        idx = deckstat.ws.length; var randidx; var tmp;
+        while(idx !== 0) {  //leave first element alone
+            randidx = Math.floor(Math.random() * idx);
+            idx -= 1;
+            tmp = deckstat.ws[idx];
+            deckstat.ws[idx] = deckstat.ws[randidx];
+            deckstat.ws[randidx] = tmp; }
+    }
+
+
+    function displaySongs () {
+        if(!deckstat.ws.length) {
+            jt.out("decksongsdiv", "No matching songs found.");
+            return; }
+        var songsdiv = jt.byId("decksongsdiv");
+        songsdiv.innerHTML = "";
+        var sep = " - ";
+        deckstat.ws.forEach(function (song) {
+            if(!(song.ar && song.ab && song.ti)) {  //shouldn't happen often
+                var pes = song.path.split("/");
+                song.ti = pes[pes.length - 1];
+                if(pes.length >= 3) {
+                    song.ar = pes[pes.length - 3];
+                    song.ab = pes[pes.length - 2]; }
+                else if(pes.length >= 2) {
+                    song.ar = pes[pes.length - 2]; } }
+            var elem = document.createElement("div");
+            elem.className = "songdiv";
+            elem.innerHTML = jt.tac2html(
+                [["span", {cla:"dstispan"}, song.ti],
+                 sep,
+                 ["span", {cla:"dsarspan"}, song.ar || "???"],
+                 sep,
+                 ["span", {cla:"dsabspan"}, song.ab || ""]]);
+            songsdiv.appendChild(elem); });
+    }
+
+
     function updateDeck () {
         if(!app.filter.filtersReady()) {
             return; }  //ignore spurious calls before filter is done setting up
         if(!jt.byId("deckheaderdiv")) {
             initDeckElements(); }
+        if(deckstat.toggles.infotimeout) {
+            clearTimeout(deckstat.toggles.infotimeout);
+            deckstat.toggles.infotimeout = null; }
         deckstat.toggles.toginfob(true);  //show status while working
         rebuildWorkingSet();  //initializes deckstat.ws/fcs
         filterBySearchText();
         filterByFilters();
-        // sortAndTruncateWorkingSet();
-        // shuffleByLastPlayed();
-
-        // if(deckstat.ws.length) {
-        //     if(deckstat.disp !== "songs") {
-            
-        //walk the dbo appending songs to ws, and filter/count objs to fcs
-        //deckstat.toggles.toginfob(false);
-        jt.out("decksongsdiv", "Search results not implemented yet");
+        sortByLastPlayedAndFrequency();
+        truncateAndShuffle();
+        if(deckstat.ws.length) {  //show songs if any found
+            deckstat.toggles.infotimeout = setTimeout(function () {
+                deckstat.toggles.toginfob(false);
+                deckstat.toggles.infotimeout = null; }, 800); }
+        displaySongs();
     }
 
 
