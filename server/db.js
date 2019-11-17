@@ -340,12 +340,52 @@ module.exports = (function () {
     }
 
 
+    function updateSong (req, res) {
+        var updat = new formidable.IncomingForm();
+        updat.parse(req, function (err, fields) {
+            if(err) {
+                console.log("updateSong form error: " + err); }
+            //PENDING: error/val checking if opening up the app scope..
+            //PENDING: handle segues after there is UI for it
+            var song = dbo.songs[fields.path];
+            song.fq = fields.fq;
+            song.lp = fields.lp;
+            song.rv = fields.rv;
+            song.al = fields.al;
+            song.el = fields.el;
+            song.kws = fields.kws || "";
+            song.nt = fields.nt || "";
+            song.ar = fields.ar || "";
+            song.ab = fields.ab || "";
+            song.ti = fields.ti || "";
+            fs.writeFileSync(dbPath, JSON.stringify(dbo), "utf8");
+            song.path = fields.path;
+            console.log("Updated " + song.path);
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(JSON.stringify(song)); });
+    }
+
+
+    function copyAudioToTemp (relpath) {
+        var tmpdir = "./docroot/tmpaudio";
+        if(!fs.existsSync(tmpdir)) {
+            fs.mkdirSync(tmpdir); }
+        var tmpfn = "temp";
+        if(relpath.lastIndexOf(".") > 0) {  //keep extension for content type
+            tmpfn += relpath.slice(relpath.lastIndexOf(".")); }
+        fs.copyFileSync(musicPath + relpath, tmpdir + "/" + tmpfn);
+        return "/tmpaudio/" + tmpfn;
+    }
+
+
     return {
         init: function () { initialize(); },
         dbo: function (req, res) { return serveDatabase(req, res); },
         dbread: function (req, res) { return readFiles(req, res); },
         songscount: function (req, res) { return songCount(req, res); },
         mergefile: function (req, res) { return mergeFile(req, res); },
-        mergestat: function (req, res) { return mergeStatus(req, res); }
+        mergestat: function (req, res) { return mergeStatus(req, res); },
+        songupd: function (req, res) { return updateSong(req, res); },
+        copyaudio: function (relpath) { return copyAudioToTemp(relpath); }
     };
 }());

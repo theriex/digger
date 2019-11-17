@@ -182,30 +182,36 @@ app.db = (function () {
     }
 
 
+    function songTitleTAC (song) {
+        //fill artist/album/title from path if needed
+        if(!(song.ar && song.ab && song.ti)) {  //shouldn't happen often
+            var pes = song.path.split("/");
+            song.ti = pes[pes.length - 1];
+            if(pes.length >= 3) {
+                song.ar = pes[pes.length - 3];
+                song.ab = pes[pes.length - 2]; }
+            else if(pes.length >= 2) {
+                song.ar = pes[pes.length - 2]; } }
+        var sep = " - ";
+        return ["div", {cla:"songtitlediv"},
+                [["span", {cla:"dstispan"}, song.ti],
+                 sep,
+                 ["span", {cla:"dsarspan"}, song.ar || "???"],
+                 sep,
+                 ["span", {cla:"dsabspan"}, song.ab || ""]]];
+    }
+
+
     function displaySongs () {
         if(!deckstat.ws.length) {
             jt.out("decksongsdiv", "No matching songs found.");
             return; }
         var songsdiv = jt.byId("decksongsdiv");
         songsdiv.innerHTML = "";
-        var sep = " - ";
         deckstat.ws.forEach(function (song) {
-            if(!(song.ar && song.ab && song.ti)) {  //shouldn't happen often
-                var pes = song.path.split("/");
-                song.ti = pes[pes.length - 1];
-                if(pes.length >= 3) {
-                    song.ar = pes[pes.length - 3];
-                    song.ab = pes[pes.length - 2]; }
-                else if(pes.length >= 2) {
-                    song.ar = pes[pes.length - 2]; } }
             var elem = document.createElement("div");
-            elem.className = "songdiv";
-            elem.innerHTML = jt.tac2html(
-                [["span", {cla:"dstispan"}, song.ti],
-                 sep,
-                 ["span", {cla:"dsarspan"}, song.ar || "???"],
-                 sep,
-                 ["span", {cla:"dsabspan"}, song.ab || ""]]);
+            elem.className = "decksongdiv";
+            elem.innerHTML = jt.tac2html(songTitleTAC(song));
             songsdiv.appendChild(elem); });
     }
 
@@ -225,10 +231,28 @@ app.db = (function () {
         sortByLastPlayedAndFrequency();
         truncateAndShuffle();
         if(deckstat.ws.length) {  //show songs if any found
+            app.player.deckUpdated();
             deckstat.toggles.infotimeout = setTimeout(function () {
                 deckstat.toggles.toginfob(false);
                 deckstat.toggles.infotimeout = null; }, 800); }
         displaySongs();
+    }
+
+
+    function popSongFromDeck () {
+        if(!deckstat.ws || !deckstat.ws.length) { return null; }
+        var song = deckstat.ws[0];
+        deckstat.ws = deckstat.ws.slice(1);
+        //immediately mark as played so the song is not re-retrieved
+        song.lp = new Date().toISOString();
+        jt.call("POST", "/songupd", jt.objdata(song),
+                function (updsong) {
+                    jt.log("updated last played " + updsong.path);
+                    updateDeck(); },
+                function (code, errtxt) {
+                    jt.out("popSongFromDeck upderr " + code + ": " + errtxt); },
+                jt.semaphore("db.popSongFromDeck"));
+        return song;
     }
 
 
@@ -443,7 +467,9 @@ return {
     merge: function () { mergeData(); },
     mergeClick: function () { mergeClick(); },
     data: function () { return dbo; },
-    deckupd: function () { updateDeck(); }
+    deckupd: function () { updateDeck(); },
+    popdeck: function () { return popSongFromDeck(); },
+    songTitleTAC: function (song) { return songTitleTAC(song); }
 
 };  //end of returned functions
 }());

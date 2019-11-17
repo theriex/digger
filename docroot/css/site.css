@@ -86,3 +86,5 @@ img { border:0px; vertical-align:middle; }
 .dinfrecnspan { font-size:small; }
 #decksongsdiv, #deckinfodiv { height:160px; min-height:160px; max-height:160px; 
   overflow:scroll; }
+
+.songtitlediv { font-size:medium; }
