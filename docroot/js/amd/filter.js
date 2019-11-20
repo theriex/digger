@@ -5,10 +5,10 @@ app.filter = (function () {
     "use strict";
 
     var ctrls = {activecolor:"#ffab00", movestats:[],
-                 al:{fld:"al", pn:"Approachability", 
-                     low:"Social", high:"Challenging"},
                  el:{fld:"el", pn:"Energy Level",
                      low:"Chill", high:"Amped"},
+                 al:{fld:"al", pn:"Approachability", 
+                     low:"Social", high:"Challenging"},
                  rat:{w:85, h:15, 
                       unrated:{labels:["Include Unrated",
                                        "Rated Songs Only",
@@ -290,12 +290,12 @@ app.filter = (function () {
             return; }  //nothing to init with
         jt.out("panfiltdiv", jt.tac2html(
             [["div", {id:"rangesdiv"},
-              [["div", {cla:"rangectrldiv", id:"aldiv"}],
-               ["div", {cla:"rangectrldiv", id:"eldiv"}]]],
+              [["div", {cla:"rangectrldiv", id:"eldiv"}],
+               ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
              ["div", {id:"bowtiesdiv"}],
              ["div", {id:"ratdiv"}]]));
-        createRangeControl("al");
         createRangeControl("el");
+        createRangeControl("al");
         ctrls.bts = [];
         var btdivs = [];
         //changing which keywords will be in use is done from the db panel.
@@ -318,7 +318,7 @@ app.filter = (function () {
 
 
     function arrayOfAllFilters () {
-        var filts = [ctrls.al, ctrls.el];
+        var filts = [ctrls.el, ctrls.al];
         filts = filts.concat(ctrls.bts);
         filts.push(ctrls.rat);
         return filts;
@@ -331,7 +331,9 @@ return {
     bowtieclick: function (idx, tog) { setBowtiePosition(idx, tog); },
     togunrated: function () { toggleUnrated(); },
     filtersReady: function () { return ctrls.filtersReady; },
-    filters: function () { return arrayOfAllFilters(); }
+    filters: function () { return arrayOfAllFilters(); },
+    gradient: function () { return ranger.panel.gradient; },
+    movelisten: function (d, s, p) { attachMovementListeners(d, s, p); }
 
 };  //end of returned functions
 }());

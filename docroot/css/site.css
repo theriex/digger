@@ -39,6 +39,23 @@ img { border:0px; vertical-align:middle; }
 
 
 /****************************************/
+/* Player Panel */
+
+.pandiv { display:inline-block; position:relative; margin-right:7px; }
+.pancontdiv { width:140px; height:40px; cursor:pointer;
+  border: 2px solid #777; border-radius:10px; }
+.panbgdiv, .panfacediv { position:absolute; left:50px; top:2px;
+  border-radius:22px; }
+.panleftlabdiv, .panrightlabdiv { 
+  position:absolute; bottom:3px; font-size:small; }
+.panleftlabdiv { left:5px;  }
+.panrightlabdiv { right:5px; }
+.panbackimg { max-height:44px; }
+.panfaceimg { max-height:40px; }
+.pandragdiv { position:absolute; left:0px; top:0px; }
+
+
+/****************************************/
 /* Filter Panel */
 
 .rangectrldiv { display:inline-block; position:relative; 
@@ -77,6 +94,9 @@ img { border:0px; vertical-align:middle; }
 #ratstarseldiv { position:absolute; top:0px; left:0px; overflow:hidden; }
 #inclunrb { background:#333; box-shadow:1px 1px 1px #666; cursor:pointer; 
   font-size:12px; }
+
+/****************************************/
+/* Deck Panel */
 
 #deckheaderdiv { padding-bottom:5px; }
 .ico20 { height:20px; max-height:20px; }
