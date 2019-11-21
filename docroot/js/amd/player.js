@@ -9,10 +9,27 @@ app.player = (function () {
 
 
     function hexToRGB(hexcolor) {
-        var hcs = hexcolor.match(/\S\S/g)
+        var hcs = hexcolor.match(/\S\S/g);
         return {r:parseInt(hcs[0], 16),
                 g:parseInt(hcs[1], 16),
                 b:parseInt(hcs[2], 16)};
+    }
+
+
+    function noteSongModified () {
+        stat.songModified = true;
+        if(stat.modtimer) {
+            clearTimeout(stat.modtimer); }
+        stat.modtimer = setTimeout(function () {
+            if(!stat.songModified) { return; }
+            jt.call("POST", "/songupd", jt.objdata(stat.song),
+                    function (updsong) {
+                        stat.song = updsong;
+                        stat.songModified = false;
+                        jt.log("song data updated " + updsong.path); },
+                    function (code, errtxt) {
+                        jt.out("song update err " + code + ": " + errtxt); },
+                    jt.semaphore("player.noteSongModified")); }, 5000);
     }
 
 
@@ -21,6 +38,9 @@ app.player = (function () {
             val = 49; }
         if(typeof val === "string") {
             val = parseInt(val, 10); }
+        if(stat.song) {
+            stat.song[id] = val; }
+        noteSongModified();
         //set knob face color from gradient
         var g = app.filter.gradient();
         g = {f:hexToRGB(g.left), t:hexToRGB(g.right)};  //from (left) to (right)
@@ -28,7 +48,7 @@ app.player = (function () {
         var res = {r:0, g:0, b:0};
         Object.keys(res).forEach(function (key) {
             res[key] = Math.round(g.f[key] + (g.t[key] - g.f[key]) * pct); });
-        var pfd = jt.byId(id + "panfacediv")
+        var pfd = jt.byId(id + "panfacediv");
         pfd.style.backgroundColor = "rgb(" + 
             res.r + ", " + res.g + ", " + res.b + ")";
         //rotate knob to value
@@ -75,13 +95,7 @@ app.player = (function () {
     }
 
 
-    function initializeDisplay () {
-        jt.out("panplaydiv", jt.tac2html(
-            [["div", {id:"mediadiv"}, "No songs on deck yet"],
-             ["div", {id:"panpotsdiv"},
-              [["div", {cla:"pandiv", id:"elpandiv"}],
-               ["div", {cla:"pandiv", id:"alpandiv"}]]],
-             ["div", {id:"kwdsdiv"}, "Keyword Toggles go here"]]));
+    function makePanControls () {
         var filters = app.filter.filters();
         createPanControl("el", filters[0]);
         createPanControl("al", filters[1]);
@@ -89,10 +103,53 @@ app.player = (function () {
         updatePanControl("al");
         jt.on("panplaydiv", "mousedown", function (event) {
             jt.evtend(event); });  //ignore to avoid selecting ctrls
-        jt.on("panfiltdiv", "mouseup", function (event) {
+        jt.on("panplaydiv", "mouseup", function (event) {
             ctrls.el.pointingActive = false;
             ctrls.al.pointingActive = false;
             jt.evtend(event); });
+    }
+
+
+    function verifyKeywordToggles () {
+        var html = [];
+        //changing which keywords will be in use is done from the db panel.
+        var dbo = app.db.data();
+        if(!dbo) { return; }
+        dbo.keywords.forEach(function (kwd, idx) {
+            var tc = "kwdtogoff";
+            if(stat.song.kws && stat.song.kws.csvcontains(kwd)) {
+                tc = "kwdtogon"; }
+            html.push(
+                ["button", {type:"button", cla:tc, id:"kwdtog" + idx,
+                            onclick:jt.fs("app.player.togkwd(" + idx + ")")},
+                 kwd]); });
+        jt.out("kwdsdiv", jt.tac2html(html));
+    }
+
+
+    function toggleKeyword (idx) {
+        var dbo = app.db.data();
+        stat.song.kws = stat.song.kws || "";
+        var button = jt.byId("kwdtog" + idx);
+        if(button.className === "kwdtogoff") {
+            button.className = "kwdtogon";
+            stat.song.kws = stat.song.kws.csvappend(dbo.keywords[idx]); }
+        else {
+            button.className = "kwdtogoff";
+            stat.song.kws = stat.song.kws.csvremove(dbo.keywords[idx]); }
+        noteSongModified();
+    }
+
+
+    function initializeDisplay () {
+        jt.out("panplaydiv", jt.tac2html(
+            [["div", {id:"mediadiv"}, "No songs on deck yet"],
+             ["div", {id:"panpotsdiv"},
+              [["div", {cla:"pandiv", id:"elpandiv"}],
+               ["div", {cla:"pandiv", id:"alpandiv"}]]],
+             ["div", {id:"kwdsdiv"}]]));
+        makePanControls();
+        verifyKeywordToggles();
     }
 
 
@@ -101,6 +158,7 @@ app.player = (function () {
         jt.log(JSON.stringify(stat.song));
         updatePanControl("al", stat.song.al);
         updatePanControl("el", stat.song.el);
+        verifyKeywordToggles();
         if(!jt.byId("playerdiv")) {
             jt.out("mediadiv", jt.tac2html(
                 ["div", {id:"playerdiv"},
@@ -136,7 +194,8 @@ return {
 
     init: function () { initializeDisplay(); },
     deckUpdated: function () { deckUpdated(); },
-    next: function () { next(); }
+    next: function () { next(); },
+    togkwd: function (idx) { toggleKeyword(idx); }
 
 };  //end of returned functions
 }());
