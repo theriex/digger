@@ -16,20 +16,26 @@ app.player = (function () {
     }
 
 
+    function saveSongDataIfModified (ignoreupdate) {
+        if(!stat.songModified) { return; }
+        jt.call("POST", "/songupd", jt.objdata(stat.song),
+                function (updsong) {
+                    if(!ignoreupdate) {
+                        stat.song = updsong;
+                        stat.songModified = false; }
+                    jt.log("song data updated " + updsong.path); },
+                function (code, errtxt) {
+                    jt.out("song update err " + code + ": " + errtxt); },
+                jt.semaphore("player.saveSongDataIfModified"));
+    }
+
+
     function noteSongModified () {
+        if(!stat.song) { return; }
         stat.songModified = true;
         if(stat.modtimer) {
             clearTimeout(stat.modtimer); }
-        stat.modtimer = setTimeout(function () {
-            if(!stat.songModified) { return; }
-            jt.call("POST", "/songupd", jt.objdata(stat.song),
-                    function (updsong) {
-                        stat.song = updsong;
-                        stat.songModified = false;
-                        jt.log("song data updated " + updsong.path); },
-                    function (code, errtxt) {
-                        jt.out("song update err " + code + ": " + errtxt); },
-                    jt.semaphore("player.noteSongModified")); }, 5000);
+        stat.modtimer = setTimeout(saveSongDataIfModified, 5000);
     }
 
 
@@ -106,6 +112,7 @@ app.player = (function () {
         jt.on("panplaydiv", "mouseup", function (event) {
             ctrls.el.pointingActive = false;
             ctrls.al.pointingActive = false;
+            ctrls.rat.pointingActive = false;
             jt.evtend(event); });
     }
 
@@ -141,15 +148,39 @@ app.player = (function () {
     }
 
 
+    function makeRatingValueControl () {
+        jt.out("rvdiv", jt.tac2html(
+            ["div", {cla:"ratstarscontainerdiv", id:"playerstarsdiv"},
+             ["div", {cla:"ratstarsanchordiv", id:"playerstarsanchordiv"},
+              [["div", {cla:"ratstarbgdiv"},
+                ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
+               ["div", {cla:"ratstarseldiv", id:"playerstarseldiv"},
+                ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]]));
+        ctrls.rat = {stat:{pointingActive:false},
+                     posf:function (x, ignore /*y*/) {
+                         jt.byId("playerstarseldiv").style.width = x + "px";
+                         var val = Math.max(Math.round((x / 17) * 2), 1);
+                         if(stat.song) {
+                             stat.song.rv = val;
+                             noteSongModified(); } } };
+        app.filter.movelisten("playerstarsanchordiv", ctrls.rat.stat,
+                              ctrls.rat.posf);
+        ctrls.rat.posf(0);  //no stars until set or changed.
+    }
+
+
     function initializeDisplay () {
         jt.out("panplaydiv", jt.tac2html(
             [["div", {id:"mediadiv"}, "No songs on deck yet"],
              ["div", {id:"panpotsdiv"},
               [["div", {cla:"pandiv", id:"elpandiv"}],
                ["div", {cla:"pandiv", id:"alpandiv"}]]],
-             ["div", {id:"kwdsdiv"}]]));
+             ["div", {id:"keysratdiv"},
+              [["div", {id:"kwdsdiv"}],
+               ["div", {id:"rvdiv"}]]]]));
         makePanControls();
         verifyKeywordToggles();
+        makeRatingValueControl();
     }
 
 
@@ -158,6 +189,7 @@ app.player = (function () {
         jt.log(JSON.stringify(stat.song));
         updatePanControl("al", stat.song.al);
         updatePanControl("el", stat.song.el);
+        ctrls.rat.posf(stat.song.rv);
         verifyKeywordToggles();
         if(!jt.byId("playerdiv")) {
             jt.out("mediadiv", jt.tac2html(
@@ -175,6 +207,7 @@ app.player = (function () {
 
 
     function next () {
+        saveSongDataIfModified("ignoreUpdatedSongDataReturn");
         stat.status = "";
         stat.song = app.db.popdeck();
         if(!stat.song) {

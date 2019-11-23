@@ -235,11 +235,11 @@ app.filter = (function () {
     function createMinRatingControl(divid) {
         jt.out(divid, jt.tac2html(
             [["span", {cla:"gtoreqspan"}, "&#x2265;&nbsp;"],
-             ["div", {id:"ratstarscontainerdiv"},
-              ["div", {id:"ratstarsanchordiv"},
-               [["div", {id:"ratstarbgdiv"},
+             ["div", {cla:"ratstarscontainerdiv", id:"filterstarsdiv"},
+              ["div", {cla:"ratstarsanchordiv", id:"filterstarsanchordiv"},
+               [["div", {cla:"ratstarbgdiv"},
                  ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
-                ["div", {id:"ratstarseldiv"},
+                ["div", {cla:"ratstarseldiv", id:"filterstarseldiv"},
                  ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]],
              ["button", {type:"button", id:"inclunrb",
                          style:"color:" + ctrls.activecolor,
@@ -249,9 +249,9 @@ app.filter = (function () {
         ctrls.movestats.push(ctrls.rat.stat);
         ctrls.rat.posf = function (x, ignore /*y*/) {
             ctrls.rat.stat.minrat = Math.max(Math.round((x / 17) * 2), 1);
-            jt.byId("ratstarseldiv").style.width = x + "px";
+            jt.byId("filterstarseldiv").style.width = x + "px";
             app.db.deckupd(); };
-        attachMovementListeners("ratstarsanchordiv", ctrls.rat.stat, 
+        attachMovementListeners("filterstarsanchordiv", ctrls.rat.stat, 
                                 ctrls.rat.posf);
         ctrls.rat.pn = "Minimum Rating";
         ctrls.rat.match = function (song) {
@@ -270,15 +270,15 @@ app.filter = (function () {
         switch(ctrls.rat.unrated.idx) {
         case 0:  //Include Unrated
             button.style.color = ctrls.activecolor;
-            jt.byId("ratstarscontainerdiv").style.opacity = 1.0;
+            jt.byId("filterstarsdiv").style.opacity = 1.0;
             break;
         case 1:
             button.style.color = "#ccc";
-            jt.byId("ratstarscontainerdiv").style.opacity = 1.0;
+            jt.byId("filterstarsdiv").style.opacity = 1.0;
             break;
         case 2:
             button.style.color = ctrls.activecolor;
-            jt.byId("ratstarscontainerdiv").style.opacity = 0.3;
+            jt.byId("filterstarsdiv").style.opacity = 0.3;
             break; }
         app.db.deckupd();
     }
@@ -289,7 +289,8 @@ app.filter = (function () {
         if(!dbo) {
             return; }  //nothing to init with
         jt.out("panfiltdiv", jt.tac2html(
-            [["div", {id:"rangesdiv"},
+            [["div", {id:"filtertitlediv"}, "DECK FILTERS"],
+             ["div", {id:"rangesdiv"},
               [["div", {cla:"rangectrldiv", id:"eldiv"}],
                ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
              ["div", {id:"bowtiesdiv"}],

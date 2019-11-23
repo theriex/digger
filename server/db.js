@@ -24,7 +24,7 @@ module.exports = (function () {
     function createDatabaseFile () {
         dbo = {version:"dv0.1", 
                scanned:"",  //ISO latest walk of song files
-               keywords:["Dance", "Office", "Morning", "Workout"],
+               keywords:["Morning", "Office", "Workout", "Dance"],
                keysacc:false,  //customization option presented
                waitcodedays:{  //days required since last played before pulling
                    //Prefix flag values:
@@ -340,6 +340,13 @@ module.exports = (function () {
     }
 
 
+    function resError (res, code, msg) {
+        console.log("resError " + code + ": " + msg);
+        res.writeHead(404, {"Content-Type": "text/plain"});
+        res.end(msg);
+    }
+
+
     function updateSong (req, res) {
         var updat = new formidable.IncomingForm();
         updat.parse(req, function (err, fields) {
@@ -348,6 +355,8 @@ module.exports = (function () {
             //PENDING: error/val checking if opening up the app scope..
             //PENDING: handle segues after there is UI for it
             var song = dbo.songs[fields.path];
+            if(!song) {
+                return resError(res, 404, "No song " + fields.path); }
             song.fq = fields.fq;
             song.lp = fields.lp;
             song.rv = fields.rv;
