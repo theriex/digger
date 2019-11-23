@@ -42,7 +42,7 @@ img { border:0px; vertical-align:middle; }
 /****************************************/
 /* Player Panel */
 
-#playertitle { height:1.2em; overflow:scroll; }
+#playertitle { height:1.0em; overflow:scroll; }
 .pandiv { display:inline-block; position:relative; }
 #elpandiv { margin-right:7px; }
 .pancontdiv { width:140px; height:40px; cursor:pointer;

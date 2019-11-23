@@ -28,14 +28,14 @@ module.exports = (function () {
                keysacc:false,  //customization option presented
                waitcodedays:{  //days required since last played before pulling
                    //Prefix flag values:
-                   //  "D": Deleted.  File no longer exists
-                   //  "U": Unreadable.  Tags could not read from file.
+                   //  D: Deleted.  File no longer exists
+                   //  U: Unreadable.  Tags could not read from file.
                    //"R": Reference only.  Never suggest.
-                   "O":365,  //Overplayed.
-                   "Z":180,  //Resting.
-                   "B":90},  //Back-burner.
-                   //"P": Programmable.  Generally available to play (default)
-                   //"N": New. Preferred select once before reverting to "P"
+                   O:365,  //Overplayed.
+                   Z:180,  //Resting.
+                   B:90},  //Back-burner.
+                   //P: Programmable.  Generally available to play (default)
+                   //N: New. Preferred select once before reverting to "P"
                songcount:0,
                //songs are indexed by relative path off of musicPath e.g.
                //"artistFolder/albumFolder/disc#?/songFile"
@@ -60,6 +60,14 @@ module.exports = (function () {
     }
 
 
+    function normalizeIntegerValues (song) {
+        var fields = ["rv", "al", "el"];
+        fields.forEach(function (field) {
+            if(typeof song[field] === "string") {
+                song[field] = parseInt(song[field], 10); } });
+    }
+
+
     function initialize () {
         var args = process.argv.slice(2);
         musicPath = "./";
@@ -80,7 +88,10 @@ module.exports = (function () {
             fs.readFile(dbPath, "utf8", function (err, data) {
                 if(err) { 
                     throw err; }
-                dbo = JSON.parse(data); 
+                dbo = JSON.parse(data);
+                if(dbo.songs) {
+                    Object.keys(dbo.songs).forEach(function (key) {
+                        normalizeIntegerValues(dbo.songs[key]); }); }
                 console.log("Read " + dbPath); }); }
     }
 
@@ -220,6 +231,7 @@ module.exports = (function () {
     function mergeEntry (key, dat) {
         if(!key || !dat) {
             return console.log("bad mergeEntry " + key + ": " + dat); }
+        normalizeIntegerValues(dat);
         var dbd = dbo.songs[key];
         if(!dbd) {
             var cankey = canonicalKeyForSong(dat);
@@ -367,6 +379,7 @@ module.exports = (function () {
             song.ar = fields.ar || "";
             song.ab = fields.ab || "";
             song.ti = fields.ti || "";
+            normalizeIntegerValues(song);
             fs.writeFileSync(dbPath, JSON.stringify(dbo), "utf8");
             song.path = fields.path;
             console.log("Updated " + song.path);

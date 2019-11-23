@@ -11,7 +11,7 @@ app.db = (function () {
                   reading: "Reading Files...",
                   merging: "Merging Data..."};
     var deckstat = {filter:true, qstr:"", disp:"songs", toggles:{},
-                    maxsel:200, ws:[], fcs:[]};
+                    maxsel:200, ws:[], fcs:[], fqps:["N", "P", "B", "Z", "O"]};
 
 
     function makeToggle (spec) {
@@ -141,7 +141,7 @@ app.db = (function () {
 
 
     function sortByLastPlayedAndFrequency () {
-        var fqps = ["N", "P", "B", "Z", "O"];
+        var fqps = deckstat.fqps;
         deckstat.ws.sort(function (a, b) {
             //sort by last played, oldest first
             if(a.lp < b.lp) { return -1; }
@@ -152,25 +152,41 @@ app.db = (function () {
     }
 
 
-    function getOffsetTS (iso, ms) {
-        if(!iso) { return ""; }
-        var date = jt.isoString2Time(iso);
-        date = new Date(date.getTime() + ms);
-        return date.toISOString();
+    function recalcFrequencyCutoffs () {
+        var day = 24 * 60 * 60 * 1000;
+        var now = Date.now();
+        deckstat.freqlim = {
+            N:{days:1},
+            P:{days:1},
+            B:{days:dbo.waitcodedays.O || 90},
+            Z:{days:dbo.waitcodedays.Z || 180},
+            O:{days:dbo.waitcodedays.O || 365}};
+        Object.keys(deckstat.freqlim).forEach(function (key) {
+            var flim = deckstat.freqlim[key];
+            flim.iso = new Date(now - (flim.days * day)).toISOString(); });
+    }
+
+
+    function frequencyEligible (song) {
+        if(!song.lp) {  //not played yet (just imported)
+            return true; }
+        if(deckstat.fqps.indexOf(song.fq) < 0) { //invalid frequency value
+            return false; }
+        var lim = deckstat.freqlim[song.fq].iso;
+        return song.lp < lim;
     }
 
 
     function truncateAndShuffle () {
+        //eliminate all recently played stuff if we have enough to work with
         if(deckstat.ws.length <= 2) { return; }
-        //select all unplayed, or played within a day of first item
-        var idx = 1;
-        var slp = deckstat.ws[0].lp;
-        var maxday = getOffsetTS(slp, 24 * 60 * 60 * 1000);
-        while((deckstat.ws[idx].lp === slp ||  //same, or both unplayed
-               (slp && deckstat.ws[idx].lp <= maxday)) && 
-              idx < deckstat.maxsel) {
-            idx += 1; }
+        recalcFrequencyCutoffs();
+        var idx = deckstat.ws.length - 1;
+        while(!frequencyEligible(deckstat.ws[0])) {
+            idx -= 1; }
+        idx = Math.min(1000, idx);
         deckstat.ws = deckstat.ws.slice(0, idx);
+        updateDeckInfoDisplay("Deck Pool");
         //shuffle
         idx = deckstat.ws.length; var randidx; var tmp;
         while(idx !== 0) {  //leave first element alone

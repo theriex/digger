@@ -23,7 +23,7 @@ app.player = (function () {
                     if(!ignoreupdate) {
                         stat.song = updsong;
                         stat.songModified = false; }
-                    jt.log("song data updated " + updsong.path); },
+                    jt.log("song data updated " + JSON.stringify(updsong)); },
                 function (code, errtxt) {
                     jt.out("song update err " + code + ": " + errtxt); },
                 jt.semaphore("player.saveSongDataIfModified"));
@@ -159,7 +159,8 @@ app.player = (function () {
         ctrls.rat = {stat:{pointingActive:false},
                      posf:function (x, ignore /*y*/) {
                          jt.byId("playerstarseldiv").style.width = x + "px";
-                         var val = Math.max(Math.round((x / 17) * 2), 1);
+                         //Don't move off zero (unrated) without cause
+                         var val = Math.floor(Math.round((x / 17) * 2), 1);
                          if(stat.song) {
                              stat.song.rv = val;
                              noteSongModified(); } } };
