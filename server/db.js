@@ -78,7 +78,9 @@ module.exports = (function () {
                 musicPath += "/"; } }
         if(args && args.length) {
             dbPath = args[0];
-            args = args.slice(1); }
+            args = args.slice(1);
+            if(dbPath.endsWith("/")) {
+                dbPath += "/digdat.json"; } }
         if(!dbPath) {
             dbPath = musicPath + "digdat.json"; }
         //console.log("db.init " + musicPath + " " + dbPath);

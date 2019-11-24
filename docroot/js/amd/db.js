@@ -108,8 +108,7 @@ app.db = (function () {
         deckstat.fcs = [];
         Object.keys(dbo.songs).forEach(function (path) {
             var song = dbo.songs[path];
-            if(!song.fq.startsWith("D") && !song.fq.startsWith("U") &&
-               song.fq !== "R") {
+            if(!song.fq.startsWith("D") && !song.fq.startsWith("U")) {
                 //song file eligible. Artist/Album/Title may be incomplete.
                 song.path = path;
                 deckstat.ws.push(song); } });
@@ -170,7 +169,7 @@ app.db = (function () {
     function frequencyEligible (song) {
         if(!song.lp) {  //not played yet (just imported)
             return true; }
-        if(deckstat.fqps.indexOf(song.fq) < 0) { //invalid frequency value
+        if(deckstat.fqps.indexOf(song.fq) < 0) { //"R" or invalid fq value
             return false; }
         var lim = deckstat.freqlim[song.fq].iso;
         return song.lp < lim;
@@ -182,7 +181,7 @@ app.db = (function () {
         if(deckstat.ws.length <= 2) { return; }
         recalcFrequencyCutoffs();
         var idx = deckstat.ws.length - 1;
-        while(!frequencyEligible(deckstat.ws[0])) {
+        while(deckstat.filter && !frequencyEligible(deckstat.ws[idx])) {
             idx -= 1; }
         idx = Math.min(1000, idx);
         deckstat.ws = deckstat.ws.slice(0, idx);

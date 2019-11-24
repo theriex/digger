@@ -42,7 +42,12 @@ img { border:0px; vertical-align:middle; }
 /****************************************/
 /* Player Panel */
 
-#playertitle { height:1.0em; overflow:scroll; }
+#playertitle { height:18px; overflow:scroll; margin-bottom:1px; }
+#playtitlebuttonsdiv { float:right; min-height:18px; }
+#tuneopta { margin-right:10px; }
+.ico16 { height:16px; max-height:16px; cursor:pointer; }
+.tuneoptiondiv { display:inline-block; font-size:small; padding-right:10px; }
+
 .pandiv { display:inline-block; position:relative; }
 #elpandiv { margin-right:7px; }
 .pancontdiv { width:140px; height:40px; cursor:pointer;

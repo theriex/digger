@@ -4,7 +4,7 @@
 app.player = (function () {
     "use strict";
 
-    var stat = {status:"", song:null};
+    var stat = {status:"", song:null, tfqs:["B", "Z", "O"]};
     var ctrls = {};
 
 
@@ -185,6 +185,41 @@ app.player = (function () {
     }
 
 
+    function toggleTuningOptions () {
+        var tdiv = jt.byId("playertuningdiv");
+        if(tdiv.innerHTML || !stat.song) {
+            tdiv.innerHTML = "";
+            return; }
+        var opts = [{lab:"Playable"}, {lab:"Tired"}, {lab:"Don't Suggest"}];
+        if(stat.song.fq === "R") {
+            opts[2].checked = "checked"; }
+        else if(stat.tfqs.indexOf(stat.song.fq) >= 0) {
+            opts[1].checked = "checked"; }
+        else {
+            opts[0].checked = "checked"; }
+        var html = [];
+        opts.forEach(function (opt, idx) {
+            html.push(["div", {cla:"tuneoptiondiv"},
+                       [["input", {type:"radio", id:"tunerad" + idx,
+                                   name:"tuneoption", value:String(idx),
+                                   checked:opt.checked,
+                                   onclick:jt.fsd("app.player.fqradsel(" + 
+                                                  idx + ")")}],
+                        ["label", {fo:"tunerad" + idx}, opt.lab]]]); });
+        tdiv.innerHTML = jt.tac2html(
+            ["div", {id:"frequencyoptionsdiv"}, html]);
+    }
+
+
+    function handleFrequencyRadioSelect (idx) {
+        switch(idx) {
+        case 0: stat.song.fq = "P"; break;
+        case 1: stat.song.fq = "B"; break;
+        case 2: stat.song.fq = "R"; break; }
+        noteSongModified();
+    }
+
+
     function play () {
         stat.status = "playing";
         jt.log(JSON.stringify(stat.song));
@@ -196,13 +231,25 @@ app.player = (function () {
             jt.out("mediadiv", jt.tac2html(
                 ["div", {id:"playerdiv"},
                  [["div", {id:"playertitle"}, "Starting"],
+                  ["div", {id:"playertuningdiv"}],
                   ["audio", {id:"playeraudio", controls:"controls",
                              autoplay:"autoplay"},  //may or may not happen
                    "WTF? Your browser doesn't support audio.."]]]));
             jt.on("playeraudio", "ended", app.player.next); }
-        jt.out("playertitle", jt.tac2html(app.db.songTitleTAC(stat.song)));
+        var titleTAC = app.db.songTitleTAC(stat.song);
+        titleTAC[2].unshift(jt.tac2html(
+            ["div", {id:"playtitlebuttonsdiv"},
+             [["a", {href:"#tuneoptions", title:"Tune Playback Options",
+                     id:"tuneopta", onclick:jt.fs("app.player.tuneopt()")},
+               ["img", {src:"img/tunefork.png", cla:"ico16"}]],
+              ["a", {href:"#skip", title:"Skip To Next Song",
+                     onclick:jt.fs("app.player.skip()")},
+               ["img", {src:"img/skip.png", cla:"ico16"}]]]]));
+        jt.out("playertitle", jt.tac2html(titleTAC));
         var player = jt.byId("playeraudio");
         player.src = "/audio?path=" + jt.enc(stat.song.path);
+        //player.play() will fail in the promise if autoplay is disallowed.
+        //Wrapping in a try block doesn't help.  Letting it go for now...
         player.play();
     }
 
@@ -218,6 +265,17 @@ app.player = (function () {
     }
 
 
+    function skip () {
+        //if skipping a Tired song, bump the fq value
+        if(stat.song && stat.song.fq) {
+            var tfqidx = stat.tfqs.indexOf(stat.song.fq);
+            if(tfqidx >= 0 && tfqidx < stat.tfqs.length - 1) {
+                stat.song.fq = stat.tfqs[tfqidx + 1];
+                noteSongModified(); } }
+        next();
+    }
+
+
     function deckUpdated () {
         if(!stat.status) {  //not playing anything yet, start the first song
             next(); }
@@ -229,7 +287,10 @@ return {
     init: function () { initializeDisplay(); },
     deckUpdated: function () { deckUpdated(); },
     next: function () { next(); },
-    togkwd: function (idx) { toggleKeyword(idx); }
+    skip: function () { skip(); },
+    togkwd: function (idx) { toggleKeyword(idx); },
+    tuneopt: function () { toggleTuningOptions(); },
+    fqradsel: function (idx) { handleFrequencyRadioSelect(idx); }
 
 };  //end of returned functions
 }());
