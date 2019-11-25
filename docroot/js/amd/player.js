@@ -220,6 +220,18 @@ app.player = (function () {
     }
 
 
+    function bumpPlayerLeftIfOverhang () {
+        //The pan knobs may be overflowing into the panplaydiv padding.
+        var player = jt.byId("playeraudio");
+        var playw = player.offsetWidth;
+        var panpadding = 2 * 6;
+        var maxpanw = jt.byId("panplaydiv").offsetWidth - panpadding;
+        if(playw > maxpanw) {
+            var shift = Math.round(-0.5 * (playw - maxpanw));
+            player.style.marginLeft = shift + "px"; }
+    }
+
+
     function play () {
         stat.status = "playing";
         jt.log(JSON.stringify(stat.song));
@@ -236,6 +248,7 @@ app.player = (function () {
                              autoplay:"autoplay"},  //may or may not happen
                    "WTF? Your browser doesn't support audio.."]]]));
             jt.on("playeraudio", "ended", app.player.next); }
+        bumpPlayerLeftIfOverhang();
         var titleTAC = app.db.songTitleTAC(stat.song);
         titleTAC[2].unshift(jt.tac2html(
             ["div", {id:"playtitlebuttonsdiv"},
