@@ -158,6 +158,7 @@ app.player = (function () {
                 ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]]));
         ctrls.rat = {stat:{pointingActive:false},
                      posf:function (x, ignore /*y*/) {
+                         jt.log("ctrls.rat.posf x: " + x);
                          jt.byId("playerstarseldiv").style.width = x + "px";
                          //Don't move off zero (unrated) without cause
                          var val = Math.floor(Math.round((x / 17) * 2), 1);
@@ -235,9 +236,6 @@ app.player = (function () {
     function play () {
         stat.status = "playing";
         jt.log(JSON.stringify(stat.song));
-        updatePanControl("al", stat.song.al);
-        updatePanControl("el", stat.song.el);
-        ctrls.rat.posf(stat.song.rv);
         verifyKeywordToggles();
         if(!jt.byId("playerdiv")) {
             jt.out("mediadiv", jt.tac2html(
@@ -259,6 +257,10 @@ app.player = (function () {
                      onclick:jt.fs("app.player.skip()")},
                ["img", {src:"img/skip.png", cla:"ico16"}]]]]));
         jt.out("playertitle", jt.tac2html(titleTAC));
+        updatePanControl("al", stat.song.al);
+        updatePanControl("el", stat.song.el);
+        stat.song.rv = stat.song.rv || 1;
+        ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2));
         var player = jt.byId("playeraudio");
         player.src = "/audio?path=" + jt.enc(stat.song.path);
         //player.play() will fail in the promise if autoplay is disallowed.
