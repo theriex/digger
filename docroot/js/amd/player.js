@@ -222,13 +222,12 @@ app.player = (function () {
 
 
     function bumpPlayerLeftIfOverhang () {
-        //The pan knobs may be overflowing into the panplaydiv padding.
         var player = jt.byId("playeraudio");
         var playw = player.offsetWidth;
-        var panpadding = 2 * 6;
-        var maxpanw = jt.byId("panplaydiv").offsetWidth - panpadding;
-        if(playw > maxpanw) {
-            var shift = Math.round(-0.5 * (playw - maxpanw));
+        var maxw = jt.byId("panplaydiv").offsetWidth;
+        maxw -= (2 * 6) + (2 * 8);  //padding and border
+        if(playw > maxw) {
+            var shift = Math.round(-0.5 * (playw - maxw));
             player.style.marginLeft = shift + "px"; }
     }
 
@@ -252,10 +251,10 @@ app.player = (function () {
             ["div", {id:"playtitlebuttonsdiv"},
              [["a", {href:"#tuneoptions", title:"Tune Playback Options",
                      id:"tuneopta", onclick:jt.fs("app.player.tuneopt()")},
-               ["img", {src:"img/tunefork.png", cla:"ico16"}]],
+               ["img", {src:"img/tunefork.png", cla:"ptico"}]],
               ["a", {href:"#skip", title:"Skip To Next Song",
                      onclick:jt.fs("app.player.skip()")},
-               ["img", {src:"img/skip.png", cla:"ico16"}]]]]));
+               ["img", {src:"img/skip.png", cla:"ptico"}]]]]));
         jt.out("playertitle", jt.tac2html(titleTAC));
         updatePanControl("al", stat.song.al);
         updatePanControl("el", stat.song.el);

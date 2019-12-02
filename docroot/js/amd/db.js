@@ -448,9 +448,9 @@ app.db = (function () {
             [["div", {id:"titlediv"},
               [["span", {cla:"titlespan"}, "Digger"],
                ["span", {id:"countspan"}, dbstat.loading],
-               ["a", {href:"#database", title:"Database Actions",
+               ["a", {href:"#database", title:"Library Actions",
                       onclick:jt.fs("app.db.dbactions()")},
-                ["img", {cla:"buttonico", src:"img/dbicon.png"}]]]],
+                ["img", {cla:"buttonico", src:"img/recordcrate.png"}]]]],
              ["div", {id:"dbdlgdiv"}],
              ["div", {cla:"statdiv", id:"dbstatdiv"}]]));
         jt.call("GET", "/dbo", null,
