@@ -18,14 +18,20 @@ A:hover {text-decoration:underline; color:#00989a; }
 
 img { border:0px; vertical-align:middle; }
 
-#contentdiv { margin:1px auto; width:100vw; max-width:600px; background:#999; 
-  padding:2px 0px 5px 0px; }
+#contentdiv { margin:0px auto; width:100vw; max-width:600px;
+  border-top:3px solid #363636;
+  border-bottom:6px solid #363636;
+  background-image: url('../img/panelsbg.png');
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat; }
 #titlediv { padding-bottom:5px; }
 .titlespan { font-size:x-large; font-weight:bold; }
 #countspan { font-size:medium; padding:0px 10px; }
 #statspan { font-size:small; padding-left:10px; }
-.paneldiv { margin:8px; padding:10px 6px; background:#ccc; }
+.paneldiv { border:8px solid #333; padding:10px 6px; }
 #pandbdiv { padding:10px 6px 0px 6px; }
+#pandeckdiv { padding:10px 6px 4px 6px; }
 
 .buttonico { max-height:30px; vertical-align:middle; padding:0px 5px; }
 #dbdlgdiv { display:table; }
