@@ -11,7 +11,8 @@ app.db = (function () {
                   reading: "Reading Files...",
                   merging: "Merging Data..."};
     var deckstat = {filter:true, qstr:"", disp:"songs", toggles:{},
-                    maxsel:200, ws:[], fcs:[], fqps:["N", "P", "B", "Z", "O"]};
+                    maxdecksel:1000, ws:[], fcs:[], pns:[],
+                    fqps:["N", "P", "B", "Z", "O"]};
 
 
     function makeToggle (spec) {
@@ -66,10 +67,10 @@ app.db = (function () {
         makeToggle({id:"togfiltb", w:46, h:20, tfc:deckstat.toggles,
                     togf:function (state) {
                         if(state) {
-                            jt.byId("panfiltdiv").style.opacity = 1.0;
+                            jt.byId("panfiltcontentdiv").style.opacity = 1.0;
                             deckstat.filter = true; }
                         else {
-                            jt.byId("panfiltdiv").style.opacity = 0.3;
+                            jt.byId("panfiltcontentdiv").style.opacity = 0.3;
                             deckstat.filter = false; }
                         jt.log("deckstat.filter: " + deckstat.filter);
                         app.db.deckupd(); },
@@ -139,12 +140,20 @@ app.db = (function () {
     }
 
 
+    function pullPNSFromWS () {
+        deckstat.ws = deckstat.ws.filter(function (song) {
+            return (deckstat.pns.indexOf(song) < 0); });
+    }
+
+
     function sortByLastPlayedAndFrequency () {
+        //the rating is a filter, not a sort criteria.
         var fqps = deckstat.fqps;
         deckstat.ws.sort(function (a, b) {
             //sort by last played, oldest first
             if(a.lp < b.lp) { return -1; }
             if(a.lp > b.lp) { return 1; }
+            //if last played is the same, secondary sort by frequency
             var afqi = fqps.indexOf(a.fq); if(afqi < 0) { afqi = fqps.length; }
             var bfqi = fqps.indexOf(b.fq); if(bfqi < 0) { bfqi = fqps.length; }
             return afqi - bfqi; });
@@ -183,7 +192,7 @@ app.db = (function () {
         var idx = deckstat.ws.length - 1;
         while(deckstat.filter && !frequencyEligible(deckstat.ws[idx])) {
             idx -= 1; }
-        idx = Math.min(1000, idx);
+        idx = Math.min(deckstat.maxdecksel, idx);
         deckstat.ws = deckstat.ws.slice(0, idx);
         updateDeckInfoDisplay("Deck Pool");
         //shuffle
@@ -217,17 +226,110 @@ app.db = (function () {
     }
 
 
-    function displaySongs () {
-        if(!deckstat.ws.length) {
-            jt.out("decksongsdiv", "No matching songs found.");
-            return; }
+    function appendSongsToDisplay (prefix, songs) {
         var songsdiv = jt.byId("decksongsdiv");
-        songsdiv.innerHTML = "";
-        deckstat.ws.forEach(function (song) {
+        songs.forEach(function (song, idx) {
             var elem = document.createElement("div");
             elem.className = "decksongdiv";
-            elem.innerHTML = jt.tac2html(songTitleTAC(song));
+            var tac = songTitleTAC(song);
+            tac[2] = [["a", {href:"#songactions", title:"Play or Remove Song",
+                             onclick:jt.fs("app.db.songopts('" + 
+                                           prefix + "'," + idx + ")")},
+                       tac[2]],
+                      ["div", {cla:"decksongactdiv", id:"da" + prefix + idx}]];
+            elem.innerHTML = jt.tac2html(tac);
             songsdiv.appendChild(elem); });
+    }
+
+
+    function displaySongs () {
+        if(!deckstat.ws.length && !deckstat.pns.length) {
+            jt.out("decksongsdiv", "No matching songs found.");
+            return; }
+        jt.out("decksongsdiv", "");
+        appendSongsToDisplay("pns", deckstat.pns);
+        appendSongsToDisplay("ws", deckstat.ws);
+    }
+
+
+    function toggleSongOptions (prefix, idx) {
+        var optdiv = jt.byId("da" + prefix + idx);
+        if(optdiv.innerHTML) {  //reset whatever content was there before
+            optdiv.innerHTML = "";
+            return; }
+        var tac = [
+            ["button", {type:"button", id:"deckplaynowb" + prefix + idx,
+                         title:"Play now, replacing the current song",
+                         onclick:jt.fs("app.db.playnow('" + 
+                                       prefix + "'," + idx + ")")},
+              "Play Immediately"],
+             ["button", {type:"button", id:"deckplaynextb" + prefix + idx,
+                         title:"Play after current song finishes",
+                         onclick:jt.fs("app.db.playnext('" +
+                                       prefix + "'," + idx + ")")},
+              "Play Next"],
+             ["button", {type:"button", id:"deckremoveb" + prefix + idx,
+                         title:"Remove current song from on deck",
+                         onclick:jt.fs("app.db.rembuttons('" +
+                                       prefix + "'," + idx + ")")},
+              "Remove"]];
+        if(prefix === "pns") {  //song is already in play next list
+            tac.splice(1, 1); } //remove the play next button
+        optdiv.innerHTML = jt.tac2html(tac);
+    }
+
+
+    function deckPlayNow (prefix, idx) {
+        if(prefix === "pns") {  //song already in play next list
+            if(idx !== 0) { //not up next, swap into first position
+                var tmp = deckstat.pns[0];
+                deckstat.pns[0] = deckstat.pns[idx];
+                deckstat.pns[idx] = tmp; } }
+        else {  //song in general working set, not in play next list
+            deckstat.pns.unshift(deckstat.ws[idx]);  //prepend to pns
+            deckstat.ws.splice(idx, 1); } //remove from ws
+        app.player.next();
+    }
+
+
+    function deckPlayNext (ignore /*prefix*/, wsidx) {
+        //No "Play Next" button if already queued to play next
+        deckstat.pns.push(deckstat.ws[wsidx]);
+        deckstat.ws.splice(wsidx, 1);
+        displaySongs();
+    }
+
+
+    function deckRemoveButtons (prefix, idx) {
+        jt.out("da" + prefix + idx, jt.tac2html(
+            ["div", {cla:"deckrembuttonsdiv"},
+             [["button", {type:"button", id:"drmpb" + prefix + idx,
+                          title:"Move to bottom of collection play pool",
+                          onclick:jt.fs("app.db.deckremove('mp','" +
+                                        prefix + "'," + idx + ")")},
+               "Mark As Played"],
+              ["button", {type:"button", id:"drnsb" + prefix + idx,
+                          title:"Remove from possible suggested songs",
+                          onclick:jt.fs("app.db.deckremove('ns','" +
+                                        prefix + "'," + idx + ")")},
+               "Never Suggest"]]]));
+    }
+
+
+    function deckDoRemove (type, prefix, idx) {
+        var song = deckstat[prefix][idx];
+        if(type === "ns") {
+            song.fq = "R"; }
+        song.lp = new Date().toISOString();
+        jt.call("POST", "/songupd", jt.objdata(song),
+                function (updsong) {
+                    jt.log("deckDoRemove type:" + type + " " + 
+                           JSON.stringify(updsong)); },
+                function (code, errtxt) {
+                    jt.out("deckDoRemove " + code + ": " + errtxt); },
+                jt.semaphore("db.deckDoRemove"));
+        deckstat[prefix].splice(idx, 1);
+        displaySongs();
     }
 
 
@@ -243,6 +345,7 @@ app.db = (function () {
         rebuildWorkingSet();  //initializes deckstat.ws/fcs
         filterBySearchText();
         filterByFilters();
+        pullPNSFromWS();
         sortByLastPlayedAndFrequency();
         truncateAndShuffle();
         if(deckstat.ws.length) {  //show songs if any found
@@ -255,18 +358,22 @@ app.db = (function () {
 
 
     function popSongFromDeck () {
-        if(!deckstat.ws || !deckstat.ws.length) { return null; }
-        var song = deckstat.ws[0];
-        deckstat.ws = deckstat.ws.slice(1);
-        //immediately mark as played so the song is not re-retrieved
-        song.lp = new Date().toISOString();
-        jt.call("POST", "/songupd", jt.objdata(song),
-                function (updsong) {
-                    jt.log("updated last played " + updsong.path);
-                    updateDeck(); },
-                function (code, errtxt) {
-                    jt.out("popSongFromDeck upderr " + code + ": " + errtxt); },
-                jt.semaphore("db.popSongFromDeck"));
+        var song = null;
+        if(deckstat.pns.length > 0) {
+            song = deckstat.pns[0];
+            deckstat.pns = deckstat.pns.slice(1); }
+        else if(deckstat.ws.length > 0) {
+            song = deckstat.ws[0];
+            deckstat.ws = deckstat.ws.slice(1); }
+        if(song) {  //immediately mark as played so the song is not re-retrieved
+            song.lp = new Date().toISOString();
+            jt.call("POST", "/songupd", jt.objdata(song),
+                    function (updsong) {
+                        jt.log("updated last played " + updsong.path);
+                        updateDeck(); },
+                    function (code, errtxt) {
+                        jt.out("popSongFromDeck " + code + ": " + errtxt); },
+                    jt.semaphore("db.popSongFromDeck")); }
         return song;
     }
 
@@ -484,7 +591,12 @@ return {
     data: function () { return dbo; },
     deckupd: function () { updateDeck(); },
     popdeck: function () { return popSongFromDeck(); },
-    songTitleTAC: function (song) { return songTitleTAC(song); }
+    songTitleTAC: function (song) { return songTitleTAC(song); },
+    songopts: function (prefix, idx) { toggleSongOptions(prefix, idx); },
+    playnow: function (prefix, idx) { deckPlayNow(prefix, idx); },
+    playnext: function (prefix, idx) { deckPlayNext(prefix, idx); },
+    rembuttons: function (prefix, idx) { deckRemoveButtons(prefix, idx); },
+    deckremove: function (t, p, i) { deckDoRemove(t, p, i); }
 
 };  //end of returned functions
 }());

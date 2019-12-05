@@ -289,12 +289,13 @@ app.filter = (function () {
         if(!dbo) {
             return; }  //nothing to init with
         jt.out("panfiltdiv", jt.tac2html(
-            [["div", {id:"filtertitlediv"}, "DECK FILTERS"],
-             ["div", {id:"rangesdiv"},
-              [["div", {cla:"rangectrldiv", id:"eldiv"}],
-               ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
-             ["div", {id:"bowtiesdiv"}],
-             ["div", {id:"ratdiv"}]]));
+            ["div", {id:"panfiltcontentdiv"},
+             [["div", {id:"filtertitlediv"}, "DECK FILTERS"],
+              ["div", {id:"rangesdiv"},
+               [["div", {cla:"rangectrldiv", id:"eldiv"}],
+                ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
+              ["div", {id:"bowtiesdiv"}],
+              ["div", {id:"ratdiv"}]]]));
         createRangeControl("el");
         createRangeControl("al");
         ctrls.bts = [];

@@ -18,6 +18,10 @@ A:hover {text-decoration:underline; color:#00989a; }
 
 img { border:0px; vertical-align:middle; }
 
+button { color:black; background:#ccc; cursor:pointer; font-size:small;
+  font-weight:normal; padding:1px 4px; margin-right:10px; 
+  border:2px solid black; border-radius:8px; box-shadow:2px 2px 2px #666; }
+
 #contentdiv { margin:0px auto; width:100vw; max-width:600px;
   border-top:3px solid #363636;
   border-bottom:6px solid #363636;
@@ -29,13 +33,13 @@ img { border:0px; vertical-align:middle; }
 .titlespan { font-size:x-large; font-weight:bold; }
 #countspan { font-size:medium; padding:0px 10px; }
 #statspan { font-size:small; padding-left:10px; }
-.paneldiv { border:8px solid #333; padding:10px 6px; border-radius:2px; }
+.paneldiv { border:8px solid #333; padding:10px 6px; border-radius:0px; }
 #pandbdiv { padding:10px 6px 0px 6px; }
 #pandeckdiv { padding:10px 6px 4px 6px; }
 
 .buttonico { max-height:30px; vertical-align:middle; padding:0px 5px; }
 #dbdlgdiv { display:table; }
-.dlgbuttonsdiv { text-align:center; }
+.dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
 .statdiv { font-size:medium; }
 
 .statespan { padding-right:5px; }
@@ -73,9 +77,8 @@ img { border:0px; vertical-align:middle; }
 #keysratdiv { margin-left:-2px; }
 #kwdsdiv { display:inline-block; }
 #rvdiv { display:inline-block; padding-left:8px; }
-.kwdtogoff, .kwdtogon { color:white; background:#333; cursor:pointer;
-  font-size:small; font-weight:normal; padding:2px; margin:2px;
-  box-shadow:2px 2px 2px #666; }
+.kwdtogoff, .kwdtogon { color:white; background:#333; font-size:small; 
+  padding:0px 2px; margin:2px; border-radius:0px; }
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 
 
@@ -106,8 +109,8 @@ img { border:0px; vertical-align:middle; }
   border:2px solid #777; border-radius:10px;
 }
 .btlabeldiv { text-align:center; }
-.btleftb, .btmidb, .btrightb { color:white; background:#333; cursor:pointer;
-  font-size:18px; font-weight:normal; padding:5px 8px; 
+.btleftb, .btmidb, .btrightb { color:white; background:#333; font-size:18px; 
+  padding:4px 8px; margin:0px 2px; border:0px; border-radius:0px;
   box-shadow:1px 1px 1px #666; }
 .btleftb { border-radius:10px 0px 0px 10px; }
 .btrightb { border-radius:0px 10px 10px 0px; }
@@ -118,8 +121,9 @@ img { border:0px; vertical-align:middle; }
 .ratstarsanchordiv { position:relative; cursor:pointer; }
 .ratstarbgdiv { position:absolute; top:0px; left:0px; }
 .ratstarseldiv { position:absolute; top:0px; left:0px; overflow:hidden; }
-#inclunrb { background:#333; box-shadow:1px 1px 1px #666; cursor:pointer; 
-  font-size:12px; margin-left:10px; }
+#inclunrb { background:#333; font-size:12px;
+  padding:2px 6px; margin-left:10px; border:0px; border-radius:0px;
+  box-shadow:1px 1px 1px #666; }
 
 /****************************************/
 /* Deck Panel */
@@ -134,3 +138,6 @@ img { border:0px; vertical-align:middle; }
   overflow:scroll; }
 
 .songtitlediv { font-size:medium; }
+.dsarspan { font-size:small; }
+.dsabspan { font-size:small; font-style:italic; }
+.decksongactdiv { padding-bottom:10px; }

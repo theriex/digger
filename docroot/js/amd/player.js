@@ -158,10 +158,9 @@ app.player = (function () {
                 ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]]));
         ctrls.rat = {stat:{pointingActive:false},
                      posf:function (x, ignore /*y*/) {
-                         jt.log("ctrls.rat.posf x: " + x);
+                         //jt.log("ctrls.rat.posf x: " + x);
                          jt.byId("playerstarseldiv").style.width = x + "px";
-                         //Don't move off zero (unrated) without cause
-                         var val = Math.floor(Math.round((x / 17) * 2), 1);
+                         var val = Math.floor((x / 17) * 2);
                          if(stat.song) {
                              stat.song.rv = val;
                              noteSongModified(); } } };
@@ -258,8 +257,8 @@ app.player = (function () {
         jt.out("playertitle", jt.tac2html(titleTAC));
         updatePanControl("al", stat.song.al);
         updatePanControl("el", stat.song.el);
-        stat.song.rv = stat.song.rv || 1;
-        ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2));
+        stat.song.rv = stat.song.rv || 0;  //verify numeric value
+        ctrls.rat.posf(Math.floor((stat.song.rv * 17) / 2));
         var player = jt.byId("playeraudio");
         player.src = "/audio?path=" + jt.enc(stat.song.path);
         //player.play() will fail in the promise if autoplay is disallowed.
