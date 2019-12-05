@@ -185,9 +185,10 @@ app.player = (function () {
     }
 
 
-    function toggleTuningOptions () {
+    function toggleTuningOptions (togstate) {
         var tdiv = jt.byId("playertuningdiv");
-        if(tdiv.innerHTML || !stat.song) {
+        if(!tdiv) { return; }  //nothing to do
+        if(tdiv.innerHTML || !stat.song || togstate === "off") {
             tdiv.innerHTML = "";
             return; }
         var opts = [{lab:"Playable"}, {lab:"Tired"}, {lab:"Don't Suggest"}];
@@ -269,6 +270,7 @@ app.player = (function () {
 
     function next () {
         saveSongDataIfModified("ignoreUpdatedSongDataReturn");
+        toggleTuningOptions("off");
         stat.status = "";
         stat.song = app.db.popdeck();
         if(!stat.song) {
