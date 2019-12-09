@@ -20,7 +20,7 @@ crawling and data storage.  The idea is to work with minimal and open
 technology so Digger can be adapted to a wide variety of situations.
 
 To run digger locally on a local collection of audio files, you will need to
-have [node.js] (https://nodejs.org/en/download/) installed.  In the
+have [node.js](https://nodejs.org/en/download/) installed.  In the
 directory where you downloaded the digger project, install these node
 extensions:
 
