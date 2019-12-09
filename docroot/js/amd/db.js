@@ -316,18 +316,25 @@ app.db = (function () {
     }
 
 
+    function updateSavedSongData (song, contf) {
+        jt.call("POST", "/songupd", jt.objdata(song),
+                function (updsong) {
+                    dbo[updsong.path] = updsong;
+                    contf(updsong); },
+                function (code, errtxt) {
+                    jt.out("deckDoRemove " + code + ": " + errtxt); },
+                jt.semaphore("db.updateSavedSongData"));
+    }
+
+
     function deckDoRemove (type, prefix, idx) {
         var song = deckstat[prefix][idx];
         if(type === "ns") {
             song.fq = "R"; }
         song.lp = new Date().toISOString();
-        jt.call("POST", "/songupd", jt.objdata(song),
-                function (updsong) {
-                    jt.log("deckDoRemove type:" + type + " " + 
-                           JSON.stringify(updsong)); },
-                function (code, errtxt) {
-                    jt.out("deckDoRemove " + code + ": " + errtxt); },
-                jt.semaphore("db.deckDoRemove"));
+        updateSavedSongData(song, function (updsong) {
+            jt.log("deckDoRemove type:" + type + " " + 
+                   JSON.stringify(updsong)); });
         deckstat[prefix].splice(idx, 1);
         displaySongs();
     }
@@ -367,13 +374,9 @@ app.db = (function () {
             deckstat.ws = deckstat.ws.slice(1); }
         if(song) {  //immediately mark as played so the song is not re-retrieved
             song.lp = new Date().toISOString();
-            jt.call("POST", "/songupd", jt.objdata(song),
-                    function (updsong) {
-                        jt.log("updated last played " + updsong.path);
-                        updateDeck(); },
-                    function (code, errtxt) {
-                        jt.out("popSongFromDeck " + code + ": " + errtxt); },
-                    jt.semaphore("db.popSongFromDeck")); }
+            updateSavedSongData(song, function (updsong) {
+                jt.log("updated last played " + updsong.path);
+                updateDeck(); }); }
         return song;
     }
 
@@ -596,7 +599,8 @@ return {
     playnow: function (prefix, idx) { deckPlayNow(prefix, idx); },
     playnext: function (prefix, idx) { deckPlayNext(prefix, idx); },
     rembuttons: function (prefix, idx) { deckRemoveButtons(prefix, idx); },
-    deckremove: function (t, p, i) { deckDoRemove(t, p, i); }
+    deckremove: function (t, p, i) { deckDoRemove(t, p, i); },
+    updateSavedSongData: function (s, f) { updateSavedSongData(s, f); }
 
 };  //end of returned functions
 }());

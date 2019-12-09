@@ -18,15 +18,11 @@ app.player = (function () {
 
     function saveSongDataIfModified (ignoreupdate) {
         if(!stat.songModified) { return; }
-        jt.call("POST", "/songupd", jt.objdata(stat.song),
-                function (updsong) {
-                    if(!ignoreupdate) {
-                        stat.song = updsong;
-                        stat.songModified = false; }
-                    jt.log("song data updated " + JSON.stringify(updsong)); },
-                function (code, errtxt) {
-                    jt.out("song update err " + code + ": " + errtxt); },
-                jt.semaphore("player.saveSongDataIfModified"));
+        app.db.updateSavedSongData(stat.song, function (updsong) {
+            if(!ignoreupdate) {
+                stat.song = updsong;
+                stat.songModified = false; }
+            jt.log("song data updated " + JSON.stringify(updsong)); });
     }
 
 
