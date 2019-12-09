@@ -1,5 +1,5 @@
 # digger
-Zero planning enjoyent of your music collection
+Zero planning enjoyment of your music collection
 
 ## Concept
 
@@ -9,19 +9,20 @@ you've been hoarding.  A music *collection* is a subset of songs you would
 be interested in hearing again.
 
 Digger helps you enjoy your *collection* by pulling and playing songs you
-haven't heard in a long time.  Digger uses range controls and keywords
+haven't heard in the longest time.  Digger uses range controls and keywords
 to pull situationally appropriate tracks without having to think too much.
 
 
 ## Structure
 
 Digger runs as a webapp, supported by a server that handles the file
-crawling and data storage.  The idea is to work with an open and minimal
-technology stack so Digger can be adapted to a wide variety of situations.
+crawling and data storage.  The idea is to work with minimal and open 
+technology so Digger can be adapted to a wide variety of situations.
 
 To run digger locally on a local collection of audio files, you will need to
-have node.js installed.  From the directory where you downloaded the digger
-project, install these node extensions:
+have [node.js] (https://nodejs.org/en/download/) installed.  In the
+directory where you downloaded the digger project, install these node
+extensions:
 
     npm install jsmediatags --save
     npm install node-static
