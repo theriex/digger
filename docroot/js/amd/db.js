@@ -13,6 +13,82 @@ app.db = (function () {
     var deckstat = {filter:true, qstr:"", disp:"songs", toggles:{},
                     maxdecksel:1000, ws:[], fcs:[], pns:[],
                     fqps:["N", "P", "B", "Z", "O"]};
+    var albumstat = null;
+
+
+    function verifyAlbumStat (np) {
+        if(!np) {
+            albumstat = null;
+            return jt.out("deckalbumdiv", "No song currently playing"); }
+        if(!np.ab) {
+            albumstat = null;
+            return jt.out("deckalbumdiv", "Album info not available"); }
+        if(albumstat && albumstat.ab === np.ab && albumstat.ar === np.ar) {
+            return true; }
+        albumstat = {ab:np.ab, ar:np.ar, songs:[]};
+        Object.keys(dbo.songs).forEach(function (path) {
+            var song = dbo.songs[path];
+            if(song.ab === np.ab) {
+                albumstat.songs.push(song); } });
+        albumstat.songs.sort(function (a, b) {
+            if(a.path < b.path) { return -1; }
+            if(a.path > b.path) { return 1; }
+            return 0; });
+        albumstat.songs.forEach(function (song, idx) {
+            if(song.ti === np.ti) {
+                albumstat.selidx = idx;  //selected from deck or by click
+                albumstat.curridx = idx; } });
+        return true;
+    }
+
+
+    function updateAlbumDisplayContent () {
+        var np = app.player.song();
+        if(!verifyAlbumStat(np)) {
+            return; }
+        var html = [];
+        albumstat.songs.forEach(function (song, idx) {
+            var tn = idx + 1;
+            var lh = ["a", {href:"#playsong" + tn, title:"Play track " + tn,
+                            cla:"albumsonglink",
+                            onclick:jt.fs("app.db.albumplay(" + idx + ")")},
+                      song.ti];
+            if(idx === albumstat.curridx) {  //unicode right arrow is sketchy
+                lh = [["img", {src:"img/arrow12right.png", cla:"albumarrow"}],
+                      song.ti]; }
+            html.push(["div", {cla:"albumsongdiv"}, lh]); });
+        jt.out("deckalbumdiv", jt.tac2html(
+            [["div", {cla:"albumtitlediv"},
+              [["span", {cla:"dsabspan"}, np.ab],
+               " - ",
+               ["span", {cla:"dsarspan"}, np.ar]]],
+             html]));
+    }
+
+
+    function albumPlayNow (idx) {
+        albumstat.curridx = -1;
+        albumstat.selidx = idx;
+        app.player.next();
+    }
+
+
+    function albumPlayNext () {
+        if(jt.byId("deckalbumdiv").style.display !== "block") {
+            return null; }  //not in album play mode
+        if(albumstat.curridx < 0) {  //clicked a specific album track to play
+            albumstat.curridx = albumstat.selidx;
+            updateAlbumDisplayContent();
+            return albumstat.songs[albumstat.selidx]; }
+        var nextidx = (albumstat.curridx + 1) % albumstat.songs.length;
+        if(nextidx !== albumstat.selidx) {  //haven't played all tracks yet
+            albumstat.curridx = nextidx;
+            updateAlbumDisplayContent();
+            return albumstat.songs[albumstat.curridx]; }
+        //all tracks from album played, exit album mode.
+        deckstat.toggles.togalb();
+        return null;
+    }
 
 
     function makeToggle (spec) {
@@ -33,20 +109,68 @@ app.db = (function () {
                       style:imgstyle + "opacity:" + opas.onimg}],
              ["img", {cla:"ico20", id:spec.id + "offimg", src:spec.offimg,
                       style:imgstyle + "opacity:" + opas.offimg}]]);
-        spec.tfc[spec.id] = function (activate) {
+        spec.tfc[spec.id] = function (activate, reflectonly) {
             var onimg = jt.byId(spec.id + "onimg");
             var offimg = jt.byId(spec.id + "offimg");
             if(activate) {
                 onimg.style.opacity = 1.0;
                 offimg.style.opacity = 0.0;
-                spec.togf(true); }
+                if(!reflectonly) {
+                    spec.togf(true); } }
             else {  //turn off
                 onimg.style.opacity = 0.0;
                 offimg.style.opacity = 1.0;
-                spec.togf(false); } };
+                if(!reflectonly) {
+                    spec.togf(false); } } };
         jt.on(div, "click", function (ignore /*event*/) {
             var offimg = jt.byId(spec.id + "offimg");
             spec.tfc[spec.id](offimg.style.opacity > 0); });
+    }
+
+
+    function showDeckSection (showing) {
+        showing = showing || "songs";
+        var sections = ["songs", "album", "info"];
+        var buttons = ["", "togalb", "toginfob"];
+        sections.forEach(function (section, idx) {
+            var togbf = deckstat.toggles[buttons[idx]];
+            if(section === showing) {  //button is already toggled on
+                jt.byId("deck" + section + "div").style.display = "block"; }
+            else {
+                jt.byId("deck" + section + "div").style.display = "none";
+                if(togbf) {
+                    togbf("", true); } } });
+        deckstat.disp = showing;
+        if(showing === "album") {
+            updateAlbumDisplayContent(); }
+    }
+
+
+    function makeDeckToggleControls () {
+        makeToggle({id:"togfiltb", w:46, h:20, tfc:deckstat.toggles,
+                    togf:function (state) {
+                        if(state) {
+                            jt.byId("panfiltcontentdiv").style.opacity = 1.0;
+                            deckstat.filter = true; }
+                        else {
+                            jt.byId("panfiltcontentdiv").style.opacity = 0.3;
+                            deckstat.filter = false; }
+                        jt.log("deckstat.filter: " + deckstat.filter);
+                        app.db.deckupd(); },
+                    onimg:"img/filteron.png", onlabel:"",
+                    offimg:"img/filteroff.png", offlabel:""});
+        makeToggle({id:"togalb", w:20, h:20, tfc:deckstat.toggles,
+                    togf:function (state) {
+                        // if(state) { showDeckSection("songs"); }
+                        // else { showDeckSection("album"); } }
+                        showDeckSection(state ? "album" : "songs"); },
+                    onimg:"img/albumact.png", onlabel:"",
+                    offimg:"img/album.png", offlabel:""});
+        makeToggle({id:"toginfob", w:20, h:20, tfc:deckstat.toggles,
+                    togf:function (state) {
+                        showDeckSection(state ? "info" : "songs"); },
+                    onimg:"img/infoact.png", onlabel:"",
+                    offimg:"img/info.png", offlabel:""});
     }
 
 
@@ -61,33 +185,12 @@ app.db = (function () {
                ["a", {href:"#search", title:"Search Songs",
                       onclick:jt.fs("app.db.deckupd()")},
                 ["img", {src:"img/search.png", cla:"ico20"}]],
+               ["div", {cla:"togbdiv", id:"togalb"}],
                ["div", {cla:"togbdiv", id:"toginfob"}]]],
              ["div", {id:"deckinfodiv", style:"display:none;"}],
+             ["div", {id:"deckalbumdiv", style:"display:none;"}],
              ["div", {id:"decksongsdiv"}]]));
-        makeToggle({id:"togfiltb", w:46, h:20, tfc:deckstat.toggles,
-                    togf:function (state) {
-                        if(state) {
-                            jt.byId("panfiltcontentdiv").style.opacity = 1.0;
-                            deckstat.filter = true; }
-                        else {
-                            jt.byId("panfiltcontentdiv").style.opacity = 0.3;
-                            deckstat.filter = false; }
-                        jt.log("deckstat.filter: " + deckstat.filter);
-                        app.db.deckupd(); },
-                    onimg:"img/filteron.png", onlabel:"",
-                    offimg:"img/filteroff.png", offlabel:""});
-        makeToggle({id:"toginfob", w:20, h:20, tfc:deckstat.toggles,
-                    togf:function (state) {
-                        if(state) {
-                            jt.byId("deckinfodiv").style.display = "block";
-                            jt.byId("decksongsdiv").style.display = "none";
-                            deckstat.disp = "info"; }
-                        else {
-                            jt.byId("deckinfodiv").style.display = "none";
-                            jt.byId("decksongsdiv").style.display = "block";
-                            deckstat.disp = "songs"; } },
-                    onimg:"img/infoact.png", onlabel:"",
-                    offimg:"img/info.png", offlabel:""});
+        makeDeckToggleControls();
         deckstat.toggles.togfiltb(true);
     }
 
@@ -365,7 +468,9 @@ app.db = (function () {
 
 
     function popSongFromDeck () {
-        var song = null;
+        var song = albumPlayNext();
+        if(song) {  //in album mode and had next track to play
+            return song; }
         if(deckstat.pns.length > 0) {
             song = deckstat.pns[0];
             deckstat.pns = deckstat.pns.slice(1); }
@@ -600,7 +705,8 @@ return {
     playnext: function (prefix, idx) { deckPlayNext(prefix, idx); },
     rembuttons: function (prefix, idx) { deckRemoveButtons(prefix, idx); },
     deckremove: function (t, p, i) { deckDoRemove(t, p, i); },
-    updateSavedSongData: function (s, f) { updateSavedSongData(s, f); }
+    updateSavedSongData: function (s, f) { updateSavedSongData(s, f); },
+    albumplay: function (idx) { albumPlayNow(idx); }
 
 };  //end of returned functions
 }());

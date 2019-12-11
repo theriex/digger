@@ -301,7 +301,8 @@ return {
     skip: function () { skip(); },
     togkwd: function (idx) { toggleKeyword(idx); },
     tuneopt: function () { toggleTuningOptions(); },
-    fqradsel: function (idx) { handleFrequencyRadioSelect(idx); }
+    fqradsel: function (idx) { handleFrequencyRadioSelect(idx); },
+    song: function () { return stat.song; }
 
 };  //end of returned functions
 }());
