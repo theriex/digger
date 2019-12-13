@@ -11,7 +11,8 @@ app.db = (function () {
                   reading: "Reading Files...",
                   merging: "Merging Data..."};
     var deckstat = {filter:true, qstr:"", disp:"songs", toggles:{},
-                    maxdecksel:1000, ws:[], fcs:[], pns:[],
+                    maxdecksel:1000, work:{status:"", timer:null},
+                    ws:[], fcs:[], pns:[],
                     fqps:["N", "P", "B", "Z", "O"]};
     var albumstat = null;
 
@@ -207,14 +208,46 @@ app.db = (function () {
     }
 
 
+    function recalcFrequencyCutoffs () {
+        var day = 24 * 60 * 60 * 1000;
+        var now = Date.now();
+        deckstat.freqlim = {
+            N:{days:1},
+            P:{days:1},
+            W:{days:7},  //used for playprio
+            M:{days:30}, //used for playprio
+            B:{days:dbo.waitcodedays.O || 90},
+            Z:{days:dbo.waitcodedays.Z || 180},
+            O:{days:dbo.waitcodedays.O || 365}};
+        Object.keys(deckstat.freqlim).forEach(function (key) {
+            var flim = deckstat.freqlim[key];
+            flim.iso = new Date(now - (flim.days * day)).toISOString(); });
+    }
+
+
+    //Shuffling can cause starvation of unplayed tracks.  Assign a play
+    //priority sort bucket value based on when the song was last played.
+    function setSongPlayPriority (song) {
+        song.playprio = 0;  //not played yet, or older than a year
+        if(song.lp) {
+            var prios = ["O", "Z", "B", "M", "W", "P"];
+            song.playprio = prios.findIndex(
+                (flk) => song.lp < deckstat.freqlim[flk].iso);
+            if(song.playprio < 0) {
+                song.playprio = prios.length; } }
+    }
+
+
     function rebuildWorkingSet () {
         deckstat.ws = [];
         deckstat.fcs = [];
+        recalcFrequencyCutoffs();        
         Object.keys(dbo.songs).forEach(function (path) {
             var song = dbo.songs[path];
             if(!song.fq.startsWith("D") && !song.fq.startsWith("U")) {
                 //song file eligible. Artist/Album/Title may be incomplete.
                 song.path = path;
+                setSongPlayPriority(song);
                 deckstat.ws.push(song); } });
         updateDeckInfoDisplay("Readable files");
     }
@@ -228,7 +261,8 @@ app.db = (function () {
                 if((song.ar && song.ar.toLowerCase().indexOf(st) >= 0) ||
                    (song.ab && song.ab.toLowerCase().indexOf(st) >= 0) ||
                    (song.ti && song.ti.toLowerCase().indexOf(st) >= 0) ||
-                   (song.path.toLowerCase().indexOf(st) >= 0)) {
+                   (song.path.toLowerCase().indexOf(st) >= 0) ||
+                   (song.kws && song.kws.toLowerCase().indexOf(st) >= 0)) {
                     return true; }
                 return false; });
             updateDeckInfoDisplay("Search Text"); }
@@ -254,27 +288,19 @@ app.db = (function () {
         var fqps = deckstat.fqps;
         deckstat.ws.sort(function (a, b) {
             //sort by last played, oldest first
-            if(a.lp < b.lp) { return -1; }
-            if(a.lp > b.lp) { return 1; }
-            //if last played is the same, secondary sort by frequency
-            var afqi = fqps.indexOf(a.fq); if(afqi < 0) { afqi = fqps.length; }
-            var bfqi = fqps.indexOf(b.fq); if(bfqi < 0) { bfqi = fqps.length; }
-            return afqi - bfqi; });
-    }
-
-
-    function recalcFrequencyCutoffs () {
-        var day = 24 * 60 * 60 * 1000;
-        var now = Date.now();
-        deckstat.freqlim = {
-            N:{days:1},
-            P:{days:1},
-            B:{days:dbo.waitcodedays.O || 90},
-            Z:{days:dbo.waitcodedays.Z || 180},
-            O:{days:dbo.waitcodedays.O || 365}};
-        Object.keys(deckstat.freqlim).forEach(function (key) {
-            var flim = deckstat.freqlim[key];
-            flim.iso = new Date(now - (flim.days * day)).toISOString(); });
+            if(a.lp && !b.lp) { return 1; }
+            if(!a.lp && b.lp) { return -1; }
+            if(a.lp && b.lp) {
+                if(a.lp < b.lp) { return -1; }
+                if(a.lp > b.lp) { return 1; } }
+            //if last played is the same, sort by frequency
+            if(a.fq && b.fq) {
+                var afqi = fqps.indexOf(a.fq);
+                if(afqi < 0) { afqi = fqps.length; }
+                var bfqi = fqps.indexOf(b.fq); 
+                if(bfqi < 0) { bfqi = fqps.length; }
+                return afqi - bfqi; }
+            return 0; });
     }
 
 
@@ -291,7 +317,6 @@ app.db = (function () {
     function truncateAndShuffle () {
         //eliminate all recently played stuff if we have enough to work with
         if(deckstat.ws.length <= 2) { return; }
-        recalcFrequencyCutoffs();
         var idx = deckstat.ws.length - 1;
         while(deckstat.filter && !frequencyEligible(deckstat.ws[idx])) {
             idx -= 1; }
@@ -306,6 +331,9 @@ app.db = (function () {
             tmp = deckstat.ws[idx];
             deckstat.ws[idx] = deckstat.ws[randidx];
             deckstat.ws[randidx] = tmp; }
+        //bucket sort to avoid starvation
+        deckstat.ws.sort(function (a, b) {
+            return a.playprio - b.playprio; });
     }
 
 
@@ -443,9 +471,7 @@ app.db = (function () {
     }
 
 
-    function updateDeck () {
-        if(!app.filter.filtersReady()) {
-            return; }  //ignore spurious calls before filter is done setting up
+    function updateDeckSynchronous () {
         if(!jt.byId("deckheaderdiv")) {
             initDeckElements(); }
         if(deckstat.toggles.infotimeout) {
@@ -464,6 +490,21 @@ app.db = (function () {
                 deckstat.toggles.toginfob(false);
                 deckstat.toggles.infotimeout = null; }, 800); }
         displaySongs();
+        deckstat.work.status = "";
+    }
+
+
+    function updateDeck () {
+        if(!app.filter.filtersReady()) {
+            return; }  //ignore spurious calls before filter is done setting up
+        if(deckstat.work.status) {  //already ongoing
+            if(deckstat.work.timer) {
+                clearTimeout(deckstat.work.timer);
+                deckstat.work.timer = null; }
+            deckstat.work.timer = setTimeout(updateDeck, 1200);
+            return; }
+        deckstat.work.status = "updating";
+        setTimeout(updateDeckSynchronous, 50);  //time consuming, yield to UI
     }
 
 

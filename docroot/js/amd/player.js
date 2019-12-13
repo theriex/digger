@@ -104,7 +104,8 @@ app.player = (function () {
         updatePanControl("el");
         updatePanControl("al");
         jt.on("panplaydiv", "mousedown", function (event) {
-            jt.evtend(event); });  //ignore to avoid selecting ctrls
+            if(!event.target || event.target.id !== "kwdin") {
+                jt.evtend(event); } });  //ignore to avoid selecting ctrls
         jt.on("panplaydiv", "mouseup", function (event) {
             ctrls.el.pointingActive = false;
             ctrls.al.pointingActive = false;
@@ -113,33 +114,96 @@ app.player = (function () {
     }
 
 
+    function makeKeywordToggleButton (kwd, idx) {
+        var tc = "kwdtogoff";
+        if(stat.song.kws && stat.song.kws.csvcontains(kwd)) {
+            tc = "kwdtogon"; }
+        return ["button", {type:"button", cla:tc, id:"kwdtog" + idx,
+                           onclick:jt.fs("app.player.togkwd(" + idx + ")")},
+                kwd];
+    }
+
+
     function verifyKeywordToggles () {
-        var html = [];
         //changing which keywords will be in use is done from the db panel.
         var dbo = app.db.data();
         if(!dbo) { return; }
+        var html = [];
+        html.push(["button", {type:"button", id:"kwdexpb",
+                              onclick:jt.fs("app.player.togkwexp()")}, "+"]);
+        html.push(["span", {id:"newkwspan"}]);
+        stat.mainkwds = "";
         dbo.keywords.forEach(function (kwd, idx) {
-            var tc = "kwdtogoff";
-            if(stat.song.kws && stat.song.kws.csvcontains(kwd)) {
-                tc = "kwdtogon"; }
-            html.push(
-                ["button", {type:"button", cla:tc, id:"kwdtog" + idx,
-                            onclick:jt.fs("app.player.togkwd(" + idx + ")")},
-                 kwd]); });
+            stat.mainkwds = stat.mainkwds.csvappend(kwd);
+            html.push(makeKeywordToggleButton(kwd, idx)); });
+        html.push(["span", {id:"extrakwspan"}]);
         jt.out("kwdsdiv", jt.tac2html(html));
     }
 
 
-    function toggleKeyword (idx) {
+    function verifyOtherKeywords () {
+        if(stat.otherkwdschecked) { return; }
+        stat.otherkwdschecked = true;
+        stat.otherkwds = "";
         var dbo = app.db.data();
+        Object.keys(dbo.songs).forEach(function (path) {
+            var song = dbo.songs[path];
+            song.kws = song.kws || "";
+            song.kws.csvarray().forEach(function (kwd) {
+                if(!stat.mainkwds.csvcontains(kwd) &&
+                   !stat.otherkwds.csvcontains(kwd)) {
+                    stat.otherkwds = stat.otherkwds.csvappend(kwd); } }); });
+    }
+
+
+    function toggleKeywordsExpansion () {
+        var togb = jt.byId("kwdexpb");
+        if(togb.innerHTML === "+") {
+            jt.out("newkwspan", jt.tac2html(
+                [["input", {type:"text", id:"kwdin", size:10, value:"",
+                            placeholder:"new keyword"}],
+                 ["button", {type:"button", id:"addkwb",
+                             onclick:jt.fs("app.player.addkwd()")}, "+"]]));
+            verifyOtherKeywords();
+            var html = [];
+            stat.otherkwds.csvarray().forEach(function (kwd, idx) {
+                html.push(makeKeywordToggleButton(kwd, idx + 4)); });
+            jt.out("extrakwspan", jt.tac2html(html));
+            togb.innerHTML = "-"; }
+        else {
+            jt.out("newkwspan", "");
+            jt.out("extrakwspan", "");
+            togb.innerHTML = "+"; }
+    }
+
+
+    function addNewKeyword() {
+        var kwd = jt.byId("kwdin").value;
+        if(!kwd || !kwd.trim()) { return; }
+        //canonical form for a keyword is first letter capitalized.
+        //multi-word keywords are possible, but horrible on real-estate,
+        //semantically less than helpful, and usually reflect a lack of
+        //thought.  Not a priority.
+        kwd = kwd.toLowerCase().capitalize();
+        if(!stat.otherkwds.csvcontains(kwd)) {
+            stat.otherkwds = stat.otherkwds.csvappend(kwd); }
+        if(!stat.song.kws.csvcontains(kwd)) {
+            stat.song.kws = stat.song.kws.csvappend(kwd);
+            noteSongModified();
+            toggleKeywordsExpansion();   //clear expanded content
+            toggleKeywordsExpansion(); } //rebuild with new kw
+    }
+
+
+    function toggleKeyword (idx) {
         stat.song.kws = stat.song.kws || "";
         var button = jt.byId("kwdtog" + idx);
         if(button.className === "kwdtogoff") {
             button.className = "kwdtogon";
-            stat.song.kws = stat.song.kws.csvappend(dbo.keywords[idx]); }
+            stat.song.kws = stat.song.kws.csvappend(button.innerHTML); }
         else {
             button.className = "kwdtogoff";
-            stat.song.kws = stat.song.kws.csvremove(dbo.keywords[idx]); }
+            stat.song.kws = stat.song.kws.csvremove(button.innerHTML); }
         noteSongModified();
     }
 
@@ -302,7 +366,9 @@ return {
     togkwd: function (idx) { toggleKeyword(idx); },
     tuneopt: function () { toggleTuningOptions(); },
     fqradsel: function (idx) { handleFrequencyRadioSelect(idx); },
-    song: function () { return stat.song; }
+    song: function () { return stat.song; },
+    togkwexp: function () { toggleKeywordsExpansion(); },
+    addkwd: function () { addNewKeyword(); }
 
 };  //end of returned functions
 }());

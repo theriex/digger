@@ -80,6 +80,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .kwdtogoff, .kwdtogon { color:white; background:#333; font-size:small; 
   padding:0px 2px; margin:2px; border-radius:0px; }
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
+#kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
+#addkwb { margin-left:0px; }
 
 
 /****************************************/
