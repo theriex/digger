@@ -19,7 +19,7 @@ A:hover {text-decoration:underline; color:#00989a; }
 img { border:0px; vertical-align:middle; }
 
 button { color:black; background:#ccc; cursor:pointer; font-size:small;
-  font-weight:normal; padding:1px 4px; margin-right:10px; 
+  font-weight:normal; padding:1px 4px; margin:5px 10px 0px 0px;
   border:2px solid black; border-radius:8px; box-shadow:2px 2px 2px #666; }
 
 #contentdiv { margin:0px auto; width:100vw; max-width:600px;
@@ -37,6 +37,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #pandbdiv { padding:10px 6px 0px 6px; }
 #pandeckdiv { padding:10px 6px 4px 6px; }
 
+/****************************************/
+/* DB Panel */
+
 .buttonico { max-height:30px; vertical-align:middle; padding:0px 5px; }
 #dbdlgdiv { display:table; }
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
@@ -47,6 +50,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .countspan { font-size:medium; padding-right:5px; }
 .mergemsgdiv { font-size:small; }
 .cldiv { font-size:small; }
+
+.kwseldiv { display:inline-block; margin-right:5px; }
+.kwdselnum { font-size:small; }
+#restartwithseldiv { margin-top:10px; }
 
 
 /****************************************/

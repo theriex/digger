@@ -40,6 +40,7 @@ require("http").createServer(function (request, response) {
     //POST requests:
     case "/mergefile": db.mergefile(request, response); break;
     case "/songupd": db.songupd(request, response); break;
+    case "/keywdsupd": db.keysupd(request, response); break;
     default: //handle after request is fully stabilized
         request.addListener("end", function () {
             switch(pu.baseurl) {

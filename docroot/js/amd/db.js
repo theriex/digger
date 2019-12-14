@@ -315,23 +315,26 @@ app.db = (function () {
 
 
     function truncateAndShuffle () {
-        //eliminate all recently played stuff if we have enough to work with
-        if(deckstat.ws.length <= 2) { return; }
+        if(deckstat.ws.length <= 2) { return; }  //not enough to work with
+        //truncate to a reasonable size pool if very large
+        deckstat.ws = deckstat.ws.slice(0, deckstat.maxdecksel);
+        //eliminate all recently played stuff if filtering
         var idx = deckstat.ws.length - 1;
-        while(deckstat.filter && !frequencyEligible(deckstat.ws[idx])) {
-            idx -= 1; }
-        idx = Math.min(deckstat.maxdecksel, idx);
-        deckstat.ws = deckstat.ws.slice(0, idx);
+        if(deckstat.filter) {
+            while(!frequencyEligible(deckstat.ws[idx])) {
+                idx -= 1; }
+            if(idx < deckstat.ws.length - 1) {  //filtered at least one item
+                deckstat.ws = deckstat.ws.slice(0, idx); } }
         updateDeckInfoDisplay("Deck Pool");
         //shuffle
         idx = deckstat.ws.length; var randidx; var tmp;
-        while(idx !== 0) {  //leave first element alone
+        while(idx !== 0) {  //leave first element (oldest) alone
             randidx = Math.floor(Math.random() * idx);
             idx -= 1;
             tmp = deckstat.ws[idx];
             deckstat.ws[idx] = deckstat.ws[randidx];
             deckstat.ws[randidx] = tmp; }
-        //bucket sort to avoid starvation
+        //bucket sort to avoid starvation of older tracks on deck pop
         deckstat.ws.sort(function (a, b) {
             return a.playprio - b.playprio; });
     }
@@ -677,6 +680,65 @@ app.db = (function () {
     }
 
 
+    function redrawKeywordSelectionDlg () {
+        var html = [];
+        dbstat.kwds.forEach(function (kwd, idx) {
+            var bc = "kwdtogoff";
+            var selnum = dbstat.selks.indexOf(kwd);
+            if(selnum < 0) {
+                selnum = ""; }
+            else {
+                selnum += 1;
+                bc = "kwdtogon"; }
+            html.push(["div", {cla:"kwseldiv"},
+                       [["span", {cla:"kwdselnum"}, selnum],
+                        ["button", {type:"button", cla:bc,
+                                    onclick:jt.fs("app.db.selkw(" + idx + ")")},
+                         kwd]]]); });
+        html.push(["div", {cla:"dlgbuttonsdiv", id:"restartwithseldiv"},
+                   ["button", {type:"button", id:"restartwskb",
+                               onclick:jt.fs("app.db.choosekeys('apply')")},
+                    "Restart With Selected Keywords"]]);
+        jt.out("dbdlgdiv", jt.tac2html(html));
+    }
+
+
+    function selectKeyword (idx) {
+        //the idea is you click 4 keywords in the order you want them
+        var kwd = dbstat.kwds[idx];
+        var selremi = Math.max(dbstat.selks.indexOf(kwd), 0);
+        dbstat.selks.splice(selremi, 1);
+        dbstat.selks.push(kwd);
+        redrawKeywordSelectionDlg();
+    }
+
+
+    function chooseKeywords (cmd) {
+        if(cmd === "apply") {  //restart app with new keywords
+            jt.byId("restartwskb").disabled = true;  //debounce
+            var datobj = {keywords:dbstat.selks.join(",")};
+            jt.call("POST", "/keywdsupd", jt.objdata(datobj),
+                    function () {
+                        jt.log("chooseKeywords update successful");
+                        dbo = null;  //reset so no interim reads of old data
+                        app.init2(); },
+                    function (code, errtxt) {
+                        jt.out("dbdlgdiv", String(code) + ": " + errtxt); },
+                    jt.semaphore("db.chooseKeywords"));
+            return; }
+        dbstat.kwds = ["Morning", "Office", "Workout", "Dance"];
+        dbstat.selks = [];
+        dbo.keywords.forEach(function (kwd) {
+            dbstat.selks.push(kwd);
+            if(dbstat.kwds.indexOf(kwd) < 0) {
+                dbstat.kwds.push(kwd); } });
+        app.player.otherkwds().csvarray().forEach(function (kwd) {
+            if(dbstat.kwds.indexOf(kwd) < 0) {
+                dbstat.kwds.push(kwd); } });
+        redrawKeywordSelectionDlg();
+    }
+
+
     function dbactions () {
         switch(dbstat.currstat) {
         case "ready":
@@ -692,7 +754,11 @@ app.db = (function () {
                   ["button", {type:"button", id:"mdbutton",
                               title:"Merge data from another digdat.json file",
                               onclick:jt.fs("app.db.merge()")},
-                   "Merge Data"]]]));
+                   "Merge Data"],
+                  ["button", {type:"button", id:"ckbutton",
+                              title:"Choose keywords to use for filtering",
+                              onclick:jt.fs("app.db.choosekeys()")},
+                   "Choose Keywords"]]]));
             break;
         default: 
             jt.log("dbactions ignored dbstat.currstat " + dbstat.currstat); }
@@ -737,6 +803,8 @@ return {
     reread: function (confirmed) { reReadSongFiles(confirmed); },
     merge: function () { mergeData(); },
     mergeClick: function () { mergeClick(); },
+    choosekeys: function (mode) { chooseKeywords(mode); },
+    selkw: function (idx) { selectKeyword(idx); },
     data: function () { return dbo; },
     deckupd: function () { updateDeck(); },
     popdeck: function () { return popSongFromDeck(); },

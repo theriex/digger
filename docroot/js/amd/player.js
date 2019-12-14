@@ -4,8 +4,8 @@
 app.player = (function () {
     "use strict";
 
-    var stat = {status:"", song:null, tfqs:["B", "Z", "O"]};
-    var ctrls = {};
+    var stat = null;   //initializeDisplay sets initial values for state vars
+    var ctrls = null;
 
 
     function hexToRGB(hexcolor) {
@@ -142,7 +142,7 @@ app.player = (function () {
 
 
     function verifyOtherKeywords () {
-        if(stat.otherkwdschecked) { return; }
+        if(stat.otherkwdschecked) { return stat.otherkwds; }
         stat.otherkwdschecked = true;
         stat.otherkwds = "";
         var dbo = app.db.data();
@@ -153,6 +153,7 @@ app.player = (function () {
                 if(!stat.mainkwds.csvcontains(kwd) &&
                    !stat.otherkwds.csvcontains(kwd)) {
                     stat.otherkwds = stat.otherkwds.csvappend(kwd); } }); });
+        return stat.otherkwds;
     }
 
 
@@ -231,6 +232,8 @@ app.player = (function () {
 
 
     function initializeDisplay () {
+        stat = {status:"", song:null, tfqs:["B", "Z", "O"]};
+        ctrls = {};
         jt.out("panplaydiv", jt.tac2html(
             [["div", {id:"mediadiv"}, "No songs on deck yet"],
              ["div", {id:"panpotsdiv"},
@@ -368,7 +371,8 @@ return {
     fqradsel: function (idx) { handleFrequencyRadioSelect(idx); },
     song: function () { return stat.song; },
     togkwexp: function () { toggleKeywordsExpansion(); },
-    addkwd: function () { addNewKeyword(); }
+    addkwd: function () { addNewKeyword(); },
+    otherkwds: function () { return verifyOtherKeywords(); }
 
 };  //end of returned functions
 }());

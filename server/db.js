@@ -390,6 +390,17 @@ module.exports = (function () {
     }
 
 
+    function updateKeywords (req, res) {
+        var updat = new formidable.IncomingForm();
+        updat.parse(req, function (err, fields) {
+            if(err) {
+                console.log("updateKeywords form error: " + err); }
+            dbo.keywords = fields.keywords.split(",");
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(JSON.stringify(dbo.keywords)); });
+    }
+
+
     function copyAudioToTemp (relpath) {
         var tmpdir = "./docroot/tmpaudio";
         if(!fs.existsSync(tmpdir)) {
@@ -410,6 +421,7 @@ module.exports = (function () {
         mergefile: function (req, res) { return mergeFile(req, res); },
         mergestat: function (req, res) { return mergeStatus(req, res); },
         songupd: function (req, res) { return updateSong(req, res); },
+        keysupd: function (req, res) { return updateKeywords(req, res); },
         copyaudio: function (relpath) { return copyAudioToTemp(relpath); }
     };
 }());
