@@ -140,7 +140,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #deckheaderdiv { padding-bottom:5px; }
 .ico20 { height:20px; max-height:20px; }
 #togfiltb { margin-right:5px; }
-#togalb, #toginfob { margin-left:6px; }
+#toginfob, #togalb, #toghistb { margin-left:6px; }
 .dinfrecdiv { font-size:medium; }
 .dinfrecnspan { font-size:small; }
 #decksongsdiv, #deckalbumdiv, #deckinfodiv { height:160px; min-height:160px; 

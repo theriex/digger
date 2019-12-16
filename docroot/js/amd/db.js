@@ -129,73 +129,6 @@ app.db = (function () {
     }
 
 
-    function showDeckSection (showing) {
-        showing = showing || "songs";
-        var sections = ["songs", "album", "info"];
-        var buttons = ["", "togalb", "toginfob"];
-        sections.forEach(function (section, idx) {
-            var togbf = deckstat.toggles[buttons[idx]];
-            if(section === showing) {  //button is already toggled on
-                jt.byId("deck" + section + "div").style.display = "block"; }
-            else {
-                jt.byId("deck" + section + "div").style.display = "none";
-                if(togbf) {
-                    togbf("", true); } } });
-        deckstat.disp = showing;
-        if(showing === "album") {
-            updateAlbumDisplayContent(); }
-    }
-
-
-    function makeDeckToggleControls () {
-        makeToggle({id:"togfiltb", w:46, h:20, tfc:deckstat.toggles,
-                    togf:function (state) {
-                        if(state) {
-                            jt.byId("panfiltcontentdiv").style.opacity = 1.0;
-                            deckstat.filter = true; }
-                        else {
-                            jt.byId("panfiltcontentdiv").style.opacity = 0.3;
-                            deckstat.filter = false; }
-                        jt.log("deckstat.filter: " + deckstat.filter);
-                        app.db.deckupd(); },
-                    onimg:"img/filteron.png", onlabel:"",
-                    offimg:"img/filteroff.png", offlabel:""});
-        makeToggle({id:"togalb", w:20, h:20, tfc:deckstat.toggles,
-                    togf:function (state) {
-                        // if(state) { showDeckSection("songs"); }
-                        // else { showDeckSection("album"); } }
-                        showDeckSection(state ? "album" : "songs"); },
-                    onimg:"img/albumact.png", onlabel:"",
-                    offimg:"img/album.png", offlabel:""});
-        makeToggle({id:"toginfob", w:20, h:20, tfc:deckstat.toggles,
-                    togf:function (state) {
-                        showDeckSection(state ? "info" : "songs"); },
-                    onimg:"img/infoact.png", onlabel:"",
-                    offimg:"img/info.png", offlabel:""});
-    }
-
-
-    function initDeckElements () {
-        jt.out("pandeckdiv", jt.tac2html(
-            [["div", {id:"deckheaderdiv"},
-              [["div", {cla:"togbdiv", id:"togfiltb"}],
-               ["input", {type:"text", id:"srchin", size:23,
-                          placeholder:"artist/album/song...",
-                          value:deckstat.qstr,
-                          oninput:jt.fs("app.db.deckupd()")}],
-               ["a", {href:"#search", title:"Search Songs",
-                      onclick:jt.fs("app.db.deckupd()")},
-                ["img", {src:"img/search.png", cla:"ico20"}]],
-               ["div", {cla:"togbdiv", id:"togalb"}],
-               ["div", {cla:"togbdiv", id:"toginfob"}]]],
-             ["div", {id:"deckinfodiv", style:"display:none;"}],
-             ["div", {id:"deckalbumdiv", style:"display:none;"}],
-             ["div", {id:"decksongsdiv"}]]));
-        makeDeckToggleControls();
-        deckstat.toggles.togfiltb(true);
-    }
-
-
     function updateDeckInfoDisplay (phasename) {
         deckstat.fcs.push({filter:phasename, sc:deckstat.ws.length});
         var html = [];
@@ -360,13 +293,14 @@ app.db = (function () {
     }
 
 
-    function appendSongsToDisplay (prefix, songs) {
-        var songsdiv = jt.byId("decksongsdiv");
+    function appendSongsToDisplay (prefix, songs, spec) {
+        spec = spec || {divid:"decksongsdiv", title:"Play or Remove Song"};
+        var songsdiv = jt.byId(spec.divid);
         songs.forEach(function (song, idx) {
             var elem = document.createElement("div");
             elem.className = "decksongdiv";
             var tac = songTitleTAC(song);
-            tac[2] = [["a", {href:"#songactions", title:"Play or Remove Song",
+            tac[2] = [["a", {href:"#songactions", title:spec.title,
                              onclick:jt.fs("app.db.songopts('" + 
                                            prefix + "'," + idx + ")")},
                        tac[2]],
@@ -409,27 +343,44 @@ app.db = (function () {
               "Remove"]];
         if(prefix === "pns") {  //song is already in play next list
             tac.splice(1, 1); } //remove the play next button
+        if(prefix === "hst") {  //song was previously played
+            tac.splice(2, 1); } //remove the remove button
         optdiv.innerHTML = jt.tac2html(tac);
     }
 
 
     function deckPlayNow (prefix, idx) {
-        if(prefix === "pns") {  //song already in play next list
+        var tmp;
+        switch(prefix) {
+        case "pns":  //song already in play next list
             if(idx !== 0) { //not up next, swap into first position
-                var tmp = deckstat.pns[0];
+                tmp = deckstat.pns[0];
                 deckstat.pns[0] = deckstat.pns[idx];
-                deckstat.pns[idx] = tmp; } }
-        else {  //song in general working set, not in play next list
+                deckstat.pns[idx] = tmp; }
+            break;
+        case "hst":  //song not on deck, previously played
+            deckstat.pns.unshift(deckstat.hist[idx]);
+            //deckstat.hist content cleaned up in popdeck
+            break;
+        default:    //song in general working set
             deckstat.pns.unshift(deckstat.ws[idx]);  //prepend to pns
             deckstat.ws.splice(idx, 1); } //remove from ws
         app.player.next();
     }
 
 
-    function deckPlayNext (ignore /*prefix*/, wsidx) {
-        //No "Play Next" button if already queued to play next
-        deckstat.pns.push(deckstat.ws[wsidx]);
-        deckstat.ws.splice(wsidx, 1);
+    function deckPlayNext (prefix, idx) {
+        switch(prefix) {
+        case "pns": break; //already queued to play next
+        case "hst":
+            if(deckstat.pns.indexOf(deckstat.hist[idx]) < 0) {
+                deckstat.pns.push(deckstat.hist[idx]); }
+            toggleSongOptions(prefix, idx);  //hide button to ack click
+            //deckstat.hist content cleaned up in popdeck
+            break;
+        default:
+            deckstat.pns.push(deckstat.ws[idx]);
+            deckstat.ws.splice(idx, 1); }
         displaySongs();
     }
 
@@ -474,6 +425,102 @@ app.db = (function () {
     }
 
 
+    function verifyHistoryDisplayContent () {
+        if(deckstat.hs) { return; }  //already set up, content should be ok
+        var cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);  //how far back
+        cutoff = new Date(cutoff).toISOString();
+        deckstat.hist = [];
+        Object.keys(dbo.songs).forEach(function (path) {
+            var song = dbo.songs[path];
+            if(song.lp && song.lp >= cutoff) {
+                deckstat.hist.push(song); } });
+        deckstat.hist.sort(function (a, b) {
+            if(a.lp < b.lp) { return 1; }  //most recent first
+            if(a.lp > b.lp) { return -1; }
+            return 0; });
+        if(!deckstat.hist.length) {
+            jt.out("deckhistorydiv", "No recently played songs"); }
+        else {
+            jt.out("deckhistorydiv", "");
+            appendSongsToDisplay("hst", deckstat.hist,
+                                 {divid:"deckhistorydiv",
+                                  title:"Play Song Again"}); }
+    }
+
+
+    function showDeckSection (showing) {
+        showing = showing || "songs";
+        var sections = ["songs", "info", "album", "history"];
+        var buttons = ["", "toginfob", "togalb", "toghistb"];
+        sections.forEach(function (section, idx) {
+            var togbf = deckstat.toggles[buttons[idx]];
+            if(section === showing) {  //button is already toggled on
+                jt.byId("deck" + section + "div").style.display = "block"; }
+            else {
+                jt.byId("deck" + section + "div").style.display = "none";
+                if(togbf) {
+                    togbf("", true); } } });
+        deckstat.disp = showing;
+        switch(deckstat.disp) {
+            case "album": updateAlbumDisplayContent(); break;
+            case "history": verifyHistoryDisplayContent(); break; }
+    }
+
+
+    function makeDeckToggleControls () {
+        makeToggle({id:"togfiltb", w:46, h:20, tfc:deckstat.toggles,
+                    togf:function (state) {
+                        if(state) {
+                            jt.byId("panfiltcontentdiv").style.opacity = 1.0;
+                            deckstat.filter = true; }
+                        else {
+                            jt.byId("panfiltcontentdiv").style.opacity = 0.3;
+                            deckstat.filter = false; }
+                        jt.log("deckstat.filter: " + deckstat.filter);
+                        app.db.deckupd(); },
+                    onimg:"img/filteron.png", onlabel:"",
+                    offimg:"img/filteroff.png", offlabel:""});
+        makeToggle({id:"toginfob", w:20, h:20, tfc:deckstat.toggles,
+                    togf:function (state) {
+                        showDeckSection(state ? "info" : "songs"); },
+                    onimg:"img/infoact.png", onlabel:"",
+                    offimg:"img/info.png", offlabel:""});
+        makeToggle({id:"togalb", w:20, h:20, tfc:deckstat.toggles,
+                    togf:function (state) {
+                        showDeckSection(state ? "album" : "songs"); },
+                    onimg:"img/albumact.png", onlabel:"",
+                    offimg:"img/album.png", offlabel:""});
+        makeToggle({id:"toghistb", w:20, h:20, tfc:deckstat.toggles,
+                    togf:function (state) {
+                        showDeckSection(state ? "history" : "songs"); },
+                    onimg:"img/historyact.png", onlabel:"",
+                    offimg:"img/history.png", offlabel:""});
+    }
+
+
+    function initDeckElements () {
+        jt.out("pandeckdiv", jt.tac2html(
+            [["div", {id:"deckheaderdiv"},
+              [["div", {cla:"togbdiv", id:"togfiltb"}],
+               ["input", {type:"text", id:"srchin", size:18,
+                          placeholder:"artist/album/song...",
+                          value:deckstat.qstr,
+                          oninput:jt.fs("app.db.deckupd()")}],
+               ["a", {href:"#search", title:"Search Songs",
+                      onclick:jt.fs("app.db.deckupd()")},
+                ["img", {src:"img/search.png", cla:"ico20"}]],
+               ["div", {cla:"togbdiv", id:"toginfob"}],
+               ["div", {cla:"togbdiv", id:"togalb"}],
+               ["div", {cla:"togbdiv", id:"toghistb"}]]],
+             ["div", {id:"deckinfodiv", style:"display:none;"}],
+             ["div", {id:"deckalbumdiv", style:"display:none;"}],
+             ["div", {id:"deckhistorydiv", style:"display:none;"}],
+             ["div", {id:"decksongsdiv"}]]));
+        makeDeckToggleControls();
+        deckstat.toggles.togfiltb(true);
+    }
+
+
     function updateDeckSynchronous () {
         if(!jt.byId("deckheaderdiv")) {
             initDeckElements(); }
@@ -511,10 +558,20 @@ app.db = (function () {
     }
 
 
+    function addSongToHistory (song) {
+        if(deckstat.hs) {  //history is being displayed
+            var idx = deckstat.hs.indexOf(song);
+            if(idx >= 0) {
+                deckstat.hs.splice(idx, 1); }
+            deckstat.hs.unshift(song); }
+        return song;
+    }
+
+
     function popSongFromDeck () {
         var song = albumPlayNext();
         if(song) {  //in album mode and had next track to play
-            return song; }
+            return addSongToHistory(song); }
         if(deckstat.pns.length > 0) {
             song = deckstat.pns[0];
             deckstat.pns = deckstat.pns.slice(1); }
@@ -526,7 +583,7 @@ app.db = (function () {
             updateSavedSongData(song, function (updsong) {
                 jt.log("updated last played " + updsong.path);
                 updateDeck(); }); }
-        return song;
+        return addSongToHistory(song);
     }
 
 
