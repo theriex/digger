@@ -371,9 +371,10 @@ app.player = (function () {
     function next () {
         saveSongDataIfModified("ignoreUpdatedSongDataReturn");
         toggleTuningOptions("off");
-        updateCommentIndicator();
+        toggleCommentDisplay("off");
         stat.status = "";
         stat.song = app.db.popdeck();
+        updateCommentIndicator();
         if(!stat.song) {
             jt.out("mediadiv", "No songs to play."); }
         else {
