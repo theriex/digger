@@ -21,6 +21,7 @@ app.player = (function () {
         app.db.updateSavedSongData(stat.song, function (updsong) {
             if(!ignoreupdate) {
                 stat.song = updsong;
+                jt.out("modindspan", "");
                 stat.songModified = false; }
             jt.log("song data updated " + JSON.stringify(updsong)); });
     }
@@ -29,9 +30,10 @@ app.player = (function () {
     function noteSongModified () {
         if(!stat.song) { return; }
         stat.songModified = true;
+        jt.out("modindspan", "mod");
         if(stat.modtimer) {
             clearTimeout(stat.modtimer); }
-        stat.modtimer = setTimeout(saveSongDataIfModified, 5000);
+        stat.modtimer = setTimeout(saveSongDataIfModified, 2200);
     }
 
 
@@ -312,7 +314,8 @@ app.player = (function () {
         var titleTAC = app.db.songTitleTAC(stat.song);
         titleTAC[2].unshift(jt.tac2html(
             ["div", {id:"playtitlebuttonsdiv"},
-             [["a", {href:"#tuneoptions", title:"Tune Playback Options",
+             [["span", {id:"modindspan"}],
+              ["a", {href:"#tuneoptions", title:"Tune Playback Options",
                      id:"tuneopta", onclick:jt.fs("app.player.tuneopt()")},
                ["img", {src:"img/tunefork.png", cla:"ptico"}]],
               ["a", {href:"#skip", title:"Skip To Next Song",

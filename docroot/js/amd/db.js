@@ -708,11 +708,13 @@ app.db = (function () {
     function timeEstimateReadText () {
         var et = "";
         if(dbo.scanstart && dbo.scanned) {
+            jt.log("dbo.scanstart: " + dbo.scanstart);
+            jt.log("  dbo.scanned: " + dbo.scanned);
             var start = jt.isoString2Time(dbo.scanstart);
             var end = jt.isoString2Time(dbo.scanned);
             var elapsed = end.getTime() - start.getTime();
-            elapsed = Math.round(elapsed / (1000 * 60));
-            et = "(last scan took around " + elapsed + " minutes)"; }
+            elapsed = Math.round(elapsed / (10 * 60)) / 100;
+            et = "(last scan took about " + elapsed + " minutes)"; }
         return et;
     }
 
