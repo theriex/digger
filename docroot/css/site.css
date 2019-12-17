@@ -90,6 +90,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
+#togcommentlink { padding-left:24px; }
+#commentta { padding:3px 5px; }
 
 
 /****************************************/

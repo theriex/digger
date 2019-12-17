@@ -106,7 +106,8 @@ app.player = (function () {
         updatePanControl("el");
         updatePanControl("al");
         jt.on("panplaydiv", "mousedown", function (event) {
-            if(!event.target || event.target.id !== "kwdin") {
+            var okinids = ["kwdin", "commentta"];
+            if(!event.target || okinids.indexOf(event.target.id) < 0) {
                 jt.evtend(event); } });  //ignore to avoid selecting ctrls
         jt.on("panplaydiv", "mouseup", function (event) {
             ctrls.el.pointingActive = false;
@@ -243,7 +244,11 @@ app.player = (function () {
                ["div", {cla:"pandiv", id:"alpandiv"}]]],
              ["div", {id:"keysratdiv"},
               [["div", {id:"kwdsdiv"}],
-               ["div", {id:"rvdiv"}]]]]));
+               ["div", {id:"rvdiv"}],
+               ["a", {id:"togcommentlink", href:"#togglecomment",
+                      title:"", onclick:jt.fs("app.player.togcomment()")},
+                ["img", {id:"togcommentimg", src:"img/comment.png"}]]]],
+             ["div", {id:"commentdiv"}]]));
         makePanControls();
         verifyKeywordToggles();
         makeRatingValueControl();
@@ -283,6 +288,35 @@ app.player = (function () {
         case 1: stat.song.fq = "B"; break;
         case 2: stat.song.fq = "R"; break; }
         noteSongModified();
+    }
+
+
+    function updateCommentIndicator () {
+        jt.byId("togcommentimg").src = "img/comment.png";
+        if(stat.song && stat.song.nt) {
+            jt.byId("togcommentimg").src = "img/commentact.png"; }
+    }
+
+
+    function updateSongComment () {
+        var cta = jt.byId("commentta");
+        if(stat.song && cta) {
+            stat.song.nt = cta.value;
+            noteSongModified(); }
+        updateCommentIndicator();
+    }
+
+
+    function toggleCommentDisplay (togstate) {
+        var cdiv = jt.byId("commentdiv");
+        if(!stat.song || togstate === "off" || cdiv.innerHTML) {
+            cdiv.innerHTML = "";
+            return; }
+        stat.song.nt = stat.song.nt || "";
+        cdiv.innerHTML = jt.tac2html(
+            ["textarea", {id:"commentta", name:"commentta", rows:2, cols:35,
+                          oninput:jt.fs("app.player.updcomment()")},
+             stat.song.nt]);
     }
 
 
@@ -337,6 +371,7 @@ app.player = (function () {
     function next () {
         saveSongDataIfModified("ignoreUpdatedSongDataReturn");
         toggleTuningOptions("off");
+        updateCommentIndicator();
         stat.status = "";
         stat.song = app.db.popdeck();
         if(!stat.song) {
@@ -371,6 +406,8 @@ return {
     skip: function () { skip(); },
     togkwd: function (idx) { toggleKeyword(idx); },
     tuneopt: function () { toggleTuningOptions(); },
+    togcomment: function () { toggleCommentDisplay(); },
+    updcomment: function () { updateSongComment(); },
     fqradsel: function (idx) { handleFrequencyRadioSelect(idx); },
     song: function () { return stat.song; },
     togkwexp: function () { toggleKeywordsExpansion(); },
