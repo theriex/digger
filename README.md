@@ -12,6 +12,8 @@ Digger helps you enjoy your *collection* by pulling and playing songs you
 haven't heard in the longest time.  Digger uses range controls and keywords
 to pull situationally appropriate tracks without having to think too much.
 
+https://youtu.be/P9uGBJkQj5k has a walkthrough of the interface.
+
 
 ## Structure
 
