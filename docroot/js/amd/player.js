@@ -6,6 +6,7 @@ app.player = (function () {
 
     var stat = null;   //initializeDisplay sets initial values for state vars
     var ctrls = null;
+    var playerrs = {};
 
 
     function hexToRGB(hexcolor) {
@@ -362,9 +363,18 @@ app.player = (function () {
         ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2));
         var player = jt.byId("playeraudio");
         player.src = "/audio?path=" + jt.enc(stat.song.path);
-        //player.play() will fail in the promise if autoplay is disallowed.
-        //Wrapping in a try block doesn't help.  Letting it go for now...
-        player.play();
+        //player.play returns a Promise, check result via then.
+        player.play().then(
+            function (ignore /*successvalue*/) {
+                jt.log("Playing " + stat.song.path); },
+            //Autoplay disabled (NotAllowedError) is ok, just click play.
+            //Media type not playable (NotSupportedError) needs handling.
+            function (errorvalue) {  //FF error value is a DOMException
+                var errmsg = String(errorvalue);  //error name and detail text
+                jt.log("Play error " + errmsg + " " + stat.song.path);
+                if(errmsg.indexOf("NotSupportedError") >= 0) {
+                    playerrs[stat.song.path] = errorvalue;
+                    app.player.skip(); } });
     }
 
 
@@ -413,7 +423,8 @@ return {
     song: function () { return stat.song; },
     togkwexp: function () { toggleKeywordsExpansion(); },
     addkwd: function () { addNewKeyword(); },
-    otherkwds: function () { return verifyOtherKeywords(); }
+    otherkwds: function () { return verifyOtherKeywords(); },
+    playerr: function (path) { return playerrs[path]; }
 
 };  //end of returned functions
 }());

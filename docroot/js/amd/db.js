@@ -325,6 +325,12 @@ app.db = (function () {
         if(optdiv.innerHTML) {  //reset whatever content was there before
             optdiv.innerHTML = "";
             return; }
+        if(prefix === "hst") {
+            var song = deckstat.hist[idx];
+            var playerr = app.player.playerr(song.path);
+            if(playerr) {
+                optdiv.innerHTML = playerr;
+                return; } }
         var tac = [
             ["button", {type:"button", id:"deckplaynowb" + prefix + idx,
                          title:"Play now, replacing the current song",
