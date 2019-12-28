@@ -58,10 +58,15 @@ require("http").createServer(function (request, response) {
 }).listen(portnum);
 
 
-//open the browser tab to avoid having to do that manually
+//open a browser tab to avoid having to do that manually
 setTimeout(function () {
     const { spawn } = require("child_process");
-    //Mac platform
-    spawn("open", ["http://localhost:" + portnum], {stdio:"ignore"});
+    //Mac platform: Safari has best support for media file types.
+    //Need to test which OS here and launch appropriately.  Possibly move
+    //this over into db.initialize, and take an optional 3rd command line
+    //arg specifying a launch script name.  Auto launch tab by default.
+    spawn("open", ["-a", "/Applications/Safari.app",
+                   "http://localhost:" + portnum],
+          {stdio:"ignore"});
 }, 800);
 
