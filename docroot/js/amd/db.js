@@ -149,7 +149,7 @@ app.db = (function () {
             P:{days:1},
             W:{days:7},  //used for playprio
             M:{days:30}, //used for playprio
-            B:{days:dbo.waitcodedays.O || 90},
+            B:{days:dbo.waitcodedays.B || 90},
             Z:{days:dbo.waitcodedays.Z || 180},
             O:{days:dbo.waitcodedays.O || 365}};
         Object.keys(deckstat.freqlim).forEach(function (key) {
