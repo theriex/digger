@@ -448,8 +448,8 @@ module.exports = (function () {
 
 
     function writePlaylistFile () {
-        var txt = "#EXTM3U\n" +
-            JSON.parse(exp.spec.songs).join("\n") + "\n";
+        var songs = JSON.parse(exp.spec.songs).map((s) => s.split("/").pop());
+        var txt = "#EXTM3U\n" + songs.join("\n") + "\n";
         jslf(fs, "writeFileSync", exPath + exp.spec.plfilename, txt, "utf8");
     }
 
