@@ -671,7 +671,7 @@ app.db = (function () {
             case "history": mgrs.hist.verifyDisplayContent(); break; } },
         makeToggleControls: function () {
             var tgs = [
-                {id:"togfiltb", ti:"Deck Filter Controls", w:46, h:20,
+                {id:"togfiltb", ti:"Deck Filter Controls", w:46, h:23,
                  onimg:"img/filteron.png", offimg:"img/filteroff.png",
                  togf:function (state) {
                      if(state) {
@@ -697,7 +697,7 @@ app.db = (function () {
             tgs.forEach(function (tg) {
                 tg.tfc = deckstat.toggles;
                 tg.w = tg.w || 20;
-                tg.h = tg.w || 20;
+                tg.h = tg.h || 20;
                 makeToggle(tg); }); },
         initElements: function () {
             jt.out("pandeckdiv", jt.tac2html(
