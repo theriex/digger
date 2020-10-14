@@ -5,6 +5,7 @@ module.exports = (function () {
 
     var musicPath = "";
     var dbPath = "";
+    var exPath = "";
     var fxts = [
         //Common formats typically supported through OS libraries
         ".mp3", ".aac", ".aiff", ".wma", ".alac",
@@ -19,6 +20,16 @@ module.exports = (function () {
     var mostRecentRelativePathRead = "";
     var formidable = require("formidable");
     var mrg = {stat:null, obj:null, dict:null};
+    var exp = {stat:null, spec:null};
+
+
+    //JavaScript Lint Fuckery avoids warnings about sync methods that
+    //"shouldn't" be used and therefore don't have properties automatically
+    //created for them.  Just a silly workaround to make the call without
+    //generating warnings in the usually beloved static code analyzer.
+    function jslf (obj, method, ...args) {
+        return obj[method].apply(obj, args);
+    }
 
 
     function createDatabaseFile () {
@@ -54,7 +65,7 @@ module.exports = (function () {
         //  segs: [] A segue is ar/ab/ti/prob where prob is an *independent*
         //  percentage likelihood the segue will be used.  e.g. 0 is never,
         //  100 is always, 50 is a coin toss.
-        fs.writeFileSync(dbPath, JSON.stringify(dbo), "utf8");
+        jslf(fs, "writeFileSync", dbPath, JSON.stringify(dbo), "utf8");
         console.log("Created " + dbPath);
         state = "ready";
     }
@@ -68,23 +79,36 @@ module.exports = (function () {
     }
 
 
-    function initialize () {
+    function setPathsFromArgs () {
         var args = process.argv.slice(2);
+        //by default, look for music files in the directory we are running from
         musicPath = "./";
         if(args && args.length) {
-            musicPath = args[0];
-            args = args.slice(1);
+            musicPath = args[0];  //otherwise use the specified dir
             if(!musicPath.endsWith("/")) {
                 musicPath += "/"; } }
-        if(args && args.length) {
-            dbPath = args[0];
-            args = args.slice(1);
-            if(dbPath.endsWith("/")) {
+        //by default, put the db file in the same directory as the music
+        dbPath = musicPath + "digdat.json";
+        if(args && args.length >= 2) {
+            dbPath = args[1];
+            if(dbPath.endsWith("/")) {  //no filename specified, use default
                 dbPath += "/digdat.json"; } }
-        if(!dbPath) {
-            dbPath = musicPath + "digdat.json"; }
-        //console.log("db.init " + musicPath + " " + dbPath);
-        if(!fs.existsSync(dbPath)) {
+        //no default for export, disable if not specified.  Export is
+        //non-destructive, which means no deleting of files, and no
+        //overwriting of existing files.  Could add a fourth parameter to
+        //sllow specifying destructive, but the potential for serious harm
+        //if exPath is pointing to the wrong place is not worth it.
+        if(args && args.length >= 3) {
+            exPath = args[2];
+            if(!exPath.endsWith("/")) {
+                exPath += "/"; } }
+        //console.log("db.init " + musicPath + " " + dbPath + " " + exPath);
+    }
+
+
+    function initialize () {
+        setPathsFromArgs();
+        if(!jslf(fs, "existsSync", dbPath)) {
             createDatabaseFile(); }
         else {
             fs.readFile(dbPath, "utf8", function (err, data) {
@@ -95,6 +119,16 @@ module.exports = (function () {
                     Object.keys(dbo.songs).forEach(function (key) {
                         normalizeIntegerValues(dbo.songs[key]); }); }
                 console.log("Read " + dbPath); }); }
+    }
+
+
+    function serveConfig (ignore /*req*/, res) {
+        var confobj = {};
+        confobj.musicPath = musicPath;
+        confobj.dbPath = dbPath;
+        confobj.exPath = exPath;
+        res.writeHead(200, {"Content-Type": "application/json"});
+        res.end(JSON.stringify(confobj));
     }
 
 
@@ -139,13 +173,13 @@ module.exports = (function () {
         if(!ws.files.length) {
             dbo.scanned = new Date().toISOString();  //note completion time.
             var jsondbo = JSON.stringify(dbo);
-            fs.writeFileSync(dbPath, jsondbo, "utf8");
+            jslf(fs, "writeFileSync", dbPath, jsondbo, "utf8");
             ws.response.writeHead(200, {"Content-Type": "application/json"});
             ws.response.end(jsondbo);
             state = "ready";
             return; }  //done reading
         var fn = ws.files.pop();
-        if(fs.lstatSync(fn).isDirectory()) {
+        if(jslf(fs, "lstatSync", fn).isDirectory()) {
             fs.readdir(fn, function (err, files) {
                 if(err) {
                     console.log("walkFiles readdir error: " + err); }
@@ -382,7 +416,7 @@ module.exports = (function () {
             song.ab = fields.ab || "";
             song.ti = fields.ti || "";
             normalizeIntegerValues(song);
-            fs.writeFileSync(dbPath, JSON.stringify(dbo), "utf8");
+            jslf(fs, "writeFileSync", dbPath, JSON.stringify(dbo), "utf8");
             song.path = fields.path;
             console.log("Updated " + song.path);
             res.writeHead(200, {"Content-Type": "application/json"});
@@ -403,18 +437,71 @@ module.exports = (function () {
 
     function copyAudioToTemp (relpath) {
         var tmpdir = "./docroot/tmpaudio";
-        if(!fs.existsSync(tmpdir)) {
-            fs.mkdirSync(tmpdir); }
+        if(!jslf(fs, "existsSync", tmpdir)) {
+            jslf(fs, "mkdirSync", tmpdir); }
         var tmpfn = "temp";
         if(relpath.lastIndexOf(".") > 0) {  //keep extension for content type
             tmpfn += relpath.slice(relpath.lastIndexOf(".")); }
-        fs.copyFileSync(musicPath + relpath, tmpdir + "/" + tmpfn);
+        jslf(fs, "copyFileSync", musicPath + relpath, tmpdir + "/" + tmpfn);
         return "/tmpaudio/" + tmpfn;
+    }
+
+
+    function writePlaylistFile () {
+        var txt = "#EXTM3U\n" +
+            JSON.parse(exp.spec.songs).join("\n") + "\n";
+        jslf(fs, "writeFileSync", exPath + exp.spec.plfilename, txt, "utf8");
+    }
+
+
+    function exportNextSong () {
+        if(!exp.stat.remaining.length) {
+            exp.stat.state = "Done";
+            if(exp.spec.markplayed) {  //song.lp updated when copied, save.
+                jslf(fs, "writeFileSync",
+                     dbPath, JSON.stringify(dbo), "utf8"); }
+            return; }
+        var song = exp.stat.remaining.pop();
+        var exn = song.split("/").pop();
+        fs.copyFile(musicPath + song, exPath + exn, function (err) {
+            if(err) {
+                exp.stat.state = "Failed";
+                console.log(err); }
+            exp.stat.copied += 1;
+            if(exp.spec.markplayed) {
+                dbo.songs[song].lp = new Date().toISOString(); }
+            exportNextSong(); });
+    }
+
+
+    function playlistExport (req, res) {
+        if(req.method === "GET") {
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(JSON.stringify(exp)); }
+        else { //POST
+            exp.stat = {state:"Copying", copied:0};
+            var fif = new formidable.IncomingForm();
+            fif.parse(req, function (err, fields) {
+                if(err) {
+                    exp.stat.state = "Failed";
+                    return resError(res, 400, "playlistExport form error " +
+                                    err); }
+                exp.spec = fields;
+                try {
+                    exp.stat.remaining = JSON.parse(exp.spec.songs);
+                    if(exp.spec.writepl) {
+                        writePlaylistFile(); }
+                    setTimeout(exportNextSong, 200);
+                } catch(e) {
+                    return resError(res, 400, "playlistExport error " + e); }
+                res.writeHead(200, {"Content-Type": "application/json"});
+                res.end(JSON.stringify(exp)); }); }
     }
 
 
     return {
         init: function () { initialize(); },
+        config: function (req, res) { return serveConfig(req, res); },
         dbo: function (req, res) { return serveDatabase(req, res); },
         dbread: function (req, res) { return readFiles(req, res); },
         songscount: function (req, res) { return songCount(req, res); },
@@ -422,6 +509,7 @@ module.exports = (function () {
         mergestat: function (req, res) { return mergeStatus(req, res); },
         songupd: function (req, res) { return updateSong(req, res); },
         keysupd: function (req, res) { return updateKeywords(req, res); },
-        copyaudio: function (relpath) { return copyAudioToTemp(relpath); }
+        copyaudio: function (relpath) { return copyAudioToTemp(relpath); },
+        plistexp: function (req, res) { return playlistExport(req, res); }
     };
 }());

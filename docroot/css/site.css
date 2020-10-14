@@ -45,6 +45,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
 .statdiv { font-size:medium; }
 
+.pathdiv { font-size:small; }
+.pathlabelspan { font-size:x-small; font-style:italic; }
+.expoptdiv { font-size:medium; padding:5px 0px 5px 8px; }
+
 .statespan { padding-right:5px; }
 .counterlabel { font-size:medium; font-style:italic; padding-right:5px; }
 .countspan { font-size:medium; padding-right:5px; }

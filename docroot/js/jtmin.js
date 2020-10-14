@@ -1,4 +1,4 @@
-/*jslint browser, multivar, white, fudge, this, for, long */
+/*jslint browser, white, fudge, this, for, long */
 
 /*global alert, console, document, window, XMLHttpRequest, JSON, escape, unescape, setTimeout, navigator */
 
@@ -67,7 +67,7 @@
 
     if(!String.prototype.csvarruniq) {
         String.prototype.csvarruniq = function () {
-            var va = [], vo = {};
+            var va = []; var vo = {};
             if(this && this.trim()) {
                 va = this.split(",");
                 //console.log("va: " + va);
@@ -111,7 +111,7 @@
     if (!String.prototype.csvremove) {
         String.prototype.csvremove = function (val) {
             //val may be a prefix of other values in the CSV
-            var idx, temp, csv = this;
+            var idx; var temp; var csv = this;
             idx = csv.indexOf(val + ",");
             if (idx >= 0) {
                 temp = csv.slice(0, idx);
@@ -149,7 +149,7 @@
 
     if (!Array.prototype.shuffle) {
         Array.prototype.shuffle = function () {
-            var i, j, tmp;
+            var i; var j; var tmp;
             for (i = this.length - 1; i > 0; i -= 1) {
                 j = Math.floor(Math.random() * (i + 1));
                 tmp = this[i];
@@ -167,7 +167,7 @@
 
     if (!Date.prototype.toISOString) {
         Date.prototype.toISOString = function () {
-            function pad(n) { return n < 10 ? "0" + n : n; }
+            function pad(n) { return (n < 10 ? "0" + n : n); }
             return this.getUTCFullYear() + "-"
                 + pad(this.getUTCMonth() + 1) + "-"
                 + pad(this.getUTCDate()) + "T"
@@ -296,7 +296,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
 
     uo.saferef = function (object, fieldspec) {
-        var fields, i;
+        var fields; var i;
         if (!object) {
             return null;
         }
@@ -336,12 +336,11 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
     };
 
 
-    //if a string needs to be URL encoded and then stuffed inside of
-    //single quotes, then you need to replace any embedded single
-    //quotes to avoid terminating the string early.
-    uo.embenc = function (val) {
-        val = uo.enc(val);
+    //Make an html text value safe for placing between double or single quotes.
+    uo.escq = function (val) {
+        val = val || "";
         val = val.replace(/'/g, "%27");
+        val = val.replace(/"/g, "&quot;");
         return val;
     };
 
@@ -372,7 +371,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
         var strval = txt || "";
         //whitespace and generally problematic characters
         strval = strval.replace(/\s/g, "");
-        strval = strval.replace(/\"/g, "");
+        strval = strval.replace(/"/g, "");
         strval = strval.replace(/\./g, "");
         //URI reserved characters gen-delims
         strval = strval.replace(/\:/g, "");
@@ -386,7 +385,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
         strval = strval.replace(/!/g, "");
         strval = strval.replace(/\$/g, "");
         strval = strval.replace(/&/g, "");
-        strval = strval.replace(/\'/g, "");
+        strval = strval.replace(/'/g, "");
         strval = strval.replace(/\(/g, "");
         strval = strval.replace(/\)/g, "");
         strval = strval.replace(/\*/g, "");
@@ -400,7 +399,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
 
     uo.ISOString2Day = function (str) {
-        var date, year, month, day;
+        var date; var year; var month; var day;
         if (!str) {
             str = new Date().toISOString();
         }
@@ -414,7 +413,8 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
 
     uo.ISOString2Time = function (str, utc) {
-        var date, year, month, day, hours, minutes, seconds;
+        var date; var year; var month; var day; var hours; var minutes;
+        var seconds; var ms;
         if (!str) {
             str = new Date().toISOString();
         }
@@ -424,12 +424,17 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
         hours = parseInt(str.slice(11, 13), 10);
         minutes = parseInt(str.slice(14, 16), 10);
         seconds = parseInt(str.slice(17, 19), 10);
+        ms = str.match(/\.(\d+)[zZ]/);  //no g flag, need capturing group
+        if(ms) {
+            ms = parseInt(ms[1], 10); }
+        else {
+            ms = 0; }
         if(utc || str.endsWith("Z")) {
             date = new Date(Date.UTC(year, (month - 1), day, 
-                                     hours, minutes, seconds, 0)); }
+                                     hours, minutes, seconds, ms)); }
         else {
             date = new Date(year, (month - 1), day, 
-                            hours, minutes, seconds, 0); }
+                            hours, minutes, seconds, ms); }
         return date;
     };
     uo.isoString2Time = uo.ISOString2Time;
@@ -449,7 +454,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
     uo.tz2human = function (zd) {
         if(typeof zd === "string") {
-            zd = uo.ISOString2Time(zd); }
+            zd = uo.isoString2Time(zd); }
         zd = uo.tz2loc(zd);  //convert back to local time
         //having adjusted the time, have to fetch all the date components as
         //UTC to avoid having them automatically adjusted again.
@@ -466,14 +471,10 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
 
     uo.colloquialDate = function (date, compress, commands) {
-        var now = new Date(),
-            elapsed,
-            dayname,
-            month,
-            retval;
+        var now = new Date(); var elapsed; var dayname; var month; var retval;
         commands = commands || "";
         if (typeof date === "string") {
-            date = uo.ISOString2Day(date);
+            date = uo.isoString2Day(date);
             if(commands.indexOf("z2loc") >= 0) {
                 date = uo.tz2loc(date); }
         }
@@ -504,16 +505,16 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
     ////////////////////////////////////////
 
     uo.timewithin = function (timeval, units, count, comptime) {
-        var incr, deadline, testval;
+        var incr; var deadline; var testval;
         incr = 60 * 60 * 1000;  //"hours"
         if (units === "days") {
             incr *= 24;
         }
         if (!timeval || typeof timeval === "string") {
-            timeval = uo.ISOString2Time(timeval);
+            timeval = uo.isoString2Time(timeval);
         }
         if (!comptime || typeof comptime === "string") {
-            comptime = uo.ISOString2Time(comptime);
+            comptime = uo.isoString2Time(comptime);
         }
         deadline = timeval.getTime() + (incr * count);
         testval = comptime.getTime();
@@ -530,7 +531,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
     //convert a "a=1&b=2" type string into an object form
     uo.paramsToObj = function (paramstr, obj, mode) {
-        var comps, i, attval, idx = paramstr.indexOf("?");
+        var comps; var i; var attval; var idx = paramstr.indexOf("?");
         if (idx >= 0) {
             paramstr = paramstr.slice(idx + 1);
         }
@@ -558,7 +559,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
     //parse the url hash and query parts into an object
     uo.parseParams = function (mode) {
-        var pstr, obj = {};
+        var pstr; var obj = {};
         pstr = window.location.hash;
         if (pstr.indexOf("#") === 0) {
             pstr = pstr.slice(1);
@@ -592,7 +593,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
 
     uo.paramsToFormInputs = function (paramstr) {
-        var html = "", fields, i, attval;
+        var html = ""; var fields; var i; var attval;
         if (!paramstr) {
             return "";
         }
@@ -607,14 +608,14 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
 
     uo.makelink = function (url) {
-        var html, suffix = "";
+        var html; var suffix = "";
         if (!url) {
             return "";
         }
         //strip any common trailing punctuation on the url if found
         //e.g. "(blah blah https://epinova.com)"
         //e.g. "ok https://en.wikipedia.org/wiki/Thanksgiving_(United_States)"
-        if (/[\.\,]$/.test(url) || 
+        if (/[.,]$/.test(url) ||
             (url.endsWith(")") && url.indexOf("(") < 0)) {
             suffix = url.slice(-1);
             url = url.slice(0, -1);
@@ -773,12 +774,12 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
         uo.on(elem, "dragstart", fso.dragstart);
         //set up a general drop handler 
         fso.drop = fso.drop || function (evt) {
-            var pos = {x: evt.pageX, y: evt.pageY},
-                dat = fso.dat.split(":"),
-                offset = {x: pos.x - (Number(dat[1])), 
-                          y: pos.y - (Number(dat[2]))},
-                srcelem = uo.byId(dat[0]),
-                coord = uo.geoPos(srcelem);
+            var pos = {x: evt.pageX, y: evt.pageY};
+            var dat = fso.dat.split(":");
+            var offset = {x: pos.x - (Number(dat[1])), 
+                          y: pos.y - (Number(dat[2]))};
+            var srcelem = uo.byId(dat[0]);
+            var coord = uo.geoPos(srcelem);
             uo.evtend(evt);
             srcelem.style.opacity = "1.0";
             //uo.log("drag end offset: " + offset.x + "," + offset.y);
@@ -934,7 +935,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
     //development.  This helps avoid inadvertent bad code.  Can be
     //set to null or modified as desired.
     uo.localDelayBusyWait = function () {
-        var tempdiv, tempdivid, now, start, delayms = 300;
+        var tempdiv; var tempdivid; var now; var start; var delayms = 300;
         if (!document || !window || !window.location || !window.location.href ||
                 window.location.href.indexOf("localhost:8080") < 0) {
             return;
@@ -1073,7 +1074,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
     //Short for "time slug", this is handy for building cache bust 
     //parameters and such.
     uo.ts = function (prefix, toklev) {
-        var levels, iso, slug;
+        var levels; var iso; var slug;
         levels = { year: 2, month: 4, day: 6, hour: 8, minute: 10 };
         prefix = prefix || "";
         if(toklev && toklev.endsWith("Z")) {
@@ -1094,7 +1095,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
     //If only the cookie name is provided, then the current value is returned.
     uo.cookie = function (cname, cval, expiredays) {
-        var expiration, index;
+        var expiration; var index;
         if (cval || expiredays <= 0) {
             cval = cval || "";
             if (!expiredays) {
@@ -1104,7 +1105,8 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
             expiration.setDate(expiration.getDate() + expiredays);
             cval = escape(cval) + 
                 "; Expires=" + expiration.toUTCString() +
-                "; Path=/"
+                "; Path=/" +
+                "; SameSite=Lax";  //Strict breaks local dev page reload FF
             document.cookie = cname + "=" + cval;
         }
         cval = document.cookie;
@@ -1174,7 +1176,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
     ////////////////////////////////////////
 
     uo.loadAppModules = function (app, modulenames, path, callback, parastr) {
-        var i, url, modname, js;
+        var i; var url; var modname; var js;
         if (path.indexOf("#") > 0) {
             path = path.slice(0, path.indexOf("#")); }
         if (path.indexOf("?") > 0) {
@@ -1206,7 +1208,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
 
     uo.waitForModules = function (app, modulenames, callback) {
-        var i, modname, loaded = true;
+        var i; var modname; var loaded = true;
         for (i = 0; i < modulenames.length; i += 1) {
             modname = modulenames[i];
             if (!app[modname]) {

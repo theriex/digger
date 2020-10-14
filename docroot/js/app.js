@@ -46,7 +46,21 @@ app = {
             else {
                 display = "none"; } }
         div.style.display = display;
+    },
+
+
+    //Return the argument list as a string of arguments suitable for appending
+    //to manager dispatch onwhatever function text.
+    paramstr: function (args) {
+        var ps = "";
+        if(args && args.length) {
+            ps = args.reduce(function (acc, arg) {
+                if((typeof arg === "string") && (arg !== "event")) {
+                    arg = "'" + arg + "'"; }
+                return acc + "," + arg; }, ""); }  //always start with comma
+        return ps;
     }
+
 
 };
 }());

@@ -1,16 +1,15 @@
 # digger
-Zero planning enjoyment of your music collection
+A music tagging and automated retrieval device.
 
 ## Concept
 
-In digger terms, a music *library* is a vast set of music files like what
-you find on Spotify, SoundCloud, a radio station, or that pirated archive
-you've been hoarding.  A music *collection* is a subset of songs you would
-be interested in hearing again.
+In digger terms, a music *library* is a vast set of music files you've got
+on your computer, or in the cloud.  A music *collection* is a subset of
+songs you would be interested in hearing again.
 
 Digger helps you enjoy your *collection* by pulling and playing songs you
 haven't heard in the longest time.  Digger uses range controls and keywords
-to pull situationally appropriate tracks without having to think too much.
+to pull situationally appropriate tracks without having to think about it.
 
 https://youtu.be/P9uGBJkQj5k has a walkthrough of the interface.
 
@@ -32,16 +31,14 @@ extensions:
 
 Then run digger:
 
-    node digger.js MUSICDIR DIGGERDBFILE
-
-If you don't specify a db file, the default is MUSICDIR/digdat.json
+    node digger.js MUSICDIR DIGGERDBFILE EXPORTDIR
 
 With the server running, open http://localhost:6980 in a browser.
 
 
 ## Status
 
-See issues for ongoing development.  Definitely interested in packaging
+See issues page for ongoing development.  Definitely interested in packaging
 Digger for a wider audience and other media access models.  Get in touch via
 email.
 

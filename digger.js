@@ -37,13 +37,16 @@ require("http").createServer(function (request, response) {
     if(!quieturls.includes(pu.baseurl)) {
         console.log(request.url); }
     switch(pu.baseurl) {
-    //POST requests:
+    //POST requests (with optional GET support):
     case "/mergefile": db.mergefile(request, response); break;
     case "/songupd": db.songupd(request, response); break;
     case "/keywdsupd": db.keysupd(request, response); break;
+    case "/plistexp": db.plistexp(request, response); break;
     default: //handle after request is fully stabilized
         request.addListener("end", function () {
+            //GET requests:
             switch(pu.baseurl) {
+            case "/config": db.config(request, response); break;
             case "/dbo": db.dbo(request, response); break;
             case "/dbread": db.dbread(request, response); break;
             case "/songscount": db.songscount(request, response); break;
