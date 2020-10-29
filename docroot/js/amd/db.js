@@ -555,11 +555,11 @@ app.db = (function () {
                 ["div", {cla:"deckrembuttonsdiv"},
                  [["button", {type:"button", id:"drmpb" + prefix + idx,
                               title:"Move to bottom of collection play pool",
-                              onclick:mdfs("dk.remove", prefix, idx)},
+                              onclick:mdfs("dk.remove", "mp", prefix, idx)},
                    "Mark As Played"],
                   ["button", {type:"button", id:"drnsb" + prefix + idx,
                               title:"Remove from possible suggested songs",
-                              onclick:mdfs("dk.remove", prefix, idx)},
+                              onclick:mdfs("dk.remove", "ns", prefix, idx)},
                    "Never Suggest"]]])); },
         appendSongsToDisplay: function (prefix, songs, spec) {
             spec = spec || {divid:"decksongsdiv", title:"Play or Remove Song"};
