@@ -405,6 +405,8 @@ module.exports = (function () {
             var song = dbo.songs[fields.path];
             if(!song) {
                 return resError(res, 404, "No song " + fields.path); }
+            if(fields.settings) {
+                dbo.settings = JSON.parse(fields.settings); }
             song.fq = fields.fq;
             song.lp = fields.lp;
             song.rv = fields.rv;

@@ -57,7 +57,9 @@ app.db = (function () {
 
 
     function updateSavedSongData (song, contf) {
-        jt.call("POST", "/songupd", jt.objdata(song),
+        var settings = app.filter.filters().map((filt) => filt.settings());
+        var data = jt.objdata(song) + "&settings=" + JSON.stringify(settings);
+        jt.call("POST", "/songupd", data,
                 function (updsong) {
                     dbo[updsong.path] = updsong;
                     contf(updsong); },

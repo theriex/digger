@@ -23,6 +23,16 @@ app.filter = (function () {
                   inactivecolor:"#ffffff"};
 
 
+    function findSetting (avs) {
+        var dbo = app.db.data();
+        if(!dbo || !dbo.settings) {
+            return null; }
+        return dbo.settings.find((x) =>
+            Object.entries(avs).every(function ([attr, val]) {
+                return x[attr] === val; }));
+    }
+
+
     function dimstyle (dims, mousearea) {
         var rd = {x:dims.x, y:dims.y, w:dims.w, h:dims.h};
         if(mousearea === "maxy") {
@@ -128,7 +138,23 @@ app.filter = (function () {
     }
 
 
-    function addSongMatchFunc (cid) {
+    function addRangeSettingsFunc (cid) {
+        ctrls[cid].settings = function () {
+            return {t:"range", c:cid,
+                    v:ctrls[cid].cy,
+                    h:ctrls[cid].cx - ranger.hnob.x}; };
+    }
+
+
+    function initRangeSetting (cid) {
+        var dfltset = {v:18, h:117};
+        var settings = findSetting({t:"range", c:cid}) || dfltset;
+        ctrls[cid].vpos(0, settings.v || dfltset.v);
+        ctrls[cid].hpos(settings.h || dfltset.h, 0);
+    }
+
+
+    function addRangeSongMatchFunc (cid) {
         //Every song should have a numeric value set.
         ctrls[cid].match = function (song) {
             if(song[cid] >= ctrls[cid].rgfoc.min && 
@@ -158,7 +184,9 @@ app.filter = (function () {
                       style:dimstyle(ranger.hnob, "maxx")}]]));
         ctrls[cid].rgfoc = {min:0, max:99};
         attachRangeCtrlMovement(cid);
-        addSongMatchFunc(cid);
+        addRangeSettingsFunc(cid);
+        addRangeSongMatchFunc(cid);
+        initRangeSetting(cid);
     }
 
 
@@ -219,6 +247,13 @@ app.filter = (function () {
     }
 
 
+    function addBTSettingsFunc (idx) {
+        var bt = ctrls.bts[idx];
+        bt.settings = function () {
+            return {t:"kwbt", k:bt.pn, v:bt.tog}; };
+    }
+
+
     function addBTSongMatchFunc (idx) {
         var bt = ctrls.bts[idx];
         bt.match = function (song) {
@@ -229,6 +264,18 @@ app.filter = (function () {
                (!song.kws || (song.kws.indexOf(bt.pn) < 0))) {
                 return false; }
             return true; };
+    }
+
+
+    function setMinRating (rvs) {
+        var dfltset = {u:0, m:4};
+        rvs = rvs || dfltset;
+        rvs.u = rvs.u || dfltset.u;
+        rvs.m = rvs.m || dfltset.m;
+        ctrls.rat.unrated.idx = rvs.u - 1;  //incremented in toggle call
+        app.filter.togunrated();
+        //set ctrls.rat.stat.minrat via ui control update
+        ctrls.rat.posf(Math.round((rvs.m / 2) * 17));
     }
 
 
@@ -254,12 +301,15 @@ app.filter = (function () {
         attachMovementListeners("filterstarsanchordiv", ctrls.rat.stat, 
                                 ctrls.rat.posf);
         ctrls.rat.pn = "Minimum Rating";
+        ctrls.rat.settings = function () {
+            return {t:"minrat", u:ctrls.rat.unrated.idx,
+                    m:ctrls.rat.stat.minrat}; };
         ctrls.rat.match = function (song) {
             if(!song.rv) {  //song is unrated, match unless rating required
                 return ctrls.rat.unrated.idx !== 1; }
             if(ctrls.rat.unrated.idx !== 2) { //rated and not unrated only
                 return song.rv >= ctrls.rat.stat.minrat; } };
-        ctrls.rat.posf(34); //2 stars
+        setMinRating(findSetting({t:"minrat"}));
     }
 
 
@@ -303,11 +353,15 @@ app.filter = (function () {
         //changing which keywords will be in use is done from the db panel.
         dbo.keywords.forEach(function (kwd, idx) {
             ctrls.bts.push({pn:kwd, tog:"off"});
+            addBTSettingsFunc(idx);
             addBTSongMatchFunc(idx);
             btdivs.push(["div", {cla:"bowtiediv", id:"btdiv" + idx}]); });
         jt.out("bowtiesdiv", jt.tac2html(btdivs));
         ctrls.bts.forEach(function (bt, idx) {
-            createBowTieControl(bt, idx); });
+            createBowTieControl(bt, idx);
+            var dfltset = {v:"off"};
+            var setting = findSetting({t:"kwbt", k:bt.pn}) || dfltset;
+            setBowtiePosition(idx, setting.v || dfltset.v); });
         createMinRatingControl("ratdiv");
         jt.on("panfiltdiv", "mousedown", function (event) {
             jt.evtend(event); });  //ignore to avoid selecting ctrls
