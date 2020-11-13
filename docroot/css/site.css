@@ -71,6 +71,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   background:#333; border-radius:2px; padding:1px; }
 #tuneopta { margin-right:10px; }
 .tuneoptiondiv { display:inline-block; font-size:small; padding-right:10px; }
+.tuneoptdetattr { text-align:right; font-size:small; font-style:italic;
+  margin:0px 10px 0px 0px; }
+.tuneoptdetval { text-align:left; font-size:small; }
 
 .pandiv { display:inline-block; position:relative; }
 #elpandiv { margin-right:7px; }

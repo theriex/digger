@@ -256,6 +256,20 @@ app.player = (function () {
     }
 
 
+    function tuneOptDetailsHTML () {
+        var lastPlayed = "Never";
+        if(stat.prevPlayed) {
+            lastPlayed = jt.tz2human(stat.prevPlayed); }
+        var flds = [{a:"Last Played", v:lastPlayed},
+                    {a:"File", v:stat.song.path}];
+        var html = flds.map((fld) => jt.tac2html(
+            ["tr", {cla:"tuneoptdettr"},
+             [["td", {cla:"tuneoptdetattr"}, fld.a + ": "],
+              ["td", {cla:"tuneoptdetval"}, fld.v]]]));
+        return jt.tac2html(["table", html]);
+    }
+
+
     function toggleTuningOptions (togstate) {
         var tdiv = jt.byId("playertuningdiv");
         if(!tdiv) { return; }  //nothing to do
@@ -279,7 +293,8 @@ app.player = (function () {
                                                   idx + ")")}],
                         ["label", {fo:"tunerad" + idx}, opt.lab]]]); });
         tdiv.innerHTML = jt.tac2html(
-            ["div", {id:"frequencyoptionsdiv"}, html]);
+            [["div", {id:"frequencyoptionsdiv"}, html],
+             ["div", {id:"tuningdetdiv"}, tuneOptDetailsHTML()]]);
     }
 
 
@@ -424,7 +439,8 @@ return {
     togkwexp: function () { toggleKeywordsExpansion(); },
     addkwd: function () { addNewKeyword(); },
     otherkwds: function () { return verifyOtherKeywords(); },
-    playerr: function (path) { return playerrs[path]; }
+    playerr: function (path) { return playerrs[path]; },
+    noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; }
 
 };  //end of returned functions
 }());

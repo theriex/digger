@@ -761,6 +761,7 @@ app.db = (function () {
                 song = deckstat.ws[0];
                 deckstat.ws = deckstat.ws.slice(1); }
             if(song) {  //immediately mark as played so not re-retrieved
+                app.player.noteprevplay(song.lp);
                 song.lp = new Date().toISOString();
                 updateSavedSongData(song, function (updsong) {
                     jt.log("updated last played " + updsong.path);
