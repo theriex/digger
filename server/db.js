@@ -416,7 +416,10 @@ module.exports = (function () {
             song.ab = fields.ab || "";
             song.ti = fields.ti || "";
             normalizeIntegerValues(song);
-            jslf(fs, "writeFileSync", dbPath, JSON.stringify(dbo), "utf8");
+            //Need max 1 ongoing writeFile at a time, so use sync.  Better to
+            //have the server not respond if still busy.
+            jslf(fs, "writeFileSync", dbPath, JSON.stringify(dbo, null, 2),
+                 "utf8");
             song.path = fields.path;
             console.log("Updated " + song.path);
             res.writeHead(200, {"Content-Type": "application/json"});
