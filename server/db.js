@@ -106,13 +106,22 @@ module.exports = (function () {
     }
 
 
+    //On MacOS Catalina, if you put digdat.json in ~/Documents and the node
+    //containing shell hasn't been granted access, then the read of the db
+    //file will fail.  If the server is allowed to continue, and write
+    //access is subsequently granted, this will lead to a new dbo being
+    //written from scratch, with all of previous data overwritten.  Keeping
+    //a backup copy might help with recovery, but doesn't fix the problem.
+    //Better to fail catastrophically than to continue.
     function initialize () {
         setPathsFromArgs();
         if(!jslf(fs, "existsSync", dbPath)) {
             createDatabaseFile(); }
         else {
             fs.readFile(dbPath, "utf8", function (err, data) {
-                if(err) { 
+                if(err) {
+                    dbPath = "UNREADABLE_DBPATH_FILE_" + dbPath;
+                    console.log(dbPath);
                     throw err; }
                 dbo = JSON.parse(data);
                 if(dbo.songs) {
