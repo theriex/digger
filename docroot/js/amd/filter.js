@@ -19,8 +19,6 @@ app.filter = (function () {
                          gradient:{left:"0cd8e5", right:"faee0a"}},
                   vnob:{x:0, y:5, w:21, h:10, maxy:52},
                   hnob:{x:25, y:59, w:10, h:21, maxx:263}};
-    var bowtie = {activecolor:ctrls.activecolor,
-                  inactivecolor:"#ffffff"};
 
 
     function findSetting (avs) {
@@ -190,147 +188,175 @@ app.filter = (function () {
     }
 
 
-    function createBowTieControl (btc, idx) {
-        jt.out("btdiv" + idx, jt.tac2html(
-            [["div", {cla:"btlabeldiv", id:"btlab" + idx}, btc.pn],
-             ["div", {cla:"btbuttonsdiv"},
-              [["button", {type:"button", cla:"btleftb", 
-                           id:"btb" + idx + "neg",
-                           title:"No " + btc.pn + " Songs",
-                           onclick:jt.fs("app.filter.bowtieclick(" + idx + 
-                                         ",'neg')")}, "-"],
-               ["button", {type:"button", cla:"btmidb", 
-                           id:"btb" + idx + "off",
-                           title:"Unset " + btc.pn + " Filtering",
-                           onclick:jt.fs("app.filter.bowtieclick(" + idx + 
-                                         ",'off')")}, "o"],
-               ["button", {type:"button", cla:"btrightb", 
-                           id:"btb" + idx + "pos",
-                           title:"Only " + btc.pn + " Songs",
-                           onclick:jt.fs("app.filter.bowtieclick(" + idx + 
-                                         ",'pos')")}, "+"]]]]));
+    //manager dispatch function string shorthand generator
+    function mdfs (mgrfname, ...args) {
+        var pstr = app.paramstr(args);
+        mgrfname = mgrfname.split(".");
+        var fstr = "app.filter.managerDispatch('" + mgrfname[0] + "','" +
+            mgrfname[1] + "'" + pstr + ")";
+        if(pstr !== ",event") {  //don't return false from event hooks
+            fstr = jt.fs(fstr); }
+        return fstr;
     }
 
 
-    function colorWeight (elem, color, weight) {
-        elem.style.fontWeight = weight;
-        elem.style.color = color;
-    }
+    //General container for all managers, used for dispatch
+    var mgrs = {};
 
 
-    function setBowtiePosition (idx, tog) {
-        ctrls.bts[idx].tog = tog;
-        var bt = {lab:jt.byId("btlab" + idx),
-                  bneg:jt.byId("btb" + idx + "neg"),
-                  boff:jt.byId("btb" + idx + "off"),
-                  bpos:jt.byId("btb" + idx + "pos")};
-        switch(tog) {
-        case "neg":
-            bt.lab.style.textDecoration = "line-through";
-            bt.lab.style.fontWeight = "normal";
-            colorWeight(bt.bneg, bowtie.activecolor, "bold");
-            colorWeight(bt.bpos, bowtie.inactivecolor, "normal");
-            break;
-        case "off":
-            bt.lab.style.textDecoration = "none";
-            bt.lab.style.fontWeight = "normal";
-            colorWeight(bt.bneg, bowtie.inactivecolor, "normal");
-            colorWeight(bt.bpos, bowtie.inactivecolor, "normal");
-            break;
-        case "pos":
-            bt.lab.style.textDecoration = "none";
-            bt.lab.style.fontWeight = "bold";
-            colorWeight(bt.bneg, bowtie.inactivecolor, "normal");
-            colorWeight(bt.bpos, bowtie.activecolor, "bold");
-            break; }
-        app.db.deckupd();
-    }
+    //BowTie manager handles 3-way toggle controls for keyword filtering
+    mgrs.btc = (function () {
+        var tbs = [{sy:"-", id:"neg", bp:"left", ti:"No $NAME Songs"},
+                   {sy:"o", id:"off", bp:"mid", ti:"Unset $NAME Filtering"},
+                   {sy:"+", id:"pos", bp:"right", ti:"Only $NAME Songs"}];
+        var labind = {neg:{td:"line-through", fw:"normal"},
+                      off:{td:"none", fw:"normal"},
+                      pos:{td:"none", fw:"bold"}};
+    return {
+        makeControl: function (btc, idx) {
+            jt.out("btdiv" + idx, jt.tac2html(
+                [["div", {cla:"btlabeldiv", id:"btlab" + idx}, btc.pn],
+                 ["div", {cla:"btbuttonsdiv"}, tbs.map((b) =>
+                     ["button", {type:"button", cla:"bt" + b.bp + "b",
+                                 id:"btb" + idx + b.id,
+                                 title:b.ti.replace(/\$NAME/g, btc.pn),
+                                 onclick:mdfs("btc.setValue", idx, b.id)},
+                      b.sy])]])); },
+        setValue: function (idx, tog) {
+            ctrls.bts[idx].tog = tog;  //note the value for filtering
+            tbs.forEach(function (tb) {
+                var button = jt.byId("btb" + idx + tb.id);
+                if(tog === tb.id && tog !== "off") {
+                    button.style.fontWeight = "bold";
+                    button.style.color = ctrls.activecolor; }
+                else {
+                    button.style.fontWeight = "normal";
+                    button.style.color = "#ffffff"; } });
+            var label = jt.byId("btlab" + idx);
+            label.style.textDecoration = labind[tog].td;
+            label.style.fontWeight = labind[tog].fw;
+            app.db.deckupd(); },
+        addBTSettingsFunc: function (idx) {
+            var bt = ctrls.bts[idx];
+            bt.settings = function () {
+                return {t:"kwbt", k:bt.pn, v:bt.tog}; }; },
+        addBTSongMatchFunc: function (idx) {
+            var bt = ctrls.bts[idx];
+            bt.match = function (song) {
+                if(bt.tog === "neg" &&
+                   song.kws && (song.kws.indexOf(bt.pn) >= 0)) {
+                    return false; }
+                if(bt.tog === "pos" &&
+                   (!song.kws || (song.kws.indexOf(bt.pn) < 0))) {
+                    return false; }
+                return true; }; },
+        makeFiltersAndDivs: function (dbo) {
+            var btdivs = [];
+            dbo.keywords.forEach(function (kwd, idx) {
+                ctrls.bts.push({pn:kwd, tog:"off"});
+                mgrs.btc.addBTSettingsFunc(idx);
+                mgrs.btc.addBTSongMatchFunc(idx);
+                btdivs.push(["div", {cla:"bowtiediv", id:"btdiv" + idx}]); });
+            jt.out("bowtiesdiv", jt.tac2html(btdivs)); },
+        createAndInitControls: function () {
+            ctrls.bts.forEach(function (bt, idx) {
+                mgrs.btc.makeControl(bt, idx);
+                var dfltset = {v:"off"};
+                var setting = findSetting({t:"kwbt", k:bt.pn}) || dfltset;
+                mgrs.btc.setValue(idx, setting.v || dfltset.v); }); },
+        rebuildControls: function (dbo) {
+            ctrls.bts = [];
+            mgrs.btc.makeFiltersAndDivs(dbo);
+            mgrs.btc.createAndInitControls(); }
+    };  //end of returned functions
+    }());
 
 
-    function addBTSettingsFunc (idx) {
-        var bt = ctrls.bts[idx];
-        bt.settings = function () {
-            return {t:"kwbt", k:bt.pn, v:bt.tog}; };
-    }
+    //Minimum rating and unrated filter
+    mgrs.mruc = (function () {
+    return {
+        writeHTML: function (divid) {
+            jt.out(divid, jt.tac2html(
+                [["span", {cla:"gtoreqspan"}, "&#x2265;&nbsp;"],
+                 ["div", {cla:"ratstarscontainerdiv", id:"filterstarsdiv"},
+                  ["div", {cla:"ratstarsanchordiv", id:"filterstarsanchordiv"},
+                   [["div", {cla:"ratstarbgdiv"},
+                     ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
+                    ["div", {cla:"ratstarseldiv", id:"filterstarseldiv"},
+                     ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]],
+                 ["button", {type:"button", id:"inclunrb",
+                             style:"color:" + ctrls.activecolor,
+                             onclick:mdfs("mruc.toggleUnrated")},
+                  ctrls.rat.unrated.labels[0]]])); },
+        makeControls: function () {
+            ctrls.rat.stat = {pointingActive:false};
+            ctrls.movestats.push(ctrls.rat.stat);
+            ctrls.rat.posf = function (x, ignore /*y*/) {
+                ctrls.rat.stat.minrat = Math.max(Math.round((x / 17) * 2), 1);
+                jt.byId("filterstarseldiv").style.width = x + "px";
+                app.db.deckupd(); };
+            attachMovementListeners("filterstarsanchordiv", ctrls.rat.stat,
+                                    ctrls.rat.posf); },
+        makeFilter: function () {
+            ctrls.rat.pn = "Minimum Rating";
+            ctrls.rat.settings = function () {
+                return {t:"minrat", u:ctrls.rat.unrated.idx,
+                        m:ctrls.rat.stat.minrat}; };
+            ctrls.rat.match = function (song) {
+                if(!song.rv) {  //song is unrated, match unless rating required
+                    return ctrls.rat.unrated.idx !== 1; }
+                if(ctrls.rat.unrated.idx !== 2) { //rated and not unrated only
+                    return song.rv >= ctrls.rat.stat.minrat; } }; },
+        setMinRating: function (rvs) {
+            var dfltset = {u:0, m:4};
+            rvs = rvs || dfltset;
+            rvs.u = rvs.u || dfltset.u;
+            rvs.m = rvs.m || dfltset.m;
+            ctrls.rat.unrated.idx = rvs.u - 1;  //incremented in toggle call
+            mgrs.mruc.toggleUnrated();
+            //set ctrls.rat.stat.minrat via ui control update
+            ctrls.rat.posf(Math.round((rvs.m / 2) * 17)); },
+        toggleUnrated: function () {
+            ctrls.rat.unrated.idx = (ctrls.rat.unrated.idx + 1) % 3;
+            var button = jt.byId("inclunrb");
+            button.innerHTML = ctrls.rat.unrated.labels[ctrls.rat.unrated.idx];
+            switch(ctrls.rat.unrated.idx) {
+            case 0:  //Include Unrated
+                button.style.color = ctrls.activecolor;
+                jt.byId("filterstarsdiv").style.opacity = 1.0;
+                break;
+            case 1:
+                button.style.color = "#ccc";
+                jt.byId("filterstarsdiv").style.opacity = 1.0;
+                break;
+            case 2:
+                button.style.color = ctrls.activecolor;
+                jt.byId("filterstarsdiv").style.opacity = 0.3;
+                break; }
+            app.db.deckupd(); },
+        init: function (divid) {
+            mgrs.mruc.writeHTML(divid);
+            mgrs.mruc.makeControls();
+            mgrs.mruc.makeFilter();
+            mgrs.mruc.setMinRating(findSetting({t:"minrat"})); }
+    };  //end of returned functions
+    }());
 
 
-    function addBTSongMatchFunc (idx) {
-        var bt = ctrls.bts[idx];
-        bt.match = function (song) {
-            if(bt.tog === "neg" && 
-               song.kws && (song.kws.indexOf(bt.pn) >= 0)) {
-                return false; }
-            if(bt.tog === "pos" && 
-               (!song.kws || (song.kws.indexOf(bt.pn) < 0))) {
-                return false; }
-            return true; };
-    }
-
-
-    function setMinRating (rvs) {
-        var dfltset = {u:0, m:4};
-        rvs = rvs || dfltset;
-        rvs.u = rvs.u || dfltset.u;
-        rvs.m = rvs.m || dfltset.m;
-        ctrls.rat.unrated.idx = rvs.u - 1;  //incremented in toggle call
-        app.filter.togunrated();
-        //set ctrls.rat.stat.minrat via ui control update
-        ctrls.rat.posf(Math.round((rvs.m / 2) * 17));
-    }
-
-
-    function createMinRatingControl(divid) {
-        jt.out(divid, jt.tac2html(
-            [["span", {cla:"gtoreqspan"}, "&#x2265;&nbsp;"],
-             ["div", {cla:"ratstarscontainerdiv", id:"filterstarsdiv"},
-              ["div", {cla:"ratstarsanchordiv", id:"filterstarsanchordiv"},
-               [["div", {cla:"ratstarbgdiv"},
-                 ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
-                ["div", {cla:"ratstarseldiv", id:"filterstarseldiv"},
-                 ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]],
-             ["button", {type:"button", id:"inclunrb",
-                         style:"color:" + ctrls.activecolor,
-                         onclick:jt.fs("app.filter.togunrated()")},
-              ctrls.rat.unrated.labels[0]]]));
-        ctrls.rat.stat = {pointingActive:false};
-        ctrls.movestats.push(ctrls.rat.stat);
-        ctrls.rat.posf = function (x, ignore /*y*/) {
-            ctrls.rat.stat.minrat = Math.max(Math.round((x / 17) * 2), 1);
-            jt.byId("filterstarseldiv").style.width = x + "px";
-            app.db.deckupd(); };
-        attachMovementListeners("filterstarsanchordiv", ctrls.rat.stat, 
-                                ctrls.rat.posf);
-        ctrls.rat.pn = "Minimum Rating";
-        ctrls.rat.settings = function () {
-            return {t:"minrat", u:ctrls.rat.unrated.idx,
-                    m:ctrls.rat.stat.minrat}; };
-        ctrls.rat.match = function (song) {
-            if(!song.rv) {  //song is unrated, match unless rating required
-                return ctrls.rat.unrated.idx !== 1; }
-            if(ctrls.rat.unrated.idx !== 2) { //rated and not unrated only
-                return song.rv >= ctrls.rat.stat.minrat; } };
-        setMinRating(findSetting({t:"minrat"}));
-    }
-
-
-    function toggleUnrated () {
-        ctrls.rat.unrated.idx = (ctrls.rat.unrated.idx + 1) % 3;
-        var button = jt.byId("inclunrb");
-        button.innerHTML = ctrls.rat.unrated.labels[ctrls.rat.unrated.idx];
-        switch(ctrls.rat.unrated.idx) {
-        case 0:  //Include Unrated
-            button.style.color = ctrls.activecolor;
-            jt.byId("filterstarsdiv").style.opacity = 1.0;
-            break;
-        case 1:
-            button.style.color = "#ccc";
-            jt.byId("filterstarsdiv").style.opacity = 1.0;
-            break;
-        case 2:
-            button.style.color = ctrls.activecolor;
-            jt.byId("filterstarsdiv").style.opacity = 0.3;
-            break; }
-        app.db.deckupd();
+    function containingDivEventTraps () {
+        //trap and ignore clicks in controls container div to avoid
+        //selecting when you want to be changing a control value.
+        jt.on("panfiltdiv", "mousedown", function (event) {
+            jt.evtend(event); });
+        //stop tracking if the mouse is released outside of the control area,
+        //so that tracking doesn't get stuck "on" leaving the drag still in
+        //progress.  It might feel more resilient if the trap at this level
+        //instead passed the event through to the currently active control,
+        //then the general trap would be at the next containing div instead.
+        jt.on("panfiltdiv", "mouseup", function (event) {
+            ctrls.movestats.forEach(function (movestat) {
+                movestat.pointingActive = false; });
+            jt.evtend(event); });
     }
 
 
@@ -348,27 +374,9 @@ app.filter = (function () {
               ["div", {id:"ratdiv"}]]]));
         createRangeControl("el");
         createRangeControl("al");
-        ctrls.bts = [];
-        var btdivs = [];
-        //changing which keywords will be in use is done from the db panel.
-        dbo.keywords.forEach(function (kwd, idx) {
-            ctrls.bts.push({pn:kwd, tog:"off"});
-            addBTSettingsFunc(idx);
-            addBTSongMatchFunc(idx);
-            btdivs.push(["div", {cla:"bowtiediv", id:"btdiv" + idx}]); });
-        jt.out("bowtiesdiv", jt.tac2html(btdivs));
-        ctrls.bts.forEach(function (bt, idx) {
-            createBowTieControl(bt, idx);
-            var dfltset = {v:"off"};
-            var setting = findSetting({t:"kwbt", k:bt.pn}) || dfltset;
-            setBowtiePosition(idx, setting.v || dfltset.v); });
-        createMinRatingControl("ratdiv");
-        jt.on("panfiltdiv", "mousedown", function (event) {
-            jt.evtend(event); });  //ignore to avoid selecting ctrls
-        jt.on("panfiltdiv", "mouseup", function (event) {
-            ctrls.movestats.forEach(function (movestat) {
-                movestat.pointingActive = false; });
-            jt.evtend(event); });
+        mgrs.btc.rebuildControls(dbo);
+        mgrs.mruc.init("ratdiv");
+        containingDivEventTraps();
         ctrls.filtersReady = true;
     }
 
@@ -384,12 +392,13 @@ app.filter = (function () {
 return {
 
     init: function () { initControls(); },
-    bowtieclick: function (idx, tog) { setBowtiePosition(idx, tog); },
-    togunrated: function () { toggleUnrated(); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function () { return arrayOfAllFilters(); },
     gradient: function () { return ranger.panel.gradient; },
-    movelisten: function (d, s, p) { attachMovementListeners(d, s, p); }
+    movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
+    managerDispatch: function (mgrname, fname, ...args) {
+        return mgrs[mgrname][fname].apply(app.filter, args); }
+
 
 };  //end of returned functions
 }());

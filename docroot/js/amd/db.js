@@ -232,7 +232,7 @@ app.db = (function () {
                     "Merge Data"],
                    ["button", {type:"button", id:"ckbutton",
                                title:"Choose keywords to use for filtering",
-                               onclick:mdfs("kwds.chooseKeywords")},
+                               onclick:mdfs("kwd.chooseKeywords")},
                     "Choose Keywords"]]]])); },
         reReadSongFiles: function (confirmed) {
             if(confirmed) {
