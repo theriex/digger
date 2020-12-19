@@ -35,8 +35,8 @@ module.exports = (function () {
     function createDatabaseFile () {
         dbo = {version:"dv0.1", 
                scanned:"",  //ISO latest walk of song files
-               keywords:["Morning", "Office", "Workout", "Dance"],
-               keysacc:false,  //customization option presented
+               keywords:["Ambient", "Office", "Party", "Dance"],
+               //kwdefs created client side if/when keywords are customized
                waitcodedays:{  //days required since last played before pulling
                    //Prefix flag values:
                    //  D: Deleted.  File no longer exists
@@ -404,6 +404,14 @@ module.exports = (function () {
     }
 
 
+    function writeUpdatedDatabaseObject () {
+        //write the json with newlines so it can be read in a text editor
+        var json = JSON.stringify(dbo, null, 2);
+        //max 1 ongoing file write at a time, so use fs.writeFileSync.
+        jslf(fs, "writeFileSync", dbPath, json, "utf8");
+    }
+
+
     function updateSong (req, res) {
         var updat = new formidable.IncomingForm();
         updat.parse(req, function (err, fields) {
@@ -427,10 +435,7 @@ module.exports = (function () {
             song.ab = fields.ab || "";
             song.ti = fields.ti || "";
             normalizeIntegerValues(song);
-            //Need max 1 ongoing writeFile at a time, so use sync.  Better to
-            //have the server not respond if still busy.
-            jslf(fs, "writeFileSync", dbPath, JSON.stringify(dbo, null, 2),
-                 "utf8");
+            writeUpdatedDatabaseObject();
             song.path = fields.path;
             console.log("Updated " + song.path);
             res.writeHead(200, {"Content-Type": "application/json"});
@@ -443,7 +448,9 @@ module.exports = (function () {
         updat.parse(req, function (err, fields) {
             if(err) {
                 console.log("updateKeywords form error: " + err); }
-            dbo.keywords = fields.keywords.split(",");
+            dbo.kwdefs = JSON.parse(fields.kwdefs);
+            writeUpdatedDatabaseObject();
+            //No return value needed.  Echo back the updated keywords.
             res.writeHead(200, {"Content-Type": "application/json"});
             res.end(JSON.stringify(dbo.keywords)); });
     }

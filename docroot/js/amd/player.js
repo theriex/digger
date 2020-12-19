@@ -9,14 +9,6 @@ app.player = (function () {
     var playerrs = {};
 
 
-    function hexToRGB(hexcolor) {
-        var hcs = hexcolor.match(/\S\S/g);
-        return {r:parseInt(hcs[0], 16),
-                g:parseInt(hcs[1], 16),
-                b:parseInt(hcs[2], 16)};
-    }
-
-
     function saveSongDataIfModified (ignoreupdate) {
         if(!stat.songModified) { return; }
         app.db.updateSavedSongData(stat.song, function (updsong) {
@@ -35,181 +27,6 @@ app.player = (function () {
         if(stat.modtimer) {
             clearTimeout(stat.modtimer); }
         stat.modtimer = setTimeout(saveSongDataIfModified, 2200);
-    }
-
-
-    function updatePanControl (id, val) {
-        if(!val && val !== 0) {
-            val = 49; }
-        if(typeof val === "string") {
-            val = parseInt(val, 10); }
-        if(stat.song) {
-            stat.song[id] = val; }
-        noteSongModified();
-        //set knob face color from gradient
-        var g = app.filter.gradient();
-        g = {f:hexToRGB(g.left), t:hexToRGB(g.right)};  //from (left) to (right)
-        var pct = (val + 1) / 100;
-        var res = {r:0, g:0, b:0};
-        Object.keys(res).forEach(function (key) {
-            res[key] = Math.round(g.f[key] + (g.t[key] - g.f[key]) * pct); });
-        var pfd = jt.byId(id + "panfacediv");
-        pfd.style.backgroundColor = "rgb(" + 
-            res.r + ", " + res.g + ", " + res.b + ")";
-        //rotate knob to value
-        var anglemax = 145;
-        var rot = Math.round(2 * anglemax * pct) - anglemax;
-        pfd.style.transform = "rotate(" + rot + "deg)";
-    }
-
-
-    function createPanControl (id, det) {
-        var pc = {fld:det.fld, pn:det.pn, low:det.low, high:det.high,
-                  pointingActive:false};
-        ctrls[id] = pc;
-        jt.out(id + "pandiv", jt.tac2html(
-            ["div", {cla:"pancontdiv", id:pc.fld + "pancontdiv"},
-             [["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
-              ["div", {cla:"panrightlabdiv", id:pc.fld + "panrld"}, pc.high],
-              ["div", {cla:"panfacediv", id:pc.fld + "panfacediv"},
-               ["img", {cla:"panfaceimg", src:"img/panface.png"}]],
-              ["div", {cla:"panbgdiv", id:pc.fld + "panbgdiv"},
-               ["img", {cla:"panbackimg", src:"img/panback.png"}]],
-              ["div", {cla:"pandragdiv", id:pc.fld + "pandragdiv"}]]]));
-        //pack the control widthwise
-        var pk = {leftlab:{elem:jt.byId(id + "panlld")},
-                  rightlab:{elem:jt.byId(id + "panrld")},
-                  panbg:{elem:jt.byId(id + "panbgdiv")},
-                  panface:{elem:jt.byId(id + "panfacediv")}};
-        Object.keys(pk).forEach(function (key) {
-            pk[key].bbox = pk[key].elem.getBoundingClientRect(); });
-        var left = 8 + pk.leftlab.bbox.width;
-        pk.panbg.elem.style.left = left + "px";
-        pk.panface.elem.style.left = left + "px";
-        ctrls[id].width = left + 44 + pk.rightlab.bbox.width + 5;
-        var pds = [jt.byId(id + "pancontdiv"), jt.byId(id + "pandiv"),
-                   jt.byId(id + "pandragdiv")];
-        pds.forEach(function (panel) {
-            panel.style.width = ctrls[id].width + "px";
-            panel.style.height = "40px"; });
-        //activate the control
-        ctrls[id].posf = function (x, ignore /*y*/) {
-            ctrls[id].val = Math.round((x * 99) / ctrls[id].width);
-            updatePanControl(ctrls[id].fld, ctrls[id].val); };
-        app.filter.movelisten(id + "pandragdiv", ctrls[id], ctrls[id].posf);
-    }
-
-
-    function makePanControls () {
-        var filters = app.filter.filters();
-        createPanControl("el", filters[0]);
-        createPanControl("al", filters[1]);
-        updatePanControl("el");
-        updatePanControl("al");
-        jt.on("panplaydiv", "mousedown", function (event) {
-            var okinids = ["kwdin", "commentta"];
-            if(!event.target || okinids.indexOf(event.target.id) < 0) {
-                jt.evtend(event); } });  //ignore to avoid selecting ctrls
-        jt.on("panplaydiv", "mouseup", function (event) {
-            ctrls.el.pointingActive = false;
-            ctrls.al.pointingActive = false;
-            ctrls.rat.pointingActive = false;
-            jt.evtend(event); });
-    }
-
-
-    function makeKeywordToggleButton (kwd, idx) {
-        var tc = "kwdtogoff";
-        if(stat.song.kws && stat.song.kws.csvcontains(kwd)) {
-            tc = "kwdtogon"; }
-        return ["button", {type:"button", cla:tc, id:"kwdtog" + idx,
-                           onclick:jt.fs("app.player.togkwd(" + idx + ")")},
-                kwd];
-    }
-
-
-    function verifyKeywordToggles () {
-        //changing which keywords will be in use is done from the db panel.
-        var dbo = app.db.data();
-        if(!dbo) { return; }
-        var html = [];
-        html.push(["button", {type:"button", id:"kwdexpb",
-                              onclick:jt.fs("app.player.togkwexp()")}, "+"]);
-        html.push(["span", {id:"newkwspan"}]);
-        stat.mainkwds = "";
-        dbo.keywords.forEach(function (kwd, idx) {
-            stat.mainkwds = stat.mainkwds.csvappend(kwd);
-            html.push(makeKeywordToggleButton(kwd, idx)); });
-        html.push(["span", {id:"extrakwspan"}]);
-        jt.out("kwdsdiv", jt.tac2html(html));
-    }
-
-
-    function verifyOtherKeywords () {
-        if(stat.otherkwdschecked) { return stat.otherkwds; }
-        stat.otherkwdschecked = true;
-        stat.otherkwds = "";
-        var dbo = app.db.data();
-        Object.keys(dbo.songs).forEach(function (path) {
-            var song = dbo.songs[path];
-            song.kws = song.kws || "";
-            song.kws.csvarray().forEach(function (kwd) {
-                if(!stat.mainkwds.csvcontains(kwd) &&
-                   !stat.otherkwds.csvcontains(kwd)) {
-                    stat.otherkwds = stat.otherkwds.csvappend(kwd); } }); });
-        return stat.otherkwds;
-    }
-
-
-    function toggleKeywordsExpansion () {
-        var togb = jt.byId("kwdexpb");
-        if(togb.innerHTML === "+") {
-            jt.out("newkwspan", jt.tac2html(
-                [["input", {type:"text", id:"kwdin", size:10, value:"",
-                            placeholder:"new keyword"}],
-                 ["button", {type:"button", id:"addkwb",
-                             onclick:jt.fs("app.player.addkwd()")}, "+"]]));
-            verifyOtherKeywords();
-            var html = [];
-            stat.otherkwds.csvarray().forEach(function (kwd, idx) {
-                html.push(makeKeywordToggleButton(kwd, idx + 4)); });
-            jt.out("extrakwspan", jt.tac2html(html));
-            togb.innerHTML = "-"; }
-        else {
-            jt.out("newkwspan", "");
-            jt.out("extrakwspan", "");
-            togb.innerHTML = "+"; }
-    }
-
-
-    function addNewKeyword() {
-        var kwd = jt.byId("kwdin").value;
-        if(!kwd || !kwd.trim()) { return; }
-        //canonical form for a keyword is first letter capitalized.
-        //multi-word keywords are possible, but horrible on real-estate,
-        //semantically less than helpful, and usually reflect a lack of
-        //thought.  Not a priority.
-        kwd = kwd.toLowerCase().capitalize();
-        if(!stat.otherkwds.csvcontains(kwd)) {
-            stat.otherkwds = stat.otherkwds.csvappend(kwd); }
-        if(!stat.song.kws.csvcontains(kwd)) {
-            stat.song.kws = stat.song.kws.csvappend(kwd);
-            noteSongModified();
-            toggleKeywordsExpansion();   //clear expanded content
-            toggleKeywordsExpansion(); } //rebuild with new kw
-    }
-
-
-    function toggleKeyword (idx) {
-        stat.song.kws = stat.song.kws || "";
-        var button = jt.byId("kwdtog" + idx);
-        if(button.className === "kwdtogoff") {
-            button.className = "kwdtogon";
-            stat.song.kws = stat.song.kws.csvappend(button.innerHTML); }
-        else {
-            button.className = "kwdtogoff";
-            stat.song.kws = stat.song.kws.csvremove(button.innerHTML); }
-        noteSongModified();
     }
 
 
@@ -235,8 +52,259 @@ app.player = (function () {
     }
 
 
+    function mdfs (mgrfname, ...args) {
+        var pstr = app.paramstr(args);
+        mgrfname = mgrfname.split(".");
+        var fstr = "app.player.managerDispatch('" + mgrfname[0] + "','" +
+            mgrfname[1] + "'" + pstr + ")";
+        if(pstr !== ",event") {  //don't return false from event hooks
+            fstr = jt.fs(fstr); }
+        return fstr;
+    }
+
+
+    //General container for all managers, used for dispatch
+    var mgrs = {};
+
+    mgrs.tun = (function () {
+        var fos = [{v:"P", t:"Playable"}, {v:"B", t:"Tired"},
+                   {v:"R", t:"Don't Suggest"}];
+        var subcats = {"P":["N",   //Newly added song
+                            "P"],  //Playable
+                       "B":["B",   //Back-burner, default 90 days between plays
+                            "Z",   //Resting, default 180 days between plays
+                            "O"],  //Overplayed, default 365 days between plays
+                       "R":["R",   //Reference only, do not play by default
+                            "D",   //Deleted, media file no longer available
+                            "U"]}; //Unreadable, no metadata, corrupted etc.
+    return {
+        isSubcatValue: function (cat, val) {
+            return (subcats[cat] && subcats[cat].indexOf(val) >= 0); },
+        isSelVal: function (radval) {
+            var songval = stat.song.fq || "P";
+            if(songval === "0") { songval = "P"; }  //tolerate bad data init
+            songval = songval.slice(0, 1);  //e.g treat "DP" as Deleted
+            return mgrs.tun.isSubcatValue(radval, songval); },
+        fqOptsHTML: function () {
+            return fos.map((fo) =>
+                ["div", {cla:"tuneoptiondiv"},
+                 [["input", {type:"radio", id:"tunerad" + fo.v,
+                             name:"tuneoption", value:fo.v,
+                             checked:jt.toru(mgrs.tun.isSelVal(fo.v)),
+                             onclick:mdfs("tun.updateSongFrequency", "event")}],
+                  ["label", {fo:"tunerad" + fo.v}, fo.t]]]); },
+        updateSongFrequency: function (event) {
+            var rbv = event.target.value;
+            if(!mgrs.tun.isSubcatValue(rbv, stat.song.fq)) {  //value changed
+                stat.song.fq = rbv;
+                noteSongModified(); } },
+        toggleTuningOpts: function (togstate) {
+            var tdiv = jt.byId("playertuningdiv");
+            if(!tdiv) { return; }  //nothing to do
+            if(tdiv.innerHTML || !stat.song || togstate === "off") {
+                tdiv.innerHTML = "";
+                return; }
+            tdiv.innerHTML = jt.tac2html(
+                [["div", {id:"frequencyoptionsdiv"}, mgrs.tun.fqOptsHTML()],
+                 ["div", {id:"tuningdetdiv"}, mgrs.tun.optDetailsHTML()]]); },
+        optDetailsHTML: function () {
+            var lastPlayed = "Never";
+            if(stat.prevPlayed) {
+                lastPlayed = jt.tz2human(stat.prevPlayed); }
+            var flds = [{a:"Last Played", v:lastPlayed},
+                        {a:"File", v:stat.song.path}];
+            return jt.tac2html(["table", flds.map((fld) =>
+                ["tr", {cla:"tuneoptdettr"},
+                 [["td", {cla:"tuneoptdetattr"}, fld.a + ": "],
+                  ["td", {cla:"tuneoptdetval"}, fld.v]]])]); },
+        bumpTired: function () {
+            if(stat.song && stat.song.fq) {
+                var tfqidx = subcats.B.indexOf(stat.song.fq);
+                if(tfqidx >= 0 && tfqidx < subcats.B.length - 1) {
+                    stat.song.fq = subcats.B[tfqidx + 1];
+                    noteSongModified(); } } }
+    };  //end of mgrs.tun returned functions
+    }());
+
+
+    mgrs.pan = {
+        createControl: function (id, det) {
+            var pc = {fld:det.fld, pn:det.pn, low:det.low, high:det.high,
+                      pointingActive:false};
+            ctrls[id] = pc;
+            jt.out(id + "pandiv", jt.tac2html(
+              ["div", {cla:"pancontdiv", id:pc.fld + "pancontdiv"},
+               [["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
+                ["div", {cla:"panrightlabdiv", id:pc.fld + "panrld"}, pc.high],
+                ["div", {cla:"panfacediv", id:pc.fld + "panfacediv"},
+                 ["img", {cla:"panfaceimg", src:"img/panface.png"}]],
+                ["div", {cla:"panbgdiv", id:pc.fld + "panbgdiv"},
+                 ["img", {cla:"panbackimg", src:"img/panback.png"}]],
+                ["div", {cla:"pandragdiv", id:pc.fld + "pandragdiv"}]]]));
+            //pack the control widthwise
+            var pk = {leftlab:{elem:jt.byId(id + "panlld")},
+                      rightlab:{elem:jt.byId(id + "panrld")},
+                      panbg:{elem:jt.byId(id + "panbgdiv")},
+                      panface:{elem:jt.byId(id + "panfacediv")}};
+            Object.keys(pk).forEach(function (key) {
+                pk[key].bbox = pk[key].elem.getBoundingClientRect(); });
+            var left = 8 + pk.leftlab.bbox.width;
+            pk.panbg.elem.style.left = left + "px";
+            pk.panface.elem.style.left = left + "px";
+            ctrls[id].width = left + 44 + pk.rightlab.bbox.width + 5;
+            var pds = [jt.byId(id + "pancontdiv"), jt.byId(id + "pandiv"),
+                       jt.byId(id + "pandragdiv")];
+            pds.forEach(function (panel) {
+                panel.style.width = ctrls[id].width + "px";
+                panel.style.height = "40px"; });
+            //activate the control
+            ctrls[id].posf = function (x, ignore /*y*/) {
+                ctrls[id].val = Math.round((x * 99) / ctrls[id].width);
+                mgrs.pan.updateControl(ctrls[id].fld, ctrls[id].val); };
+            app.filter.movelisten(id + "pandragdiv",
+                                  ctrls[id], ctrls[id].posf); },
+        makePanControls: function () {
+            var filters = app.filter.filters();
+            mgrs.pan.createControl("el", filters[0]);
+            mgrs.pan.createControl("al", filters[1]);
+            mgrs.pan.updateControl("el");
+            mgrs.pan.updateControl("al");
+            jt.on("panplaydiv", "mousedown", function (event) {
+                var okinids = ["kwdin", "commentta"];
+                if(!event.target || okinids.indexOf(event.target.id) < 0) {
+                    jt.evtend(event); } });  //ignore to avoid selecting ctrls
+            jt.on("panplaydiv", "mouseup", function (event) {
+                ctrls.el.pointingActive = false;
+                ctrls.al.pointingActive = false;
+                ctrls.rat.pointingActive = false;
+                jt.evtend(event); }); },
+        hex2RGB: function (hexcolor) {
+            var hcs = hexcolor.match(/\S\S/g);
+            return {r:parseInt(hcs[0], 16),
+                    g:parseInt(hcs[1], 16),
+                    b:parseInt(hcs[2], 16)}; },
+        updateControl: function (id, val) {
+            if(!val && val !== 0) {
+                val = 49; }
+            if(typeof val === "string") {
+                val = parseInt(val, 10); }
+            if(stat.song) {
+                stat.song[id] = val; }
+            noteSongModified();
+            //set knob face color from gradient
+            var g = app.filter.gradient();
+            g = {f:mgrs.pan.hex2RGB(g.left), t:mgrs.pan.hex2RGB(g.right)};
+            var pct = (val + 1) / 100;
+            var res = {r:0, g:0, b:0};
+            Object.keys(res).forEach(function (key) {
+                res[key] = Math.round(
+                    g.f[key] + (g.t[key] - g.f[key]) * pct); });
+            var pfd = jt.byId(id + "panfacediv");
+            pfd.style.backgroundColor = "rgb(" + 
+                res.r + ", " + res.g + ", " + res.b + ")";
+            //rotate knob to value
+            var anglemax = 145;
+            var rot = Math.round(2 * anglemax * pct) - anglemax;
+            pfd.style.transform = "rotate(" + rot + "deg)"; }
+    };
+
+
+    mgrs.kwd = (function () {
+        var kwdefs = null;
+    return {
+        makeToggleButton: function (kwd, idx) {
+            var tc = "kwdtogoff";
+            if(stat.song.kws && stat.song.kws.csvcontains(kwd)) {
+                tc = "kwdtogon"; }
+            return ["button", {type:"button", cla:tc, id:"kwdtog" + idx,
+                               onclick:mdfs("kwd.toggleKeyword", idx)},
+                    kwd]; },
+        toggleKeyword: function (idx) {
+            stat.song.kws = stat.song.kws || "";
+            var button = jt.byId("kwdtog" + idx);
+            if(button.className === "kwdtogoff") {
+                button.className = "kwdtogon";
+                stat.song.kws = stat.song.kws.csvappend(button.innerHTML); }
+            else {
+                button.className = "kwdtogoff";
+                stat.song.kws = stat.song.kws.csvremove(button.innerHTML); }
+            app.db.managerDispatch("lib", "togdlg", "close");  //sc changed
+            noteSongModified(); },
+        rebuildToggles: function (context) {
+            var dbo = app.db.data();
+            if(!dbo) { return; }
+            kwdefs = app.db.managerDispatch("kwd", "defsArray", true);
+            jt.out("kwdsdiv", jt.tac2html(
+                [["button", {type:"button", id:"kwdexpb",
+                             onclick:mdfs("kwd.toggleExpansion")},
+                  "+"],
+                 ["span", {id:"newkwspan"}],
+                 ...kwdefs.filter((kd) => kd.pos > 0).map((kd, idx) =>
+                     mgrs.kwd.makeToggleButton(kd.kw, idx)),
+                 ["span", {id:"extrakwspan"}]]));
+            if(context === "playeradd") {
+                mgrs.kwd.toggleExpansion(); } },
+        toggleExpansion: function () {
+            var togb = jt.byId("kwdexpb");
+            if(togb.innerHTML === "+") {
+                jt.out("newkwspan", jt.tac2html(
+                    [["input", {type:"text", id:"kwdin", size:10, value:"",
+                                placeholder:"new keyword"}],
+                     ["button", {type:"button", id:"addkwb",
+                                 onclick:mdfs("kwd.addNewKeyword")}, "+"]]));
+                jt.out("extrakwspan", jt.tac2html(
+                    kwdefs.filter((kd) => kd.pos <= 0).map((kd, i) =>
+                        mgrs.kwd.makeToggleButton(kd.kw, i + 4))));
+                togb.innerHTML = "-"; }
+            else {
+                jt.out("newkwspan", "");
+                jt.out("extrakwspan", "");
+                togb.innerHTML = "+"; } },
+        addNewKeyword: function () {
+            var kwd = jt.byId("kwdin").value;
+            if(!kwd || !kwd.trim()) { return; }
+            kwd = kwd.replace(/\s/, "");  //no spaces
+            kwd = kwd.capitalize();       //capitalized
+            kwd = kwd.slice(0, 10);       //max 10 chars
+            if(kwdefs.find((kd) => kd.kw === kwd)) {
+                jt.byId("kwdin").value = "";  //clear duplicate value
+                return; }
+            jt.byId("addkwb").disabled = true;
+            jt.out("extrakwspan", "Adding " + kwd + "...");
+            if(!stat.song.kws.csvcontains(kwd)) {
+                stat.song.kws = stat.song.kws.csvappend(kwd);
+                noteSongModified(); }
+            app.db.managerDispatch("kwd", "addKeyword", kwd, "playeradd"); }
+    };  //end mgrs.kwd returned functons
+    }());
+
+
+    mgrs.cmt = {
+        toggleCommentDisplay: function (togstate) {
+            var cdiv = jt.byId("commentdiv");
+            if(!stat.song || togstate === "off" || cdiv.innerHTML) {
+                cdiv.innerHTML = "";
+                return; }
+            stat.song.nt = stat.song.nt || "";
+            cdiv.innerHTML = jt.tac2html(
+                ["textarea", {id:"commentta", name:"commentta", rows:2, cols:35,
+                              oninput:mdfs("cmt.updateSongComment")},
+                 stat.song.nt]); },
+        updateSongComment: function () {
+            var cta = jt.byId("commentta");
+            if(stat.song && cta) {
+                stat.song.nt = cta.value;
+                noteSongModified(); }
+            mgrs.cmt.updateCommentIndicator(); },
+        updateCommentIndicator: function () {
+            jt.byId("togcommentimg").src = "img/comment.png";
+            if(stat.song && stat.song.nt) {
+                jt.byId("togcommentimg").src = "img/commentact.png"; } }
+    };
+
+
     function initializeDisplay () {
-        stat = {status:"", song:null, tfqs:["B", "Z", "O"]};
+        stat = {status:"", song:null};
         ctrls = {};
         jt.out("panplaydiv", jt.tac2html(
             [["div", {id:"mediadiv"}, "No songs on deck yet"],
@@ -247,92 +315,12 @@ app.player = (function () {
               [["div", {id:"kwdsdiv"}],
                ["div", {id:"rvdiv"}],
                ["a", {id:"togcommentlink", href:"#togglecomment",
-                      title:"", onclick:jt.fs("app.player.togcomment()")},
+                      title:"", onclick:mdfs("cmt.toggleCommentDisplay")},
                 ["img", {id:"togcommentimg", src:"img/comment.png"}]]]],
              ["div", {id:"commentdiv"}]]));
-        makePanControls();
-        verifyKeywordToggles();
+        mgrs.pan.makePanControls();
+        mgrs.kwd.rebuildToggles();
         makeRatingValueControl();
-    }
-
-
-    function tuneOptDetailsHTML () {
-        var lastPlayed = "Never";
-        if(stat.prevPlayed) {
-            lastPlayed = jt.tz2human(stat.prevPlayed); }
-        var flds = [{a:"Last Played", v:lastPlayed},
-                    {a:"File", v:stat.song.path}];
-        var html = flds.map((fld) => jt.tac2html(
-            ["tr", {cla:"tuneoptdettr"},
-             [["td", {cla:"tuneoptdetattr"}, fld.a + ": "],
-              ["td", {cla:"tuneoptdetval"}, fld.v]]]));
-        return jt.tac2html(["table", html]);
-    }
-
-
-    function toggleTuningOptions (togstate) {
-        var tdiv = jt.byId("playertuningdiv");
-        if(!tdiv) { return; }  //nothing to do
-        if(tdiv.innerHTML || !stat.song || togstate === "off") {
-            tdiv.innerHTML = "";
-            return; }
-        var opts = [{lab:"Playable"}, {lab:"Tired"}, {lab:"Don't Suggest"}];
-        if(stat.song.fq === "R") {
-            opts[2].checked = "checked"; }
-        else if(stat.tfqs.indexOf(stat.song.fq) >= 0) {
-            opts[1].checked = "checked"; }
-        else {
-            opts[0].checked = "checked"; }
-        var html = [];
-        opts.forEach(function (opt, idx) {
-            html.push(["div", {cla:"tuneoptiondiv"},
-                       [["input", {type:"radio", id:"tunerad" + idx,
-                                   name:"tuneoption", value:String(idx),
-                                   checked:opt.checked,
-                                   onclick:jt.fsd("app.player.fqradsel(" + 
-                                                  idx + ")")}],
-                        ["label", {fo:"tunerad" + idx}, opt.lab]]]); });
-        tdiv.innerHTML = jt.tac2html(
-            [["div", {id:"frequencyoptionsdiv"}, html],
-             ["div", {id:"tuningdetdiv"}, tuneOptDetailsHTML()]]);
-    }
-
-
-    function handleFrequencyRadioSelect (idx) {
-        switch(idx) {
-        case 0: stat.song.fq = "P"; break;
-        case 1: stat.song.fq = "B"; break;
-        case 2: stat.song.fq = "R"; break; }
-        noteSongModified();
-    }
-
-
-    function updateCommentIndicator () {
-        jt.byId("togcommentimg").src = "img/comment.png";
-        if(stat.song && stat.song.nt) {
-            jt.byId("togcommentimg").src = "img/commentact.png"; }
-    }
-
-
-    function updateSongComment () {
-        var cta = jt.byId("commentta");
-        if(stat.song && cta) {
-            stat.song.nt = cta.value;
-            noteSongModified(); }
-        updateCommentIndicator();
-    }
-
-
-    function toggleCommentDisplay (togstate) {
-        var cdiv = jt.byId("commentdiv");
-        if(!stat.song || togstate === "off" || cdiv.innerHTML) {
-            cdiv.innerHTML = "";
-            return; }
-        stat.song.nt = stat.song.nt || "";
-        cdiv.innerHTML = jt.tac2html(
-            ["textarea", {id:"commentta", name:"commentta", rows:2, cols:35,
-                          oninput:jt.fs("app.player.updcomment()")},
-             stat.song.nt]);
     }
 
 
@@ -350,7 +338,7 @@ app.player = (function () {
     function play () {
         stat.status = "playing";
         jt.log(JSON.stringify(stat.song));
-        verifyKeywordToggles();
+        mgrs.kwd.rebuildToggles();
         if(!jt.byId("playerdiv")) {
             jt.out("mediadiv", jt.tac2html(
                 ["div", {id:"playerdiv"},
@@ -366,14 +354,14 @@ app.player = (function () {
             ["div", {id:"playtitlebuttonsdiv"},
              [["span", {id:"modindspan"}],
               ["a", {href:"#tuneoptions", title:"Tune Playback Options",
-                     id:"tuneopta", onclick:jt.fs("app.player.tuneopt()")},
+                     id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
                ["img", {src:"img/tunefork.png", cla:"ptico"}]],
               ["a", {href:"#skip", title:"Skip To Next Song",
                      onclick:jt.fs("app.player.skip()")},
                ["img", {src:"img/skip.png", cla:"ptico"}]]]]));
         jt.out("playertitle", jt.tac2html(titleTAC));
-        updatePanControl("al", stat.song.al);
-        updatePanControl("el", stat.song.el);
+        mgrs.pan.updateControl("al", stat.song.al);
+        mgrs.pan.updateControl("el", stat.song.el);
         stat.song.rv = stat.song.rv || 0;  //verify numeric value
         ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2));
         var player = jt.byId("playeraudio");
@@ -395,11 +383,11 @@ app.player = (function () {
 
     function next () {
         saveSongDataIfModified("ignoreUpdatedSongDataReturn");
-        toggleTuningOptions("off");
-        toggleCommentDisplay("off");
+        mgrs.tun.toggleTuningOpts("off");
+        mgrs.cmt.toggleCommentDisplay("off");
         stat.status = "";
         stat.song = app.db.popdeck();
-        updateCommentIndicator();
+        mgrs.cmt.updateCommentIndicator();
         if(!stat.song) {
             jt.out("mediadiv", "No songs to play."); }
         else {
@@ -408,12 +396,7 @@ app.player = (function () {
 
 
     function skip () {
-        //if skipping a Tired song, bump the fq value
-        if(stat.song && stat.song.fq) {
-            var tfqidx = stat.tfqs.indexOf(stat.song.fq);
-            if(tfqidx >= 0 && tfqidx < stat.tfqs.length - 1) {
-                stat.song.fq = stat.tfqs[tfqidx + 1];
-                noteSongModified(); } }
+        mgrs.tun.bumpTired();  //bumps the fq value if tired song
         next();
     }
 
@@ -430,17 +413,11 @@ return {
     deckUpdated: function () { deckUpdated(); },
     next: function () { next(); },
     skip: function () { skip(); },
-    togkwd: function (idx) { toggleKeyword(idx); },
-    tuneopt: function () { toggleTuningOptions(); },
-    togcomment: function () { toggleCommentDisplay(); },
-    updcomment: function () { updateSongComment(); },
-    fqradsel: function (idx) { handleFrequencyRadioSelect(idx); },
     song: function () { return stat.song; },
-    togkwexp: function () { toggleKeywordsExpansion(); },
-    addkwd: function () { addNewKeyword(); },
-    otherkwds: function () { return verifyOtherKeywords(); },
     playerr: function (path) { return playerrs[path]; },
-    noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; }
+    noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; },
+    managerDispatch: function (mgrname, fname, ...args) {
+        return mgrs[mgrname][fname].apply(app.tabular, args); }
 
 };  //end of returned functions
 }());

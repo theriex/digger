@@ -61,7 +61,7 @@ app.db = (function () {
         var data = jt.objdata(song) + "&settings=" + JSON.stringify(settings);
         jt.call("POST", "/songupd", data,
                 function (updsong) {
-                    dbo[updsong.path] = updsong;
+                    dbo.songs[updsong.path] = updsong;
                     contf(updsong); },
                 function (code, errtxt) {
                     jt.out("updateSavedSongData " + code + ": " + errtxt); },
@@ -103,58 +103,141 @@ app.db = (function () {
 
 
     //Keyword manager handles keywords in use for the library.
-    mgrs.kwd = {
-        chooseKeywords: function (cmd) {
-            if(cmd === "apply") {  //restart app with new keywords
-                jt.byId("restartwskb").disabled = true;  //debounce
-                var datobj = {keywords:dbstat.selks.join(",")};
-                jt.call("POST", "/keywdsupd", jt.objdata(datobj),
-                        function () {
-                            jt.log("chooseKeywords update successful");
-                            dbo = null;  //reset so no interim reads of old data
-                            app.init2(); },
-                        function (code, errtxt) {
-                            jt.out("dbdlgdiv", String(code) + ": " + errtxt); },
-                        jt.semaphore("db.chooseKeywords"));
-                return; }
-            dbstat.kwds = ["Ambient", "Office", "Party", "Dance"];
-            dbstat.selks = [];
-            dbo.keywords.forEach(function (kwd) {
-                dbstat.selks.push(kwd);
-                if(dbstat.kwds.indexOf(kwd) < 0) {
-                    dbstat.kwds.push(kwd); } });
-            app.player.otherkwds().csvarray().forEach(function (kwd) {
-                if(dbstat.kwds.indexOf(kwd) < 0) {
-                    dbstat.kwds.push(kwd); } });
-            mgrs.kwd.redrawKeywordSelectionDlg(); },
-        redrawKeywordSelectionDlg: function  () {
-            var html = [];
-            dbstat.kwds.forEach(function (kwd, idx) {
-                var bc = "kwdtogoff";
-                var selnum = dbstat.selks.indexOf(kwd);
-                if(selnum < 0) {
-                    selnum = ""; }
-                else {
-                    selnum += 1;
-                    bc = "kwdtogon"; }
-                html.push(["div", {cla:"kwseldiv"},
-                           [["span", {cla:"kwdselnum"}, selnum],
-                            ["button", {type:"button", cla:bc,
-                                        onclick:mdfs("kwd.selectKeyword", idx)},
-                             kwd]]]); });
-            html.push(["div", {cla:"dlgbuttonsdiv", id:"restartwithseldiv"},
-                       ["button", {type:"button", id:"restartwskb",
-                                   onclick:mdfs("kwd.chooseKeywords", "apply")},
-                        "Restart With Selected Keywords"]]);
-            jt.out("dbdlgdiv", jt.tac2html(html)); },
-        selectKeyword: function (idx) {
-            //the idea is you click 4 keywords in the order you want them
-            var kwd = dbstat.kwds[idx];
-            var selremi = Math.max(dbstat.selks.indexOf(kwd), 0);
-            dbstat.selks.splice(selremi, 1);
-            dbstat.selks.push(kwd);
-            mgrs.kwd.redrawKeywordSelectionDlg(); }
-    };
+    mgrs.kwd = (function () {
+        var uka = null;  //update keywords array (UI form data)
+        var vizuka = null;  //ignored keywords filtered out
+    return {
+        verifyKeywordDefs: function () {
+            if(dbo.kwdefs) { return; }
+            dbo.kwdefs = {};
+            dbo.keywords.forEach(function (k, i) {
+                dbo.kwdefs[k] = {pos:i + 1, sc:0, ig:0}; }); },
+        countSongKeywords: function () {
+            Object.values(dbo.kwdefs).forEach(function (kd) { kd.sc = 0; });
+            Object.values(dbo.songs).forEach(function (song) {
+                song.kws = song.kws || "";
+                song.kws.csvarray().forEach(function (kw) {
+                    if(!dbo.kwdefs[kw]) {
+                        dbo.kwdefs[kw] = {pos:0, sc:0, ig:0}; }
+                    dbo.kwdefs[kw].sc += 1; }); }); },
+        init: function () {
+            mgrs.kwd.verifyKeywordDefs();
+            mgrs.kwd.countSongKeywords(); },
+        defsArray: function (actfirst) {
+            var kds = Object.entries(dbo.kwdefs).map(function ([k, d]) {
+                return {pos:d.pos, sc:d.sc, ig:d.ig, kw:k}; });
+            kds = kds.filter((kd) => !kd.ig);
+            kds.sort(function (a, b) {
+                if(actfirst) {
+                    if(a.pos && b.pos) { return a.pos - b.pos; }
+                    if(a.pos && !b.pos) { return -1; }
+                    if(!a.pos && b.pos) { return 1; } }
+                return a.kw.localeCompare(b.kw); });
+            return kds; },
+        makePosSel: function (kw, pos) {
+            var pivs = ["-", "1", "2", "3", "4"];  //position indicator values
+            var ofs = 0;
+            if(vizuka.length <= 4) {
+                pivs = pivs.slice(1);
+                ofs = 1; }
+            return jt.tac2html(
+                ["select", {id:"posel" + kw, title:"UI position of " + kw,
+                            onchange:mdfs("kwd.posChange", kw)},
+                 pivs.map((opt, i) => 
+                     ["option", {value:i + ofs, 
+                                 selected:jt.toru(pos === i + ofs)},
+                      opt])]); },
+        posChange: function (kw) {
+            var ukd = uka.find((kd) => kd.kw === kw);
+            var upv = Number(jt.byId("posel" + kw).value);
+            var pkd = uka.find((kd) => kd.pos === upv);
+            pkd.pos = ukd.pos;
+            ukd.pos = upv;
+            mgrs.kwd.redrawUpdateForm(); },
+        makeTrash: function (kw, pos) {
+            var html = ["img", {cla:"rowbuttonimg", src:"img/trashdis.png"}];
+            if(!pos) {  //not currently selected as a display keyword
+                html = ["a", {href:"#Ignore_" + kw,
+                              onclick:mdfs("kwd.trashKeyword", kw)},
+                        ["img", {cla:"rowbuttonimg", src:"img/trash.png"}]]; }
+            return jt.tac2html(html); },
+        trashKeyword: function (kw) {
+            var ukd = uka.find((kd) => kd.kw === kw);
+            ukd.ig = 1;
+            mgrs.kwd.redrawUpdateForm(); },
+        redrawUpdateForm: function () {
+            vizuka = uka.filter((kd) => !kd.ig);
+            jt.out("kwupdtablediv", jt.tac2html(
+                ["table", {id:"kwdseltable"},
+                 vizuka.map((kwd) =>
+                     ["tr", {cla:"kwdtr"},
+                      [["td", mgrs.kwd.makePosSel(kwd.kw, kwd.pos)],
+                       ["td", kwd.kw],
+                       ["td", kwd.sc],
+                       ["td", mgrs.kwd.makeTrash(kwd.kw, kwd.pos)]]])])); },
+        chooseKeywords: function () {
+            mgrs.kwd.countSongKeywords();  //recount in case keyword was toggled
+            uka = mgrs.kwd.defsArray();
+            jt.out("dbdlgdiv", jt.tac2html(
+                ["div", {id:"kwupdiv"},
+                 [["div", {id:"kwupdtablediv"}],
+                  ["div", {id:"kwupdstatdiv"}],
+                  ["div", {cla:"dlgbuttonsdiv", id:"kwdefbdiv"},
+                   ["button", {type:"button", id:"kwdefupdb",
+                               onclick:mdfs("kwd.saveKeywordDefs")},
+                    "Update"]]]]));
+            mgrs.kwd.redrawUpdateForm(); },
+        keywordDefsError: function () {
+            //UI should not allow creating an invalid kwdefs state. Verify.
+            var errmsg = "";
+            if(uka.length < 4) {
+                errmsg = "Four keywords required."; }
+            var ords = [{n:"first", v:1}, {n:"second", v:2}, {n:"third", v:3},
+                        {n:"fourth", v:4}];
+            ords.reverse().forEach(function (ord) {
+                if(!uka.find((kwd) => kwd.pos === ord.v)) {
+                    errmsg = "Missing " + ord.n + " keyword."; } });
+            if(errmsg) {
+                jt.out("kwupdstatdiv", errmsg);
+                jt.byId("kwdefupdb").disabled = false; }
+            return errmsg; },
+        saveKeywordDefs: function (context) {
+            if(!context) {  //called from local form
+                jt.byId("kwdefupdb").disabled = true;  //debounce
+                jt.out("kwupdstatdiv", "Saving..."); }
+            if(mgrs.kwd.keywordDefsError()) { return; }
+            var ukds = {};
+            uka.forEach(function (kd) {
+                ukds[kd.kw] = {pos:kd.pos, sc:kd.sc, ig:kd.ig}; });
+            var data = jt.objdata({kwdefs:JSON.stringify(ukds)});
+            jt.call("POST", "/keywdsupd", data,
+                    function () {
+                        dbo.kwdefs = ukds;  //update local dbo data
+                        mgrs.lib.togdlg("close");
+                        app.player.managerDispatch("kwd", "rebuildToggles",
+                                                   context);
+                        app.filter.managerDispatch("btc", "rebuildControls",
+                                                   dbo); },
+                    function (code, errtxt) {
+                        jt.out("kwupdstatdiv", String(code) + ": " + errtxt); },
+                    jt.semaphore("kwd.saveKeywordDefs")); },
+        same: function (kwa, kwb) {  //localeCompare base not yet on mobile
+            return kwa.toLowerCase() === kwb.toLowerCase(); },
+        addKeyword: function (kwd, context) {  //called from player
+            var kd = uka.find((kd) => mgrs.kwd.same(kd.kw, kwd));
+            if(kd) {  //already exists and not previously deleted, bump count
+                kd.sc += 1; }
+            else {  //not in current working set
+                kd = dbo.kwdefs[kwd];
+                if(kd) {  //previously existed, add adjusted copy
+                    kd = {kw:kwd, pos:0, sc:kd.sc + 1, ig:0}; }
+                else {  //brand new keyword
+                    kd = {kw:kwd, pos:0, sc:1, ig:0}; }
+                uka.push(kd); }
+            mdfs("lib.togdlg", "close");
+            mgrs.kwd.saveKeywordDefs(context); }
+    };  //end of returned functions
+    }());
 
 
     //Library manager deals with lib level actions and data
@@ -201,15 +284,17 @@ app.db = (function () {
                 elapsed = Math.round(elapsed / (10 * 60)) / 100;
                 et = "(last scan took about " + elapsed + " minutes)"; }
             return et; },
-        togdlg: function () {
+        togdlg: function (cmd) {
             if(dbstat.currstat !== "ready") { return; }
             var dlgdiv = jt.byId("dbdlgdiv");
-            if(dlgdiv.dataset.mode === "libact") {  //toggle dialog closed
+            if(!cmd && dlgdiv.dataset.mode === "libact") {
+                cmd = "close"; }
+            if(cmd === "close") {
                 dlgdiv.dataset.mode = "empty";
-                dlgdiv.innerHTML = "";
-                return; }
-            dlgdiv.dataset.mode = "libact";
-            mgrs.lib.writeDialogContent(); },
+                dlgdiv.innerHTML = ""; }
+            else {  //"open"
+                dlgdiv.dataset.mode = "libact";
+                mgrs.lib.writeDialogContent(); } },
         writeDialogContent: function () {
             if(!dbinfo) {
                 jt.out("dbdlgdiv", "Fetching configuration info");
@@ -308,7 +393,7 @@ app.db = (function () {
                                          onclick:mdfs("lib.mergeData")},
                               "Reset"]]));
                         return; } } }
-            setTimeout(mgrs.kwd.monitorMergeProg, 500); },
+            setTimeout(mgrs.lib.monitorMergeProg, 500); },
         updateMergeStatus: function (info) {
             jt.log("updateMergeStatus " + info.state);
             dbstat.currstat = info.state;
@@ -888,6 +973,7 @@ app.db = (function () {
         jt.call("GET", "/dbo", null,
                 function (databaseobj) {
                     dbo = databaseobj;
+                    mgrs.kwd.init();
                     jt.out("countspan", String(dbo.songcount) + " songs");
                     dbstat.currstat = "ready";
                     app.filter.init();

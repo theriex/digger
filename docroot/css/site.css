@@ -58,6 +58,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .kwseldiv { display:inline-block; margin-right:5px; }
 .kwdselnum { font-size:small; }
 #restartwithseldiv { margin-top:10px; }
+#kwupdtablediv { min-width:200px; }
+#kwdseltable { margin:5px auto; }
+.kwdtr { font-size:small; }
+.rowbuttonimg { max-height:20px; }
 
 
 /****************************************/

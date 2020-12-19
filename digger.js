@@ -64,12 +64,14 @@ require("http").createServer(function (request, response) {
 //open a browser tab to avoid having to do that manually
 setTimeout(function () {
     const { spawn } = require("child_process");
-    //Mac platform: Safari has best support for media file types.
-    //Need to test which OS here and launch appropriately.  Possibly move
-    //this over into db.initialize, and take an optional 3rd command line
-    //arg specifying a launch script name.  Auto launch tab by default.
-    spawn("open", ["-a", "/Applications/Safari.app",
-                   "http://localhost:" + portnum],
+    //On MacOS, Safari has the best support for multiple media file types,
+    //so it is helpful to open it automatically to kick off some tunes
+    //immediately on launch.  With Catalina 10.15.7
+    // spawn("open", ["-a", "/Applications/Safari.app",
+    //                "http://localhost:" + portnum],
+    //       {stdio:"ignore"});
+    //causes both safari and the default browser to open the url, which
+    //is annoying.  This needs to be replaced.
+    spawn("open", ["-a", "/Applications/Safari.app"],
           {stdio:"ignore"});
 }, 800);
-
