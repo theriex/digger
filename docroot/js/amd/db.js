@@ -216,14 +216,14 @@ app.db = (function () {
                         mgrs.lib.togdlg("close");
                         app.player.managerDispatch("kwd", "rebuildToggles",
                                                    context);
-                        app.filter.managerDispatch("btc", "rebuildControls",
-                                                   dbo); },
+                        app.filter.managerDispatch("btc", "rebuildControls"); },
                     function (code, errtxt) {
                         jt.out("kwupdstatdiv", String(code) + ": " + errtxt); },
                     jt.semaphore("kwd.saveKeywordDefs")); },
         same: function (kwa, kwb) {  //localeCompare base not yet on mobile
             return kwa.toLowerCase() === kwb.toLowerCase(); },
         addKeyword: function (kwd, context) {  //called from player
+            uka = uka || mgrs.kwd.defsArray();
             var kd = uka.find((kd) => mgrs.kwd.same(kd.kw, kwd));
             if(kd) {  //already exists and not previously deleted, bump count
                 kd.sc += 1; }
@@ -234,9 +234,17 @@ app.db = (function () {
                 else {  //brand new keyword
                     kd = {kw:kwd, pos:0, sc:1, ig:0}; }
                 uka.push(kd); }
-            mdfs("lib.togdlg", "close");
-            mgrs.kwd.saveKeywordDefs(context); }
-    };  //end of returned functions
+            mdfs("lib.togdlg", "close");  //in case open
+            mgrs.kwd.saveKeywordDefs(context); },
+        swapFilterKeyword: function (kwd, pos) {  //called from filter
+            uka = uka || mgrs.kwd.defsArray();
+            var prevkd = uka.find((kd) => kd.pos === pos);
+            prevkd.pos = 0;
+            var currkd = uka.find((kd) => kd.kw === kwd);
+            currkd.pos = pos;
+            mdfs("lib.togdlg", "close");  //in case open
+            mgrs.kwd.saveKeywordDefs("swapFilterKeyword"); }
+    };  //end of mgrs.kwd returned functions
     }());
 
 

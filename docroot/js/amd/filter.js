@@ -4,7 +4,7 @@
 app.filter = (function () {
     "use strict";
 
-    var ctrls = {activecolor:"#ffab00", movestats:[],
+    var ctrls = {activecolor:"#ffab00", movestats:[], trapdrag:true,
                  el:{fld:"el", pn:"Energy Level",
                      low:"Chill", high:"Amped"},
                  al:{fld:"al", pn:"Approachability", 
@@ -212,6 +212,7 @@ app.filter = (function () {
         var labind = {neg:{td:"line-through", fw:"normal"},
                       off:{td:"none", fw:"normal"},
                       pos:{td:"none", fw:"bold"}};
+        var kwdefs = null;
     return {
         makeControl: function (btc, idx) {
             jt.out("btdiv" + idx, jt.tac2html(
@@ -222,8 +223,7 @@ app.filter = (function () {
                                  title:b.ti.replace(/\$NAME/g, btc.pn),
                                  onclick:mdfs("btc.setValue", idx, b.id)},
                       b.sy])]])); },
-        setValue: function (idx, tog) {
-            ctrls.bts[idx].tog = tog;  //note the value for filtering
+        updateToggleIndicators: function (idx, tog) {
             tbs.forEach(function (tb) {
                 var button = jt.byId("btb" + idx + tb.id);
                 if(tog === tb.id && tog !== "off") {
@@ -231,10 +231,35 @@ app.filter = (function () {
                     button.style.color = ctrls.activecolor; }
                 else {
                     button.style.fontWeight = "normal";
-                    button.style.color = "#ffffff"; } });
-            var label = jt.byId("btlab" + idx);
-            label.style.textDecoration = labind[tog].td;
-            label.style.fontWeight = labind[tog].fw;
+                    button.style.color = "#ffffff"; } }); },
+        updateToggleLabel: function (idx, tog) {
+            var labdiv = jt.byId("btlab" + idx);
+            var kwd = ctrls.bts[idx].pn;
+            if(tog === "off") {
+                kwd = ["a", {href:"#swapkeyword", cla:"btlaba",
+                             onclick:mdfs("btc.activateLabel", idx)}, kwd]; }
+            jt.out("btlab" + idx, jt.tac2html(kwd));
+            labdiv.style.textDecoration = labind[tog].td;
+            labdiv.style.fontWeight = labind[tog].fw; },
+        activateLabel: function (idx) {
+            ctrls.trapdrag = false;
+            var kwd = ctrls.bts[idx].pn;
+            jt.out("btlab" + idx, jt.tac2html(
+                ["select", {id:"btswapsel" + idx, title:"Swap Keyword",
+                            onchange:mdfs("btc.swapKeyword", idx)},
+                 [["option", {value:kwd}, kwd],
+                  ...kwdefs.slice(4).map((kd) =>
+                      ["option", {value:kd.kw}, kd.kw])]])); },
+        swapKeyword: function (idx) {
+            ctrls.trapdrag = true;
+            var kwd = jt.byId("btswapsel" + idx).value;
+            var pos = idx + 1;
+            app.db.managerDispatch("kwd", "swapFilterKeyword", kwd, pos); },
+        setValue: function (idx, tog) {
+            ctrls.trapdrag = true;
+            ctrls.bts[idx].tog = tog;  //note the value for filtering
+            mgrs.btc.updateToggleIndicators(idx, tog);
+            mgrs.btc.updateToggleLabel(idx, tog);
             app.db.deckupd(); },
         addBTSettingsFunc: function (idx) {
             var bt = ctrls.bts[idx];
@@ -250,9 +275,9 @@ app.filter = (function () {
                    (!song.kws || (song.kws.indexOf(bt.pn) < 0))) {
                     return false; }
                 return true; }; },
-        makeFiltersAndDivs: function (dbo) {
+        makeFiltersAndDivs: function () {
             var btdivs = [];
-            dbo.keywords.forEach(function (kwd, idx) {
+            kwdefs.slice(0, 4).map((kd) => kd.kw).forEach(function (kwd, idx) {
                 ctrls.bts.push({pn:kwd, tog:"off"});
                 mgrs.btc.addBTSettingsFunc(idx);
                 mgrs.btc.addBTSongMatchFunc(idx);
@@ -264,11 +289,12 @@ app.filter = (function () {
                 var dfltset = {v:"off"};
                 var setting = findSetting({t:"kwbt", k:bt.pn}) || dfltset;
                 mgrs.btc.setValue(idx, setting.v || dfltset.v); }); },
-        rebuildControls: function (dbo) {
+        rebuildControls: function () {
+            kwdefs = app.db.managerDispatch("kwd", "defsArray", true);
             ctrls.bts = [];
-            mgrs.btc.makeFiltersAndDivs(dbo);
+            mgrs.btc.makeFiltersAndDivs();
             mgrs.btc.createAndInitControls(); }
-    };  //end of returned functions
+    };  //end mgrs.btc returned functions
     }());
 
 
@@ -344,10 +370,11 @@ app.filter = (function () {
 
 
     function containingDivEventTraps () {
-        //trap and ignore clicks in controls container div to avoid
-        //selecting when you want to be changing a control value.
+        //trap and ignore clicks in the controls container div to avoid
+        //selecting controls when you want to be changing a control value.
         jt.on("panfiltdiv", "mousedown", function (event) {
-            jt.evtend(event); });
+            if(ctrls.trapdrag) {
+                jt.evtend(event); }});
         //stop tracking if the mouse is released outside of the control area,
         //so that tracking doesn't get stuck "on" leaving the drag still in
         //progress.  It might feel more resilient if the trap at this level

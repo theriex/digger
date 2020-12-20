@@ -132,6 +132,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   border:2px solid #777; border-radius:10px;
 }
 .btlabeldiv { text-align:center; }
+.btlaba:link { text-decoration:none; color:#333; }
+.btlaba:visited { text-decoration:none; color:#333; }
+.btlaba:active { text-decoration:none; color:#333; }
+.btlaba:hover { text-decoration:none; color:#333; }
 .btleftb, .btmidb, .btrightb { color:white; background:#333; font-size:18px; 
   padding:4px 8px; margin:0px 2px; border:0px; border-radius:0px;
   box-shadow:1px 1px 1px #666; }
