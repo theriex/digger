@@ -152,6 +152,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   padding:2px 6px; margin-left:10px; border:0px; border-radius:0px;
   box-shadow:1px 1px 1px #666; }
 
+#fqftogdiv { display:inline-block; opacity:0.75; }
+#fqtogb { border-radius:0px; box-shadow:unset; border:3px solid black;
+  margin:5px 0px 0px 10px; }
+
 /****************************************/
 /* Deck Panel */
 

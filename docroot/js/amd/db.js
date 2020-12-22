@@ -13,8 +13,7 @@ app.db = (function () {
                   merging: "Merging Data..."};
     var deckstat = {filter:true, qstr:"", disp:"songs", toggles:{},
                     maxdecksel:1000, work:{status:"", timer:null},
-                    ws:[], fcs:[], pns:[],
-                    fqps:["N", "P", "B", "Z", "O"]};
+                    ws:[], fcs:[], pns:[]};
     var albumstat = null;
 
 
@@ -504,41 +503,14 @@ app.db = (function () {
 
     //Working set manager handles sourcing content for what's on deck.
     mgrs.ws = {
-        recalcFrequencyCutoffs: function () {
-            var day = 24 * 60 * 60 * 1000;
-            var now = Date.now();
-            deckstat.freqlim = {
-                N:{days:1},
-                P:{days:1},
-                W:{days:7},  //used for playprio
-                M:{days:30}, //used for playprio
-                B:{days:dbo.waitcodedays.B || 90},
-                Z:{days:dbo.waitcodedays.Z || 180},
-                O:{days:dbo.waitcodedays.O || 365}};
-            Object.keys(deckstat.freqlim).forEach(function (key) {
-                var flim = deckstat.freqlim[key];
-                flim.iso = new Date(now - (flim.days * day))
-                    .toISOString(); }); },
-        //Shuffling can cause starvation of unplayed tracks.  Assign a play
-        //priority sort bucket value based on when the song was last played.
-        setSongPlayPriority: function (song) {
-            song.playprio = 0;  //not played yet, or older than a year
-            if(song.lp) {
-                var prios = ["O", "Z", "B", "M", "W", "P"];
-                song.playprio = prios.findIndex(
-                    (flk) => song.lp < deckstat.freqlim[flk].iso);
-                if(song.playprio < 0) {
-                    song.playprio = prios.length; } } },
         rebuildWorkingSet: function () {
             deckstat.ws = [];
             deckstat.fcs = [];
-            mgrs.ws.recalcFrequencyCutoffs();        
             Object.keys(dbo.songs).forEach(function (path) {
                 var song = dbo.songs[path];
                 if(!song.fq.startsWith("D") && !song.fq.startsWith("U")) {
                     //song file eligible. Artist/Album/Title may be incomplete.
                     song.path = path;
-                    mgrs.ws.setSongPlayPriority(song);
                     deckstat.ws.push(song); } });
             mgrs.dk.appendInfoCount("Readable files"); },
         filterBySearchText: function () {
@@ -556,61 +528,28 @@ app.db = (function () {
                 mgrs.dk.appendInfoCount("Search Text"); } },
         filterByFilters: function () {
             if(deckstat.filter) {  //filtering is on, not bypassed
-                app.filter.filters().forEach(function (ftr) {
+                app.filter.filters("active").forEach(function (ftr) {
                     deckstat.ws = deckstat.ws.filter((song) => ftr.match(song));
-                    mgrs.dk.appendInfoCount(ftr.pn); }); } },
+                    mgrs.dk.appendInfoCount(ftr.actname || ftr.pn); }); } },
         pullPNSFromWS: function () {
             deckstat.ws = deckstat.ws.filter(function (song) {
                 return (deckstat.pns.indexOf(song) < 0); }); },
-        sortByLastPlayedAndFrequency: function () {
-            //the rating is a filter, not a sort criteria.
-            var fqps = deckstat.fqps;
+        sortByLastPlayed: function () {
             deckstat.ws.sort(function (a, b) {
                 //sort by last played, oldest first
                 if(a.lp && !b.lp) { return 1; }
                 if(!a.lp && b.lp) { return -1; }
-                if(a.lp && b.lp) {
-                    if(a.lp < b.lp) { return -1; }
-                    if(a.lp > b.lp) { return 1; } }
-                //if last played is the same, sort by frequency
-                if(a.fq && b.fq) {
-                    var afqi = fqps.indexOf(a.fq);
-                    if(afqi < 0) { afqi = fqps.length; }
-                    var bfqi = fqps.indexOf(b.fq); 
-                    if(bfqi < 0) { bfqi = fqps.length; }
-                    return afqi - bfqi; }
+                if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); }
                 return 0; }); },
-        frequencyEligible: function (song) {
-            if(!song.lp) {  //not played yet (just imported)
-                return true; }
-            if(deckstat.fqps.indexOf(song.fq) < 0) { //"R" or invalid fq value
-                return false; }
-            var lim = deckstat.freqlim[song.fq].iso;
-            return song.lp < lim; },
         truncateAndShuffle: function () {
-            if(deckstat.ws.length <= 2) { return; }  //not enough to work with
-            //truncate to a reasonable size pool if very large
             deckstat.ws = deckstat.ws.slice(0, deckstat.maxdecksel);
-            //eliminate all recently played stuff if filtering
-            var idx = deckstat.ws.length - 1;
-            if(deckstat.filter) {
-                while(!mgrs.ws.frequencyEligible(deckstat.ws[idx])) {
-                    idx -= 1; }
-                if(idx < deckstat.ws.length - 1) {  //filtered at least one item
-                    deckstat.ws = deckstat.ws.slice(0, idx); } }
-            mgrs.dk.appendInfoCount("Deck Pool");
-            //shuffle
-            idx = deckstat.ws.length; var randidx; var tmp;
-            while(idx !== 0) {  //leave first element (oldest) alone
-                randidx = Math.floor(Math.random() * idx);
-                idx -= 1;
-                tmp = deckstat.ws[idx];
-                deckstat.ws[idx] = deckstat.ws[randidx];
-                deckstat.ws[randidx] = tmp; }
-            //bucket sort to avoid starvation of older tracks on deck pop
-            deckstat.ws.sort(function (a, b) {
-                return a.playprio - b.playprio; }); }
-
+            //Fisher-Yates shuffle the first N elements of the result array
+            var i; var j; var temp;
+            for(i = Math.min(5, deckstat.ws.length - 1); i > 0; i -= 1) {
+                j = Math.floor(Math.random() * i);
+                temp = deckstat.ws[i];
+                deckstat.ws[i] = deckstat.ws[j];
+                deckstat.ws[j] = temp; } }
     };
 
 
@@ -836,7 +775,7 @@ app.db = (function () {
             mgrs.ws.filterBySearchText();
             mgrs.ws.filterByFilters();
             mgrs.ws.pullPNSFromWS();
-            mgrs.ws.sortByLastPlayedAndFrequency();
+            mgrs.ws.sortByLastPlayed();
             mgrs.ws.truncateAndShuffle();
             if(deckstat.ws.length) {  //show songs if any found
                 app.player.deckUpdated();

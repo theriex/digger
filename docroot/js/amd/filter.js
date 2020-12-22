@@ -9,10 +9,15 @@ app.filter = (function () {
                      low:"Chill", high:"Amped"},
                  al:{fld:"al", pn:"Approachability", 
                      low:"Social", high:"Challenging"},
-                 rat:{w:85, h:15, 
+                 rat:{pn:"Minimum Rating", w:85, h:15,
                       unrated:{labels:["Include Unrated",
                                        "Rated Songs Only",
-                                       "Unrated Only"], idx:0}}};
+                                       "Unrated Only"],
+                               titles:["Include unrated songs when filtering.",
+                                       "Only rated songs when filtering.",
+                                       "Only unrated songs when filtering."],
+                               idx:0}},
+                 fq:{pn:"Frequency Eligible"}};
     var ranger = {entire:{x:0, y:0, w:270, h:80},
                   panel:{outer:{x:25, y:0, w:244, h:56},
                          inner:{x:27, y:2, w:240, h:54},
@@ -313,18 +318,20 @@ app.filter = (function () {
                  ["button", {type:"button", id:"inclunrb",
                              style:"color:" + ctrls.activecolor,
                              onclick:mdfs("mruc.toggleUnrated")},
-                  ctrls.rat.unrated.labels[0]]])); },
+                  ctrls.rat.unrated.labels[0]],
+                 ["div", {id:"fqftogdiv"}]])); },
         makeControls: function () {
             ctrls.rat.stat = {pointingActive:false};
             ctrls.movestats.push(ctrls.rat.stat);
             ctrls.rat.posf = function (x, ignore /*y*/) {
                 ctrls.rat.stat.minrat = Math.max(Math.round((x / 17) * 2), 1);
                 jt.byId("filterstarseldiv").style.width = x + "px";
+                jt.byId("filterstarsdiv").title = "Match songs rated " +
+                    ctrls.rat.stat.minrat + " or higher.";
                 app.db.deckupd(); };
             attachMovementListeners("filterstarsanchordiv", ctrls.rat.stat,
                                     ctrls.rat.posf); },
         makeFilter: function () {
-            ctrls.rat.pn = "Minimum Rating";
             ctrls.rat.settings = function () {
                 return {t:"minrat", u:ctrls.rat.unrated.idx,
                         m:ctrls.rat.stat.minrat}; };
@@ -344,28 +351,96 @@ app.filter = (function () {
             ctrls.rat.posf(Math.round((rvs.m / 2) * 17)); },
         toggleUnrated: function () {
             ctrls.rat.unrated.idx = (ctrls.rat.unrated.idx + 1) % 3;
+            var starsdiv = jt.byId("filterstarsdiv");
             var button = jt.byId("inclunrb");
             button.innerHTML = ctrls.rat.unrated.labels[ctrls.rat.unrated.idx];
+            button.title = ctrls.rat.unrated.titles[ctrls.rat.unrated.idx];
             switch(ctrls.rat.unrated.idx) {
             case 0:  //Include Unrated
                 button.style.color = ctrls.activecolor;
-                jt.byId("filterstarsdiv").style.opacity = 1.0;
+                starsdiv.style.opacity = 1.0;
                 break;
-            case 1:
+            case 1:  //Rated Songs Only
                 button.style.color = "#ccc";
-                jt.byId("filterstarsdiv").style.opacity = 1.0;
+                starsdiv.style.opacity = 1.0;
                 break;
-            case 2:
+            case 2:  //Unrated Only
                 button.style.color = ctrls.activecolor;
-                jt.byId("filterstarsdiv").style.opacity = 0.3;
+                starsdiv.style.opacity = 0.3;
                 break; }
             app.db.deckupd(); },
-        init: function (divid) {
+        init: function (divid, dbo) {
             mgrs.mruc.writeHTML(divid);
             mgrs.mruc.makeControls();
             mgrs.mruc.makeFilter();
-            mgrs.mruc.setMinRating(findSetting({t:"minrat"})); }
-    };  //end of returned functions
+            mgrs.mruc.setMinRating(findSetting({t:"minrat"}));
+            mgrs.fq.init("fqftogdiv", dbo); }
+    };  //end of mgrs.mruc returned functions
+    }());
+
+
+    //Frequency filter (removes songs that were played recently)
+    mgrs.fq = (function () {
+        var fqb = "on";  //"off" to deactivate frequency filtering
+        var waitdays = null;
+    return {
+        initWaitDays: function (dbo) {
+            dbo.waitcodedays = dbo.waitcodedays || {
+                B:90,   //Backburner songs max once per 90 days by default
+                Z:180,  //Sleeper songs max once per 180 days by default
+                O:365}; //Overplayed songs max once per year by default
+            waitdays = {
+                N:1,  //New songs should get marked as P when played first time
+                P:1,  //Playable songs get played at most once per day
+                B:dbo.waitcodedays.B,
+                Z:dbo.waitcodedays.Z,
+                O:dbo.waitcodedays.O}; },
+        writeHTML: function (divid) {
+            jt.out(divid, jt.tac2html(
+                ["button", {type:"button", id:"fqtogb",
+                            onclick:mdfs("fq.toggleFreqFiltering")},
+                 "Fq"])); },
+        toggleFreqFiltering: function (value) {
+            if(!value) {
+                if(fqb === "on") {
+                    value = "off"; }
+                else {
+                    value = "on"; } }
+            fqb = value;
+            var button = jt.byId("fqtogb");
+            if(fqb === "on") {
+                button.title = "Song play frequency filtering active.";
+                button.style.background = ctrls.activecolor; }
+            else {
+                button.title = "Song play frequency filtering disabled.";
+                button.style.background = "transparent"; }
+            app.db.deckupd(); },
+        makeFilter: function () {
+            ctrls.fq.settings = function () {
+                return {t:"fqb", v:fqb}; };
+            ctrls.fq.match = function (song) {
+                if(fqb === "off") {
+                    return true; }
+                if(!song.lp) {  //not played before
+                    return true; }
+                if(!song.fq || !waitdays[song.fq]) {
+                    return false; }  //"R" (reference only), or invalid fq
+                try {
+                    var eligible = jt.isoString2Day(song.lp).getTime();
+                    eligible += waitdays[song.fq] * (24 * 60 * 60 * 1000);
+                    return (eligible < Date.now());
+                } catch(e) {
+                    jt.log("Frequency calc failure " + song.path + ": " + e);
+                }}; },
+        setFrequencyFiltering: function (fqsetting) {
+            fqsetting = fqsetting || {t:"fqb", v:"on"};
+            mgrs.fq.toggleFreqFiltering(fqsetting.v); },
+        init: function (divid, dbo) {
+            mgrs.fq.initWaitDays(dbo);
+            mgrs.fq.writeHTML(divid);
+            mgrs.fq.makeFilter();
+            mgrs.fq.setFrequencyFiltering(findSetting({t:"fqb"})); }
+    };  //end of mgrs.fq returned functions
     }());
 
 
@@ -402,16 +477,26 @@ app.filter = (function () {
         createRangeControl("el");
         createRangeControl("al");
         mgrs.btc.rebuildControls(dbo);
-        mgrs.mruc.init("ratdiv");
+        mgrs.mruc.init("ratdiv", dbo);
         containingDivEventTraps();
         ctrls.filtersReady = true;
     }
 
 
-    function arrayOfAllFilters () {
+    function arrayOfAllFilters (mode) {
         var filts = [ctrls.el, ctrls.al];
-        filts = filts.concat(ctrls.bts);
+        if(ctrls.bts) {
+            ctrls.bts.forEach(function (bt) {
+                if(!mode) {
+                    filts.push(bt); }
+                else if(mode === "active" && bt.tog !== "off") {
+                    bt.actname = "+";
+                    if(bt.tog === "neg") {
+                        bt.actname = "-"; }
+                    bt.actname += bt.pn;
+                    filts.push(bt); } }); }
         filts.push(ctrls.rat);
+        filts.push(ctrls.fq);
         return filts;
     }
 
@@ -420,7 +505,7 @@ return {
 
     init: function () { initControls(); },
     filtersReady: function () { return ctrls.filtersReady; },
-    filters: function () { return arrayOfAllFilters(); },
+    filters: function (mode) { return arrayOfAllFilters(mode); },
     gradient: function () { return ranger.panel.gradient; },
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
     managerDispatch: function (mgrname, fname, ...args) {
