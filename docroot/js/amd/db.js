@@ -13,7 +13,9 @@ app.db = (function () {
                   merging: "Merging Data..."};
     var deckstat = {filter:true, qstr:"", disp:"songs", toggles:{},
                     maxdecksel:1000, work:{status:"", timer:null},
-                    ws:[], fcs:[], pns:[]};
+                    ws:[],    //working set (array of songs to be played)
+                    fcs:[],   //filter controls to apply 
+                    pns:[]};  //play next songs (as selected from deck/history)
     var albumstat = null;
 
 
@@ -61,6 +63,10 @@ app.db = (function () {
         jt.call("POST", "/songupd", data,
                 function (updsong) {
                     dbo.songs[updsong.path] = updsong;
+                    var wssi = deckstat.ws.findIndex(
+                        (s) => s.path === updsong.path);
+                    if(wssi >= 0) {  //update working set song with latest copy
+                        deckstat.ws[wssi] = updsong; }
                     contf(updsong); },
                 function (code, errtxt) {
                     jt.out("updateSavedSongData " + code + ": " + errtxt); },
