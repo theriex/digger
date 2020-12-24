@@ -3,17 +3,16 @@
 module.exports = (function () {
     "use strict";
 
-    var musicPath = "";
-    var dbPath = "";
-    var exPath = "";
+    var fs = require("fs");
+    var os = require("os");
+    var path = require("path");
     var fxts = [
         //Common formats typically supported through OS libraries
         ".mp3", ".aac", ".aiff", ".wma", ".alac",
         //Firefox general media support (open formats):
         ".wav", ".wave", ".ogg", ".oga", ".ogv", ".ogx", ".spx", ".opus",
         ".webm", ".flac", ".mp4", ".m4a", ".m4p", ".m4b", ".m4r", ".m4v"];
-    var ignoredirs = ["Ableton", "GarageBand", "iTunes"];
-    var fs = require("fs");
+    var conf = null;
     var dbo = null;
     var mt = require("jsmediatags");
     var state = "initializing";
@@ -65,8 +64,8 @@ module.exports = (function () {
         //  segs: [] A segue is ar/ab/ti/prob where prob is an *independent*
         //  percentage likelihood the segue will be used.  e.g. 0 is never,
         //  100 is always, 50 is a coin toss.
-        jslf(fs, "writeFileSync", dbPath, JSON.stringify(dbo), "utf8");
-        console.log("Created " + dbPath);
+        jslf(fs, "writeFileSync", conf.dbPath, JSON.stringify(dbo), "utf8");
+        console.log("Created " + conf.dbPath);
         state = "ready";
     }
 
@@ -79,65 +78,71 @@ module.exports = (function () {
     }
 
 
-    function setPathsFromArgs () {
-        var args = process.argv.slice(2);
-        //by default, look for music files in the directory we are running from
-        musicPath = "./";
-        if(args && args.length) {
-            musicPath = args[0];  //otherwise use the specified dir
-            if(!musicPath.endsWith("/")) {
-                musicPath += "/"; } }
-        //by default, put the db file in the same directory as the music
-        dbPath = musicPath + "digdat.json";
-        if(args && args.length >= 2) {
-            dbPath = args[1];
-            if(dbPath.endsWith("/")) {  //no filename specified, use default
-                dbPath += "/digdat.json"; } }
-        //no default for export, disable if not specified.  Export is
-        //non-destructive, which means no deleting of files, and no
-        //overwriting of existing files.  Could add a fourth parameter to
-        //sllow specifying destructive, but the potential for serious harm
-        //if exPath is pointing to the wrong place is not worth it.
-        if(args && args.length >= 3) {
-            exPath = args[2];
-            if(!exPath.endsWith("/")) {
-                exPath += "/"; } }
-        //console.log("db.init " + musicPath + " " + dbPath + " " + exPath);
+    function cleanLoadedConfig () {
+        var confpaths = ["musicPath", "dbPath", "exPath"];
+        confpaths.forEach(function (cp) {
+            var fp = conf[cp];
+            //convert any forward slash specs to platform file separators so
+            //the default config has a hope of working on windows.
+            if(fp.indexOf("/") >= 0) {
+                fp = fp.replace(/\//g, path.sep); }
+            if(fp.startsWith("~")) {
+                conf[cp] = path.join(
+                    os.homedir(),
+                    ...fp.split(path.sep).slice(1)); } });
     }
 
 
-    //On MacOS Catalina, if you put digdat.json in ~/Documents and the node
-    //containing shell hasn't been granted access, then the read of the db
-    //file will fail.  If the server is allowed to continue, and write
-    //access is subsequently granted, this will lead to a new dbo being
-    //written from scratch, with all of previous data overwritten.  Keeping
-    //a backup copy might help with recovery, but doesn't fix the problem.
-    //Better to fail catastrophically than to continue.
-    function initialize () {
-        setPathsFromArgs();
-        if(!jslf(fs, "existsSync", dbPath)) {
+    function readConfigurationFile (contf) {
+        var cfp = "config.json";  //config file path
+        fs.readFile(cfp, "utf8", function (err, data) {
+            if(err) {
+                console.log("readConfigurationFile error reading " + cfp);
+                throw err; }
+            conf = JSON.parse(data);
+            cleanLoadedConfig();
+            console.log("readConfigurationFile conf: " +
+                        JSON.stringify(conf, null, 2));
+            if(contf) {
+                contf(conf); } });
+    }
+
+
+    //On MacOS, if you put digdat.json somewhere like ~/Documents and the
+    //node process hasn't been granted access, then the read will fail.  If
+    //server processing continues, and write access is subsequently granted,
+    //the client read request will trigger a new dbo being written from
+    //scratch, with all of previous data overwritten.  A read failure here
+    //needs to fail catastrophically to avoid potential data loss.
+    function readDatabaseFile (contf) {
+        if(!jslf(fs, "existsSync", conf.dbPath)) {
             createDatabaseFile(); }
-        else {
-            fs.readFile(dbPath, "utf8", function (err, data) {
-                if(err) {
-                    dbPath = "UNREADABLE_DBPATH_FILE_" + dbPath;
-                    console.log(dbPath);
-                    throw err; }
-                dbo = JSON.parse(data);
-                if(dbo.songs) {
-                    Object.keys(dbo.songs).forEach(function (key) {
-                        normalizeIntegerValues(dbo.songs[key]); }); }
-                console.log("Read " + dbPath); }); }
+        fs.readFile(conf.dbPath, "utf8", function (err, data) {
+            if(err) {
+                conf.dbPath = "UNREADABLE_DBPATH_FILE_" + conf.dbPath;
+                console.log("readDatabaseFile failed: " + conf.dbPath);
+                throw err; }
+            dbo = JSON.parse(data);
+            if(dbo.songs) {
+                Object.values(dbo.songs).forEach(function (song) {
+                    normalizeIntegerValues(song); }); }
+            console.log("readDatabaseFile success: " + conf.dbPath);
+            if(contf) {
+                contf(dbo); } });
+    }
+
+
+    function initialize (contf) {
+        readConfigurationFile(function (conf) {
+            readDatabaseFile(function () {
+                if(contf) {
+                    contf(conf); } }); });
     }
 
 
     function serveConfig (ignore /*req*/, res) {
-        var confobj = {};
-        confobj.musicPath = musicPath;
-        confobj.dbPath = dbPath;
-        confobj.exPath = exPath;
         res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify(confobj));
+        res.end(JSON.stringify(conf));
     }
 
 
@@ -157,7 +162,7 @@ module.exports = (function () {
 
     function addSongToDb (fn, tagdata) {
         dbo.songcount += 1;
-        var rpath = fn.slice(musicPath.length);  //make path relative
+        var rpath = fn.slice(conf.musicPath.length);  //make path relative
         mostRecentRelativePathRead = rpath;
         var rec = dbo.songs[rpath];
         if(rec) {  //updating existing entry
@@ -182,7 +187,7 @@ module.exports = (function () {
         if(!ws.files.length) {
             dbo.scanned = new Date().toISOString();  //note completion time.
             var jsondbo = JSON.stringify(dbo);
-            jslf(fs, "writeFileSync", dbPath, jsondbo, "utf8");
+            jslf(fs, "writeFileSync", conf.dbPath, jsondbo, "utf8");
             ws.response.writeHead(200, {"Content-Type": "application/json"});
             ws.response.end(jsondbo);
             state = "ready";
@@ -193,7 +198,7 @@ module.exports = (function () {
                 if(err) {
                     console.log("walkFiles readdir error: " + err); }
                 files.forEach(function (childfile) {
-                    if(!ignoredirs.includes(childfile)) {
+                    if(!conf.ignoredirs.includes(childfile)) {
                         ws.files.push(fn + "/" + childfile); } });
                 walkFiles(ws); }); }
         else if(isMusicFile(fn)) {
@@ -227,7 +232,7 @@ module.exports = (function () {
             var fq = dbo.songs[key].fq;
             if(!fq.startsWith("D")) {  //already marked as deleted
                 dbo.songs[key].fq = "D" + fq; } });
-        var root = musicPath;
+        var root = conf.musicPath;
         if(root.endsWith("/")) {
             root = root.slice(0, -1); }
         walkFiles({request:req, response:res, files:[root]});
@@ -239,7 +244,7 @@ module.exports = (function () {
         res.end(JSON.stringify({count:dbo.songcount,
                                 status:state,
                                 lastrpath:mostRecentRelativePathRead,
-                                musicpath:musicPath}));
+                                musicpath:conf.musicPath}));
     }
 
 
@@ -331,10 +336,11 @@ module.exports = (function () {
                 setTimeout(mergeDataChunk, mrg.stat.pausems);
                 break; } }
         if(mrg.stat.idx >= keys.length) {
-            fs.writeFile(dbPath, JSON.stringify(dbo), "utf8", function (err) {
-                if(err) {
-                    throw err; }
-                mrg.stat.state = "ready"; }); }
+            fs.writeFile(conf.dbPath, JSON.stringify(dbo), "utf8",
+                         function (err) {
+                             if(err) {
+                                 throw err; }
+                             mrg.stat.state = "ready"; }); }
     }
 
 
@@ -382,9 +388,9 @@ module.exports = (function () {
                 if(err) {
                     throw err; }
                 //have file with no contents if no file specified.
-                var path = files.mergefilein.path;
+                var mpath = files.mergefilein.path;
                 mrg.stat.state = "received";
-                fs.readFile(path, "utf8", function (err, data) {
+                fs.readFile(mpath, "utf8", function (err, data) {
                     if(err) {
                         throw err; }
                     mergeData(data, req, res); }); }); }
@@ -408,7 +414,7 @@ module.exports = (function () {
         //write the json with newlines so it can be read in a text editor
         var json = JSON.stringify(dbo, null, 2);
         //max 1 ongoing file write at a time, so use fs.writeFileSync.
-        jslf(fs, "writeFileSync", dbPath, json, "utf8");
+        jslf(fs, "writeFileSync", conf.dbPath, json, "utf8");
     }
 
 
@@ -457,21 +463,23 @@ module.exports = (function () {
 
 
     function copyAudioToTemp (relpath) {
-        var tmpdir = "./docroot/tmpaudio";
+        var tmpdir = path.join("docroot", "tmpaudio");
         if(!jslf(fs, "existsSync", tmpdir)) {
             jslf(fs, "mkdirSync", tmpdir); }
         var tmpfn = "temp";
         if(relpath.lastIndexOf(".") > 0) {  //keep extension for content type
             tmpfn += relpath.slice(relpath.lastIndexOf(".")); }
-        jslf(fs, "copyFileSync", musicPath + relpath, tmpdir + "/" + tmpfn);
-        return "/tmpaudio/" + tmpfn;
+        jslf(fs, "copyFileSync", conf.musicPath + relpath,
+             path.join(tmpdir, tmpfn));
+        return "/tmpaudio/" + tmpfn;  //browser url for file
     }
 
 
     function writePlaylistFile () {
         var songs = JSON.parse(exp.spec.songs).map((s) => s.split("/").pop());
         var txt = "#EXTM3U\n" + songs.join("\n") + "\n";
-        jslf(fs, "writeFileSync", exPath + exp.spec.plfilename, txt, "utf8");
+        jslf(fs, "writeFileSync", conf.exPath + exp.spec.plfilename,
+             txt, "utf8");
     }
 
 
@@ -480,11 +488,11 @@ module.exports = (function () {
             exp.stat.state = "Done";
             if(exp.spec.markplayed) {  //song.lp updated when copied, save.
                 jslf(fs, "writeFileSync",
-                     dbPath, JSON.stringify(dbo), "utf8"); }
+                     conf.dbPath, JSON.stringify(dbo), "utf8"); }
             return; }
         var song = exp.stat.remaining.pop();
-        var exn = song.split("/").pop();
-        fs.copyFile(musicPath + song, exPath + exn, function (err) {
+        var exn = song.split(path.sep).pop();
+        fs.copyFile(conf.musicPath + song, conf.exPath + exn, function (err) {
             if(err) {
                 exp.stat.state = "Failed";
                 console.log(err); }
@@ -521,7 +529,8 @@ module.exports = (function () {
 
 
     return {
-        init: function () { initialize(); },
+        init: function (contf) { initialize(contf); },
+        conf: function () { return conf; },
         config: function (req, res) { return serveConfig(req, res); },
         dbo: function (req, res) { return serveDatabase(req, res); },
         dbread: function (req, res) { return readFiles(req, res); },

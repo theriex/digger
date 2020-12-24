@@ -278,6 +278,7 @@ app.db = (function () {
             jt.call("GET", "/dbread", null,
                     function (databaseobj) {
                         dbo = databaseobj;
+                        mgrs.kwd.init();
                         jt.out("countspan", String(dbo.songcount) + " songs");
                         jt.out("dbstatdiv", "");
                         dbstat.currstat = "ready";
@@ -540,23 +541,39 @@ app.db = (function () {
         pullPNSFromWS: function () {
             deckstat.ws = deckstat.ws.filter(function (song) {
                 return (deckstat.pns.indexOf(song) < 0); }); },
+        compareLastPlayed: function (a, b) {
+            if(a.lp && !b.lp) { return 1; }
+            if(!a.lp && b.lp) { return -1; }
+            if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); }
+            return 0; },
         sortByLastPlayed: function () {
-            deckstat.ws.sort(function (a, b) {
-                //sort by last played, oldest first
-                if(a.lp && !b.lp) { return 1; }
-                if(!a.lp && b.lp) { return -1; }
-                if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); }
-                return 0; }); },
-        truncateAndShuffle: function () {
-            deckstat.ws = deckstat.ws.slice(0, deckstat.maxdecksel);
+            deckstat.ws.sort(deckstat.ws.compareLastPlayed); },
+        shuffleDeck: function (endidx) {
+            if(!deckstat.ws || !deckstat.ws.length) { return; }
+            if(endidx <= 0) { return; }  //endidx defined, but nothing to do
+            if(!endidx) {  //endidx not defined
+                endidx = deckstat.ws.length - 1; }  //sort the whole thing
             //Fisher-Yates shuffle the first N elements of the result array
             var i; var j; var temp;
-            for(i = Math.min(5, deckstat.ws.length - 1); i > 0; i -= 1) {
+            for(i = endidx; i > 0; i -= 1) {
                 j = Math.floor(Math.random() * i);
                 temp = deckstat.ws[i];
                 deckstat.ws[i] = deckstat.ws[j];
-                deckstat.ws[j] = temp; } }
-    };
+                deckstat.ws[j] = temp; } },
+        truncateAndShuffle: function () {
+            deckstat.ws = deckstat.ws.slice(0, deckstat.maxdecksel);
+            if(deckstat.ws.length <= 1) { return; }  //nothing to shuffle
+            //shuffle the first N songs with the same play frequency.  This
+            //is especially important when starting with a new library.
+            var shidx = deckstat.ws.findIndex(
+                (s) => mgrs.ws.compareLastPlayed(s, deckstat.ws[0]));
+            if(shidx < 0) {  //all songs the same, shuffle all
+                shidx = deckstat.ws.length - 1; }
+            mgrs.ws.shuffleDeck(shidx);
+            //shuffle the first few songs to avoid lockstep predictability
+            shidx = Math.min(5, deckstat.ws.length - 1);
+            mgrs.ws.shuffleDeck(shidx); }
+    };  //end mgrs.ws functions
 
 
     //Song options manager handles actions at the level of specific song
