@@ -1,45 +1,39 @@
 # digger
-A music tagging and automated retrieval device.
+Contextual music library access.
 
 ## Concept
 
-In digger terms, a music *library* is a vast set of music files you've got
-on your computer, or in the cloud.  A music *collection* is a subset of
-songs you would be interested in hearing again.
+Digger is a web server that allows you to access your music based on your
+listening context.  Working?  Commuting?  Party?  When do *you* want to have
+music playing without having to think about it?
 
-Digger helps you enjoy your *collection* by pulling and playing songs you
-haven't heard in the longest time.  Digger uses range controls and keywords
-to pull situationally appropriate tracks without having to think about it.
+Digger lets you to create your own music retrieval contexts, then pushbutton
+tag your music for those situations.  Continuous value knobs let you dial in
+energy level and approachability.  The digger controls let you get back to
+enjoying your music collection without having to examine a long list of
+files just to get some appropriate noise in the room.  Just fire up the
+digger server, then access it through your browser.
 
-https://youtu.be/P9uGBJkQj5k has a walkthrough of the interface.
+https://youtu.be/P9uGBJkQj5k has a walkthrough of some of the interface
+features.  You can also merge in rating data from other people, or export
+what's on deck to copy a playlist to another device.
 
 
-## Structure
+## Install
 
-Digger runs as a webapp, supported by a server that handles the file
-crawling and data storage.  The idea is to work with minimal and open 
-technology so Digger can be adapted to a wide variety of situations.
+Setup:
+1. Download digger
+2. If haven't already, install [node.js](https://nodejs.org/en/download/)
+3. npm install
+4. If your music is not in ~/Music, change musicPath in config.json
 
-To run digger locally on a local collection of audio files, you will need to
-have [node.js](https://nodejs.org/en/download/) installed.  In the
-directory where you downloaded the digger project, install these node
-extensions:
-
-    npm install jsmediatags --save
-    npm install node-static
-    npm i -S formidable
-
-Then run digger:
-
-    node digger.js MUSICDIR DIGGERDBFILE EXPORTDIR
-
-With the server running, open http://localhost:6980 in a browser.
+Whenever you want music
+1. node digger.js
+2. Open [http://localhost:6980](http://localhost:6980)
 
 
 ## Status
 
-See issues page for ongoing development.  Definitely interested in packaging
-Digger for a wider audience and other media access models.  Get in touch via
-email.
+See the issues page for ongoing development.  Get in touch via email.
 
 
