@@ -9,10 +9,9 @@ music playing without having to think about it?
 
 Digger lets you to create your own music retrieval contexts, then pushbutton
 tag your music for those situations.  Continuous value knobs let you dial in
-energy level and approachability.  The digger controls let you get back to
-enjoying your music collection without having to examine a long list of
-files just to get some appropriate noise in the room.  Just fire up the
-digger server, then access it through your browser.
+energy level and approachability.  The digger filters let you get back to
+enjoying your music collection without having to face a wall of files just
+to get some appropriate noise in the room.
 
 https://youtu.be/P9uGBJkQj5k has a walkthrough of some of the interface
 features.  You can also merge in rating data from other people, or export

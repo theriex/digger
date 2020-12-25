@@ -171,7 +171,7 @@ module.exports = (function () {
                 rec.fq = rec.fq.slice(1); } }
         else {  //make new entry
             //console.log(dbo.songcount + " creating " + rpath);
-            rec = {fq:"N", rv:0, al:49, el:49, kws:""};
+            rec = {fq:"N", rv:0, al:49, el:49, kws:"", rv:5};
             dbo.songs[rpath] = rec; }
         if(!tagdata) {  //tags could not be read, mark as unreadable
             if(!rec.fq.startsWith("U")) {
