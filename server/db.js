@@ -34,7 +34,7 @@ module.exports = (function () {
     function createDatabaseFile () {
         dbo = {version:"dv0.1", 
                scanned:"",  //ISO latest walk of song files
-               keywords:["Ambient", "Office", "Party", "Dance"],
+               keywords:["Social", "Personal", "Office", "Dance"],
                //kwdefs created client side if/when keywords are customized
                waitcodedays:{  //days required since last played before pulling
                    //Prefix flag values:
@@ -54,7 +54,7 @@ module.exports = (function () {
         //  fq: frequency. See waitcodedays values and comments
         //  lp: last played. Local time ISO (easier to read, not critical)
         //  rv: rating. 0 is unrated, then 1-10 (5 stars with halves)
-        //  al: approachability (Social/Challenging) 0-99 default 49
+        //  al: approachability (Easy/Hard) 0-99 default 49
         //  el: energy level (Chill/Amped) 0-99 default 49
         //  kws: CSV of selected keywords (case normalized to declared vals)
         //  nt: arbitrary comment text
@@ -469,7 +469,7 @@ module.exports = (function () {
         var tmpfn = "temp";
         if(relpath.lastIndexOf(".") > 0) {  //keep extension for content type
             tmpfn += relpath.slice(relpath.lastIndexOf(".")); }
-        jslf(fs, "copyFileSync", conf.musicPath + relpath,
+        jslf(fs, "copyFileSync", conf.musicPath + path.sep + relpath,
              path.join(tmpdir, tmpfn));
         return "/tmpaudio/" + tmpfn;  //browser url for file
     }

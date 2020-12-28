@@ -8,15 +8,15 @@ app.filter = (function () {
                  el:{fld:"el", pn:"Energy Level",
                      low:"Chill", high:"Amped"},
                  al:{fld:"al", pn:"Approachability", 
-                     low:"Social", high:"Challenging"},
+                     low:"Easy", high:"Hard"},
                  rat:{pn:"Minimum Rating", w:85, h:15,
-                      unrated:{labels:["Include Unrated",
-                                       "Rated Songs Only",
-                                       "Unrated Only"],
-                               titles:["Include unrated songs when filtering.",
-                                       "Only rated songs when filtering.",
-                                       "Only unrated songs when filtering."],
-                               idx:0}},
+                      tagf:{labels:["Include Untagged",
+                                    "Tagged Only",
+                                    "Untagged Only"],
+                            titles:["Include untagged songs on deck.",
+                                    "Only play songs with keywords tagged.",
+                                    "Only play songs without keywords."],
+                            idx:0}},
                  fq:{pn:"Frequency Eligible"}};
     var ranger = {entire:{x:0, y:0, w:270, h:80},
                   panel:{outer:{x:25, y:0, w:244, h:56},
@@ -303,7 +303,7 @@ app.filter = (function () {
     }());
 
 
-    //Minimum rating and unrated filter
+    //Minimum rating and untagged filter
     mgrs.mruc = (function () {
     return {
         writeHTML: function (divid) {
@@ -315,10 +315,10 @@ app.filter = (function () {
                      ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
                     ["div", {cla:"ratstarseldiv", id:"filterstarseldiv"},
                      ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]],
-                 ["button", {type:"button", id:"inclunrb",
+                 ["button", {type:"button", id:"incluntb",
                              style:"color:" + ctrls.activecolor,
-                             onclick:mdfs("mruc.toggleUnrated")},
-                  ctrls.rat.unrated.labels[0]],
+                             onclick:mdfs("mruc.toggleTagFiltering")},
+                  ctrls.rat.tagf.labels[0]],
                  ["div", {id:"fqftogdiv"}]])); },
         makeControls: function () {
             ctrls.rat.stat = {pointingActive:false};
@@ -333,41 +333,31 @@ app.filter = (function () {
                                     ctrls.rat.posf); },
         makeFilter: function () {
             ctrls.rat.settings = function () {
-                return {t:"minrat", u:ctrls.rat.unrated.idx,
+                return {t:"minrat", u:ctrls.rat.tagf.idx,
                         m:ctrls.rat.stat.minrat}; };
             ctrls.rat.match = function (song) {
-                if(!song.rv) {  //song is unrated, match unless rating required
-                    return ctrls.rat.unrated.idx !== 1; }
-                if(ctrls.rat.unrated.idx !== 2) { //rated and not unrated only
-                    return song.rv >= ctrls.rat.stat.minrat; } }; },
+                if(ctrls.rat.stat.minrat >= 2 &&  //slider at least at one star
+                   song.rv < ctrls.rat.stat.minrat) {  //song below min
+                    return false; }
+                if(!song.kws && ctrls.rat.tagf.idx === 1) {
+                    return false; }  //song is untagged, playing tagged only
+                if(song.kws && ctrls.rat.tagf.idx === 2) {
+                    return false; }  //song is tagged, playing untagged only
+                return true; }; },
         setMinRating: function (rvs) {
             var dfltset = {u:0, m:4};
             rvs = rvs || dfltset;
             rvs.u = rvs.u || dfltset.u;
             rvs.m = rvs.m || dfltset.m;
-            ctrls.rat.unrated.idx = rvs.u - 1;  //incremented in toggle call
-            mgrs.mruc.toggleUnrated();
+            ctrls.rat.tagf.idx = rvs.u - 1;  //incremented in toggle call
+            mgrs.mruc.toggleTagFiltering();
             //set ctrls.rat.stat.minrat via ui control update
             ctrls.rat.posf(Math.round((rvs.m / 2) * 17)); },
-        toggleUnrated: function () {
-            ctrls.rat.unrated.idx = (ctrls.rat.unrated.idx + 1) % 3;
-            var starsdiv = jt.byId("filterstarsdiv");
-            var button = jt.byId("inclunrb");
-            button.innerHTML = ctrls.rat.unrated.labels[ctrls.rat.unrated.idx];
-            button.title = ctrls.rat.unrated.titles[ctrls.rat.unrated.idx];
-            switch(ctrls.rat.unrated.idx) {
-            case 0:  //Include Unrated
-                button.style.color = ctrls.activecolor;
-                starsdiv.style.opacity = 1.0;
-                break;
-            case 1:  //Rated Songs Only
-                button.style.color = "#ccc";
-                starsdiv.style.opacity = 1.0;
-                break;
-            case 2:  //Unrated Only
-                button.style.color = ctrls.activecolor;
-                starsdiv.style.opacity = 0.3;
-                break; }
+        toggleTagFiltering: function () {
+            ctrls.rat.tagf.idx = (ctrls.rat.tagf.idx + 1) % 3;
+            var button = jt.byId("incluntb");
+            button.innerHTML = ctrls.rat.tagf.labels[ctrls.rat.tagf.idx];
+            button.title = ctrls.rat.tagf.titles[ctrls.rat.tagf.idx];
             app.db.deckupd(); },
         init: function (divid, dbo) {
             mgrs.mruc.writeHTML(divid);
