@@ -728,7 +728,7 @@ app.db = (function () {
             case "history": mgrs.hist.verifyDisplayContent(); break; } },
         makeToggleControls: function () {
             var tgs = [
-                {id:"togfiltb", ti:"Deck Filter Controls", w:46, h:23,
+                {id:"togfiltb", ti:"Bypass filtering", w:46, h:23,
                  onimg:"img/filteron.png", offimg:"img/filteroff.png",
                  togf:function (state) {
                      if(state) {

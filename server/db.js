@@ -95,6 +95,10 @@ module.exports = (function () {
 
     function readConfigurationFile (contf) {
         var cfp = "config.json";  //config file path
+        //configDev.json overrides the standard config file to avoid
+        //modifying the standard config file in the sourcebase
+        if(jslf(fs, "existsSync", "configDev.json")) {
+            cfp = "configDev.json"; }
         fs.readFile(cfp, "utf8", function (err, data) {
             if(err) {
                 console.log("readConfigurationFile error reading " + cfp);
@@ -171,7 +175,7 @@ module.exports = (function () {
                 rec.fq = rec.fq.slice(1); } }
         else {  //make new entry
             //console.log(dbo.songcount + " creating " + rpath);
-            rec = {fq:"N", rv:0, al:49, el:49, kws:"", rv:5};
+            rec = {fq:"N", al:49, el:49, kws:"", rv:5};
             dbo.songs[rpath] = rec; }
         if(!tagdata) {  //tags could not be read, mark as unreadable
             if(!rec.fq.startsWith("U")) {

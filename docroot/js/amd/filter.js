@@ -458,7 +458,7 @@ app.filter = (function () {
             return; }  //nothing to init with
         jt.out("panfiltdiv", jt.tac2html(
             ["div", {id:"panfiltcontentdiv"},
-             [["div", {id:"filtertitlediv"}, "DECK FILTERS"],
+             [["div", {id:"filtertitlediv"}, "FILTERS"],
               ["div", {id:"rangesdiv"},
                [["div", {cla:"rangectrldiv", id:"eldiv"}],
                 ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
