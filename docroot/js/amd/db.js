@@ -130,7 +130,7 @@ app.db = (function () {
             mgrs.kwd.countSongKeywords(); },
         defsArray: function (actfirst) {
             var kds = Object.entries(dbo.kwdefs).map(function ([k, d]) {
-                return {pos:d.pos, sc:d.sc, ig:d.ig, kw:k}; });
+                return {pos:d.pos, sc:d.sc, ig:d.ig, kw:k, dsc:d.dsc}; });
             kds = kds.filter((kd) => !kd.ig);
             kds.sort(function (a, b) {
                 if(actfirst) {
@@ -170,16 +170,31 @@ app.db = (function () {
             var ukd = uka.find((kd) => kd.kw === kw);
             ukd.ig = 1;
             mgrs.kwd.redrawUpdateForm(); },
+        togKwdDesc: function (kw) {
+            var kdd = jt.byId(kw + "descrdiv");
+            if(kdd) {
+                if(kdd.style.display === "none") {
+                    kdd.style.display = "block"; }
+                else {
+                    kdd.style.display = "none"; } } },
         redrawUpdateForm: function () {
             vizuka = uka.filter((kd) => !kd.ig);
             jt.out("kwupdtablediv", jt.tac2html(
                 ["table", {id:"kwdseltable"},
                  vizuka.map((kwd) =>
-                     ["tr", {cla:"kwdtr"},
-                      [["td", mgrs.kwd.makePosSel(kwd.kw, kwd.pos)],
-                       ["td", kwd.kw],
-                       ["td", kwd.sc],
-                       ["td", mgrs.kwd.makeTrash(kwd.kw, kwd.pos)]]])])); },
+                     [["tr", {cla:"kwdtr"},
+                       [["td", mgrs.kwd.makePosSel(kwd.kw, kwd.pos)],
+                        ["td", ["a", {href:"#Describe" + kwd.kw,
+                                      onclick:mdfs("kwd.togKwdDesc", kwd.kw)},
+                                kwd.kw]],
+                        ["td", kwd.sc],
+                        ["td", mgrs.kwd.makeTrash(kwd.kw, kwd.pos)]]],
+                      ["tr", {cla:"kwdesctr"},
+                       [["td"],
+                        ["td", {colspan:3},
+                         ["div", {id:kwd.kw + "descrdiv", cla:"kddescrdiv",
+                                  style:"display:none", contentEditable:true},
+                          kwd.dsc || ""]]]]])])); },
         chooseKeywords: function () {
             mgrs.kwd.countSongKeywords();  //recount in case keyword was toggled
             uka = mgrs.kwd.defsArray();
@@ -213,7 +228,8 @@ app.db = (function () {
             if(mgrs.kwd.keywordDefsError()) { return; }
             var ukds = {};
             uka.forEach(function (kd) {
-                ukds[kd.kw] = {pos:kd.pos, sc:kd.sc, ig:kd.ig}; });
+                var descr = jt.byId(kd.kw + "descrdiv").innerText || "";
+                ukds[kd.kw] = {pos:kd.pos, sc:kd.sc, ig:kd.ig, dsc:descr}; });
             var data = jt.objdata({kwdefs:JSON.stringify(ukds)});
             jt.call("POST", "/keywdsupd", data,
                     function () {

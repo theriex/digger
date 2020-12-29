@@ -1,4 +1,4 @@
-/*jslint node, white, fudge */
+/*jslint node, white, fudge, long */
 
 module.exports = (function () {
     "use strict";
@@ -34,8 +34,13 @@ module.exports = (function () {
     function createDatabaseFile () {
         dbo = {version:"dv0.1", 
                scanned:"",  //ISO latest walk of song files
-               keywords:["Social", "Personal", "Office", "Dance"],
-               //kwdefs created client side if/when keywords are customized
+               kwdefs:{
+                   Social:{pos:1, sc:0, ig:0, dsc:"Music to play when other people are listening."},
+                   Personal:{pos:2, sc:0, ig:0, dsc:"Music to play just for me."},
+                   Ambient:{pos:3, sc:0, ig:0, dsc:"Music that can be listened to from near zero attention up to occasional full attention, without being boring or intrusive."},
+                   Dance:{pos:4, sc:0, ig:0, dsc:"Music that makes you move. Great grooves."},
+                   Office:{pos:0, sc:0, ig:0, dsc:"In the office with headphones on."},
+                   Solstice:{pos:0, sc:0, ig:0, dsc:"Holiday seasonal."}},
                waitcodedays:{  //days required since last played before pulling
                    //Prefix flag values:
                    //  D: Deleted.  File no longer exists

@@ -183,14 +183,22 @@ app.player = (function () {
             return {r:parseInt(hcs[0], 16),
                     g:parseInt(hcs[1], 16),
                     b:parseInt(hcs[2], 16)}; },
+        updateTitle: function (id, songtitle) {
+            var title = "Dial-In " + ctrls[id].pn;
+            if(songtitle) {
+                title += " for " + songtitle; }
+            var div = jt.byId(id + "pandiv");
+            if(div) {
+                div.title = title; } },
         updateControl: function (id, val) {
             if(!val && val !== 0) {
                 val = 49; }
             if(typeof val === "string") {
                 val = parseInt(val, 10); }
             if(stat.song) {
-                stat.song[id] = val; }
-            noteSongModified();
+                stat.song[id] = val;
+                mgrs.pan.updateTitle(id, stat.song.ti);
+                noteSongModified(); }
             //set knob face color from gradient
             var g = app.filter.gradient();
             g = {f:mgrs.pan.hex2RGB(g.left), t:mgrs.pan.hex2RGB(g.right)};
@@ -206,19 +214,20 @@ app.player = (function () {
             var anglemax = 145;
             var rot = Math.round(2 * anglemax * pct) - anglemax;
             pfd.style.transform = "rotate(" + rot + "deg)"; }
-    };
+    };  //end mgrs.pan
 
 
     mgrs.kwd = (function () {
         var kwdefs = null;
     return {
-        makeToggleButton: function (kwd, idx) {
+        makeToggleButton: function (kd, idx) {
             var tc = "kwdtogoff";
-            if(stat.song.kws && stat.song.kws.csvcontains(kwd)) {
+            if(stat.song.kws && stat.song.kws.csvcontains(kd.kw)) {
                 tc = "kwdtogon"; }
             return ["button", {type:"button", cla:tc, id:"kwdtog" + idx,
+                               title:kd.dsc || "",
                                onclick:mdfs("kwd.toggleKeyword", idx)},
-                    kwd]; },
+                    kd.kw]; },
         toggleKeyword: function (idx) {
             stat.song.kws = stat.song.kws || "";
             var button = jt.byId("kwdtog" + idx);
@@ -240,7 +249,7 @@ app.player = (function () {
                   "+"],
                  ["span", {id:"newkwspan"}],
                  ...kwdefs.filter((kd) => kd.pos > 0).map((kd, idx) =>
-                     mgrs.kwd.makeToggleButton(kd.kw, idx)),
+                     mgrs.kwd.makeToggleButton(kd, idx)),
                  ["span", {id:"extrakwspan"}]]));
             if(context === "playeradd") {
                 mgrs.kwd.toggleExpansion(); } },
@@ -254,7 +263,7 @@ app.player = (function () {
                                  onclick:mdfs("kwd.addNewKeyword")}, "+"]]));
                 jt.out("extrakwspan", jt.tac2html(
                     kwdefs.filter((kd) => kd.pos <= 0).map((kd, i) =>
-                        mgrs.kwd.makeToggleButton(kd.kw, i + 4))));
+                        mgrs.kwd.makeToggleButton(kd, i + 4))));
                 togb.innerHTML = "-"; }
             else {
                 jt.out("newkwspan", "");
@@ -324,6 +333,19 @@ app.player = (function () {
     }
 
 
+    function verifyPlayerControls () {
+        if(!jt.byId("playerdiv")) {
+            jt.out("mediadiv", jt.tac2html(
+                ["div", {id:"playerdiv"},
+                 [["div", {id:"playertitle"}, "Starting"],
+                  ["div", {id:"playertuningdiv"}],
+                  ["audio", {id:"playeraudio", controls:"controls",
+                             autoplay:"autoplay"},  //may or may not happen
+                   "WTF? Your browser doesn't support audio.."]]]));
+            jt.on("playeraudio", "ended", app.player.next); }
+    }
+
+
     function bumpPlayerLeftIfOverhang () {
         var player = jt.byId("playeraudio");
         var playw = player.offsetWidth;
@@ -335,20 +357,7 @@ app.player = (function () {
     }
 
 
-    function play () {
-        stat.status = "playing";
-        jt.log(JSON.stringify(stat.song));
-        mgrs.kwd.rebuildToggles();
-        if(!jt.byId("playerdiv")) {
-            jt.out("mediadiv", jt.tac2html(
-                ["div", {id:"playerdiv"},
-                 [["div", {id:"playertitle"}, "Starting"],
-                  ["div", {id:"playertuningdiv"}],
-                  ["audio", {id:"playeraudio", controls:"controls",
-                             autoplay:"autoplay"},  //may or may not happen
-                   "WTF? Your browser doesn't support audio.."]]]));
-            jt.on("playeraudio", "ended", app.player.next); }
-        bumpPlayerLeftIfOverhang();
+    function updateSongTitleDisplay () {
         var titleTAC = app.db.songTitleTAC(stat.song);
         titleTAC[2].unshift(jt.tac2html(
             ["div", {id:"playtitlebuttonsdiv"},
@@ -360,6 +369,16 @@ app.player = (function () {
                      onclick:jt.fs("app.player.skip()")},
                ["img", {src:"img/skip.png", cla:"ptico"}]]]]));
         jt.out("playertitle", jt.tac2html(titleTAC));
+    }
+
+
+    function play () {
+        stat.status = "playing";
+        jt.log(JSON.stringify(stat.song));
+        mgrs.kwd.rebuildToggles();
+        verifyPlayerControls();
+        bumpPlayerLeftIfOverhang();
+        updateSongTitleDisplay();
         mgrs.pan.updateControl("al", stat.song.al);
         mgrs.pan.updateControl("el", stat.song.el);
         stat.song.rv = stat.song.rv || 0;  //verify numeric value
