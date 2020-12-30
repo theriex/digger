@@ -33,7 +33,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .titlespan { font-size:x-large; font-weight:bold; }
 #countspan { font-size:medium; padding:0px 10px; }
 #statspan { font-size:small; padding-left:10px; }
-.paneldiv { border:8px solid #333; border-radius:0px;
+.paneldiv { border:5px solid #333; border-radius:0px;
   padding:5px 6px 10px 6px; }
 #pandbdiv { padding:10px 6px 0px 6px; }
 #pandeckdiv { padding:10px 6px 4px 6px; }
