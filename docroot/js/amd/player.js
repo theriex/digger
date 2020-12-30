@@ -316,7 +316,8 @@ app.player = (function () {
         stat = {status:"", song:null};
         ctrls = {};
         jt.out("panplaydiv", jt.tac2html(
-            [["div", {id:"mediadiv"}, "No songs on deck yet"],
+            [["div", {cla:"paneltitlediv"}, "PLAYER"],
+             ["div", {id:"mediadiv"}, "No songs on deck yet"],
              ["div", {id:"panpotsdiv"},
               [["div", {cla:"pandiv", id:"elpandiv"}],
                ["div", {cla:"pandiv", id:"alpandiv"}]]],
