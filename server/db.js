@@ -36,7 +36,7 @@ module.exports = (function () {
                scanned:"",  //ISO latest walk of song files
                kwdefs:{
                    Social:{pos:1, sc:0, ig:0, dsc:"Music to play when other people are listening."},
-                   Personal:{pos:2, sc:0, ig:0, dsc:"Music to play just for me."},
+                   Personal:{pos:2, sc:0, ig:0, dsc:"Music to play for me."},
                    Ambient:{pos:3, sc:0, ig:0, dsc:"Music that can be listened to from near zero attention up to occasional full attention, without being boring or intrusive."},
                    Dance:{pos:4, sc:0, ig:0, dsc:"Music that makes you move. Great grooves."},
                    Office:{pos:0, sc:0, ig:0, dsc:"In the office with headphones on."},
