@@ -31,6 +31,14 @@ module.exports = (function () {
     }
 
 
+    function writeUpdatedDatabaseObject () {
+        //write the json with newlines so it can be read in a text editor
+        var json = JSON.stringify(dbo, null, 2);
+        //max 1 ongoing file write at a time, so use fs.writeFileSync.
+        jslf(fs, "writeFileSync", conf.dbPath, json, "utf8");
+    }
+
+
     function createDatabaseFile () {
         dbo = {version:"dv0.1", 
                scanned:"",  //ISO latest walk of song files
@@ -69,7 +77,7 @@ module.exports = (function () {
         //  segs: [] A segue is ar/ab/ti/prob where prob is an *independent*
         //  percentage likelihood the segue will be used.  e.g. 0 is never,
         //  100 is always, 50 is a coin toss.
-        jslf(fs, "writeFileSync", conf.dbPath, JSON.stringify(dbo), "utf8");
+        writeUpdatedDatabaseObject();
         console.log("Created " + conf.dbPath);
         state = "ready";
     }
@@ -98,12 +106,18 @@ module.exports = (function () {
     }
 
 
-    function readConfigurationFile (contf) {
+    function getConfigFileName () {
         var cfp = "config.json";  //config file path
         //configDev.json overrides the standard config file to avoid
         //modifying the standard config file in the sourcebase
         if(jslf(fs, "existsSync", "configDev.json")) {
             cfp = "configDev.json"; }
+        return cfp;
+    }
+
+
+    function readConfigurationFile (contf) {
+        var cfp = getConfigFileName();
         fs.readFile(cfp, "utf8", function (err, data) {
             if(err) {
                 console.log("readConfigurationFile error reading " + cfp);
@@ -114,6 +128,12 @@ module.exports = (function () {
                         JSON.stringify(conf, null, 2));
             if(contf) {
                 contf(conf); } });
+    }
+
+
+    function writeConfigurationFile () {
+        var cfp = getConfigFileName();
+        jslf(fs, "writeFileSync", cfp, JSON.stringify(conf, null, 2), "utf8");
     }
 
 
@@ -172,6 +192,8 @@ module.exports = (function () {
     function addSongToDb (fn, tagdata) {
         dbo.songcount += 1;
         var rpath = fn.slice(conf.musicPath.length);  //make path relative
+        if(rpath.startsWith(path.sep)) {
+            rpath = rpath.slice(1); }
         mostRecentRelativePathRead = rpath;
         var rec = dbo.songs[rpath];
         if(rec) {  //updating existing entry
@@ -192,13 +214,22 @@ module.exports = (function () {
     }
 
 
+    function isIgnoreDir (ws, dirname) {
+        if(conf.ignoredirs.includes(dirname)) {
+            return true; }
+        if(!ws.wildms) {
+            ws.wildms = conf.ignoredirs.filter((ign) => ign.endsWith("*"));
+            ws.wildms = ws.wildms.map((wm) => wm.slice(0, -1)); }
+        return ws.wildms.some((wm) => dirname.startsWith(wm));
+    }
+
+
     function walkFiles (ws) {
         if(!ws.files.length) {
             dbo.scanned = new Date().toISOString();  //note completion time.
-            var jsondbo = JSON.stringify(dbo);
-            jslf(fs, "writeFileSync", conf.dbPath, jsondbo, "utf8");
+            writeUpdatedDatabaseObject();
             ws.response.writeHead(200, {"Content-Type": "application/json"});
-            ws.response.end(jsondbo);
+            ws.response.end(JSON.stringify(dbo));
             state = "ready";
             return; }  //done reading
         var fn = ws.files.pop();
@@ -207,7 +238,7 @@ module.exports = (function () {
                 if(err) {
                     console.log("walkFiles readdir error: " + err); }
                 files.forEach(function (childfile) {
-                    if(!conf.ignoredirs.includes(childfile)) {
+                    if(!isIgnoreDir(ws, childfile)) {
                         ws.files.push(fn + "/" + childfile); } });
                 walkFiles(ws); }); }
         else if(isMusicFile(fn)) {
@@ -345,11 +376,8 @@ module.exports = (function () {
                 setTimeout(mergeDataChunk, mrg.stat.pausems);
                 break; } }
         if(mrg.stat.idx >= keys.length) {
-            fs.writeFile(conf.dbPath, JSON.stringify(dbo), "utf8",
-                         function (err) {
-                             if(err) {
-                                 throw err; }
-                             mrg.stat.state = "ready"; }); }
+            writeUpdatedDatabaseObject();
+            mrg.stat.state = "ready"; }
     }
 
 
@@ -416,14 +444,6 @@ module.exports = (function () {
         console.log("resError " + code + ": " + msg);
         res.writeHead(404, {"Content-Type": "text/plain"});
         res.end(msg);
-    }
-
-
-    function writeUpdatedDatabaseObject () {
-        //write the json with newlines so it can be read in a text editor
-        var json = JSON.stringify(dbo, null, 2);
-        //max 1 ongoing file write at a time, so use fs.writeFileSync.
-        jslf(fs, "writeFileSync", conf.dbPath, json, "utf8");
     }
 
 
@@ -496,8 +516,7 @@ module.exports = (function () {
         if(!exp.stat.remaining.length) {
             exp.stat.state = "Done";
             if(exp.spec.markplayed) {  //song.lp updated when copied, save.
-                jslf(fs, "writeFileSync",
-                     conf.dbPath, JSON.stringify(dbo), "utf8"); }
+                writeUpdatedDatabaseObject(); }
             return; }
         var song = exp.stat.remaining.pop();
         var exn = song.split(path.sep).pop();
@@ -537,6 +556,24 @@ module.exports = (function () {
     }
 
 
+    function ignoreFolders (req, res) {
+        var fif = new formidable.IncomingForm();
+        fif.parse(req, function (err, fields) {
+            if(err) {
+                return resError(res, 400, "ignoreFolders form error " + err); }
+            if(fields.ignoredirs) {  //data passed in. updating.
+                //The ignore folders take effect when files are next read.
+                //The read process marks all songs as deleted and then
+                //unmarks them as they are found, so songs in ignored
+                //folders will either not be created, or left marked as deleted.
+                conf.ignoredirs = JSON.parse(fields.ignoredirs);
+                writeConfigurationFile(); }
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(JSON.stringify({musicPath:conf.musicPath,
+                                    ignoredirs:conf.ignoredirs})); });
+    }
+
+
     return {
         init: function (contf) { initialize(contf); },
         conf: function () { return conf; },
@@ -549,6 +586,7 @@ module.exports = (function () {
         songupd: function (req, res) { return updateSong(req, res); },
         keysupd: function (req, res) { return updateKeywords(req, res); },
         copyaudio: function (relpath) { return copyAudioToTemp(relpath); },
-        plistexp: function (req, res) { return playlistExport(req, res); }
+        plistexp: function (req, res) { return playlistExport(req, res); },
+        igfolders: function (req, res) { return ignoreFolders(req, res); }
     };
 }());

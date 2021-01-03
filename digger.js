@@ -27,38 +27,46 @@ db.init(function (conf) {
     }
 
     //start the server
-    require("http").createServer(function (request, response) {
-        var quieturls = ["/songscount", "/mergestat"];
-        var pu = parsedURL(request.url);
-        if(!quieturls.includes(pu.baseurl)) {
-            console.log(request.url); }
-        switch(pu.baseurl) {
-        //POST requests (with optional GET support):
-        case "/mergefile": db.mergefile(request, response); break;
-        case "/songupd": db.songupd(request, response); break;
-        case "/keywdsupd": db.keysupd(request, response); break;
-        case "/plistexp": db.plistexp(request, response); break;
-        default: //handle after request is fully stabilized
-            request.addListener("end", function () {
-                //GET requests:
-                switch(pu.baseurl) {
-                case "/config": db.config(request, response); break;
-                case "/dbo": db.dbo(request, response); break;
-                case "/dbread": db.dbread(request, response); break;
-                case "/songscount": db.songscount(request, response); break;
-                case "/mergestat": db.mergestat(request, response); break;
-                case "/audio":
-                    fileserver.serveFile(db.copyaudio(pu.query.path),
-                                         200, {}, request, response);
-                    break;
-                default:
-                    fileserver.serve(request, response); }
-            }).resume(); }
+    require("http").createServer(function (req, rsp) {
+        try {
+            var quieturls = ["/songscount", "/mergestat"];
+            var pu = parsedURL(req.url);
+            if(!quieturls.includes(pu.baseurl)) {
+                console.log(req.url); }
+            //POST requests (with optional GET support):
+            switch(pu.baseurl) {
+            case "/mergefile": db.mergefile(req, rsp); break;
+            case "/songupd": db.songupd(req, rsp); break;
+            case "/keywdsupd": db.keysupd(req, rsp); break;
+            case "/plistexp": db.plistexp(req, rsp); break;
+            case "/ignorefolders": db.igfolders(req, rsp); break;
+            default: //handle after request is fully stabilized
+                req.addListener("end", function () {
+                    //GET requests:
+                    try {
+                        switch(pu.baseurl) {
+                        case "/config": db.config(req, rsp); break;
+                        case "/dbo": db.dbo(req, rsp); break;
+                        case "/dbread": db.dbread(req, rsp); break;
+                        case "/songscount": db.songscount(req, rsp); break;
+                        case "/mergestat": db.mergestat(req, rsp); break;
+                        case "/audio":
+                            fileserver.serveFile(db.copyaudio(pu.query.path),
+                                                 200, {}, req, rsp);
+                            break;
+                        default:
+                            fileserver.serve(req, rsp); }
+                    } catch(geterr) {
+                        console.error(geterr); }
+                }).resume(); }
+        } catch(posterr) {
+            console.error(posterr); }
     }).listen(conf.port);
 
     var sd = conf.spawn && conf.spawn[require("os").platform()];
     if(sd) {
         setTimeout(function () {
             const { spawn } = require("child_process");
+            console.log("spawn: " + JSON.stringify(sd, null, 2));
             spawn(sd.command, sd.args, sd.options); }, 800); }
 });

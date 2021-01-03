@@ -269,6 +269,74 @@ app.db = (function () {
     }());
 
 
+    mgrs.igf = (function () {
+        var igfo = null;  //igfo.ignoredirs is an array of strings
+    return {
+        igMusicFolders: function () {
+            jt.out("dbdlgdiv", jt.tac2html(
+                ["div", {id:"igfouterdiv"},
+                 [["div", {id:"igfdiv"}],
+                  ["div", {id:"igfindiv"}],
+                  ["div", {id:"igfstatdiv"}],
+                  ["div", {cla:"dlgbuttonsdiv", id:"igfbdiv"},
+                   ["button", {type:"button", id:"igfaddb",
+                               onclick:mdfs("igf.addIgnoreFolder")},
+                    "Add"]]]]));
+            mgrs.igf.updateIgnoreFiles(); },
+        serialize: function (serialize) {
+            if(serialize) {
+                if(igfo) {
+                    igfo.ignoredirs = JSON.stringify(igfo.ignoredirs); } }
+            else {  //deserialize
+                if(igfo) {
+                    igfo.ignoredirs = JSON.parse(igfo.ignoredirs); } } },
+        updateIgnoreFiles: function (afn) {  //posting null data works like GET
+            jt.out("igfstatdiv", "Updating ignore files...");
+            mgrs.igf.serialize(true);
+            jt.call("POST", "/ignorefolders", jt.objdata(igfo),
+                    function (ignoreFoldersObj) {
+                        jt.out("igfstatdiv", "");
+                        igfo = ignoreFoldersObj;
+                        mgrs.igf.redrawIgnoreFolders(afn); },
+                    function (ignore /*code*/, errtxt) {
+                        mgrs.igf.serialize(false);
+                        jt.out("igfstatdiv", errtxt); },
+                    jt.semaphore("igf.updateIgnoreFiles")); },
+        redrawIgnoreFolders: function (afn) {
+            jt.out("igfdiv", jt.tac2html(
+                ["table", {id:"igftable"},
+                 igfo.ignoredirs.map((fname, idx) =>
+                     ["tr", {cla:"igftr", id:"igftr" + idx},
+                      [["td", fname],
+                       ["td", ["a", {href:"#Remove", title:"Remove " + fname,
+                                     onclick:mdfs("igf.removeIgnoreFolder",
+                                                  fname)},
+                               ["img", {cla:"rowbuttonimg",
+                                        src:"img/trash.png"}]]]]])]));
+            if(afn) {
+                var tr = jt.byId("igftr" + igfo.ignoredirs.indexOf(afn));
+                if(tr) {
+                    tr.scrollIntoView();
+                    window.scrollTo(0, 0); } }
+            jt.out("igfindiv", jt.tac2html(
+                [["label", {fo:"igfin"},
+                  "Ignore " + igfo.musicPath + "/**/"],
+                 ["input", {type:"text", id:"igfin", size:30}]]));
+            jt.out("igfstatdiv", ""); },
+        removeIgnoreFolder: function (foldername) {
+            igfo.ignoredirs = igfo.ignoredirs.filter((fn) => fn !== foldername);
+            mgrs.igf.updateIgnoreFiles(); },
+        addIgnoreFolder: function () {
+            var afn = jt.byId("igfin").value;
+            if(!afn || !afn.trim() || igfo.ignoredirs.indexOf(afn) >= 0) {
+                return mgrs.igf.redrawIgnoreFolders(); }
+            igfo.ignoredirs.push(afn);
+            igfo.ignoredirs.sort();
+            mgrs.igf.updateIgnoreFiles(afn); }
+    };  //end of mgrs.igf returned functions
+    }());
+
+
     //Library manager deals with lib level actions and data
     mgrs.lib = {
         monitorReadTotal: function () {
@@ -334,13 +402,17 @@ app.db = (function () {
                   [["span", {cla:"pathlabelspan"}, "Music Files:"],
                    ["span", {cla:"pathspan"}, dbinfo.musicPath]]],
                  ["div", {cla:"pathdiv"},
-                  [["span", {cla:"pathlabelspan"}, "Digger File:"],
+                  [["span", {cla:"pathlabelspan"}, "Digger Data:"],
                    ["span", {cla:"pathspan"}, dbinfo.dbPath]]],
                  ["div", {cla:"dlgbuttonsdiv"},
                   [["button", {type:"button", id:"rfbutton",
                                title:"Read all files in the music folder",
                                onclick:mdfs("lib.reReadSongFiles")},
                     "Read Files"],
+                   ["button", {type:"button", id:"igbutton",
+                               title:"Ignore folders when reading music files",
+                               onclick:mdfs("igf.igMusicFolders")},
+                    "Ignore Folders"],
                    ["button", {type:"button", id:"mdbutton",
                                title:"Merge data from another Digger file",
                                onclick:mdfs("lib.mergeData")},
@@ -358,7 +430,7 @@ app.db = (function () {
                  ["div", {cla:"cldiv"}, mgrs.lib.timeEstimateReadText()],
                  ["div", {cla:"dlgbuttonsdiv"},
                   ["button", {type:"button",
-                              onclick:mdfs("lib.reread", "confirmed")},
+                              onclick:mdfs("lib.reReadSongFiles", "confirmed")},
                    "Go!"]]]));
             jt.call("GET", "/songscount", null,
                     function (info) {
