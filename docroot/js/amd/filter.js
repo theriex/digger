@@ -152,8 +152,17 @@ app.filter = (function () {
     function initRangeSetting (cid) {
         var dfltset = {v:18, h:117};
         var settings = findSetting({t:"range", c:cid}) || dfltset;
-        ctrls[cid].vpos(0, settings.v || dfltset.v);
-        ctrls[cid].hpos(settings.h || dfltset.h, 0);
+        if(settings.v !== 0) {  //zero is valid value, check for invalid.
+            settings.v = settings.v || dfltset.v;  //verify value defined
+            if(!Number.isInteger(settings.v)) {    //if not int, use default
+                settings.v = dfltset.v; }
+            settings.v = Math.floor(settings.v); } //verify true integer
+        if(settings.h !== 0) {  //zero is valid, value, check for invalid
+            if(!Number.isInteger(settings.h)) {    //if not int, use default
+                settings.h = dfltset.h; }
+            settings.h = Math.floor(settings.h); } //verify true integer
+        ctrls[cid].vpos(0, settings.v);
+        ctrls[cid].hpos(settings.h, 0);
     }
 
 
