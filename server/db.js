@@ -6,12 +6,26 @@ module.exports = (function () {
     var fs = require("fs");
     var os = require("os");
     var path = require("path");
-    var fxts = [
+    var fects = {  //file extension content types
         //Common formats typically supported through OS libraries
-        ".mp3", ".aac", ".aiff", ".wma", ".alac",
+        ".mp3":"audio/mp3",
+        ".aac":"audio/aac",
+        ".aiff":"audio/aiff",
+        ".wma":"audio/x-ms-wma",
+        ".alac":"audio/mp4",
         //Firefox general media support (open formats):
-        ".wav", ".wave", ".ogg", ".oga", ".ogv", ".ogx", ".spx", ".opus",
-        ".webm", ".flac", ".mp4", ".m4a", ".m4p", ".m4b", ".m4r", ".m4v"];
+        ".3gp":"audio/3gpp",
+        ".wav":"audio/wav",
+        ".wave":"audio/wav",
+        ".ogg":"audio/ogg",
+        ".oga":"audio/ogg",
+        ".opus":"audio/opus",  //ogg
+        ".webm":"audio/webm",
+        ".flac":"audio/flac",
+        ".mpg":"audio/mpeg",
+        ".mpeg":"audio/mpeg",
+        ".mp4":"audio/mp4",
+        ".m4a":"audio/mp4"};
     var conf = null;
     var dbo = null;
     var mt = require("jsmediatags");
@@ -20,6 +34,7 @@ module.exports = (function () {
     var formidable = require("formidable");
     var mrg = {stat:null, obj:null, dict:null};
     var exp = {stat:null, spec:null};
+    var appdir = path.normalize(path.join(__dirname, ".."));
 
 
     //JavaScript Lint Fuckery avoids warnings about sync methods that
@@ -31,7 +46,13 @@ module.exports = (function () {
     }
 
 
+    function diggerVersion () {
+        return "dv0.2";
+    }
+
+
     function writeUpdatedDatabaseObject () {
+        dbo.version = diggerVersion();
         //write the json with newlines so it can be read in a text editor
         var json = JSON.stringify(dbo, null, 2);
         //max 1 ongoing file write at a time, so use fs.writeFileSync.
@@ -40,7 +61,7 @@ module.exports = (function () {
 
 
     function createDatabaseFile () {
-        dbo = {version:"dv0.1", 
+        dbo = {version:diggerVersion(),
                scanned:"",  //ISO latest walk of song files
                kwdefs:{
                    Social:{pos:1, sc:0, ig:0, dsc:"Music to play when other people are listening."},
@@ -107,11 +128,16 @@ module.exports = (function () {
 
 
     function getConfigFileName () {
-        var cfp = "config.json";  //config file path
-        //configDev.json overrides the standard config file to avoid
-        //modifying the standard config file in the sourcebase
-        if(jslf(fs, "existsSync", "configDev.json")) {
-            cfp = "configDev.json"; }
+        //console.log("appdir: " + appdir);
+        var cfns = [ //config file names in priority order
+            path.join(appdir, "configDev.json"),  //local dev override
+            path.join(os.homedir(), ".digger_config.json"),
+            path.join(appdir, "config.json")];
+        // cfns.forEach(function (n, idx) {
+        //     console.log("    " + idx + " " + n); });
+        var cfp = cfns.find((n) => jslf(fs, "existsSync", n));
+        if(!cfp) {
+            throw "getConfigFileName: No config file found."; }
         return cfp;
     }
 
@@ -184,7 +210,7 @@ module.exports = (function () {
     function isMusicFile (fn) {
         if(fn.indexOf(".") >= 0) {
             fn = fn.slice(fn.lastIndexOf(".")).toLowerCase();
-            return fxts.includes(fn); }
+            return fects[fn]; }
         return false;
     }
 
@@ -491,19 +517,6 @@ module.exports = (function () {
     }
 
 
-    function copyAudioToTemp (relpath) {
-        var tmpdir = path.join("docroot", "tmpaudio");
-        if(!jslf(fs, "existsSync", tmpdir)) {
-            jslf(fs, "mkdirSync", tmpdir); }
-        var tmpfn = "temp";
-        if(relpath.lastIndexOf(".") > 0) {  //keep extension for content type
-            tmpfn += relpath.slice(relpath.lastIndexOf(".")); }
-        jslf(fs, "copyFileSync", conf.musicPath + path.sep + relpath,
-             path.join(tmpdir, tmpfn));
-        return "/tmpaudio/" + tmpfn;  //browser url for file
-    }
-
-
     function writePlaylistFile () {
         var songs = JSON.parse(exp.spec.songs).map((s) => s.split("/").pop());
         var txt = "#EXTM3U\n" + songs.join("\n") + "\n";
@@ -574,7 +587,23 @@ module.exports = (function () {
     }
 
 
+    function serveAudio (pu, ignore /*req*/, res) {
+        var fn = path.join(conf.musicPath, pu.query.path);
+        var ext = fn.slice(fn.lastIndexOf(".")).toLowerCase();
+        var ct = fects[ext] || "audio/" + ext.slice(1);
+        res.writeHead(200, {"Content-type": ct});
+        res.end(jslf(fs, "readFileSync", fn));
+    }
+
+
+    function serveVersion (ignore /*req*/, res) {
+        res.writeHead(200, {"Content-Type": "text/plain"});
+        res.end(diggerVersion());
+    }
+
+
     return {
+        appdir: function () { return appdir; },
         init: function (contf) { initialize(contf); },
         conf: function () { return conf; },
         config: function (req, res) { return serveConfig(req, res); },
@@ -585,8 +614,9 @@ module.exports = (function () {
         mergestat: function (req, res) { return mergeStatus(req, res); },
         songupd: function (req, res) { return updateSong(req, res); },
         keysupd: function (req, res) { return updateKeywords(req, res); },
-        copyaudio: function (relpath) { return copyAudioToTemp(relpath); },
         plistexp: function (req, res) { return playlistExport(req, res); },
-        igfolders: function (req, res) { return ignoreFolders(req, res); }
+        igfolders: function (req, res) { return ignoreFolders(req, res); },
+        audio: function (pu, req, res) { return serveAudio(pu, req, res); },
+        version: function (req, res) { return serveVersion(req, res); }
     };
 }());

@@ -638,7 +638,7 @@ app.db = (function () {
         findEndShuffleIndex: function (arr) {
             var sh = {end:1};
             //extend shuffle to include all songs that haven't been played yet
-            while(sh.end < arr.length && !arr[sh.end].lp) { sh.end += 1; }
+            while(sh.end < arr.length - 1 && !arr[sh.end].lp) { sh.end += 1; }
             //extend shuffle into all songs played within a day of most recent
             if(arr[sh.end].lp) {
                 sh.cutoff = new Date(

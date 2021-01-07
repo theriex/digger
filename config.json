@@ -3,12 +3,12 @@
   "musicPath": "~/Music",
   "ignoredirs": ["Ableton", "GarageBand"],
   "dbPath": "digdat.json",
-  "exPath": "export",
+  "exPath": "diggerexport",
   "spawn": {
     "comment": "Optional platform command to run after digger server starts",
     "darwin": {
-      "comment": "Safari has widest support for music file formats on MacOS",
+      "comment": "MacOS supports opening a URL with the default browser",
       "command": "open",
-      "args": ["-a", "/Applications/Safari.app"],
+      "args": ["http://localhost:6980"],
       "options": {"stdio": "ignore"} } }
 }

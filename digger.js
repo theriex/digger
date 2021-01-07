@@ -1,9 +1,10 @@
 /*jslint node, white, fudge */
 
+var path = require("path");
 var db = require("./server/db");
 db.init(function (conf) {
     var nodestatic = require("node-static");
-    var fileserver = new nodestatic.Server("./docroot");
+    var fileserver = new nodestatic.Server(path.join(db.appdir(), "docroot"));
 
     function params2Obj (str) {
         var po = {};
@@ -45,15 +46,13 @@ db.init(function (conf) {
                     //GET requests:
                     try {
                         switch(pu.baseurl) {
+                        case "/version": db.version(req, rsp); break;
                         case "/config": db.config(req, rsp); break;
                         case "/dbo": db.dbo(req, rsp); break;
                         case "/dbread": db.dbread(req, rsp); break;
                         case "/songscount": db.songscount(req, rsp); break;
                         case "/mergestat": db.mergestat(req, rsp); break;
-                        case "/audio":
-                            fileserver.serveFile(db.copyaudio(pu.query.path),
-                                                 200, {}, req, rsp);
-                            break;
+                        case "/audio": db.audio(pu, req, rsp); break;
                         default:
                             fileserver.serve(req, rsp); }
                     } catch(geterr) {
