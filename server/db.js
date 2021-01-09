@@ -35,6 +35,7 @@ module.exports = (function () {
     var mrg = {stat:null, obj:null, dict:null};
     var exp = {stat:null, spec:null};
     var appdir = path.normalize(path.join(__dirname, ".."));
+    var caud = {path:"", buf:null};
 
 
     //JavaScript Lint Fuckery avoids warnings about sync methods that
@@ -587,12 +588,35 @@ module.exports = (function () {
     }
 
 
-    function serveAudio (pu, ignore /*req*/, res) {
+    function serveAudio (pu, req, res) {
         var fn = path.join(conf.musicPath, pu.query.path);
-        var ext = fn.slice(fn.lastIndexOf(".")).toLowerCase();
-        var ct = fects[ext] || "audio/" + ext.slice(1);
-        res.writeHead(200, {"Content-type": ct});
-        res.end(jslf(fs, "readFileSync", fn));
+        if(caud.path !== fn) {
+            caud.path = fn;
+            caud.buf = jslf(fs, "readFileSync", fn);
+            var ext = fn.slice(fn.lastIndexOf(".")).toLowerCase();
+            caud.ct = fects[ext] || "audio/" + ext.slice(1); }
+        var resh = {"Content-Type": caud.ct,
+                    "Content-Length": caud.buf.length,
+                    "Accept-Ranges": "bytes"};
+        var rescode = 200;
+        var resb = caud.buf;
+        //console.log(req.headers);
+        if(req.headers.range) {  //e.g. "bytes=0-1" (inclusive range)
+            var rspec = req.headers.range.split("=")[1];
+            rspec = rspec.split("-");
+            if(!rspec[1]) {  //second range index may be omitted
+                rspec[1] = String(caud.buf.length - 1); }
+            rspec = rspec.map((x) => parseInt(x, 10));
+            var start = rspec[0];
+            var end = rspec[1];
+            resh["Content-Range"] = "bytes " + start + "-" + end + "/" +
+                caud.buf.length;
+            resh["Content-Length"] = (end + 1) - start;
+            rescode = 206;
+            resb = caud.buf.subarray(start, end + 1); }
+        //console.log(resh);
+        res.writeHead(rescode, resh);
+        res.end(resb);
     }
 
 
