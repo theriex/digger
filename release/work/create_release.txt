@@ -1,0 +1,36 @@
+# From the digger/work directory...
+
+# Create the default platform executables
+pkg ../../
+
+# Move the unix executable files up into the main release directory
+mv digger-* ../
+
+# Copy the updated macos unix exe into Digger.app as "Digger"
+cp ../digger-macos Digger/Digger.app/Contents/MacOS/Digger
+
+# Edit Digger/Digger.app/Contents/Info.plist and update CFBundleVersion
+
+# Clean up any editing backup files
+find .. -name "*~" -delete
+
+# If appicon.png (1024x1024) has changed since last release, then
+mkdir Digger.iconset
+sips -z 16 16     appicon.png --out Digger.iconset/icon_16x16.png
+sips -z 32 32     appicon.png --out Digger.iconset/icon_16x16@2x.png
+sips -z 32 32     appicon.png --out Digger.iconset/icon_32x32.png
+sips -z 64 64     appicon.png --out Digger.iconset/icon_32x32@2x.png
+sips -z 128 128   appicon.png --out Digger.iconset/icon_128x128.png
+sips -z 256 256   appicon.png --out Digger.iconset/icon_128x128@2x.png
+sips -z 256 256   appicon.png --out Digger.iconset/icon_256x256.png
+sips -z 512 512   appicon.png --out Digger.iconset/icon_256x256@2x.png
+sips -z 512 512   appicon.png --out Digger.iconset/icon_512x512.png
+cp appicon.png Digger.iconset/icon_512x512@2x.png
+iconutil -c icns Digger.iconset
+rm -R Digger.iconset
+mv Digger.icns Digger/Digger.app/Contents/Resources/
+
+# Disk Utility | File | New Image | Image from Folder...  (work/Digger)
+# Move the dmg file up to the release binaries
+mv Digger.dmg ../
+
