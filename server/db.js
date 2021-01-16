@@ -627,9 +627,12 @@ module.exports = (function () {
 
 
     return {
+        //server utilities
         appdir: function () { return appdir; },
         init: function (contf) { initialize(contf); },
         conf: function () { return conf; },
+        writeConfigurationFile: function () { writeConfigurationFile(); },
+        //server endpoints
         config: function (req, res) { return serveConfig(req, res); },
         dbo: function (req, res) { return serveDatabase(req, res); },
         dbread: function (req, res) { return readFiles(req, res); },

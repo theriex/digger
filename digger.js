@@ -1,6 +1,7 @@
 /*jslint node, white, fudge */
 
 var path = require("path");
+var hub = require("./server/hub");
 var db = require("./server/db");
 db.init(function (conf) {
     var nodestatic = require("node-static");
@@ -41,6 +42,10 @@ db.init(function (conf) {
             case "/keywdsupd": db.keysupd(req, rsp); break;
             case "/plistexp": db.plistexp(req, rsp); break;
             case "/ignorefolders": db.igfolders(req, rsp); break;
+            case "/acctsinfo": hub.acctsinfo(req, rsp); break;
+            case "/newacct": hub.newacct(req, rsp); break;
+            case "/acctok": hub.acctok(req, rsp); break;
+            case "/updacc": hub.updacc(req, rsp); break;
             default: //handle after request is fully stabilized
                 req.addListener("end", function () {
                     //GET requests:

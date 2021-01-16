@@ -1013,10 +1013,10 @@ app.db = (function () {
     };
 
 
-    function fetchData () {  //main db display elems and initial data fetch
+    function fetchData () {  //main db display elems and startup data fetch
         jt.out("pandbdiv", jt.tac2html(
             [["div", {id:"titlediv"},
-              [["span", {cla:"titlespan"}, "Digger"],
+              [app.hub.titleHTML(),
                ["span", {id:"countspan"}, dbstat.loading],
                ["a", {href:"#database", title:"Library Actions",
                       onclick:mdfs("lib.togdlg")},
@@ -1053,7 +1053,7 @@ return {
     updateSavedSongData: function (s, f) { updateSavedSongData(s, f); },
     managerDispatch: function (mgrname, fname, ...args) {
         //best to just crash on a bad reference, easier to see
-        return mgrs[mgrname][fname].apply(app.tabular, args); }
+        return mgrs[mgrname][fname].apply(app.db, args); }
 
 };  //end of returned functions
 }());

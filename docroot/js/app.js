@@ -7,7 +7,7 @@ var jt = {};
 (function () {
     "use strict";
 
-    var modules = ["db", "player", "filter"];
+    var modules = ["db", "player", "filter", "hub"];
 
 
 app = {

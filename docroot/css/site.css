@@ -71,6 +71,15 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .igftr td { padding:0px 10px 0px 0px; }
 #igfindiv label { font-size:small; margin:0px 5px 0px 0px; }
 
+.formattr { font-size:small; text-align:right; }
+.cblab { font-size:small; }
+#hubaccttopdiv { font-size:small; text-align:center; }
+.formvalspan { font-size:medium; color:#666; font-style:italic;
+  margin-left:2px; }
+#hubacctseldiv { min-width:200px; }
+#hubacctseldiv table { margin:0px auto; }
+.dachoicediv { min-width:100px; }
+
 
 /****************************************/
 /* Player Panel */

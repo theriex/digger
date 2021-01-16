@@ -3,24 +3,28 @@
   "version": "1.0.0",
   "description": "Contextual music library access server",
   "main": "digger.js",
-  "bin":"digger.js",
+  "bin": "digger.js",
   "pkg": {
     "scripts": [
-        "digger.js",
-        "./server/db.js"],
+      "digger.js",
+      "./server/db.js"
+    ],
     "assets": [
-        "config.json",
-        "./docroot/css/site.css",
-        "./docroot/img/*.png",
-        "./docroot/js/app.js",
-        "./docroot/js/jtmin.js",
-        "./docroot/js/amd/db.js",
-        "./docroot/js/amd/filter.js",
-        "./docroot/js/amd/player.js",
-        "./docroot/index.html"]},
+      "config.json",
+      "./docroot/css/site.css",
+      "./docroot/img/*.png",
+      "./docroot/js/app.js",
+      "./docroot/js/jtmin.js",
+      "./docroot/js/amd/db.js",
+      "./docroot/js/amd/filter.js",
+      "./docroot/js/amd/player.js",
+      "./docroot/index.html"
+    ]
+  },
   "dependencies": {
     "formidable": "^1.2.1",
     "jsmediatags": "^3.9.2",
+    "node-fetch": "^2.6.1",
     "node-static": "^0.7.11"
   },
   "devDependencies": {},
