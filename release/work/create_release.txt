@@ -1,13 +1,12 @@
-# From the digger/work directory...
-
+# From the digger/release/work directory...
 # Create the default platform executables
 pkg ../../
 
-# Move the unix executable files up into the main release directory
-mv digger-* ../
-
 # Copy the updated macos unix exe into Digger.app as "Digger"
-cp ../digger-macos Digger/Digger.app/Contents/MacOS/Digger
+cp digger-macos Digger/Digger.app/Contents/Resources/Digger
+
+# Move the unix executable files to the hub downloads directory
+mv digger-* ../../../diggerhub/site/public/downloads
 
 # Edit Digger/Digger.app/Contents/Info.plist and update CFBundleVersion
 
@@ -31,6 +30,7 @@ rm -R Digger.iconset
 mv Digger.icns Digger/Digger.app/Contents/Resources/
 
 # Disk Utility | File | New Image | Image from Folder...  (work/Digger)
-# Move the dmg file up to the release binaries
-mv Digger.dmg ../
+# Move the dmg file to the hub downloads directory
+mv Digger.dmg ../../../diggerhub/site/public/downloads
+
 
