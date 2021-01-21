@@ -1,11 +1,10 @@
 {
   "port": 6980,
   "musicPath": "~/Music",
-  "ignoredirs": ["Ableton", "GarageBand"],
   "dbPath": "digdat.json",
   "exPath": "diggerexport",
   "spawn": {
-    "comment": "Optional platform command to run after digger server starts",
+    "comment": "Optional platform command to run after server starts",
     "darwin": {
       "comment": "MacOS supports opening a URL with the default browser",
       "command": "open",

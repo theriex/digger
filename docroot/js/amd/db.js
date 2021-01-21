@@ -4,8 +4,8 @@
 app.db = (function () {
     "use strict";
 
+    var config = null;
     var dbo = null;
-    var dbinfo = null;
     var dbstat = {currstat: "ready",
                   ready: "",
                   loading: "Loading Data...",
@@ -58,9 +58,7 @@ app.db = (function () {
 
 
     function updateSavedSongData (song, contf) {
-        var settings = app.filter.filters().map((filt) => filt.settings());
-        var data = jt.objdata(song) + "&settings=" + JSON.stringify(settings);
-        jt.call("POST", "/songupd", data,
+        jt.call("POST", "/songupd", jt.objdata(song),
                 function (updsong) {
                     dbo.songs[updsong.path] = updsong;
                     var wssi = deckstat.ws.findIndex(
@@ -84,7 +82,7 @@ app.db = (function () {
     function fetchConfigInfo(contf) {
         jt.call("GET", "/config", null,
                 function(configobj) {
-                    dbinfo = configobj;
+                    config = configobj;
                     contf(); },
                 function (code, errtxt) {
                     errstat("exp.fetchData", code, errtxt); },
@@ -109,27 +107,23 @@ app.db = (function () {
 
     //Keyword manager handles keywords in use for the library.
     mgrs.kwd = (function () {
+        var kwdefs = null;  //curracct kwdefs
         var uka = null;  //update keywords array (UI form data)
         var vizuka = null;  //ignored keywords filtered out
     return {
-        verifyKeywordDefs: function () {
-            if(dbo.kwdefs) { return; }
-            dbo.kwdefs = {};
-            dbo.keywords.forEach(function (k, i) {
-                dbo.kwdefs[k] = {pos:i + 1, sc:0, ig:0}; }); },
         countSongKeywords: function () {
-            Object.values(dbo.kwdefs).forEach(function (kd) { kd.sc = 0; });
+            Object.values(kwdefs).forEach(function (kd) { kd.sc = 0; });
             Object.values(dbo.songs).forEach(function (song) {
                 song.kws = song.kws || "";
                 song.kws.csvarray().forEach(function (kw) {
-                    if(!dbo.kwdefs[kw]) {
-                        dbo.kwdefs[kw] = {pos:0, sc:0, ig:0}; }
-                    dbo.kwdefs[kw].sc += 1; }); }); },
-        init: function () {
-            mgrs.kwd.verifyKeywordDefs();
+                    if(!kwdefs[kw]) {
+                        kwdefs[kw] = {pos:0, sc:0, ig:0}; }
+                    kwdefs[kw].sc += 1; }); }); },
+        rebuildKeywords: function () {
+            kwdefs = app.hub.curracct().kwdefs;
             mgrs.kwd.countSongKeywords(); },
         defsArray: function (actfirst) {
-            var kds = Object.entries(dbo.kwdefs).map(function ([k, d]) {
+            var kds = Object.entries(kwdefs).map(function ([k, d]) {
                 return {pos:d.pos, sc:d.sc, ig:d.ig, kw:k, dsc:d.dsc}; });
             kds = kds.filter((kd) => !kd.ig);
             kds.sort(function (a, b) {
@@ -221,42 +215,37 @@ app.db = (function () {
                 jt.out("kwupdstatdiv", errmsg);
                 jt.byId("kwdefupdb").disabled = false; }
             return errmsg; },
-        saveKeywordDefs: function (context) {
-            if(!context) {  //called from local form
+        saveKeywordDefs: function () {
+            if(jt.byId("kwdefupdb")) {  //called from local form
                 jt.byId("kwdefupdb").disabled = true;  //debounce
                 jt.out("kwupdstatdiv", "Saving..."); }
             if(mgrs.kwd.keywordDefsError()) { return; }
-            var ukds = {};
-            uka.forEach(function (kd) {
+            uka.forEach(function (kd) {  //update kwdefs directly
                 var descr = jt.byId(kd.kw + "descrdiv").innerText || "";
-                ukds[kd.kw] = {pos:kd.pos, sc:kd.sc, ig:kd.ig, dsc:descr}; });
-            var data = jt.objdata({kwdefs:JSON.stringify(ukds)});
-            jt.call("POST", "/keywdsupd", data,
-                    function () {
-                        dbo.kwdefs = ukds;  //update local dbo data
-                        mgrs.lib.togdlg("close");
-                        app.player.managerDispatch("kwd", "rebuildToggles",
-                                                   context);
-                        app.filter.managerDispatch("btc", "rebuildControls"); },
-                    function (code, errtxt) {
-                        jt.out("kwupdstatdiv", String(code) + ": " + errtxt); },
-                    jt.semaphore("kwd.saveKeywordDefs")); },
+                kwdefs[kd.kw] = {pos:kd.pos, sc:kd.sc, ig:kd.ig, dsc:descr}; });
+            app.hub.managerDispatch("loc", "updateAccount",
+                function () {
+                    mgrs.lib.togdlg("close");
+                    app.hub.managerDispatch("loc", "notifyAccountChanged",
+                                            "keywords"); },
+                function (code, errtxt) {
+                    jt.out("kwupdstatdiv", String(code) + ": " + errtxt); }); },
         same: function (kwa, kwb) {  //localeCompare base not yet on mobile
             return kwa.toLowerCase() === kwb.toLowerCase(); },
-        addKeyword: function (kwd, context) {  //called from player
+        addKeyword: function (kwd) {  //called from player
             uka = uka || mgrs.kwd.defsArray();
             var kd = uka.find((kd) => mgrs.kwd.same(kd.kw, kwd));
             if(kd) {  //already exists and not previously deleted, bump count
                 kd.sc += 1; }
             else {  //not in current working set
-                kd = dbo.kwdefs[kwd];
+                kd = kwdefs[kwd];
                 if(kd) {  //previously existed, add adjusted copy
                     kd = {kw:kwd, pos:0, sc:kd.sc + 1, ig:0}; }
                 else {  //brand new keyword
                     kd = {kw:kwd, pos:0, sc:1, ig:0}; }
                 uka.push(kd); }
             mdfs("lib.togdlg", "close");  //in case open
-            mgrs.kwd.saveKeywordDefs(context); },
+            mgrs.kwd.saveKeywordDefs(); },
         swapFilterKeyword: function (kwd, pos) {  //called from filter
             uka = uka || mgrs.kwd.defsArray();
             var prevkd = uka.find((kd) => kd.pos === pos);
@@ -269,8 +258,10 @@ app.db = (function () {
     }());
 
 
+    //Ignore Folders manager handles folders to be ignored on scan/play.
     mgrs.igf = (function () {
-        var igfo = null;  //igfo.ignoredirs is an array of strings
+        var igfolds = null;
+        var activeFolderName = "";
     return {
         igMusicFolders: function () {
             jt.out("dbdlgdiv", jt.tac2html(
@@ -282,30 +273,14 @@ app.db = (function () {
                    ["button", {type:"button", id:"igfaddb",
                                onclick:mdfs("igf.addIgnoreFolder")},
                     "Add"]]]]));
-            mgrs.igf.updateIgnoreFiles(); },
-        serialize: function (serialize) {
-            if(serialize) {
-                if(igfo) {
-                    igfo.ignoredirs = JSON.stringify(igfo.ignoredirs); } }
-            else {  //deserialize
-                if(igfo) {
-                    igfo.ignoredirs = JSON.parse(igfo.ignoredirs); } } },
-        updateIgnoreFiles: function (afn) {  //posting null data works like GET
-            jt.out("igfstatdiv", "Updating ignore files...");
-            mgrs.igf.serialize(true);
-            jt.call("POST", "/ignorefolders", jt.objdata(igfo),
-                    function (ignoreFoldersObj) {
-                        jt.out("igfstatdiv", "");
-                        igfo = ignoreFoldersObj;
-                        mgrs.igf.redrawIgnoreFolders(afn); },
-                    function (ignore /*code*/, errtxt) {
-                        mgrs.igf.serialize(false);
-                        jt.out("igfstatdiv", errtxt); },
-                    jt.semaphore("igf.updateIgnoreFiles")); },
-        redrawIgnoreFolders: function (afn) {
+            mgrs.igf.redrawIgnoreFolders(); },
+        redrawIgnoreFolders: function () {
+            igfolds = app.hub.curracct().igfolds;
+            if(!jt.byId("igfdiv")) {  //not currently displaying
+                return; }
             jt.out("igfdiv", jt.tac2html(
                 ["table", {id:"igftable"},
-                 igfo.ignoredirs.map((fname, idx) =>
+                 igfolds.map((fname, idx) =>
                      ["tr", {cla:"igftr", id:"igftr" + idx},
                       [["td", fname],
                        ["td", ["a", {href:"#Remove", title:"Remove " + fname,
@@ -313,26 +288,39 @@ app.db = (function () {
                                                   fname)},
                                ["img", {cla:"rowbuttonimg",
                                         src:"img/trash.png"}]]]]])]));
-            if(afn) {
-                var tr = jt.byId("igftr" + igfo.ignoredirs.indexOf(afn));
+            if(activeFolderName) {
+                var tr = jt.byId("igftr" + igfolds.indexOf(activeFolderName));
                 if(tr) {
                     tr.scrollIntoView();
-                    window.scrollTo(0, 0); } }
+                    window.scrollTo(0, 0); }
+                activeFolderName = ""; }
             jt.out("igfindiv", jt.tac2html(
                 [["label", {fo:"igfin"},
-                  "Ignore " + igfo.musicPath + "/**/"],
+                  "Ignore " + config.musicPath + "/**/"],
                  ["input", {type:"text", id:"igfin", size:30}]]));
             jt.out("igfstatdiv", ""); },
+        updateIgnoreFolders: function () {
+            jt.out("igfstatdiv", "Updating ignore folders...");
+            app.hub.managerDispatch("loc", "updateAccount",
+                function () {
+                    jt.out("igfstatdiv", "");
+                    app.hub.managerDispatch("loc", "notifyAccountChanged",
+                                            "igfolders"); },
+                function (code, errtxt) {
+                    jt.out("kwupdstatdiv", String(code) + ": " + errtxt); }); },
         removeIgnoreFolder: function (foldername) {
-            igfo.ignoredirs = igfo.ignoredirs.filter((fn) => fn !== foldername);
-            mgrs.igf.updateIgnoreFiles(); },
+            igfolds = igfolds.filter((fn) => fn !== foldername);
+            mgrs.igf.updateIgnoreFolders(); },
         addIgnoreFolder: function () {
-            var afn = jt.byId("igfin").value;
-            if(!afn || !afn.trim() || igfo.ignoredirs.indexOf(afn) >= 0) {
+            var afn = jt.byId("igfin").value || "";
+            afn = afn.trim();
+            if(!afn) {
                 return mgrs.igf.redrawIgnoreFolders(); }
-            igfo.ignoredirs.push(afn);
-            igfo.ignoredirs.sort();
-            mgrs.igf.updateIgnoreFiles(afn); }
+            activeFolderName = afn;
+            if(igfolds.indexOf(afn) < 0) {  //doesn't already exist
+                igfolds.push(afn);
+                igfolds.sort(); }
+            mgrs.igf.updateIgnoreFolders(); }
     };  //end of mgrs.igf returned functions
     }());
 
@@ -362,7 +350,7 @@ app.db = (function () {
             jt.call("GET", "/dbread", null,
                     function (databaseobj) {
                         dbo = databaseobj;
-                        mgrs.kwd.init();
+                        mgrs.kwd.rebuildKeywords();
                         jt.out("countspan", String(dbo.songcount) + " songs");
                         jt.out("dbstatdiv", "");
                         dbstat.currstat = "ready";
@@ -394,16 +382,16 @@ app.db = (function () {
                 dlgdiv.dataset.mode = "libact";
                 mgrs.lib.writeDialogContent(); } },
         writeDialogContent: function () {
-            if(!dbinfo) {
+            if(!config) {
                 jt.out("dbdlgdiv", "Fetching configuration info");
                 return fetchConfigInfo(mgrs.lib.writeDialogContent); }
             jt.out("dbdlgdiv", jt.tac2html(
                 [["div", {cla:"pathdiv"},
                   [["span", {cla:"pathlabelspan"}, "Music Files:"],
-                   ["span", {cla:"pathspan"}, dbinfo.musicPath]]],
+                   ["span", {cla:"pathspan"}, config.musicPath]]],
                  ["div", {cla:"pathdiv"},
                   [["span", {cla:"pathlabelspan"}, "Digger Data:"],
-                   ["span", {cla:"pathspan"}, dbinfo.dbPath]]],
+                   ["span", {cla:"pathspan"}, config.dbPath]]],
                  ["div", {cla:"dlgbuttonsdiv"},
                   [["button", {type:"button", id:"rfbutton",
                                title:"Read all files in the music folder",
@@ -527,13 +515,13 @@ app.db = (function () {
             dlgdiv.dataset.mode = "download";
             mgrs.exp.writeDialogContent(); },
         writeDialogContent: function () {
-            if(!dbinfo) {
+            if(!config) {
                 jt.out("dbdlgdiv", "Fetching configuration info");
                 return fetchConfigInfo(mgrs.exp.writeDialogContent); }
             jt.out("dbdlgdiv", jt.tac2html(
                 [["div", {cla:"pathdiv"},
                   [["span", {cla:"pathlabelspan"}, "Copy To:"],
-                   ["span", {cla:"pathspan"}, dbinfo.exPath]]],
+                   ["span", {cla:"pathspan"}, config.exPath]]],
                  ["div", {id:"copyprocdiv"},
                   [["div", {cla:"expoptdiv"},
                     //user might adjust filtering after dialog opened, so
@@ -913,6 +901,7 @@ app.db = (function () {
     };
 
 
+    //Album manager handles album info and playback
     mgrs.alb = {
         verifyAlbumStat: function (np) {
             if(!np) {
@@ -1013,7 +1002,7 @@ app.db = (function () {
     };
 
 
-    function fetchData () {  //main db display elems and startup data fetch
+    function initializeDisplayElements () {
         jt.out("pandbdiv", jt.tac2html(
             [["div", {id:"titlediv"},
               [app.hub.titleHTML(),
@@ -1026,13 +1015,19 @@ app.db = (function () {
                 ["img", {cla:"buttonico", src:"img/export.png"}]]]],
              ["div", {id:"dbdlgdiv", "data-mode":"empty"}],
              ["div", {cla:"statdiv", id:"dbstatdiv"}]]));
-        jt.call("GET", "/dbo", null,
-                function (databaseobj) {
-                    dbo = databaseobj;
-                    mgrs.kwd.init();
+    }
+
+
+    function fetchInitialData () {
+        jt.call("GET", "/startdata", null,
+                function (startdata) {
+                    config = startdata.config;
+                    config.acctsinfo.accts.forEach(function (acct) {
+                        acct.settings = acct.settings || {}; });
+                    dbo = startdata.songdata;
+                    app.hub.dataLoaded(config);
                     jt.out("countspan", String(dbo.songcount) + " songs");
                     dbstat.currstat = "ready";
-                    app.filter.init();
                     if(!dbo.scanned) {
                         mgrs.lib.readSongFiles(); }
                     else {
@@ -1043,9 +1038,16 @@ app.db = (function () {
     }
 
 
+    function initialize () {
+        initializeDisplayElements();
+        fetchInitialData();
+    }
+
+
 return {
 
-    init: function () { fetchData(); },
+    init: function () { initialize(); },
+    config: function () { return config; },
     data: function () { return dbo; },
     deckupd: function () { mgrs.dk.updateDeck(); },
     popdeck: function () { return mgrs.dk.popSongFromDeck(); },

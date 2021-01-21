@@ -19,13 +19,14 @@ app.hub = (function () {
     }
 
 
-    function fetchAccountsInfo () {
-        jt.call("GET", "/acctsinfo", null,
-                function (acctsinfo) {
-                    noteUpdatedAccountInfo(acctsinfo); },
-                function (code, errtxt) {
-                    jt.log("fetchAccountsInfo " + code + ": " + errtxt); },
-                jt.semaphore("hub.fetchAccountsInfo"));
+    function mdfs (mgrfname, ...args) {
+        var pstr = app.paramstr(args);
+        mgrfname = mgrfname.split(".");
+        var fstr = "app.hub.managerDispatch('" + mgrfname[0] + "','" +
+            mgrfname[1] + "'" + pstr + ")";
+        if(pstr !== ",event") {  //don't return false from event hooks
+            fstr = jt.fs(fstr); }
+        return fstr;
     }
 
 
@@ -45,20 +46,75 @@ app.hub = (function () {
     }
 
 
-    function mdfs (mgrfname, ...args) {
-        var pstr = app.paramstr(args);
-        mgrfname = mgrfname.split(".");
-        var fstr = "app.hub.managerDispatch('" + mgrfname[0] + "','" +
-            mgrfname[1] + "'" + pstr + ")";
-        if(pstr !== ",event") {  //don't return false from event hooks
-            fstr = jt.fs(fstr); }
-        return fstr;
-    }
-
-
     //General container for all managers, used for dispatch
     var mgrs = {};
 
+
+    //The local manager handles changes to DiggerHub account info where the
+    //change first needs to be reflected locally, then secondarily updated
+    //at DiggerHub if a DiggerHub account has been set up.
+    mgrs.loc = (function () {
+        var tmo = null;  //sync timeout
+    return {
+        init: function () {
+            hai = null;
+            curracct = null; },
+        updateAcctsInfo: function (acctsinfo) {
+            hai = acctsinfo;
+            curracct = hai.accts.find((a) => a.dsId === hai.currid); },
+        dataLoaded: function () {  //acctsinfo verified server side
+            mgrs.loc.updateAcctsInfo(app.db.config().acctsinfo);
+            mgrs.loc.notifyAccountChanged(); },
+        notifyAccountChanged: function (context) {
+            if(!context || context === "keywords") {
+                app.db.managerDispatch("kwd", "rebuildKeywords");
+                app.player.managerDispatch("kwd", "rebuildToggles");
+                app.filter.managerDispatch("btc", "rebuildControls"); }
+            if(!context || context === "igfolders") {
+                app.db.managerDispatch("igf", "redrawIgnoreFolders"); }
+            if(!context || context === "settings") {
+                app.filter.managerDispatch("stg", "rebuildAllControls"); } },
+        updateAccount: function (contf, errf) {
+            //the curracct data has already been updated by the caller
+            //contf calls notifyAccountChanged if needed
+            var data = jt.objdata({acctsinfo:JSON.stringify(hai)});
+            jt.call("POST", "/acctsinfo", data,  //save to local server
+                    function (acctsinfo) {
+                        mgrs.loc.updateAcctsInfo(acctsinfo);
+                        mgrs.loc.syncToHub();
+                        if(contf) {
+                            contf(); } },
+                    function (code, errtxt) {
+                        jt.log("hub.loc.updateAccount " + code + ": " + errtxt);
+                        if(errf) {
+                            errf(code, errtxt); } },
+                    jt.semaphore("hub.updateAccountInfo")); },
+        syncToHub: function () {
+            jt.log("mgrs.loc.syncToHub not implemented yet. tmo: " + tmo);
+            // if(tmo) {  //reset the sync timer if currently waiting
+            //     clearTimeout(tmo); }
+            // tmo = setTimeout(function () {
+            //     tmo = null;
+            //     var data = mgrs.loc.makeSyncData();  //curracct + upd songs
+            //     jt.call("POST", "/hubsync", data,
+            //             function (updates) {
+            //                 if received account is more recent {
+            //                     curracct = updates[0];
+            //                     mgrs.loc.notifyAccountChanged(); }
+            //                 app.db.updateSongs(updates.slice(1)); },
+            //             function (code, errtxt) {  //probably just offline
+            //                 jt.log("syncToHub " + code + ": " + errtxt); },
+            //             jt.semaphore("loc.syncToHub")); },
+            //                     20 * 1000; );
+        }
+    };  //end mgrs.loc returned functions
+    }());
+
+
+    //The dialog manager handles changes to DiggerHub account info where the
+    //change first needs to take effect at DiggerHub, then be reflected
+    //locally.  This is in contrast to things like settings which are
+    //reflected first locally and then synchronized with DiggerHub.
     mgrs.dlg = (function () {
         //changing email must prompt for password. Not needed yet.
         var mafs = [{n:"email", x:true},
@@ -156,13 +212,10 @@ app.hub = (function () {
                         function (code, errtxt) {
                             jt.out("accupdstatdiv", code + ": " + errtxt); },
                         jt.semaphore("dlg.updAcctFlds")); } },
-        syncIfNeeded: function () {
-            jt.log("syncIfNeeded not implemented yet"); },
         accountSettings: function () {
             jt.out("dbdlgdiv", jt.tac2html(
                 [mgrs.dlg.acctTopActionsHTML(),
-                 mgrs.dlg.acctFieldsHTML()]));
-            mgrs.dlg.syncIfNeeded(); },
+                 mgrs.dlg.acctFieldsHTML()])); },
         showSignInJoinForm: function () {
             jt.out("dbdlgdiv", jt.tac2html(
                 ["div", {id:"siojfdiv"},
@@ -248,8 +301,11 @@ app.hub = (function () {
             mgrs.dlg.displayAccountInfo(); }
     }
 
+
 return {
-    init: function () { setTimeout(fetchAccountsInfo, 800); },
+    init: function () { mgrs.loc.init(); },
+    dataLoaded: function () { mgrs.loc.dataLoaded(); },
+    curracct: function () { return curracct; },
     titleHTML: function () { return titleHTML(); },
     toggle: function () { toggleHubDialog(); },
     managerDispatch: function (mgrname, fname, ...args) {

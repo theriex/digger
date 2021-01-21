@@ -39,9 +39,9 @@ db.init(function (conf) {
             switch(pu.baseurl) {
             case "/mergefile": db.mergefile(req, rsp); break;
             case "/songupd": db.songupd(req, rsp); break;
-            case "/keywdsupd": db.keysupd(req, rsp); break;
             case "/plistexp": db.plistexp(req, rsp); break;
-            case "/ignorefolders": db.igfolders(req, rsp); break;
+            case "/ignorefolders": hub.igfolders(req, rsp); break;
+            case "/keywords": hub.keywords(req, rsp); break;
             case "/acctsinfo": hub.acctsinfo(req, rsp); break;
             case "/newacct": hub.newacct(req, rsp); break;
             case "/acctok": hub.acctok(req, rsp); break;
@@ -53,7 +53,7 @@ db.init(function (conf) {
                         switch(pu.baseurl) {
                         case "/version": db.version(req, rsp); break;
                         case "/config": db.config(req, rsp); break;
-                        case "/dbo": db.dbo(req, rsp); break;
+                        case "/startdata": db.startdata(req, rsp); break;
                         case "/dbread": db.dbread(req, rsp); break;
                         case "/songscount": db.songscount(req, rsp); break;
                         case "/mergestat": db.mergestat(req, rsp); break;

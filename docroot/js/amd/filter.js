@@ -27,10 +27,9 @@ app.filter = (function () {
 
 
     function findSetting (avs) {
-        var dbo = app.db.data();
-        if(!dbo || !dbo.settings) {
-            return null; }
-        return dbo.settings.find((x) =>
+        var settings = app.filter.settings() || {};
+        settings.ctrls = settings.ctrls || [];
+        return settings.ctrls.find((x) =>
             Object.entries(avs).every(function ([attr, val]) {
                 return x[attr] === val; }));
     }
@@ -114,7 +113,7 @@ app.filter = (function () {
         rcr.rgfoc.min = Math.round((ladj / rangemax) * 100);
         rcr.rgfoc.max = 99 - Math.round((radj / rangemax) * 100);
         //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
-        app.db.deckupd();
+        app.filter.filterValueChanged();
     }
 
 
@@ -199,6 +198,37 @@ app.filter = (function () {
         addRangeSettingsFunc(cid);
         addRangeSongMatchFunc(cid);
         initRangeSetting(cid);
+    }
+
+
+    function containingDivEventTraps () {
+        //trap and ignore clicks in the controls container div to avoid
+        //selecting controls when you want to be changing a control value.
+        jt.on("panfiltdiv", "mousedown", function (event) {
+            if(ctrls.trapdrag) {
+                jt.evtend(event); }});
+        //stop tracking if the mouse is released outside of the control area,
+        //so that tracking doesn't get stuck "on" leaving the drag still in
+        //progress.  It might feel more resilient if the trap at this level
+        //instead passed the event through to the currently active control,
+        //then the general trap would be at the next containing div instead.
+        jt.on("panfiltdiv", "mouseup", function (event) {
+            ctrls.movestats.forEach(function (movestat) {
+                movestat.pointingActive = false; });
+            jt.evtend(event); });
+    }
+
+
+    function mainLayout () {
+        jt.out("panfiltdiv", jt.tac2html(
+            ["div", {id:"panfiltcontentdiv"},
+             [["div", {cla:"paneltitlediv"}, "FILTERS"],
+              ["div", {id:"rangesdiv"},
+               [["div", {cla:"rangectrldiv", id:"eldiv"}],
+                ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
+              ["div", {id:"bowtiesdiv"}],
+              ["div", {id:"ratdiv"}]]]));
+        containingDivEventTraps();
     }
 
 
@@ -368,12 +398,12 @@ app.filter = (function () {
             button.innerHTML = ctrls.rat.tagf.labels[ctrls.rat.tagf.idx];
             button.title = ctrls.rat.tagf.titles[ctrls.rat.tagf.idx];
             app.db.deckupd(); },
-        init: function (divid, dbo) {
+        init: function (divid) {
             mgrs.mruc.writeHTML(divid);
             mgrs.mruc.makeControls();
             mgrs.mruc.makeFilter();
             mgrs.mruc.setMinRating(findSetting({t:"minrat"}));
-            mgrs.fq.init("fqftogdiv", dbo); }
+            mgrs.fq.init("fqftogdiv"); }
     };  //end of mgrs.mruc returned functions
     }());
 
@@ -383,17 +413,18 @@ app.filter = (function () {
         var fqb = "on";  //"off" to deactivate frequency filtering
         var waitdays = null;
     return {
-        initWaitDays: function (dbo) {
-            dbo.waitcodedays = dbo.waitcodedays || {
+        initWaitDays: function () {
+            var settings = mgrs.stg.settings();
+            settings.waitcodedays = settings.waitcodedays || {
                 B:90,   //Backburner songs max once per 90 days by default
                 Z:180,  //Sleeper songs max once per 180 days by default
                 O:365}; //Overplayed songs max once per year by default
             waitdays = {
                 N:1,  //New songs should get marked as P when played first time
                 P:1,  //Playable songs get played at most once per day
-                B:dbo.waitcodedays.B,
-                Z:dbo.waitcodedays.Z,
-                O:dbo.waitcodedays.O}; },
+                B:settings.waitcodedays.B,
+                Z:settings.waitcodedays.Z,
+                O:settings.waitcodedays.O}; },
         writeHTML: function (divid) {
             jt.out(divid, jt.tac2html(
                 ["button", {type:"button", id:"fqtogb",
@@ -434,8 +465,8 @@ app.filter = (function () {
         setFrequencyFiltering: function (fqsetting) {
             fqsetting = fqsetting || {t:"fqb", v:"on"};
             mgrs.fq.toggleFreqFiltering(fqsetting.v); },
-        init: function (divid, dbo) {
-            mgrs.fq.initWaitDays(dbo);
+        init: function (divid) {
+            mgrs.fq.initWaitDays();
             mgrs.fq.writeHTML(divid);
             mgrs.fq.makeFilter();
             mgrs.fq.setFrequencyFiltering(findSetting({t:"fqb"})); }
@@ -443,68 +474,75 @@ app.filter = (function () {
     }());
 
 
-    function containingDivEventTraps () {
-        //trap and ignore clicks in the controls container div to avoid
-        //selecting controls when you want to be changing a control value.
-        jt.on("panfiltdiv", "mousedown", function (event) {
-            if(ctrls.trapdrag) {
-                jt.evtend(event); }});
-        //stop tracking if the mouse is released outside of the control area,
-        //so that tracking doesn't get stuck "on" leaving the drag still in
-        //progress.  It might feel more resilient if the trap at this level
-        //instead passed the event through to the currently active control,
-        //then the general trap would be at the next containing div instead.
-        jt.on("panfiltdiv", "mouseup", function (event) {
-            ctrls.movestats.forEach(function (movestat) {
-                movestat.pointingActive = false; });
-            jt.evtend(event); });
-    }
+    //Settings manager handles changes to account settings (current filter
+    //settings and other custom values for the account).
+    mgrs.stg = (function () {
+        var settings = null;
+        var rcids = ["el", "al"];  //energy level, approachability level
+        var tmofilt = null;
+        var tmosave = null;
+    return {
+        settings: function () { return settings; },
+        filterValueChanged: function () {  //waits until controls stop moving
+            if(!ctrls.filtersReady) { //ignore spurious startup events
+                return; }
+            if(tmofilt) {  //reset the filtering timer if currently waiting
+                clearTimeout(tmofilt); }
+            tmofilt = setTimeout(function () {
+                tmofilt = null;
+                app.db.deckupd();
+                mgrs.stg.saveSettings(); }, 700); },
+        saveSettings: function () {
+            if(tmosave) {
+                clearTimeout(tmosave); }
+            tmosave = setTimeout(function () {
+                tmosave = null;
+                settings.ctrls = mgrs.stg.arrayOfAllFilters()
+                    .map((filt) => filt.settings());
+                app.hub.managerDispatch(
+                    "loc", "updateAccount",
+                    function () {
+                        jt.log("stg.saveSettings completed"); },
+                    function (code, errtxt) {
+                        jt.log("stg.saveSettings " + code + ": " +
+                               errtxt); }); }, 5 * 1000); },
+        arrayOfAllFilters: function (mode) {
+            var filts = [ctrls.el, ctrls.al];
+            if(ctrls.bts) {
+                ctrls.bts.forEach(function (bt) {
+                    if(!mode) {
+                        filts.push(bt); }
+                    else if(mode === "active" && bt.tog !== "off") {
+                        bt.actname = "+";
+                        if(bt.tog === "neg") {
+                            bt.actname = "-"; }
+                        bt.actname += bt.pn;
+                        filts.push(bt); } }); }
+            filts.push(ctrls.rat);
+            filts.push(ctrls.fq);
+            return filts; },
+        rebuildAllControls: function () {
+            settings = app.hub.curracct().settings;
+            rcids.forEach(function (cid) {
+                if(!jt.byId(cid + "vnd")) {  //no knob displayed yet
+                    createRangeControl(cid); }
+                else {
+                    initRangeSetting(cid); } });
+            mgrs.btc.rebuildControls();
+            mgrs.mruc.init("ratdiv");
+            ctrls.filtersReady = true; }
+    };  //end of mgrs.stg returned functions
+    }());
 
-
-    function initControls () {
-        var dbo = app.db.data();
-        if(!dbo) {
-            return; }  //nothing to init with
-        jt.out("panfiltdiv", jt.tac2html(
-            ["div", {id:"panfiltcontentdiv"},
-             [["div", {cla:"paneltitlediv"}, "FILTERS"],
-              ["div", {id:"rangesdiv"},
-               [["div", {cla:"rangectrldiv", id:"eldiv"}],
-                ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
-              ["div", {id:"bowtiesdiv"}],
-              ["div", {id:"ratdiv"}]]]));
-        createRangeControl("el");
-        createRangeControl("al");
-        mgrs.btc.rebuildControls(dbo);
-        mgrs.mruc.init("ratdiv", dbo);
-        containingDivEventTraps();
-        ctrls.filtersReady = true;
-    }
-
-
-    function arrayOfAllFilters (mode) {
-        var filts = [ctrls.el, ctrls.al];
-        if(ctrls.bts) {
-            ctrls.bts.forEach(function (bt) {
-                if(!mode) {
-                    filts.push(bt); }
-                else if(mode === "active" && bt.tog !== "off") {
-                    bt.actname = "+";
-                    if(bt.tog === "neg") {
-                        bt.actname = "-"; }
-                    bt.actname += bt.pn;
-                    filts.push(bt); } }); }
-        filts.push(ctrls.rat);
-        filts.push(ctrls.fq);
-        return filts;
-    }
 
 
 return {
 
-    init: function () { initControls(); },
+    init: function () { mainLayout(); },
+    filterValueChanged: function () { mgrs.stg.filterValueChanged(); },
+    settings: function () { return mgrs.stg.settings(); },
     filtersReady: function () { return ctrls.filtersReady; },
-    filters: function (mode) { return arrayOfAllFilters(mode); },
+    filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
     gradient: function () { return ranger.panel.gradient; },
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
     managerDispatch: function (mgrname, fname, ...args) {

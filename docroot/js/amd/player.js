@@ -222,7 +222,7 @@ app.player = (function () {
     return {
         makeToggleButton: function (kd, idx) {
             var tc = "kwdtogoff";
-            if(stat.song.kws && stat.song.kws.csvcontains(kd.kw)) {
+            if(stat.song && stat.song.kws && stat.song.kws.csvcontains(kd.kw)) {
                 tc = "kwdtogon"; }
             return ["button", {type:"button", cla:tc, id:"kwdtog" + idx,
                                title:kd.dsc || "",
@@ -240,8 +240,6 @@ app.player = (function () {
             app.db.managerDispatch("lib", "togdlg", "close");  //sc changed
             noteSongModified(); },
         rebuildToggles: function (context) {
-            var dbo = app.db.data();
-            if(!dbo) { return; }
             kwdefs = app.db.managerDispatch("kwd", "defsArray", true);
             jt.out("kwdsdiv", jt.tac2html(
                 [["button", {type:"button", id:"kwdexpb",
@@ -329,7 +327,7 @@ app.player = (function () {
                 ["img", {id:"togcommentimg", src:"img/comment.png"}]]]],
              ["div", {id:"commentdiv"}]]));
         mgrs.pan.makePanControls();
-        mgrs.kwd.rebuildToggles();
+        //togggle controls rebuilt after data loaded
         makeRatingValueControl();
     }
 

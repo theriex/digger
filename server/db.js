@@ -64,23 +64,6 @@ module.exports = (function () {
     function createDatabaseFile () {
         dbo = {version:diggerVersion(),
                scanned:"",  //ISO latest walk of song files
-               kwdefs:{
-                   Social:{pos:1, sc:0, ig:0, dsc:"Music to play when other people are listening."},
-                   Personal:{pos:2, sc:0, ig:0, dsc:"Music to play for me."},
-                   Ambient:{pos:3, sc:0, ig:0, dsc:"Music that can be listened to from near zero attention up to occasional full attention, without being boring or intrusive."},
-                   Dance:{pos:4, sc:0, ig:0, dsc:"Music that makes you move. Great grooves."},
-                   Office:{pos:0, sc:0, ig:0, dsc:"In the office with headphones on."},
-                   Solstice:{pos:0, sc:0, ig:0, dsc:"Holiday seasonal."}},
-               waitcodedays:{  //days required since last played before pulling
-                   //Prefix flag values:
-                   //  D: Deleted.  File no longer exists
-                   //  U: Unreadable.  Tags could not read from file.
-                   //"R": Reference only.  Never suggest.
-                   O:365,  //Overplayed.
-                   Z:180,  //Resting.
-                   B:90},  //Back-burner.
-                   //P: Programmable.  Generally available to play (default)
-                   //N: New. Preferred select once before reverting to "P"
                songcount:0,
                //songs are indexed by relative path off of musicPath e.g.
                //"artistFolder/albumFolder/disc#?/songFile"
@@ -125,6 +108,7 @@ module.exports = (function () {
                 conf[cp] = path.join(
                     os.homedir(),
                     ...fp.split(path.sep).slice(1)); } });
+        require("./hub").verifyDefaultAccount(conf);
     }
 
 
@@ -202,9 +186,9 @@ module.exports = (function () {
     }
 
 
-    function serveDatabase (ignore /*req*/, res) {
+    function startupData (ignore /*req*/, res) {
         res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify(dbo));
+        res.end(JSON.stringify({config:conf, songdata:dbo}));
     }
 
 
@@ -241,16 +225,6 @@ module.exports = (function () {
     }
 
 
-    function isIgnoreDir (ws, dirname) {
-        if(conf.ignoredirs.includes(dirname)) {
-            return true; }
-        if(!ws.wildms) {
-            ws.wildms = conf.ignoredirs.filter((ign) => ign.endsWith("*"));
-            ws.wildms = ws.wildms.map((wm) => wm.slice(0, -1)); }
-        return ws.wildms.some((wm) => dirname.startsWith(wm));
-    }
-
-
     function walkFiles (ws) {
         if(!ws.files.length) {
             dbo.scanned = new Date().toISOString();  //note completion time.
@@ -265,7 +239,7 @@ module.exports = (function () {
                 if(err) {
                     console.log("walkFiles readdir error: " + err); }
                 files.forEach(function (childfile) {
-                    if(!isIgnoreDir(ws, childfile)) {
+                    if(!require("./hub").isIgnoreDir(ws, childfile)) {
                         ws.files.push(fn + "/" + childfile); } });
                 walkFiles(ws); }); }
         else if(isMusicFile(fn)) {
@@ -505,19 +479,6 @@ module.exports = (function () {
     }
 
 
-    function updateKeywords (req, res) {
-        var updat = new formidable.IncomingForm();
-        updat.parse(req, function (err, fields) {
-            if(err) {
-                console.log("updateKeywords form error: " + err); }
-            dbo.kwdefs = JSON.parse(fields.kwdefs);
-            writeUpdatedDatabaseObject();
-            //No return value needed.  Echo back the updated keywords.
-            res.writeHead(200, {"Content-Type": "application/json"});
-            res.end(JSON.stringify(dbo.keywords)); });
-    }
-
-
     function writePlaylistFile () {
         var songs = JSON.parse(exp.spec.songs).map((s) => s.split("/").pop());
         var txt = "#EXTM3U\n" + songs.join("\n") + "\n";
@@ -570,24 +531,6 @@ module.exports = (function () {
     }
 
 
-    function ignoreFolders (req, res) {
-        var fif = new formidable.IncomingForm();
-        fif.parse(req, function (err, fields) {
-            if(err) {
-                return resError(res, 400, "ignoreFolders form error " + err); }
-            if(fields.ignoredirs) {  //data passed in. updating.
-                //The ignore folders take effect when files are next read.
-                //The read process marks all songs as deleted and then
-                //unmarks them as they are found, so songs in ignored
-                //folders will either not be created, or left marked as deleted.
-                conf.ignoredirs = JSON.parse(fields.ignoredirs);
-                writeConfigurationFile(); }
-            res.writeHead(200, {"Content-Type": "application/json"});
-            res.end(JSON.stringify({musicPath:conf.musicPath,
-                                    ignoredirs:conf.ignoredirs})); });
-    }
-
-
     function serveAudio (pu, req, res) {
         var fn = path.join(conf.musicPath, pu.query.path);
         if(caud.path !== fn) {
@@ -634,15 +577,13 @@ module.exports = (function () {
         writeConfigurationFile: function () { writeConfigurationFile(); },
         //server endpoints
         config: function (req, res) { return serveConfig(req, res); },
-        dbo: function (req, res) { return serveDatabase(req, res); },
+        startdata: function (req, res) { return startupData(req, res); },
         dbread: function (req, res) { return readFiles(req, res); },
         songscount: function (req, res) { return songCount(req, res); },
         mergefile: function (req, res) { return mergeFile(req, res); },
         mergestat: function (req, res) { return mergeStatus(req, res); },
         songupd: function (req, res) { return updateSong(req, res); },
-        keysupd: function (req, res) { return updateKeywords(req, res); },
         plistexp: function (req, res) { return playlistExport(req, res); },
-        igfolders: function (req, res) { return ignoreFolders(req, res); },
         audio: function (pu, req, res) { return serveAudio(pu, req, res); },
         version: function (req, res) { return serveVersion(req, res); }
     };
