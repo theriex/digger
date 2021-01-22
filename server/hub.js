@@ -84,39 +84,6 @@ module.exports = (function () {
     }
 
 
-    function ignoreFolders (req, res) {
-        var fif = new formidable.IncomingForm();
-        fif.parse(req, function (err, fields) {
-            if(err) {
-                return resError(res, 400, "ignoreFolders form error " + err); }
-            var curracct = getCurrentAccount();
-            if(fields.ignoredirs) {  //data passed in. updating.
-                //The ignore folders take effect when files are next read.
-                //The read process marks all songs as deleted and then unmarks
-                //them as they are found, so songs in ignored folders will 
-                //either not be created, or left marked as deleted.
-                curracct.igfolds = JSON.parse(fields.ignoredirs);
-                db.writeConfigurationFile(); }
-            res.writeHead(200, {"Content-Type": "application/json"});
-            res.end(JSON.stringify({musicPath:db.conf().musicPath,
-                                    ignoredirs:curracct.igfolds})); });
-    }
-
-
-    function keywordDefinitions (req, res) {
-        var updat = new formidable.IncomingForm();
-        updat.parse(req, function (err, fields) {
-            if(err) {
-                console.log("updateKeywords form error: " + err); }
-            var curracct = getCurrentAccount();
-            if(fields.kwdefs) {  //data passed in. updating
-                curracct.kwdefs = JSON.parse(fields.kwdefs);
-                db.writeConfigurationFile(); }
-            res.writeHead(200, {"Content-Type": "application/json"});
-            res.end(JSON.stringify({kwdefs:curracct.kwdefs})); });
-    }
-
-
     function hubfwd (endpoint, req, res) {
         var fif = new formidable.IncomingForm();
         fif.parse(req, function (err, fields) {
@@ -149,8 +116,6 @@ module.exports = (function () {
         isIgnoreDir: function (ws, dn) { return isIgnoreDir(ws, dn); },
         //server endpoints
         acctsinfo: function (req, res) { return accountsInfo(req, res); },
-        igfolders: function (req, res) { return ignoreFolders(req, res); },
-        keywords: function (req, res) { return keywordDefinitions(req, res); },
         newacct: function (req, res) { return hubfwd("newacct", req, res); },
         acctok: function (req, res) { return hubfwd("acctok", req, res); },
         updacc: function (req, res) { return hubfwd("updacc", req, res); }

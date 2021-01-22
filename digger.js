@@ -40,8 +40,6 @@ db.init(function (conf) {
             case "/mergefile": db.mergefile(req, rsp); break;
             case "/songupd": db.songupd(req, rsp); break;
             case "/plistexp": db.plistexp(req, rsp); break;
-            case "/ignorefolders": hub.igfolders(req, rsp); break;
-            case "/keywords": hub.keywords(req, rsp); break;
             case "/acctsinfo": hub.acctsinfo(req, rsp); break;
             case "/newacct": hub.newacct(req, rsp); break;
             case "/acctok": hub.acctok(req, rsp); break;

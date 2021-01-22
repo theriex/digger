@@ -263,7 +263,7 @@ app.hub = (function () {
                 {"email":jt.byId("emailin").value,
                  "password":jt.byId("pwdin").value,
                  "firstname":jt.byId("firstnamein").value});
-            jt.call("POST", "/" + endpoint, data,
+            jt.call("POST", "/" + endpoint, data,  // /newacct or /acctok
                     function (accntok) {
                         updateAccountInfo(accntok);
                         mgrs.dlg.accountSettings(); },
