@@ -142,7 +142,7 @@ app.filter = (function () {
 
     function addRangeSettingsFunc (cid) {
         ctrls[cid].settings = function () {
-            return {t:"range", c:cid,
+            return {tp:"range", c:cid,
                     v:ctrls[cid].cy,
                     h:ctrls[cid].cx - ranger.hnob.x}; };
     }
@@ -150,7 +150,7 @@ app.filter = (function () {
 
     function initRangeSetting (cid) {
         var dfltset = {v:18, h:117};
-        var settings = findSetting({t:"range", c:cid}) || dfltset;
+        var settings = findSetting({tp:"range", c:cid}) || dfltset;
         if(settings.v !== 0) {  //zero is valid value, check for invalid.
             settings.v = settings.v || dfltset.v;  //verify value defined
             if(!Number.isInteger(settings.v)) {    //if not int, use default
@@ -308,7 +308,7 @@ app.filter = (function () {
         addBTSettingsFunc: function (idx) {
             var bt = ctrls.bts[idx];
             bt.settings = function () {
-                return {t:"kwbt", k:bt.pn, v:bt.tog}; }; },
+                return {tp:"kwbt", k:bt.pn, v:bt.tog}; }; },
         addBTSongMatchFunc: function (idx) {
             var bt = ctrls.bts[idx];
             bt.match = function (song) {
@@ -331,7 +331,7 @@ app.filter = (function () {
             ctrls.bts.forEach(function (bt, idx) {
                 mgrs.btc.makeControl(bt, idx);
                 var dfltset = {v:"off"};
-                var setting = findSetting({t:"kwbt", k:bt.pn}) || dfltset;
+                var setting = findSetting({tp:"kwbt", k:bt.pn}) || dfltset;
                 mgrs.btc.setValue(idx, setting.v || dfltset.v); }); },
         rebuildControls: function () {
             kwdefs = app.db.managerDispatch("kwd", "defsArray", true);
@@ -372,7 +372,7 @@ app.filter = (function () {
                                     ctrls.rat.posf); },
         makeFilter: function () {
             ctrls.rat.settings = function () {
-                return {t:"minrat", u:ctrls.rat.tagf.idx,
+                return {tp:"minrat", u:ctrls.rat.tagf.idx,
                         m:ctrls.rat.stat.minrat}; };
             ctrls.rat.match = function (song) {
                 if(ctrls.rat.stat.minrat >= 2 &&  //slider at least at one star
@@ -402,7 +402,7 @@ app.filter = (function () {
             mgrs.mruc.writeHTML(divid);
             mgrs.mruc.makeControls();
             mgrs.mruc.makeFilter();
-            mgrs.mruc.setMinRating(findSetting({t:"minrat"}));
+            mgrs.mruc.setMinRating(findSetting({tp:"minrat"}));
             mgrs.fq.init("fqftogdiv"); }
     };  //end of mgrs.mruc returned functions
     }());
@@ -447,7 +447,7 @@ app.filter = (function () {
             app.db.deckupd(); },
         makeFilter: function () {
             ctrls.fq.settings = function () {
-                return {t:"fqb", v:fqb}; };
+                return {tp:"fqb", v:fqb}; };
             ctrls.fq.match = function (song) {
                 if(fqb === "off") {
                     return true; }
@@ -463,13 +463,13 @@ app.filter = (function () {
                     jt.log("Frequency calc failure " + song.path + ": " + e);
                 }}; },
         setFrequencyFiltering: function (fqsetting) {
-            fqsetting = fqsetting || {t:"fqb", v:"on"};
+            fqsetting = fqsetting || {tp:"fqb", v:"on"};
             mgrs.fq.toggleFreqFiltering(fqsetting.v); },
         init: function (divid) {
             mgrs.fq.initWaitDays();
             mgrs.fq.writeHTML(divid);
             mgrs.fq.makeFilter();
-            mgrs.fq.setFrequencyFiltering(findSetting({t:"fqb"})); }
+            mgrs.fq.setFrequencyFiltering(findSetting({tp:"fqb"})); }
     };  //end of mgrs.fq returned functions
     }());
 
