@@ -80,6 +80,7 @@ app.hub = (function () {
     //at DiggerHub if a DiggerHub account has been set up.
     mgrs.loc = (function () {
         var tmo = null;  //sync timeout
+        var upldsongs = null;
     return {
         init: function () {
             hai = null;
@@ -122,8 +123,10 @@ app.hub = (function () {
                 var data = mgrs.loc.makeSendSyncData();
                 jt.call("POST", "/hubsync", data,
                         function (updates) {
-                            mgrs.loc.processReceivedSyncData(updates); },
+                            mgrs.loc.processReceivedSyncData(updates);
+                            mgrs.loc.noteSongsUploaded(); },
                         function (code, errtxt) {  //probably just offline
+                            upldsongs = null;
                             jt.log("syncToHub " + code + ": " + errtxt); },
                         jt.semaphore("loc.syncToHub")); },
                                 20 * 1000); },
@@ -131,14 +134,14 @@ app.hub = (function () {
             //send the current account + any songs that need sync.  If just
             //signed in, then don't send the app initial song or any other
             //songs until after initial download sync.
-            var ms = [];
+            upldsongs = [];
             if(!curracct.syncsince) {  //not initial sync
-                ms = Object.values(app.db.data().songs)
+                upldsongs = Object.values(app.db.data().songs)
                     .filter((s) => s.lp > (s.modified || ""));
-                ms = ms.slice(0, 199); }
+                upldsongs = upldsongs.slice(0, 199); }
             mgrs.hcu.serializeAccount(curracct);
             var obj = {email:curracct.email, token:curracct.token,
-                       syncdata: JSON.stringify([curracct, ...ms])};
+                       syncdata: JSON.stringify([curracct, ...upldsongs])};
             mgrs.hcu.deserializeAccount(curracct);
             return jt.objdata(obj); },
         processReceivedSyncData: function (updates) {
@@ -151,7 +154,12 @@ app.hub = (function () {
             //rest is zero or more songs where the information on the hub
             //was more recent than what is available locally.
             var songs = updates.slice(1);
-            songs.forEach(function (s) { app.db.noteUpdatedSongData(s); }); }
+            songs.forEach(function (s) { app.db.noteUpdatedSongData(s); }); },
+        noteSongsUploaded: function () {
+            var ts = new Date().toISOString();
+            upldsongs.forEach(function (s) {
+                s.modified = ts; });
+            upldsongs = null; }
     };  //end mgrs.loc returned functions
     }());
 

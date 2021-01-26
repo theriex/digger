@@ -70,6 +70,17 @@ module.exports = (function () {
     }
 
 
+    function noteSentSongsModified (syncdata) {
+        syncdata = JSON.parse(syncdata);
+        var updsongs = syncdata.slice(1);
+        var now = new Date().toISOString();
+        var dbo = db.dbo();
+        updsongs.forEach(function (s) {
+            dbo.songs[s.path].modified = now; });
+        db.writeDatabaseObject();
+    }
+
+
     function processReceivedSyncData (updates) {
         updates = JSON.parse(updates);
         var updacc = updates[0];
@@ -144,11 +155,12 @@ module.exports = (function () {
         fif.parse(req, function (err, fields) {
             if(err) {
                 return resError(res, 400, "hubsync form error: " + err); }
-            var ctx = {url:hs + "/api/hubsync",
+            var ctx = {syncdata:fields.syncdata,
+                       url:hs + "/api/hubsync",
                        rqs:{method:"POST",
                             headers:{"Content-Type":
                                      "application/x-www-form-urlencoded"},
-                       body:bodify(fields)}};
+                            body:bodify(fields)}};
             console.log("hubsync -> " + ctx.url);
             fetch(ctx.url, ctx.rqs)
                 .then(function (hubr) {
@@ -157,6 +169,7 @@ module.exports = (function () {
                 .then(function (btxt) {
                     if(ctx.code !== 200) {
                         return resError(res, ctx.code, btxt); }
+                    noteSentSongsModified(ctx.syncdata);
                     processReceivedSyncData(btxt);
                     res.writeHead(200, {"Content-Type": "application/json"});
                     res.end(btxt); })
