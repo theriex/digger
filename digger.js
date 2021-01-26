@@ -44,6 +44,7 @@ db.init(function (conf) {
             case "/newacct": hub.newacct(req, rsp); break;
             case "/acctok": hub.acctok(req, rsp); break;
             case "/updacc": hub.updacc(req, rsp); break;
+            case "/hubsync": hub.hubsync(req, rsp); break;
             default: //handle after request is fully stabilized
                 req.addListener("end", function () {
                     //GET requests:

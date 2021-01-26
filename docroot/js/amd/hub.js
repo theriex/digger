@@ -30,24 +30,49 @@ app.hub = (function () {
     }
 
 
-    function updateAccountInfo (accntok) {
-        var acct = accntok[0];
-        acct.token = accntok[1];
-        curracct = acct;
-        hai.currid = acct.dsId;
-        hai.accts = [acct, ...hai.accts.filter((a) => a.dsId !== acct.dsId)];
-        var data = jt.objdata({acctsinfo:JSON.stringify(hai)});
-        jt.call("POST", "/acctsinfo", data,
-                function (acctsinfo) {
-                    noteUpdatedAccountInfo(acctsinfo); },
-                function (code, errtxt) {
-                    jt.out("accupdstatdiv", code + ": " + errtxt); },
-                jt.semaphore("hub.updateAccountInfo"));
-    }
-
-
     //General container for all managers, used for dispatch
     var mgrs = {};
+
+
+    //General hub communication utilities
+    mgrs.hcu = (function () {
+        var ajfs = ["kwdefs", "igfolds", "settings"];
+    return {
+        serializeAccount: function (acct) {
+            ajfs.forEach(function (sf) {
+                if(acct[sf] && typeof acct[sf] !== "string") {
+                    acct[sf] = JSON.stringify(acct[sf]); } }); },
+        deserializeAccount: function (acct) {
+            ajfs.forEach(function (sf) {
+                if(acct[sf] && typeof acct[sf] === "string") {
+                    acct[sf] = JSON.parse(acct[sf]); } }); },
+        verifyDefaultFields: function (acct) {
+            var da = hai.accts.find((a) => a.dsId === "101");
+            var dfs = ["kwdefs", "igfolds", "settings"];
+            dfs.forEach(function (df) {
+                acct[df] = acct[df] || da[df]; }); },
+        noteReturnedCurrentAccount: function (acct, token) {
+            mgrs.hcu.deserializeAccount(acct);
+            mgrs.hcu.verifyDefaultFields(acct);
+            acct.token = token;  //not included in returned data
+            curracct = acct;
+            hai.currid = acct.dsId;
+            hai.accts = [acct,
+                         ...hai.accts.filter((a) => a.dsId !== acct.dsId)];
+            app.db.config().acctsinfo = hai; },
+        updateAccountInfo: function (accntok, resync) {
+            if(resync) {
+                accntok[0].syncsince = accntok[0].created + ";1"; }
+            mgrs.hcu.noteReturnedCurrentAccount(accntok[0], accntok[1]);
+            var data = jt.objdata({acctsinfo:JSON.stringify(hai)});
+            jt.call("POST", "/acctsinfo", data,
+                    function (acctsinfo) {
+                        noteUpdatedAccountInfo(acctsinfo); },
+                    function (code, errtxt) {
+                        jt.out("accupdstatdiv", code + ": " + errtxt); },
+                    jt.semaphore("hub.hcu.updateAccountInfo")); }
+    };  //end mgrs.hcu returned functions
+    }());
 
 
     //The local manager handles changes to DiggerHub account info where the
@@ -59,11 +84,9 @@ app.hub = (function () {
         init: function () {
             hai = null;
             curracct = null; },
-        updateAcctsInfo: function (acctsinfo) {
-            hai = acctsinfo;
-            curracct = hai.accts.find((a) => a.dsId === hai.currid); },
         dataLoaded: function () {  //acctsinfo verified server side
-            mgrs.loc.updateAcctsInfo(app.db.config().acctsinfo);
+            noteUpdatedAccountInfo(app.db.config().acctsinfo);
+            jt.log("dataLoaded curracct " + curracct.firstname);
             mgrs.loc.notifyAccountChanged(); },
         notifyAccountChanged: function (context) {
             if(!context || context === "keywords") {
@@ -80,7 +103,7 @@ app.hub = (function () {
             var data = jt.objdata({acctsinfo:JSON.stringify(hai)});
             jt.call("POST", "/acctsinfo", data,  //save to local server
                     function (acctsinfo) {
-                        mgrs.loc.updateAcctsInfo(acctsinfo);
+                        noteUpdatedAccountInfo(acctsinfo);
                         mgrs.loc.syncToHub();
                         if(contf) {
                             contf(); } },
@@ -88,25 +111,47 @@ app.hub = (function () {
                         jt.log("hub.loc.updateAccount " + code + ": " + errtxt);
                         if(errf) {
                             errf(code, errtxt); } },
-                    jt.semaphore("hub.updateAccountInfo")); },
+                    jt.semaphore("hub.loc.updateAccount")); },
         syncToHub: function () {
-            jt.log("mgrs.loc.syncToHub not implemented yet. tmo: " + tmo);
-            // if(tmo) {  //reset the sync timer if currently waiting
-            //     clearTimeout(tmo); }
-            // tmo = setTimeout(function () {
-            //     tmo = null;
-            //     var data = mgrs.loc.makeSyncData();  //curracct + upd songs
-            //     jt.call("POST", "/hubsync", data,
-            //             function (updates) {
-            //                 if received account is more recent {
-            //                     curracct = updates[0];
-            //                     mgrs.loc.notifyAccountChanged(); }
-            //                 app.db.updateSongs(updates.slice(1)); },
-            //             function (code, errtxt) {  //probably just offline
-            //                 jt.log("syncToHub " + code + ": " + errtxt); },
-            //             jt.semaphore("loc.syncToHub")); },
-            //                     20 * 1000; );
-        }
+            if(curracct.dsId === "101" || !curracct.token) {
+                return; }  //invalid account or not set up yet
+            if(tmo) {  //reset the sync timer if currently waiting
+                clearTimeout(tmo); }
+            tmo = setTimeout(function () {
+                tmo = null;
+                var data = mgrs.loc.makeSendSyncData();
+                jt.call("POST", "/hubsync", data,
+                        function (updates) {
+                            mgrs.loc.processReceivedSyncData(updates); },
+                        function (code, errtxt) {  //probably just offline
+                            jt.log("syncToHub " + code + ": " + errtxt); },
+                        jt.semaphore("loc.syncToHub")); },
+                                20 * 1000); },
+        makeSendSyncData: function () {
+            //send the current account + any songs that need sync.  If just
+            //signed in, then don't send the app initial song or any other
+            //songs until after initial download sync.
+            var ms = [];
+            if(!curracct.syncsince) {  //not initial sync
+                ms = Object.values(app.db.data().songs)
+                    .filter((s) => s.lp > (s.modified || ""));
+                ms = ms.slice(0, 199); }
+            mgrs.hcu.serializeAccount(curracct);
+            var obj = {email:curracct.email, token:curracct.token,
+                       syncdata: JSON.stringify([curracct, ...ms])};
+            mgrs.hcu.deserializeAccount(curracct);
+            return jt.objdata(obj); },
+        processReceivedSyncData: function (updates) {
+            //received account + any songs that need to be saved locally.
+            //Similar logic on server has already written the data to disk,
+            //so just need to reflect in current runtime.
+            mgrs.hcu.noteReturnedCurrentAccount(updates[0], curracct.token);
+            if(curracct.syncstat === "Changed") {
+                mgrs.loc.notifyAccountChanged(); }
+            //rest is zero or more songs where the information on the hub
+            //was more recent than what is available locally.
+            var songs = updates.slice(1);
+            songs.forEach(function (s) { app.db.noteUpdatedSongData(s); }); }
     };  //end mgrs.loc returned functions
     }());
 
@@ -208,7 +253,7 @@ app.hub = (function () {
                 jt.call("POST", "/updacc", jt.objdata(curracct),
                         function (accntok) {
                             jt.out("accupdstatdiv", "Account updated.");
-                            updateAccountInfo(accntok); },
+                            mgrs.hcu.updateAccountInfo(accntok); },
                         function (code, errtxt) {
                             jt.out("accupdstatdiv", code + ": " + errtxt); },
                         jt.semaphore("dlg.updAcctFlds")); } },
@@ -265,15 +310,17 @@ app.hub = (function () {
                  "firstname":jt.byId("firstnamein").value});
             jt.call("POST", "/" + endpoint, data,  // /newacct or /acctok
                     function (accntok) {
-                        updateAccountInfo(accntok);
+                        mgrs.hcu.updateAccountInfo(accntok, "resync");
+                        mgrs.loc.syncToHub();
                         mgrs.dlg.accountSettings(); },
                     function (code, errtxt) {
                         jt.out("siojstatdiv", code + ": " + errtxt); },
                     jt.semaphore("dlg.signInOrJoin")); },
         displayAccountInfo: function () {
-            if(!hai || !hai.accts.length) {
+            if(!hai || !hai.accts.length ||
+               (hai.accts.length === 1 && hai.accts[0].dsId === "101")) {
                 mgrs.dlg.signInOrJoin(); }
-            else {  //have acctsinfo with at least one account
+            else {  //have acctsinfo with at least one real account
                 if(hai.currid) {
                     curracct = hai.accts.find((a) => a.dsId === hai.currid); }
                 if(curracct) {

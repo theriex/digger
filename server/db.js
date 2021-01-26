@@ -52,7 +52,7 @@ module.exports = (function () {
     }
 
 
-    function writeUpdatedDatabaseObject () {
+    function writeDatabaseObject () {
         dbo.version = diggerVersion();
         //write the json with newlines so it can be read in a text editor
         var json = JSON.stringify(dbo, null, 2);
@@ -82,7 +82,7 @@ module.exports = (function () {
         //  segs: [] A segue is ar/ab/ti/prob where prob is an *independent*
         //  percentage likelihood the segue will be used.  e.g. 0 is never,
         //  100 is always, 50 is a coin toss.
-        writeUpdatedDatabaseObject();
+        writeDatabaseObject();
         console.log("Created " + conf.dbPath);
         state = "ready";
     }
@@ -228,7 +228,7 @@ module.exports = (function () {
     function walkFiles (ws) {
         if(!ws.files.length) {
             dbo.scanned = new Date().toISOString();  //note completion time.
-            writeUpdatedDatabaseObject();
+            writeDatabaseObject();
             ws.response.writeHead(200, {"Content-Type": "application/json"});
             ws.response.end(JSON.stringify(dbo));
             state = "ready";
@@ -377,7 +377,7 @@ module.exports = (function () {
                 setTimeout(mergeDataChunk, mrg.stat.pausems);
                 break; } }
         if(mrg.stat.idx >= keys.length) {
-            writeUpdatedDatabaseObject();
+            writeDatabaseObject();
             mrg.stat.state = "ready"; }
     }
 
@@ -471,7 +471,7 @@ module.exports = (function () {
             song.ab = fields.ab || "";
             song.ti = fields.ti || "";
             normalizeIntegerValues(song);
-            writeUpdatedDatabaseObject();
+            writeDatabaseObject();
             song.path = fields.path;
             console.log("Updated " + song.path);
             res.writeHead(200, {"Content-Type": "application/json"});
@@ -491,7 +491,7 @@ module.exports = (function () {
         if(!exp.stat.remaining.length) {
             exp.stat.state = "Done";
             if(exp.spec.markplayed) {  //song.lp updated when copied, save.
-                writeUpdatedDatabaseObject(); }
+                writeDatabaseObject(); }
             return; }
         var song = exp.stat.remaining.pop();
         var exn = song.split(path.sep).pop();
@@ -575,6 +575,8 @@ module.exports = (function () {
         init: function (contf) { initialize(contf); },
         conf: function () { return conf; },
         writeConfigurationFile: function () { writeConfigurationFile(); },
+        dbo: function () { return dbo; },
+        writeDatabaseObject: function () { writeDatabaseObject(); },
         //server endpoints
         config: function (req, res) { return serveConfig(req, res); },
         startdata: function (req, res) { return startupData(req, res); },

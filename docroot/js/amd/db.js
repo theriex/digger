@@ -57,14 +57,21 @@ app.db = (function () {
     }
 
 
+    function noteUpdatedSongData (updsong) {
+        dbo.songs[updsong.path] = updsong;
+        var wssi = deckstat.ws.findIndex(
+            (s) => s.path === updsong.path);
+        if(wssi >= 0) {  //update working set song with latest copy
+            deckstat.ws[wssi] = updsong; }
+    }
+
+
     function updateSavedSongData (song, contf) {
         jt.call("POST", "/songupd", jt.objdata(song),
                 function (updsong) {
-                    dbo.songs[updsong.path] = updsong;
-                    var wssi = deckstat.ws.findIndex(
-                        (s) => s.path === updsong.path);
-                    if(wssi >= 0) {  //update working set song with latest copy
-                        deckstat.ws[wssi] = updsong; }
+                    updsong.lp = new Date().toISOString();  //mark for sync
+                    app.hub.managerDispatch("loc", "syncToHub");
+                    noteUpdatedSongData(updsong);
                     contf(updsong); },
                 function (code, errtxt) {
                     jt.out("updateSavedSongData " + code + ": " + errtxt); },
@@ -1053,6 +1060,7 @@ return {
     popdeck: function () { return mgrs.dk.popSongFromDeck(); },
     songTitleTAC: function (song) { return mgrs.sop.songTitleTAC(song); },
     updateSavedSongData: function (s, f) { updateSavedSongData(s, f); },
+    noteUpdatedSongData: function (s) { noteUpdatedSongData(s); },
     managerDispatch: function (mgrname, fname, ...args) {
         //best to just crash on a bad reference, easier to see
         return mgrs[mgrname][fname].apply(app.db, args); }

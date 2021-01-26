@@ -22,7 +22,7 @@ module.exports = (function () {
         if(!conf.acctsinfo.accts.find((x) => x.dsId === "101")) {
             conf.acctsinfo.accts.push(
                 {dsType:"DigAcc", dsId:"101", firstname:"Digger",
-                 email:"support@digger.com", token:"none",
+                 email:"support@diggerhub.com", token:"none",
                  kwdefs:initkwds, igfolds:["Ableton", "GarageBand"]}); }
         if(!conf.acctsinfo.currid) {
             conf.acctsinfo.currid = "101"; }
@@ -59,6 +59,35 @@ module.exports = (function () {
         return Object.entries(po).map(function ([k, v]) {
             return k + "=" + encodeURIComponent(v); })
             .join("&");
+    }
+
+
+    function deserializeAccountFields (acct) {
+        var sfs = ["kwdefs", "igfolds", "settings"];
+        sfs.forEach(function (sf) {
+            //console.log("parsing " + sf + ": " + acct[sf]);
+            acct[sf] = JSON.parse(acct[sf]); });
+    }
+
+
+    function processReceivedSyncData (updates) {
+        updates = JSON.parse(updates);
+        var updacc = updates[0];
+        deserializeAccountFields(updacc);
+        //always write the updated account to reflect the modified timestamp
+        var accts = db.conf().acctsinfo.accts;
+        var aidx = accts.findIndex((a) => a.dsId === updacc.dsId);
+        updacc.token = accts[aidx].token;
+        accts[aidx] = updacc;
+        db.writeConfigurationFile();
+        //write any returned updated songs
+        var updsongs = updates.slice(1);  //zero or more newer songs
+        if(updsongs.length) {
+            var dbo = db.dbo();
+            updsongs.forEach(function (s) {
+                console.log("writing updated song " + s.path);
+                dbo.songs[s.path] = s; });
+            db.writeDatabaseObject(); }
     }
 
 
@@ -110,6 +139,33 @@ module.exports = (function () {
     }
 
 
+    function hubsync (req, res) {
+        var fif = new formidable.IncomingForm();
+        fif.parse(req, function (err, fields) {
+            if(err) {
+                return resError(res, 400, "hubsync form error: " + err); }
+            var ctx = {url:hs + "/api/hubsync",
+                       rqs:{method:"POST",
+                            headers:{"Content-Type":
+                                     "application/x-www-form-urlencoded"},
+                       body:bodify(fields)}};
+            console.log("hubsync -> " + ctx.url);
+            fetch(ctx.url, ctx.rqs)
+                .then(function (hubr) {
+                    ctx.code = hubr.status;
+                    return hubr.text(); })
+                .then(function (btxt) {
+                    if(ctx.code !== 200) {
+                        return resError(res, ctx.code, btxt); }
+                    processReceivedSyncData(btxt);
+                    res.writeHead(200, {"Content-Type": "application/json"});
+                    res.end(btxt); })
+                .catch(function (err) {
+                    resError(res, 400, "call to " + ctx.url + " failed: "
+                             + err); }); });
+    }
+
+
     return {
         //server utilities
         verifyDefaultAccount: function (conf) { verifyDefaultAccount(conf); },
@@ -118,6 +174,7 @@ module.exports = (function () {
         acctsinfo: function (req, res) { return accountsInfo(req, res); },
         newacct: function (req, res) { return hubfwd("newacct", req, res); },
         acctok: function (req, res) { return hubfwd("acctok", req, res); },
-        updacc: function (req, res) { return hubfwd("updacc", req, res); }
+        updacc: function (req, res) { return hubfwd("updacc", req, res); },
+        hubsync: function (req, res) { return hubsync(req, res); }
     };
 }());
