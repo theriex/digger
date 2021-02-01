@@ -499,8 +499,7 @@ app.filter = (function () {
                 tmosave = null;
                 settings.ctrls = mgrs.stg.arrayOfAllFilters()
                     .map((filt) => filt.settings());
-                app.hub.managerDispatch(
-                    "loc", "updateAccount",
+                app.hub.managerDispatch("loc", "updateAccount",
                     function () {
                         jt.log("stg.saveSettings completed"); },
                     function (code, errtxt) {

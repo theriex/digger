@@ -80,6 +80,12 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #hubacctseldiv table { margin:0px auto; }
 .dachoicediv { min-width:100px; }
 
+.guidelinksspan { font-size:small; }
+.sepcomspan { padding:0px 5px 0px 0px; }
+#guidelabelspan { font-size:medium; font-weight:bold; }
+#guideinfospan { font-size:small; }
+#guideinfonamespan { font-size:medium; }
+
 
 /****************************************/
 /* Player Panel */

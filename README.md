@@ -7,12 +7,12 @@ Digger is a local web server to access your music based on your current listenin
 
 Digger is based on the idea of [contextual music retrieval](https://epinova.com/more/contextual-music-retrieval.html).  Your impressions of a song, and the tags you have associated with it, are used to automatically pull songs from your personal library.  The goal is to get you back to enjoying your music collection without having to browse a wall of files just to get noise in the room.
 
-Currently Digger works only on locally available music files.  It has an export feature for copying music to playlists, and rudimentary data import/merge.  https://youtu.be/P9uGBJkQj5k has a walkthrough of some of the interface features.
+Digger currently works only on locally available music files.  It has an export feature for copying music to playlists, and rudimentary data import/merge.  https://youtu.be/P9uGBJkQj5k has a walkthrough of some of the interface features.
 
 
 ## Customize
 
-By default, digger loads [config.json](https://github.com/theriex/digger/blob/master/config.json) to find where to read music files, store data, export playlists, and what browser to launch at startup.  To customize, copy the default config.json file to ~/.digger_config.json and change the values to work for you.
+Digger copies the default [config.json](https://github.com/theriex/digger/blob/master/config.json) to .digger_config.json in your home folder.  To customize, change the values to work for you:
 
  * port: The port the local digger server should listen on.
  * musicPath: Where to find music files on your computer.
@@ -21,7 +21,6 @@ By default, digger loads [config.json](https://github.com/theriex/digger/blob/ma
  * exPath: Where exported songs should be copied to.
  * spawn: Optional command to run when digger starts up.
 
-If you are running the packaged app, the digdat.json data file and diggerexport playlist folder are written to your user directory by default.  If you are running a local copy of the project using node, then those files are written to the directory you are running from by default.  If you are going to mix and match how you run digger, setting up ~/.digger_config.json ensures consistency.
 
 
 ## Install

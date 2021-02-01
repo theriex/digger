@@ -5,18 +5,7 @@ app.hub = (function () {
     "use strict";
 
     var hai = null;  //hub accounts info
-    var curracct = null; 
-
-
-    function noteUpdatedAccountInfo (acctsinfo) {
-        curracct = null;  //clear any stale ref
-        hai = acctsinfo;
-        if(hai.currid) {
-            curracct = hai.accts.find((a) => a.dsId === hai.currid);
-            jt.out("hubtogspan", curracct.firstname); }
-        else {  //no current account
-            jt.out("hubtogspan", "Digger"); }
-    }
+    var curracct = null;  //current account in use
 
 
     function mdfs (mgrfname, ...args) {
@@ -36,7 +25,7 @@ app.hub = (function () {
 
     //General hub communication utilities
     mgrs.hcu = (function () {
-        var ajfs = ["kwdefs", "igfolds", "settings"];
+        var ajfs = ["kwdefs", "igfolds", "settings", "guides"];
     return {
         serializeAccount: function (acct) {
             ajfs.forEach(function (sf) {
@@ -46,31 +35,32 @@ app.hub = (function () {
             ajfs.forEach(function (sf) {
                 if(acct[sf] && typeof acct[sf] === "string") {
                     acct[sf] = JSON.parse(acct[sf]); } }); },
-        verifyDefaultFields: function (acct) {
+        accountAsData: function (acct) {
+            mgrs.hcu.serializeAccount(acct);
+            var data = jt.objdata(acct);
+            mgrs.hcu.deserializeAccount(acct);
+            return data; },
+        verifyDefaultAccountFields: function (acct) {
             var da = hai.accts.find((a) => a.dsId === "101");
-            var dfs = ["kwdefs", "igfolds", "settings"];
-            dfs.forEach(function (df) {
-                acct[df] = acct[df] || da[df]; }); },
+            ajfs.forEach(function (df) {
+                acct[df] = acct[df] || da[df] || ""; }); },
         noteReturnedCurrentAccount: function (acct, token) {
             mgrs.hcu.deserializeAccount(acct);
-            mgrs.hcu.verifyDefaultFields(acct);
+            mgrs.hcu.verifyDefaultAccountFields(acct);
             acct.token = token;  //not included in returned data
             curracct = acct;
             hai.currid = acct.dsId;
             hai.accts = [acct,
                          ...hai.accts.filter((a) => a.dsId !== acct.dsId)];
             app.db.config().acctsinfo = hai; },
-        updateAccountInfo: function (accntok, resync) {
-            if(resync) {
-                accntok[0].syncsince = accntok[0].created + ";1"; }
-            mgrs.hcu.noteReturnedCurrentAccount(accntok[0], accntok[1]);
-            var data = jt.objdata({acctsinfo:JSON.stringify(hai)});
-            jt.call("POST", "/acctsinfo", data,
-                    function (acctsinfo) {
-                        noteUpdatedAccountInfo(acctsinfo); },
-                    function (code, errtxt) {
-                        jt.out("accupdstatdiv", code + ": " + errtxt); },
-                    jt.semaphore("hub.hcu.updateAccountInfo")); }
+        noteUpdatedAccountsInfo: function (acctsinfo) {
+            curracct = null;  //clear any stale ref
+            hai = acctsinfo;
+            if(hai.currid) {
+                curracct = hai.accts.find((a) => a.dsId === hai.currid);
+                jt.out("hubtogspan", curracct.firstname); }
+            else {  //no current account
+                jt.out("hubtogspan", "Digger"); } }
     };  //end mgrs.hcu returned functions
     }());
 
@@ -85,8 +75,8 @@ app.hub = (function () {
         init: function () {
             hai = null;
             curracct = null; },
-        dataLoaded: function () {  //acctsinfo verified server side
-            noteUpdatedAccountInfo(app.db.config().acctsinfo);
+        dataLoaded: function () {  //conf.acctsinfo verified server side
+            mgrs.hcu.noteUpdatedAccountsInfo(app.db.config().acctsinfo);
             jt.log("dataLoaded curracct " + curracct.firstname);
             mgrs.loc.notifyAccountChanged(); },
         notifyAccountChanged: function (context) {
@@ -104,10 +94,10 @@ app.hub = (function () {
             var data = jt.objdata({acctsinfo:JSON.stringify(hai)});
             jt.call("POST", "/acctsinfo", data,  //save to local server
                     function (acctsinfo) {
-                        noteUpdatedAccountInfo(acctsinfo);
+                        mgrs.hcu.noteUpdatedAccountsInfo(acctsinfo);
                         mgrs.loc.syncToHub();
                         if(contf) {
-                            contf(); } },
+                            contf(acctsinfo); } },
                     function (code, errtxt) {
                         jt.log("hub.loc.updateAccount " + code + ": " + errtxt);
                         if(errf) {
@@ -169,11 +159,12 @@ app.hub = (function () {
     //locally.  This is in contrast to things like settings which are
     //reflected first locally and then synchronized with DiggerHub.
     mgrs.dlg = (function () {
-        //changing email must prompt for password. Not needed yet.
+        //changing email requires prompting for a password to create a new
+        //token. Leaving email as read-only for now.
         var mafs = [{n:"email", x:true},
                     {n:"firstname", d:"first name", p:"Name for display"},
                     {n:"hashtag", p:"Your unique user tag"},
-                    {n:"lastsync", d:"last sync", x:true}];
+                    {n:"guides", d:"guides", x:"guides"}];
     return {
         chooseAccount: function () {
             var ars = hai.accts.map((ai) =>
@@ -199,22 +190,20 @@ app.hub = (function () {
                  ["table", ars]])); },
         selectAccount: function (aid) {
             hai.currid = aid;
-            noteUpdatedAccountInfo(hai);
+            mgrs.hcu.noteUpdatedAccountsInfo(hai);
             mgrs.dlg.accountSettings(); },
         removeAccount: function (aid) {
             jt.out("dbstatdiv", "Removing account...");
             if(aid === hai.currid) {
                 hai.currid = 0; }
             hai.accts = hai.accts.filter((a) => a.dsId !== aid);
-            var data = jt.objdata({acctsinfo:JSON.stringify(hai)});
-            jt.call("POST", "/acctsinfo", data,
-                    function (acctsinfo) {
-                        jt.out("dbstatdiv", "");
-                        noteUpdatedAccountInfo(acctsinfo);
-                        mgrs.dlg.displayAccountInfo(); },
-                    function (code, errtxt) {
-                        jt.out("dbstatdiv", code + ": " + errtxt); },
-                    jt.semaphore("dlg.removeAccount")); },
+            mgrs.loc.updateAccount(
+                function (acctsinfo) {
+                    jt.out("dbstatdiv", "");
+                    mgrs.hcu.noteUpdatedAccountsInfo(acctsinfo);
+                    mgrs.dlg.displayAccountInfo(); },
+                function (code, errtxt) {
+                    jt.out("dbstatdiv", code + ": " + errtxt); }); },
         changePassword: function () {
             jt.out("accupdstatdiv", "changePassword not implemented yet."); },
         signOut: function () {
@@ -231,7 +220,10 @@ app.hub = (function () {
                  .join(" &nbsp;|&nbsp ")]); },
         inputOrDispText: function (fd) {
             if(fd.x) { 
-                return ["span", {cla:"formvalspan"}, curracct[fd.n]]; }
+                var value = curracct[fd.n];
+                if(fd.x === "guides") {
+                    value = mgrs.gin.accountFormDisplayValue(); }
+                return ["span", {cla:"formvalspan"}, value]; }
             return ["input", {type:"text", id:fd.n + "in",
                               placeholder:fd.p || "", value:curracct[fd.n]}]; },
         acctFieldsHTML: function () {
@@ -257,14 +249,35 @@ app.hub = (function () {
                         changed = true;
                         curracct[fd.n] = val; }} });
             if(changed) {
-                //json fields not deserialized, so curracct ready to send
-                jt.call("POST", "/updacc", jt.objdata(curracct),
-                        function (accntok) {
-                            jt.out("accupdstatdiv", "Account updated.");
-                            mgrs.hcu.updateAccountInfo(accntok); },
-                        function (code, errtxt) {
-                            jt.out("accupdstatdiv", code + ": " + errtxt); },
-                        jt.semaphore("dlg.updAcctFlds")); } },
+                mgrs.dlg.updateHubAccount(
+                    function () {
+                        jt.out("accupdstatdiv", "Account updated."); },
+                    function (code, errtxt) {
+                        jt.out("accupdstatdiv", code + ": " + errtxt); }); } },
+        updateHubAccount: function (contf, errf) {
+            //the curracct data has already been updated by the caller
+            jt.call("POST", "/updacc", mgrs.hcu.accountAsData(curracct),
+                    function (accntok) {
+                        mgrs.dlg.writeUpdAcctToAccounts(accntok);
+                        if(contf) {
+                            contf(accntok); } },
+                    function (code, errtxt) {
+                        jt.log("hub.dlg.updateHubAccount " + code + ": " +
+                               errtxt);
+                        if(errf) {
+                            errf(code, errtxt); } },
+                    jt.semaphore("hub.dlg.updateHubAccount")); },
+        writeUpdAcctToAccounts: function (accntok, contf, errf) {
+            mgrs.hcu.noteReturnedCurrentAccount(accntok[0], accntok[1]);
+            mgrs.loc.updateAccount(
+                function (acctsinfo) {
+                    mgrs.hcu.noteUpdatedAccountsInfo(acctsinfo);
+                    if(contf) {
+                        contf(acctsinfo); } },
+                function (code, errtxt) {
+                    jt.log("writeUpdAcctToAccounts " + code + ": " + errtxt);
+                    if(errf) {
+                        errf(code, errtxt); } }); },
         accountSettings: function () {
             jt.out("dbdlgdiv", jt.tac2html(
                 [mgrs.dlg.acctTopActionsHTML(),
@@ -299,30 +312,36 @@ app.hub = (function () {
             if(signinb || (!signinb && !newacctb)) {
                 jt.byId("firstnamerow").style.display = "table-row";
                 jt.out("siojbuttonsdiv", jt.tac2html(
-                    ["button", {type:"button", id:"newacctb",
+                    ["button", {type:"button", id:"siojb",
                                 onclick:mdfs("dlg.signInOrJoin", "newacct")},
                      "Create Account"])); }
             else {
                 jt.byId("firstnamerow").style.display = "none";
                 jt.out("siojbuttonsdiv", jt.tac2html(
-                    ["button", {type:"button", id:"signinb",
+                    ["button", {type:"button", id:"siojb",
                                 onclick:mdfs("dlg.signInOrJoin", "acctok")},
                      "Sign In"])); } },
         signInOrJoin: function (endpoint) {
             curracct = null;
             if(!jt.byId("siojfdiv")) {  //form not displayed yet
                 return mgrs.dlg.showSignInJoinForm(); }
+            jt.byId("siojb").disabled = true;
             var data = jt.objdata(
-                {"email":jt.byId("emailin").value,
-                 "password":jt.byId("pwdin").value,
-                 "firstname":jt.byId("firstnamein").value});
+                {email:jt.byId("emailin").value,
+                 password:jt.byId("pwdin").value,
+                 firstname:jt.byId("firstnamein").value});
+            var errf = function (code, errtxt) {
+                jt.byId("siojb").disabled = false;
+                jt.out("siojstatdiv", code + ": " + errtxt); };
             jt.call("POST", "/" + endpoint, data,  // /newacct or /acctok
                     function (accntok) {
-                        mgrs.hcu.updateAccountInfo(accntok, "resync");
-                        mgrs.loc.syncToHub();
-                        mgrs.dlg.accountSettings(); },
-                    function (code, errtxt) {
-                        jt.out("siojstatdiv", code + ": " + errtxt); },
+                        accntok[0].syncsince = accntok[0].created + ";1";
+                        mgrs.hcu.writeUpdAcctToAccounts(accntok,
+                            function () {
+                                mgrs.loc.syncToHub();
+                                mgrs.dlg.accountSettings(); },
+                            errf); },
+                    errf,
                     jt.semaphore("dlg.signInOrJoin")); },
         displayAccountInfo: function () {
             if(!hai || !hai.accts.length ||
@@ -336,6 +355,155 @@ app.hub = (function () {
                 else {  //choose from existing accounts or add new
                     mgrs.dlg.chooseAccount(); } } }
     };  //end mgrs.dlg returned functions
+    }());
+
+
+    //The guide input manager handles adding/removing guides and getting
+    //input from them for songs that have not been rated yet.
+    mgrs.gin = (function () {
+        var gdesc = "Add a fellow digger to kickstart unrated songs in your library";
+    return {
+        accountFormDisplayValue: function () {
+            var html = [];
+            curracct.guides = curracct.guides || [];
+            curracct.guides.forEach(function (g, idx) {
+                html.push([["a", {href:"#digger" + g.dsId,
+                                  title:"View details for " + g.email,
+                                  onclick:mdfs("gin.showGuide", idx)},
+                            g.firstname],
+                           ["span", {cla:"sepcomspan"}, ","]]); });
+            html.push(["a", {href:"#addguide", title:gdesc,
+                             onclick:mdfs("gin.addGuideDialog")},
+                       "add guide"]);
+            return jt.tac2html(["span", {cla:"guidelinksspan"}, html]); },
+        addGuideDialog: function () {
+            jt.out("dbdlgdiv", jt.tac2html(
+                ["div", {id:"guidedlgdiv"},
+                 [["table",
+                   [["tr",
+                     ["td", {colspan:2}, "Get help with unrated songs"]],
+                    ["tr",
+                     [["td", {cla:"formattr"}, "email"],
+                      ["td", ["input", {type:"email", id:"emailin",
+                                        placeholder:"friend@example.com"}]]]]]],
+                  ["div", {id:"amgstatdiv"}],
+                  ["div", {id:"amgbuttonsdiv", cla:"dlgbuttonsdiv"},
+                   ["button", {type:"button", id:"addguideb",
+                               onclick:mdfs("gin.processGuideAdd")},
+                    "Add Guide"]]]])); },
+        processGuideAdd: function () {
+            jt.out("amgstatdiv", "");
+            var gem = jt.byId("emailin").value;
+            if(!jt.isProbablyEmail(gem)) {
+                return jt.out("amgstatdiv", "Need Digger email address."); }
+            jt.byId("addguideb").disabled = true;
+            var data = jt.objdata({email:curracct.email, at:curracct.token,
+                                   gmaddr:gem});
+            jt.call("POST", "/addguide", data,
+                    function (accts) {
+                        mgrs.hcu.noteReturnedCurrentAccount(accts[0],
+                                                            curracct.token);
+                        mgrs.gin.showGuide(0); },
+                    function (code, errtxt) {
+                        jt.byId("addguideb").disabled = false;
+                        jt.out("amgstatdiv", code + ": " + errtxt); },
+                    jt.semaphore("hub.gin.processGuideAdd")); },
+        showGuide: function (gidx) {
+            var cg = curracct.guides[gidx];
+            jt.out("dbdlgdiv", jt.tac2html(
+                ["div", {id:"guidedlgdiv"},
+                 [["div",
+                   [["span", {id:"guidelabelspan"}, "Guide: "],
+                    ["span", {id:"guideinfospan"},
+                     [["span", {id:"guideinfonamespan"},
+                       ["a", {href:"#playlist",
+                              title:"Show " + cg.firstname + "'s playlist",
+                              onclick:mdfs("gin.showPlaylist",
+                                           (cg.hashtag || cg.dsId))},
+                        cg.firstname]],
+                      " (",
+                      ["a", {href:"mailto:" + cg.email}, cg.email], ")"]]]],
+                  ["div", {id:"cglastcheckdiv", cla:"cblab"}],
+                  ["div", {id:"cgfilleddiv", cla:"cblab"}],
+                  ["div", {id:"guidestatdiv"}],
+                  ["div", {id:"guidebuttonsdiv", cla:"dlgbuttonsdiv"},
+                   [["a", {href:"#remove", style:"margin:0px 10px 0px 0px",
+                           title:"Remove " + cg.firstname + " from guides.",
+                           onclick:mdfs("gin.removeGuide", gidx)},
+                     ["img", {cla:"rowbuttonimg",
+                              src:"img/trash.png"}]],
+                   ["button", {type:"button", id:"gratb",
+                               onclick:mdfs("gin.getGuideRatings", gidx)},
+                    "Check For Ratings"]]]]]));
+            mgrs.gin.refreshGuideDisplay(cg);
+            mgrs.gin.getGuideRatings(gidx); },  //initial data or refresh
+        refreshGuideDisplay: function (cg) {
+            jt.out("cglastcheckdiv", "last checked: " +
+                   (cg.lastcheck || "never"));
+            jt.out("cgfilleddiv", (cg.filled || 0) + " ratings contributed.");
+            jt.byId("gratb").disabled = false;
+            jt.out("guidestatdiv", ""); },
+        showPlaylist: function (ident) {  //hashtag or id
+            //open a new window for https://diggerhub.com/playlist/ident
+            jt.err("playlist/" + ident + " not available at server yet"); },
+        removeGuide: function (gidx) {
+            jt.out("guidestatdiv", "Removing...");
+            curracct.guides.splice(gidx, 1);
+            mgrs.dlg.updateHubAccount(
+                function () {
+                    mgrs.dlg.accountSettings(); },
+                function (code, errtxt) {
+                    jt.out("guidestatdiv", "Remove failed " + code + ": " +
+                           errtxt); }); },
+        getGuideRatings: function (gidx) {
+            var cg = curracct.guides[gidx];
+            cg.lastcheck = cg.lastcheck || "1970-01-01T00:00:00Z";
+            var prev = jt.isoString2Time(cg.lastcheck);
+            var now = new Date();
+            var waitmin = 5;
+            if(now - prev > waitmin * 60 * 1000) {
+                return mgrs.gin.fetchGuideData(gidx); }
+            if(!cg.lastimport || cg.lastimport < cg.lastcheck) {
+                return mgrs.gin.importRatings(cg); } },
+        fetchGuideData: function (gidx) {
+            var cg = curracct.guides[gidx];
+            jt.byId("gratb").disabled = true;
+            jt.out("guidestatdiv", "Fetching ratings...");
+            var errf = function (code, errtxt) {
+                jt.byId("gratb").disabled = false;
+                jt.out("guidestatdiv", "Fetch err " + code + ": " + errtxt); };
+            var data = jt.objdata({email:curracct.email, at:curracct.token,
+                                   gid:cg.dsId});
+            jt.call("GET", "/guidedat?" + data, null,
+                    function (data) {
+                        var fstats = data[0];  //dsId, lastrating, lastcheck
+                        cg.lastrating = fstats.lastrating;
+                        cg.lastcheck = fstats.lastcheck;  //==lastrating if more
+                        mgrs.gin.refreshGuideDisplay(cg);
+                        mgrs.loc.updateAccount(
+                            function () {
+                                mgrs.gin.getGuideRatings(gidx); },
+                            errf); },
+                    errf,
+                    jt.semaphore("hub.gin.fetchGuideData")); },
+        importRatings: function (cg) {
+            jt.byId("gratb").disabled = true;
+            jt.out("guidestatdiv", "Importing ratings...");
+            jt.call("GET", "/ratimp?gid=" + cg.dsId, null,
+                    function (data) {
+                        var fstats = data[0];  //dsId, lastimport, filled
+                        cg.lastimport = fstats.lastimport;
+                        cg.filled = fstats.filled;
+                        mgrs.gin.refreshGuideDisplay(cg);
+                        app.db.managerDispatch("lib", "rebuildSongData",
+                                               data[1]);
+                        mgrs.loc.updateAccount(); },
+                    function (code, errtxt) {
+                        jt.byId("gratb").disabled = false;
+                        jt.out("guidestatdiv", "Import err " + code + ": " +
+                               errtxt); },
+                    jt.semaphore("hub.gin.importRatings")); }
+    };  //end mgrs.gin returned functions
     }());
 
 

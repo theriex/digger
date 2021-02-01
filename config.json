@@ -1,8 +1,9 @@
 {
   "port": 6980,
   "musicPath": "~/Music",
-  "dbPath": "digdat.json",
-  "exPath": "diggerexport",
+  "dbPath": "~/digdat.json",
+  "exPath": "~/diggerexport",
+  "cachePath": "~/diggercache",
   "spawn": {
     "comment": "Optional platform command to run after server starts",
     "darwin": {

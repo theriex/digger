@@ -356,16 +356,18 @@ app.db = (function () {
             setTimeout(mgrs.lib.monitorReadTotal, 800);  //monitor after GET
             jt.call("GET", "/dbread", null,
                     function (databaseobj) {
-                        dbo = databaseobj;
-                        mgrs.kwd.rebuildKeywords();
-                        jt.out("countspan", String(dbo.songcount) + " songs");
-                        jt.out("dbstatdiv", "");
-                        dbstat.currstat = "ready";
-                        mgrs.dk.updateDeck(); },
+                        mgrs.lib.rebuildSongData(databaseobj); },
                     function (code, errtxt) {
                         if(code !== 409) {  //read already in progress, ignore
                             errstat("db.readSongFiles", code, errtxt); } },
                     jt.semaphore("db.readSongFiles")); },
+        rebuildSongData: function (databaseobj) {
+            dbo = databaseobj;
+            mgrs.kwd.rebuildKeywords();
+            jt.out("countspan", String(dbo.songcount) + " songs");
+            jt.out("dbstatdiv", "");
+            dbstat.currstat = "ready";
+            mgrs.dk.updateDeck(); },
         timeEstimateReadText: function () {
             var et = "";
             if(dbo.scanstart && dbo.scanned) {

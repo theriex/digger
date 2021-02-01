@@ -107,22 +107,18 @@ module.exports = (function () {
             if(fp.startsWith("~")) {
                 conf[cp] = path.join(
                     os.homedir(),
-                    ...fp.split(path.sep).slice(1)); } });
+                    ...fp.split(path.sep).slice(1)); }
+            console.log(cp + ": " + conf[cp]); });
         require("./hub").verifyDefaultAccount(conf);
     }
 
 
     function getConfigFileName () {
-        //console.log("appdir: " + appdir);
-        var cfns = [ //config file names in priority order
-            path.join(appdir, "configDev.json"),  //local dev override
-            path.join(os.homedir(), ".digger_config.json"),
-            path.join(appdir, "config.json")];
-        // cfns.forEach(function (n, idx) {
-        //     console.log("    " + idx + " " + n); });
-        var cfp = cfns.find((n) => jslf(fs, "existsSync", n));
-        if(!cfp) {
-            throw "getConfigFileName: No config file found."; }
+        var acf = path.join(appdir, "config.json");
+        var cfp = path.join(os.homedir(), ".digger_config.json");
+        if(!jslf(fs, "existsSync", cfp)) {
+            console.log("Created " + cfp);
+            jslf(fs, "copyFileSync", acf, cfp); }
         return cfp;
     }
 
@@ -135,8 +131,8 @@ module.exports = (function () {
                 throw err; }
             conf = JSON.parse(data);
             cleanLoadedConfig();
-            console.log("readConfigurationFile conf: " +
-                        JSON.stringify(conf, null, 2));
+            // console.log("readConfigurationFile conf: " +
+            //             JSON.stringify(conf, null, 2));
             if(contf) {
                 contf(conf); } });
     }
@@ -577,6 +573,11 @@ module.exports = (function () {
         writeConfigurationFile: function () { writeConfigurationFile(); },
         dbo: function () { return dbo; },
         writeDatabaseObject: function () { writeDatabaseObject(); },
+        fileExists: function (path) { return jslf(fs, "existsSync", path); },
+        readFile: function (path) { return jslf(fs, "readFileSync", path); },
+        writeFile: function (path, txt) {
+            return jslf(fs, "writeFileSync", path, txt, "utf8"); },
+        diggerVersion: function () { return diggerVersion(); },
         //server endpoints
         config: function (req, res) { return serveConfig(req, res); },
         startdata: function (req, res) { return startupData(req, res); },

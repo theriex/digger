@@ -5,6 +5,7 @@ module.exports = (function () {
 
     var db = require("./db");
     var formidable = require("formidable");
+    var path = require("path");
     const fetch = require("node-fetch");
     var hs = "https://diggerhub.com";
     //var hs = "http://localhost:8080";
@@ -63,7 +64,7 @@ module.exports = (function () {
 
 
     function deserializeAccountFields (acct) {
-        var sfs = ["kwdefs", "igfolds", "settings"];
+        var sfs = ["kwdefs", "igfolds", "settings", "guides"];
         sfs.forEach(function (sf) {
             //console.log("parsing " + sf + ": " + acct[sf]);
             acct[sf] = JSON.parse(acct[sf]); });
@@ -81,16 +82,20 @@ module.exports = (function () {
     }
 
 
-    function processReceivedSyncData (updates) {
-        updates = JSON.parse(updates);
-        var updacc = updates[0];
-        deserializeAccountFields(updacc);
-        //always write the updated account to reflect the modified timestamp
+    function writeUpdatedAccount (updacc) {
         var accts = db.conf().acctsinfo.accts;
         var aidx = accts.findIndex((a) => a.dsId === updacc.dsId);
         updacc.token = accts[aidx].token;
         accts[aidx] = updacc;
         db.writeConfigurationFile();
+    }
+
+
+    function processReceivedSyncData (updates) {
+        updates = JSON.parse(updates);
+        var updacc = updates[0];
+        deserializeAccountFields(updacc);
+        writeUpdatedAccount(updacc);  //reflect modified timestamp
         //write any returned updated songs
         var updsongs = updates.slice(1);  //zero or more newer songs
         if(updsongs.length) {
@@ -102,12 +107,142 @@ module.exports = (function () {
     }
 
 
+    function noteUpdatedAccount (accts) {
+        accts = JSON.parse(accts);
+        deserializeAccountFields(accts[0]);
+        writeUpdatedAccount(accts[0]);
+    }
+
+
+    function getLocalGuideData (gid) {
+        var gdf = path.join(db.conf().cachePath, "guide_" + gid + ".json");
+        if(db.fileExists(gdf)) {
+            return JSON.parse(db.readFile(gdf)); }
+        return {version:db.diggerVersion(),
+                lastrating:"",   //most recent song rating by guide
+                lastcheck:"",    //last GET time, === lastrating if more
+                lastimport:"",   //when latest import was done
+                filled:0,        //how many ratings were filled from this guide
+                songcount:0,     //total songs from this guide
+                songs:{}};       //canonicalsongname:songdata
+    }
+
+
+    function songLookupKey (s) {
+        var key = s.ti + s.ar + s.ab;
+        return key.toLowerCase();
+    }
+
+
+    function isUnratedSong (s) {
+        return (!s.kws && s.el === 49 && s.al === 49);
+    }
+
+
+    function mergeWriteGuideData(sdat, hubret, gid) {
+        var songs = JSON.parse(hubret);
+
+        var rp = path.join(db.conf().cachePath, "guide_" + gid + "raw.json");
+        db.writeFile(rp, JSON.stringify(songs, null, 2));
+
+        var mergelog = "";
+
+        console.log("mergeWriteGuideData merging " + songs.length + " songs.");
+        songs.forEach(function (s) {
+            var key = songLookupKey(s);
+            if(!sdat.songs[key]) {
+                mergelog += "adding " + key + "\n";
+                sdat.songcount += 1; }
+            else {
+                mergelog += "merged " + key + "\n"; }
+            sdat.songs[key] = s;
+            if(s.modified > sdat.lastrating) {
+                sdat.lastrating = s.modified; } });
+
+        var mp = path.join(db.conf().cachePath, "guide_" + gid + "merge.txt");
+        db.writeFile(mp, mergelog);
+        
+        if(songs.length < 1000) {  //got all the songs from this guide
+            sdat.lastcheck = new Date().toISOString(); }
+        else {  //need to fetch more
+            sdat.lastcheck = sdat.lastrating; }
+        var gdf = path.join(db.conf().cachePath, "guide_" + gid + ".json");
+        db.writeFile(gdf, JSON.stringify(sdat, null, 2));
+        return sdat;
+    }
+
+
     function resError (res, code, msg) {
         console.log("hub resError " + code + ": " + msg);
         res.writeHead(code, {"Content-Type": "text/plain"});
         res.end(msg);
     }
 
+
+    function hubpost (req, res, apiname, procf) {
+        var fif = new formidable.IncomingForm();
+        fif.parse(req, function (err, fields) {
+            if(err) {
+                return resError(res, 400, apiname + " form error: " + err); }
+            var ctx = {reqflds: fields,
+                       url:hs + "/api/" + apiname,
+                       rqs:{method:"POST",
+                            headers:{"Content-Type":
+                                     "application/x-www-form-urlencoded"},
+                            body:bodify(fields)}};
+            console.log(apiname + " -> " + ctx.url);
+            fetch(ctx.url, ctx.rqs)
+                .then(function (hubr) {
+                    ctx.code = hubr.status;
+                    return hubr.text(); })
+                .then(function (btxt) {
+                    if(ctx.code !== 200) {
+                        return resError(res, ctx.code, btxt); }
+                    ctx.restext = btxt;
+                    if(procf) {  //local server side effects like writing data
+                        procf(btxt, ctx.reqflds); }
+                    res.writeHead(200, {"Content-Type": "application/json"});
+                    res.end(btxt); })
+                .catch(function (err) {
+                    if(ctx.restext) {
+                        console.log("ctx.restext: " + ctx.restext); }
+                    if(ctx.code === 200) {
+                        ctx.code = 400; }
+                    resError(res, (ctx.code || 400), 
+                             "call to " + ctx.url + " failed: " + err); }); });
+    }
+
+
+    function hubget (apiname, params, res, procf) {
+        var data = Object.entries(params)
+            .map(function ([a, v]) { return a + "=" + encodeURIComponent(v); })
+            .join("&");
+        var ctx = {rps:params, url:hs + "/api/" + apiname + "?" + data};
+        console.log(apiname + " -> " + ctx.url);
+        fetch(ctx.url)
+            .then(function (hubr) {
+                ctx.code = hubr.status;
+                return hubr.text(); })
+            .then(function (btxt) {
+                if(ctx.code !== 200) {
+                    return resError(res, ctx.code, btxt); }
+                ctx.restext = btxt;
+                if(procf) {  //local server side effects like writing data
+                    ctx.restext = procf(ctx.restext) || ctx.restext; }
+                res.writeHead(200, {"Content-Type": "application/json"});
+                res.end(ctx.restext); })
+            .catch(function (err) {
+                if(ctx.restext) {
+                    console.log("ctx.restext: " + ctx.restext); }
+                if(ctx.code === 200) {
+                    ctx.code = 400; }
+                resError(res, (ctx.code || 400), 
+                         "call to get " + apiname + " failed: " + err); });
+    }
+
+
+    //////////////////////////////////////////////////
+    //API endpoint functions:
 
     function accountsInfo (req, res) {
         var fif = new formidable.IncomingForm();
@@ -124,58 +259,50 @@ module.exports = (function () {
     }
 
 
-    function hubfwd (endpoint, req, res) {
-        var fif = new formidable.IncomingForm();
-        fif.parse(req, function (err, fields) {
-            if(err) {
-                return resError(res, 400, "hubfwd form error: " + err); }
-            var ctx = {url:hs + "/api/" + endpoint,
-                       rqs:{method:"POST",
-                            headers:{"Content-Type":
-                                     "application/x-www-form-urlencoded"},
-                            body:bodify(fields)}};
-            console.log("hubfwd -> " + ctx.url);
-            fetch(ctx.url, ctx.rqs)
-                .then(function (hubr) {
-                    ctx.code = hubr.status;
-                    return hubr.text(); })
-                .then(function (btxt) {
-                    if(ctx.code !== 200) {
-                        return resError(res, ctx.code, btxt); }
-                    res.writeHead(200, {"Content-Type": "application/json"});
-                    res.end(btxt); })
-                .catch(function (err) {
-                    resError(res, 400, "call to " + ctx.url + " failed: "
-                             + err); }); });
+    function hubsync (req, res) {
+        return hubpost(req, res, "hubsync", function (hubret, reqflds) {
+            noteSentSongsModified(reqflds.syncdata);
+            processReceivedSyncData(hubret); });
     }
 
 
-    function hubsync (req, res) {
-        var fif = new formidable.IncomingForm();
-        fif.parse(req, function (err, fields) {
-            if(err) {
-                return resError(res, 400, "hubsync form error: " + err); }
-            var ctx = {syncdata:fields.syncdata,
-                       url:hs + "/api/hubsync",
-                       rqs:{method:"POST",
-                            headers:{"Content-Type":
-                                     "application/x-www-form-urlencoded"},
-                            body:bodify(fields)}};
-            console.log("hubsync -> " + ctx.url);
-            fetch(ctx.url, ctx.rqs)
-                .then(function (hubr) {
-                    ctx.code = hubr.status;
-                    return hubr.text(); })
-                .then(function (btxt) {
-                    if(ctx.code !== 200) {
-                        return resError(res, ctx.code, btxt); }
-                    noteSentSongsModified(ctx.syncdata);
-                    processReceivedSyncData(btxt);
-                    res.writeHead(200, {"Content-Type": "application/json"});
-                    res.end(btxt); })
-                .catch(function (err) {
-                    resError(res, 400, "call to " + ctx.url + " failed: "
-                             + err); }); });
+    function addguide (req, res) {
+        return hubpost(req, res, "addguide", function (hubret) {
+            noteUpdatedAccount(hubret); });
+    }
+
+
+    function guidedat (pu, ignore /*req*/, res) {
+        if(!pu.query.gid) {
+            return resError(res, 400, "gid parameter required."); }
+        var gdat = getLocalGuideData(pu.query.gid);
+        var params = {email:pu.query.email, at:pu.query.at, gid:pu.query.gid,
+                      since:gdat.lastcheck};
+        return hubget("guidedat", params, res, function (hubret) {
+            gdat = mergeWriteGuideData(gdat, hubret, pu.query.gid);
+            return JSON.stringify({lastrating:gdat.lastrating,
+                                   lastcheck:gdat.lastcheck}); });
+    }
+
+
+    function ratimp (pu, ignore /*req*/, res) {
+        if(!pu.query.gid) {
+            return resError(res, 400, "gid parameter required."); }
+        var gdat = getLocalGuideData(pu.query.gid);
+        var dbo = db.dbo();
+        dbo.songs.forEach(function (s) {
+            if(isUnratedSong(s)) {
+                var key = songLookupKey(s);
+                if(gdat[key] && isUnratedSong(gdat[key])) {
+                    gdat.filled += 1;
+                    gdat.lastimport = new Date().toISOString();
+                    var copyfields = ["el", "al", "kws", "rv"];
+                    copyfields.forEach(function (cf) {
+                        s[cf] = gdat[key][cf]; }); } } });
+        db.writeDatabaseObject();
+        return JSON.stringify([{lastimport:gdat.lastimport,
+                                filled:gdat.filled},
+                              dbo]);
     }
 
 
@@ -185,9 +312,12 @@ module.exports = (function () {
         isIgnoreDir: function (ws, dn) { return isIgnoreDir(ws, dn); },
         //server endpoints
         acctsinfo: function (req, res) { return accountsInfo(req, res); },
-        newacct: function (req, res) { return hubfwd("newacct", req, res); },
-        acctok: function (req, res) { return hubfwd("acctok", req, res); },
-        updacc: function (req, res) { return hubfwd("updacc", req, res); },
-        hubsync: function (req, res) { return hubsync(req, res); }
+        newacct: function (req, res) { return hubpost(req, res, "newacct"); },
+        acctok: function (req, res) { return hubpost(req, res, "acctok"); },
+        updacc: function (req, res) { return hubpost(req, res, "updacc"); },
+        hubsync: function (req, res) { return hubsync(req, res); },
+        addguide: function (req, res) { return addguide(req, res); },
+        guidedat: function (pu, req, res) { return guidedat(pu, req, res); },
+        ratimp: function (pu, req, res) { return ratimp(pu, req, res); }
     };
 }());

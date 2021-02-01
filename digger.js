@@ -45,6 +45,7 @@ db.init(function (conf) {
             case "/acctok": hub.acctok(req, rsp); break;
             case "/updacc": hub.updacc(req, rsp); break;
             case "/hubsync": hub.hubsync(req, rsp); break;
+            case "/addguide": hub.addguide(req, rsp); break;
             default: //handle after request is fully stabilized
                 req.addListener("end", function () {
                     //GET requests:
@@ -56,6 +57,8 @@ db.init(function (conf) {
                         case "/dbread": db.dbread(req, rsp); break;
                         case "/songscount": db.songscount(req, rsp); break;
                         case "/mergestat": db.mergestat(req, rsp); break;
+                        case "/guidedat": hub.guidedat(pu, req, rsp); break;
+                        case "/ratimp": hub.ratimp(pu, req, rsp); break;
                         case "/audio": db.audio(pu, req, rsp); break;
                         default:
                             fileserver.serve(req, rsp); }
@@ -68,8 +71,10 @@ db.init(function (conf) {
 
     var sd = conf.spawn && conf.spawn[require("os").platform()];
     if(sd) {
+        console.log(sd.command + " " + sd.args.join(" "));
         setTimeout(function () {
             const { spawn } = require("child_process");
-            console.log("spawn: " + JSON.stringify(sd, null, 2));
             spawn(sd.command, sd.args, sd.options); }, 800); }
+    else {
+        console.log("Digger available at http://localhost:" + conf.port); }
 });
