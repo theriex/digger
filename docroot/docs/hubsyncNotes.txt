@@ -1,0 +1,55 @@
+Hub songs are organized by user/title/artist/album.  Local songs are
+organized by file path.  It is possible to have more than one local song map
+to the same hub instance (multiple copies of equivalent songs locally).  It
+is also possible to have a local instance map to a different hub instance
+(more than one account using the same local data, or changed
+title/artist/album metadata).
+
+Within the context of a single hubsync call, "path" is preserved in the
+returned data so the local server can update it's local data from the
+returned result.  Outside of the context of a hubsync transaction, only the
+most recent path value is left in the hub data.
+
+When a song has been played or modified, its "lp" (last played) timestamp is
+updated locally via the /songupd endpoint.  There is no hub interaction
+during save.  On hubsync, the local server sends the current account and
+songs where lp > modified.
+
+Hub push: If the sent account information is out of date w/r/t the hub, then
+any song data sent with the hubsync call is discarded, and the hub sends
+back the more recently updated account along with songs that were modified
+in the interim.  The local server uses the returned information to bring
+itself up to date before retrying hubsync with any local songs that actually
+need to be sent.
+
+Hub receive: If the sent account information is up to date w/r/t the hub,
+then the sent song information is written to the hub database, and the
+account is updated so it's "modified" value will be greater than any of the
+sent songs.  This processing is what enables hub push.  The hub returns the
+updated account and song data.
+
+Local restore: On sign-in, the local server forces a hub push by setting the
+account "syncsince" flag field to when the account was first created.
+Essentially the local server indicates it is completely out of date.  The
+hub push returns the maximum number of songs it can send in one pass,
+ordered by "modified".  If there are more songs to be pushed, the hub sets
+the "syncsince" flag field in the returned account to the "modified" of the
+most recently returned song.  The local server then repeats the pull call
+until all local data is up to date with the server.  This allows the hub to
+serve as a backup.
+
+Once the local server is up to date with the account data, it continues to
+find and send songs where lp > modified.  Because stale data has already
+been taken care of, the hub writes the given songs to the db and returns the
+hub versions of the songs at the time they were written.  On return of the
+song data, the local server can look up each returned song by path and write
+the updated data.  The local server writes "modified" (for sync) and "dsId"
+(for informational purposes).  Other fields like dsType, created, aid etc
+are discarded to keep the digdat.json uncluttered.
+
+The hub data "modified" value reflects when a song instance was last written
+to the database.  It has a revision number after the ISO timestamp.  The
+local "lp" value does not have a revision number, and may have additional
+precision.  It is ok to compare the two strings as both are UTC times and
+accurate enough for sync purposes.
+

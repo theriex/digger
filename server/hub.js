@@ -67,18 +67,8 @@ module.exports = (function () {
         var sfs = ["kwdefs", "igfolds", "settings", "guides"];
         sfs.forEach(function (sf) {
             //console.log("parsing " + sf + ": " + acct[sf]);
-            acct[sf] = JSON.parse(acct[sf]); });
-    }
-
-
-    function noteSentSongsModified (syncdata) {
-        syncdata = JSON.parse(syncdata);
-        var updsongs = syncdata.slice(1);
-        var now = new Date().toISOString();
-        var dbo = db.dbo();
-        updsongs.forEach(function (s) {
-            dbo.songs[s.path].modified = now; });
-        db.writeDatabaseObject();
+            if(acct[sf]) {  //"" won't parse
+                acct[sf] = JSON.parse(acct[sf]); } });
     }
 
 
@@ -88,6 +78,26 @@ module.exports = (function () {
         updacc.token = accts[aidx].token;
         accts[aidx] = updacc;
         db.writeConfigurationFile();
+    }
+
+
+    function updateLocalSong (dbo, s) {
+        var ls = dbo.songs[s.path];
+        if(!ls) {  //song was last updated from some other setup
+            ls = Object.values(dbo.songs).find((x) =>
+                x.ti === s.ti && x.ar === s.ar && x.ab === s.ab); }
+        if(!ls) {  //new song from some other setup
+            ls = {path:s.path,  //Need a path, even if no file there.
+                  fq:"DN",      //Deleted file, Newly added
+                  ti:s.ti, ar:s.ar, ab:s.ab,
+                  lp:s.lp};     //Played on other setup, but good to have value
+            dbo[s.path] = ls; }
+        var flds = ["modified", "dsId", "rv", "al", "el", "kws", "nt"];
+        if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
+            flds.push("fq"); }
+        flds.forEach(function (fld) { ls[fld] = s[fld]; });
+        console.log("writing updated song " + s.path);
+        return ls;
     }
 
 
@@ -101,8 +111,7 @@ module.exports = (function () {
         if(updsongs.length) {
             var dbo = db.dbo();
             updsongs.forEach(function (s) {
-                console.log("writing updated song " + s.path);
-                dbo.songs[s.path] = s; });
+                updateLocalSong(dbo, s); });
             db.writeDatabaseObject(); }
     }
 
@@ -260,8 +269,8 @@ module.exports = (function () {
 
 
     function hubsync (req, res) {
-        return hubpost(req, res, "hubsync", function (hubret, reqflds) {
-            noteSentSongsModified(reqflds.syncdata);
+        //see ../docroot/docs/hubsyncNotes.txt
+        return hubpost(req, res, "hubsync", function (hubret) {
             processReceivedSyncData(hubret); });
     }
 
@@ -290,7 +299,7 @@ module.exports = (function () {
             return resError(res, 400, "gid parameter required."); }
         var gdat = getLocalGuideData(pu.query.gid);
         var dbo = db.dbo();
-        dbo.songs.forEach(function (s) {
+        Object.values(dbo.songs).forEach(function (s) {
             if(isUnratedSong(s)) {
                 var key = songLookupKey(s);
                 if(gdat[key] && isUnratedSong(gdat[key])) {

@@ -44,15 +44,21 @@ app.hub = (function () {
             var da = hai.accts.find((a) => a.dsId === "101");
             ajfs.forEach(function (df) {
                 acct[df] = acct[df] || da[df] || ""; }); },
+        accountDisplayDiff: function (a, b) {
+            var changed = ajfs.find((x) =>
+                JSON.stringify(a[x]) !== JSON.stringify(b[x]));
+            return changed || false; },
         noteReturnedCurrentAccount: function (acct, token) {
             mgrs.hcu.deserializeAccount(acct);
             mgrs.hcu.verifyDefaultAccountFields(acct);
             acct.token = token;  //not included in returned data
+            var changed = mgrs.hcu.accountDisplayDiff(curracct, acct);
             curracct = acct;
             hai.currid = acct.dsId;
             hai.accts = [acct,
                          ...hai.accts.filter((a) => a.dsId !== acct.dsId)];
-            app.db.config().acctsinfo = hai; },
+            app.db.config().acctsinfo = hai;
+            return changed; },
         noteUpdatedAccountsInfo: function (acctsinfo) {
             curracct = null;  //clear any stale ref
             hai = acctsinfo;
@@ -111,6 +117,7 @@ app.hub = (function () {
             tmo = setTimeout(function () {
                 tmo = null;
                 var data = mgrs.loc.makeSendSyncData();
+                //see ../../docs/hubsyncNotes.txt
                 jt.call("POST", "/hubsync", data,
                         function (updates) {
                             mgrs.loc.processReceivedSyncData(updates);
@@ -122,10 +129,10 @@ app.hub = (function () {
                                 20 * 1000); },
         makeSendSyncData: function () {
             //send the current account + any songs that need sync.  If just
-            //signed in, then don't send the app initial song or any other
-            //songs until after initial download sync.
+            //signed in, then don't send the current song or anything else
+            //until after the initial download sync.
             upldsongs = [];
-            if(!curracct.syncsince) {  //not initial sync
+            if(!curracct.syncsince) {  //not initial account creation
                 upldsongs = Object.values(app.db.data().songs)
                     .filter((s) => s.lp > (s.modified || ""));
                 upldsongs = upldsongs.slice(0, 199); }
@@ -138,11 +145,10 @@ app.hub = (function () {
             //received account + any songs that need to be saved locally.
             //Similar logic on server has already written the data to disk,
             //so just need to reflect in current runtime.
-            mgrs.hcu.noteReturnedCurrentAccount(updates[0], curracct.token);
-            if(curracct.syncstat === "Changed") {
+            var changed = mgrs.hcu.noteReturnedCurrentAccount(updates[0], 
+                                                              curracct.token);
+            if(changed) { //need to rebuild display with updated info
                 mgrs.loc.notifyAccountChanged(); }
-            //rest is zero or more songs where the information on the hub
-            //was more recent than what is available locally.
             var songs = updates.slice(1);
             songs.forEach(function (s) { app.db.noteUpdatedSongData(s); }); },
         noteSongsUploaded: function () {
@@ -438,8 +444,10 @@ app.hub = (function () {
             mgrs.gin.refreshGuideDisplay(cg);
             mgrs.gin.getGuideRatings(gidx); },  //initial data or refresh
         refreshGuideDisplay: function (cg) {
-            jt.out("cglastcheckdiv", "last checked: " +
-                   (cg.lastcheck || "never"));
+            var dispchecked = "never";
+            if(cg.lastcheck) {
+                dispchecked = jt.tz2human(cg.lastcheck); }
+            jt.out("cglastcheckdiv", "last checked: " + dispchecked);
             jt.out("cgfilleddiv", (cg.filled || 0) + " ratings contributed.");
             jt.byId("gratb").disabled = false;
             jt.out("guidestatdiv", ""); },
@@ -475,10 +483,9 @@ app.hub = (function () {
             var data = jt.objdata({email:curracct.email, at:curracct.token,
                                    gid:cg.dsId});
             jt.call("GET", "/guidedat?" + data, null,
-                    function (data) {
-                        var fstats = data[0];  //dsId, lastrating, lastcheck
-                        cg.lastrating = fstats.lastrating;
-                        cg.lastcheck = fstats.lastcheck;  //==lastrating if more
+                    function (stat) {
+                        cg.lastrating = stat.lastrating;
+                        cg.lastcheck = stat.lastcheck;  //==lastrating if more
                         mgrs.gin.refreshGuideDisplay(cg);
                         mgrs.loc.updateAccount(
                             function () {
