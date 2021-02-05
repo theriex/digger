@@ -268,6 +268,14 @@ module.exports = (function () {
     }
 
 
+    function mailpwr (pu, ignore /*req*/, res) {
+        if(!pu.query.email) {
+            return resError(res, 400, "Wrong password email required."); }
+        var params = {email:pu.query.email};
+        return hubget("mailpwr", params, res);
+    }
+
+
     function hubsync (req, res) {
         //see ../docroot/docs/hubsyncNotes.txt
         return hubpost(req, res, "hubsync", function (hubret) {
@@ -324,6 +332,7 @@ module.exports = (function () {
         newacct: function (req, res) { return hubpost(req, res, "newacct"); },
         acctok: function (req, res) { return hubpost(req, res, "acctok"); },
         updacc: function (req, res) { return hubpost(req, res, "updacc"); },
+        mailpwr: function (pu, req, res) { return mailpwr(pu, req, res); },
         hubsync: function (req, res) { return hubsync(req, res); },
         addguide: function (req, res) { return addguide(req, res); },
         guidedat: function (pu, req, res) { return guidedat(pu, req, res); },

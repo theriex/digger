@@ -45,6 +45,7 @@ app.hub = (function () {
             ajfs.forEach(function (df) {
                 acct[df] = acct[df] || da[df] || ""; }); },
         accountDisplayDiff: function (a, b) {
+            if(!a || !b) { return false; }  //nothing to compare
             var changed = ajfs.find((x) =>
                 JSON.stringify(a[x]) !== JSON.stringify(b[x]));
             return changed || false; },
@@ -120,8 +121,7 @@ app.hub = (function () {
                 //see ../../docs/hubsyncNotes.txt
                 jt.call("POST", "/hubsync", data,
                         function (updates) {
-                            mgrs.loc.processReceivedSyncData(updates);
-                            mgrs.loc.noteSongsUploaded(); },
+                            mgrs.loc.processReceivedSyncData(updates); },
                         function (code, errtxt) {  //probably just offline
                             upldsongs = null;
                             jt.log("syncToHub " + code + ": " + errtxt); },
@@ -145,17 +145,14 @@ app.hub = (function () {
             //received account + any songs that need to be saved locally.
             //Similar logic on server has already written the data to disk,
             //so just need to reflect in current runtime.
-            var changed = mgrs.hcu.noteReturnedCurrentAccount(updates[0], 
+            var changed = mgrs.hcu.noteReturnedCurrentAccount(updates[0],
                                                               curracct.token);
             if(changed) { //need to rebuild display with updated info
                 mgrs.loc.notifyAccountChanged(); }
             var songs = updates.slice(1);
-            songs.forEach(function (s) { app.db.noteUpdatedSongData(s); }); },
-        noteSongsUploaded: function () {
-            var ts = new Date().toISOString();
-            upldsongs.forEach(function (s) {
-                s.modified = ts; });
-            upldsongs = null; }
+            songs.forEach(function (s) { app.db.noteUpdatedSongData(s); });
+            if(curracct.syncsince && curracct.syncsince < curracct.modified) {
+                mgrs.loc.syncToHub(); } }
     };  //end mgrs.loc returned functions
     }());
 
@@ -210,14 +207,36 @@ app.hub = (function () {
                     mgrs.dlg.displayAccountInfo(); },
                 function (code, errtxt) {
                     jt.out("dbstatdiv", code + ": " + errtxt); }); },
+        changePwdForm: function () {
+            jt.out("dbdlgdiv", jt.tac2html(
+                ["div", {id:"siojfdiv"},
+                 [["table",
+                   ["tr",
+                    [["td", {cla:"formattr"}, "new password"],
+                     ["td", ["input", {type:"password", id:"pwdin"}]]]]],
+                  ["div", {id:"chgpwdstatdiv"}],
+                  ["div", {id:"chgpwdbuttonsdiv", cla:"dlgbuttonsdiv"},
+                   ["button", {type:"button", id:"chgpwdb",
+                               onclick:mdfs("dlg.changePassword")},
+                    "Change Password"]]]])); },
         changePassword: function () {
-            jt.out("accupdstatdiv", "changePassword not implemented yet."); },
+            jt.byId("chgpwdb").disabled = true;
+            curracct.updemail = curracct.email;
+            curracct.updpassword = jt.byId("pwdin").value;
+            mgrs.dlg.updateHubAccount(
+                function () {
+                    delete curracct.updemail;
+                    delete curracct.updpassword;
+                    mgrs.dlg.accountSettings(); },
+                function (code, errtxt) {
+                    jt.byId("chgpwdb").disabled = false;
+                    jt.out("chgpwdstatdiv", code + ": " + errtxt); }); },
         signOut: function () {
             mgrs.dlg.removeAccount(curracct.dsId); },
         acctTopActionsHTML: function () {
             var tas = [
                 {h:"#switch", oc:"dlg.chooseAccount", t:"switch accounts"},
-                {h:"#chgpwd", oc:"dlg.changePassword", t:"change password"},
+                {h:"#chgpwd", oc:"dlg.changePwdForm", t:"change password"},
                 {h:"#signout", oc:"dlg.signOut", t:"sign out"}];
             return jt.tac2html(
                 ["div", {id:"hubaccttopdiv"},
@@ -310,6 +329,7 @@ app.hub = (function () {
                        ["label", {fo:"siotcb", cla:"cblab"},
                         "Create new hub account"]]]]]],
                   ["div", {id:"siojstatdiv"}],
+                  ["div", {id:"siojerrhelpdiv"}],
                   ["div", {id:"siojbuttonsdiv", cla:"dlgbuttonsdiv"}]]]));
             mgrs.dlg.togsioj(); },
         togsioj: function () {
@@ -318,31 +338,53 @@ app.hub = (function () {
             if(signinb || (!signinb && !newacctb)) {
                 jt.byId("firstnamerow").style.display = "table-row";
                 jt.out("siojbuttonsdiv", jt.tac2html(
-                    ["button", {type:"button", id:"siojb",
+                    ["button", {type:"button", id:"newacctb",
                                 onclick:mdfs("dlg.signInOrJoin", "newacct")},
                      "Create Account"])); }
             else {
                 jt.byId("firstnamerow").style.display = "none";
                 jt.out("siojbuttonsdiv", jt.tac2html(
-                    ["button", {type:"button", id:"siojb",
+                    ["button", {type:"button", id:"signinb",
                                 onclick:mdfs("dlg.signInOrJoin", "acctok")},
                      "Sign In"])); } },
+        siojbDisable: function (disabled) {
+            var bids = ["newacctb", "signinb"];
+            bids.forEach(function (bid) {
+                if(jt.byId(bid)) {
+                    jt.byId(bid).disabled = disabled; } }); },
+        siojErrHelp: function (errtxt) {
+            if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
+                jt.out("siojerrhelpdiv", jt.tac2html(
+                    ["a", {href:"#pwdreset", title:"Send password reset email",
+                           onclick:mdfs("dlg.emailPwdReset")},
+                     "Send password reset"])); } },
+        emailPwdReset: function () {
+            jt.out("siojerrhelpdiv", "");
+            var data = jt.objdata({email:jt.byId("emailin").value});
+            jt.call("GET", "/mailpwr?" + data, null,
+                    function () {
+                        jt.out("siojstatdiv", "Reset password link sent."); },
+                    function (code, errtxt) {
+                        jt.out("siojstatdiv", "Reset failed " + code + ": " +
+                               errtxt); },
+                    jt.semaphore("hub.dlg.emailPwdReset")); },
         signInOrJoin: function (endpoint) {
             curracct = null;
             if(!jt.byId("siojfdiv")) {  //form not displayed yet
                 return mgrs.dlg.showSignInJoinForm(); }
-            jt.byId("siojb").disabled = true;
+            mgrs.dlg.siojbDisable(true);
             var data = jt.objdata(
                 {email:jt.byId("emailin").value,
                  password:jt.byId("pwdin").value,
                  firstname:jt.byId("firstnamein").value});
             var errf = function (code, errtxt) {
-                jt.byId("siojb").disabled = false;
-                jt.out("siojstatdiv", code + ": " + errtxt); };
+                mgrs.dlg.siojbDisable(false);
+                jt.out("siojstatdiv", code + ": " + errtxt);
+                mgrs.dlg.siojErrHelp(errtxt); };
             jt.call("POST", "/" + endpoint, data,  // /newacct or /acctok
                     function (accntok) {
                         accntok[0].syncsince = accntok[0].created + ";1";
-                        mgrs.hcu.writeUpdAcctToAccounts(accntok,
+                        mgrs.dlg.writeUpdAcctToAccounts(accntok,
                             function () {
                                 mgrs.loc.syncToHub();
                                 mgrs.dlg.accountSettings(); },

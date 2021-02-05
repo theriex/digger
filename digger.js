@@ -57,6 +57,7 @@ db.init(function (conf) {
                         case "/dbread": db.dbread(req, rsp); break;
                         case "/songscount": db.songscount(req, rsp); break;
                         case "/mergestat": db.mergestat(req, rsp); break;
+                        case "/mailpwr": hub.mailpwr(pu, req, rsp); break;
                         case "/guidedat": hub.guidedat(pu, req, rsp); break;
                         case "/ratimp": hub.ratimp(pu, req, rsp); break;
                         case "/audio": db.audio(pu, req, rsp); break;
