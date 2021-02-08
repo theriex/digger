@@ -110,8 +110,15 @@ app.hub = (function () {
                         if(errf) {
                             errf(code, errtxt); } },
                     jt.semaphore("hub.loc.updateAccount")); },
+        handleSyncError: function (code, errtxt) {
+            if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
+                //Credentials are no longer valid, so this is old account info
+                //and should not be attempting to sync.  To fix, the user will
+                //need to sign in again.  Sign them out to start the process.
+                mgrs.dlg.signOut(); }
+            jt.log("syncToHub " + code + ": " + errtxt); },
         syncToHub: function () {
-            if(curracct.dsId === "101" || !curracct.token) {
+            if(!curracct || curracct.dsId === "101" || !curracct.token) {
                 return; }  //invalid account or not set up yet
             if(tmo) {  //reset the sync timer if currently waiting
                 clearTimeout(tmo); }
@@ -122,9 +129,9 @@ app.hub = (function () {
                 jt.call("POST", "/hubsync", data,
                         function (updates) {
                             mgrs.loc.processReceivedSyncData(updates); },
-                        function (code, errtxt) {  //probably just offline
+                        function (code, errtxt) {
                             upldsongs = null;
-                            jt.log("syncToHub " + code + ": " + errtxt); },
+                            mgrs.loc.handleSyncError(code, errtxt); },
                         jt.semaphore("loc.syncToHub")); },
                                 20 * 1000); },
         makeSendSyncData: function () {
@@ -203,8 +210,9 @@ app.hub = (function () {
             mgrs.loc.updateAccount(
                 function (acctsinfo) {
                     jt.out("dbstatdiv", "");
-                    mgrs.hcu.noteUpdatedAccountsInfo(acctsinfo);
-                    mgrs.dlg.displayAccountInfo(); },
+                    mgrs.hcu.noteUpdatedAccountsInfo(acctsinfo); },
+                    //Don't automatically displayAccountInfo, let them toggle
+                    //the dialog open if they want.
                 function (code, errtxt) {
                     jt.out("dbstatdiv", code + ": " + errtxt); }); },
         changePwdForm: function () {
