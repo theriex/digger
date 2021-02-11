@@ -23,6 +23,60 @@ app.hub = (function () {
     var mgrs = {};
 
 
+    function makeFetchMergeProcessor (g) { return (function () {
+        var guide = g;
+        var logpre = "FMP " + guide.dsId + " ";
+        var state = "stopped";
+        var params = jt.objdata({email:curracct.email, at:curracct.token,
+                                 aid:curracct.dsId, gid:guide.dsId});
+        var pfs =
+    { //processing functions
+        procupd: function (msg) {
+            mgrs.gin.fmpStatus(guide, msg); },
+        noteUpdatedGuideInfo: function (updg) {
+            guide = updg;
+            pfs.procupd();  //reflect updated guide info in display
+            var gidx = curracct.guides.findIndex((g) => g.dsId === guide.dsId);
+            curracct[gidx] = guide; },
+        fetch: function () {
+            pfs.procupd("Fetching ratings...");
+            jt.call("GET", "/guidedat?" + params, null,
+                    function (updg) {  //updg has updated lastrating/lastcheck
+                        pfs.noteUpdatedGuideInfo(updg);
+                        pfs.merge(); },
+                    function (code, errtxt) {
+                        pfs.procupd("guidedat failed " + code + ": " + errtxt);
+                        state = "stopped"; },
+                    jt.semaphore("hub.fmp" + guide.dsId + ".fetch")); },
+        merge: function () {
+            pfs.procupd("Importing ratings...");
+            jt.call("GET", "/ratimp?" + params, null,
+                    function ([updg, dbo]) {
+                        pfs.noteUpdatedGuideInfo(updg);
+                        app.db.managerDispatch("lib", "rebuildSongData", dbo);
+                        if(guide.lastcheck > guide.lastrating) { //done fetching
+                            state = "stopped"; }
+                        else {
+                            pfs.fetch(); } },
+                    function (code, errtxt) {
+                        pfs.procupd("ratimp failed " + code + ": " + errtxt);
+                        state = "stopped"; },
+                    jt.semaphore("hub.fmp" + guide.dsId + ".merge")); }
+    };  //end processing functions
+    return {
+        stop: function () {
+            state = "stopped";
+            jt.log(logpre + "stopped."); },
+        start: function () {
+            if(state !== "running") {
+                state = "running";
+                jt.log(logpre + " started.");
+                pfs.fetch(); } }
+    };  //end makeFetchMergeProcessor returned functions
+    }()); }
+
+
+
     //General hub communication utilities
     mgrs.hcu = (function () {
         var ajfs = ["kwdefs", "igfolds", "settings", "guides"];
@@ -417,7 +471,9 @@ app.hub = (function () {
     //The guide input manager handles adding/removing guides and getting
     //input from them for songs that have not been rated yet.
     mgrs.gin = (function () {
-        var gdesc = "Add a fellow digger to kickstart unrated songs in your library";
+        var gdesc = "Add a fellow digger to help fill unrated songs in your library";
+        var cg = null;   //current guide being displayed
+        var gdmps = {};  //instantiated guide data merge processors
     return {
         accountFormDisplayValue: function () {
             var html = [];
@@ -447,14 +503,25 @@ app.hub = (function () {
                    ["button", {type:"button", id:"addguideb",
                                onclick:mdfs("gin.processGuideAdd")},
                     "Add Guide"]]]])); },
+        verifyGuideEmail: function (emaddr) {
+            var okgem = {email:emaddr, err:""};
+            if(!jt.isProbablyEmail(okgem.email)) {
+                okgem.err = "Digger email address required."; }
+            okgem.email = okgem.email.trim().toLowerCase();
+            if(okgem.email === curracct.email) {
+                okgem.err = "A guide is someone other than you."; }
+            else if(curracct.guides &&
+                    curracct.guides.find((g) => g.email === okgem.email)) {
+                okgem.err = okgem.email + " is already a guide."; }
+            return okgem; },
         processGuideAdd: function () {
             jt.out("amgstatdiv", "");
-            var gem = jt.byId("emailin").value;
-            if(!jt.isProbablyEmail(gem)) {
-                return jt.out("amgstatdiv", "Need Digger email address."); }
+            var okgem = mgrs.gin.verifyGuideEmail(jt.byId("emailin").value);
+            if(okgem.err) {
+                return jt.out("amgstatdiv", okgem.err); }
             jt.byId("addguideb").disabled = true;
             var data = jt.objdata({email:curracct.email, at:curracct.token,
-                                   gmaddr:gem});
+                                   gmaddr:okgem.email});
             jt.call("POST", "/addguide", data,
                     function (accts) {
                         mgrs.hcu.noteReturnedCurrentAccount(accts[0],
@@ -465,7 +532,7 @@ app.hub = (function () {
                         jt.out("amgstatdiv", code + ": " + errtxt); },
                     jt.semaphore("hub.gin.processGuideAdd")); },
         showGuide: function (gidx) {
-            var cg = curracct.guides[gidx];
+            cg = curracct.guides[gidx];
             jt.out("dbdlgdiv", jt.tac2html(
                 ["div", {id:"guidedlgdiv"},
                  [["div",
@@ -479,6 +546,7 @@ app.hub = (function () {
                         cg.firstname]],
                       " (",
                       ["a", {href:"mailto:" + cg.email}, cg.email], ")"]]]],
+                  ["div", {id:"cgsongcountdiv", cla:"cblab"}],
                   ["div", {id:"cglastcheckdiv", cla:"cblab"}],
                   ["div", {id:"cgfilleddiv", cla:"cblab"}],
                   ["div", {id:"guidestatdiv"}],
@@ -489,77 +557,42 @@ app.hub = (function () {
                      ["img", {cla:"rowbuttonimg",
                               src:"img/trash.png"}]],
                    ["button", {type:"button", id:"gratb",
-                               onclick:mdfs("gin.getGuideRatings", gidx)},
+                               onclick:mdfs("gin.startFetchMerge", gidx)},
                     "Check For Ratings"]]]]]));
-            mgrs.gin.refreshGuideDisplay(cg);
-            mgrs.gin.getGuideRatings(gidx); },  //initial data or refresh
-        refreshGuideDisplay: function (cg) {
+            mgrs.gin.refreshGuideDisplay();
+            mgrs.gin.startFetchMerge(); },
+        refreshGuideDisplay: function () {
             var dispchecked = "never";
             if(cg.lastcheck) {
                 dispchecked = jt.tz2human(cg.lastcheck); }
+            jt.out("cgsongcountdiv", (cg.songcount || 0) + " songs");
             jt.out("cglastcheckdiv", "last checked: " + dispchecked);
             jt.out("cgfilleddiv", (cg.filled || 0) + " ratings contributed.");
             jt.byId("gratb").disabled = false;
             jt.out("guidestatdiv", ""); },
+        startFetchMerge: function () {
+            if(!gdmps[cg.dsId]) {
+                gdmps[cg.dsId] = makeFetchMergeProcessor(cg); }
+            gdmps[cg.dsId].start(); },
+        fmpStatus: function (guide, msg) {
+            if(cg && cg.dsId === guide.dsId) {
+                cg = guide;
+                mgrs.gin.refreshGuideDisplay();
+                jt.out("guidestatdiv", msg || ""); } },
         showPlaylist: function (ident) {  //hashtag or id
             //open a new window for https://diggerhub.com/playlist/ident
             jt.err("playlist/" + ident + " not available at server yet"); },
         removeGuide: function (gidx) {
-            jt.out("guidestatdiv", "Removing...");
+            var remg = curracct.guides[gidx];
+            jt.out("guidestatdiv", "Removing " + remg.firstname + "...");
+            if(gdmps[remg.dsId]) { gdmps[remg.dsId].stop(); }
             curracct.guides.splice(gidx, 1);
             mgrs.dlg.updateHubAccount(
                 function () {
                     mgrs.dlg.accountSettings(); },
                 function (code, errtxt) {
                     jt.out("guidestatdiv", "Remove failed " + code + ": " +
-                           errtxt); }); },
-        getGuideRatings: function (gidx) {
-            var cg = curracct.guides[gidx];
-            cg.lastcheck = cg.lastcheck || "1970-01-01T00:00:00Z";
-            var prev = jt.isoString2Time(cg.lastcheck);
-            var now = new Date();
-            var waitmin = 5;
-            if(now - prev > waitmin * 60 * 1000) {
-                return mgrs.gin.fetchGuideData(gidx); }
-            if(!cg.lastimport || cg.lastimport < cg.lastcheck) {
-                return mgrs.gin.importRatings(cg); } },
-        fetchGuideData: function (gidx) {
-            var cg = curracct.guides[gidx];
-            jt.byId("gratb").disabled = true;
-            jt.out("guidestatdiv", "Fetching ratings...");
-            var errf = function (code, errtxt) {
-                jt.byId("gratb").disabled = false;
-                jt.out("guidestatdiv", "Fetch err " + code + ": " + errtxt); };
-            var data = jt.objdata({email:curracct.email, at:curracct.token,
-                                   gid:cg.dsId});
-            jt.call("GET", "/guidedat?" + data, null,
-                    function (stat) {
-                        cg.lastrating = stat.lastrating;
-                        cg.lastcheck = stat.lastcheck;  //==lastrating if more
-                        mgrs.gin.refreshGuideDisplay(cg);
-                        mgrs.loc.updateAccount(
-                            function () {
-                                mgrs.gin.getGuideRatings(gidx); },
-                            errf); },
-                    errf,
-                    jt.semaphore("hub.gin.fetchGuideData")); },
-        importRatings: function (cg) {
-            jt.byId("gratb").disabled = true;
-            jt.out("guidestatdiv", "Importing ratings...");
-            jt.call("GET", "/ratimp?gid=" + cg.dsId, null,
-                    function (data) {
-                        var fstats = data[0];  //dsId, lastimport, filled
-                        cg.lastimport = fstats.lastimport;
-                        cg.filled = fstats.filled;
-                        mgrs.gin.refreshGuideDisplay(cg);
-                        app.db.managerDispatch("lib", "rebuildSongData",
-                                               data[1]);
-                        mgrs.loc.updateAccount(); },
-                    function (code, errtxt) {
-                        jt.byId("gratb").disabled = false;
-                        jt.out("guidestatdiv", "Import err " + code + ": " +
-                               errtxt); },
-                    jt.semaphore("hub.gin.importRatings")); }
+                           errtxt); }); }
     };  //end mgrs.gin returned functions
     }());
 

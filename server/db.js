@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "dv0.3";
+        return "dv0.4";
     }
 
 
@@ -97,7 +97,7 @@ module.exports = (function () {
 
 
     function cleanLoadedConfig () {
-        var confpaths = ["musicPath", "dbPath", "exPath"];
+        var confpaths = ["musicPath", "dbPath", "exPath", "cachePath"];
         confpaths.forEach(function (cp) {
             var fp = conf[cp];
             //convert any forward slash specs to platform file separators so
@@ -577,6 +577,7 @@ module.exports = (function () {
         readFile: function (path) { return jslf(fs, "readFileSync", path); },
         writeFile: function (path, txt) {
             return jslf(fs, "writeFileSync", path, txt, "utf8"); },
+        mkdir: function (path) { return jslf(fs, "mkdirSync", path); },
         diggerVersion: function () { return diggerVersion(); },
         //server endpoints
         config: function (req, res) { return serveConfig(req, res); },

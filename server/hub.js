@@ -43,6 +43,16 @@ module.exports = (function () {
     }
 
 
+    function getGuideById (gid) {
+        if(!gid) { return null; }
+        var ca = getCurrentAccount();
+        if(!ca || !ca.guides || !ca.guides.length) {
+            return null; }
+        var guide = ca.guides.find((g) => g.dsId === gid);
+        return guide;
+    }
+
+
     function isIgnoreDir (ws, dirname) {
         if(!ws.curracct) {
             ws.curracct = getCurrentAccount(); }
@@ -123,23 +133,61 @@ module.exports = (function () {
     }
 
 
-    function getLocalGuideData (gid) {
+    function guideDataFileName (gid) {
+        if(!db.fileExists(db.conf().cachePath)) {
+            db.mkdir(db.conf().cachePath); }
         var gdf = path.join(db.conf().cachePath, "guide_" + gid + ".json");
+        return gdf;
+    }
+
+
+    function loadLocalGuideData (gid) {
+        var gdf = guideDataFileName(gid);
         if(db.fileExists(gdf)) {
             return JSON.parse(db.readFile(gdf)); }
         return {version:db.diggerVersion(),
-                lastrating:"",   //most recent song rating by guide
-                lastcheck:"",    //last GET time, === lastrating if more
-                lastimport:"",   //when latest import was done
-                filled:0,        //how many ratings were filled from this guide
                 songcount:0,     //total songs from this guide
                 songs:{}};       //canonicalsongname:songdata
     }
 
 
-    function songLookupKey (s) {
-        var key = s.ti + s.ar + s.ab;
-        return key.toLowerCase();
+    function writeLocalGuideData (gid, gdat) {
+        var gdf = guideDataFileName(gid);
+        db.writeFile(gdf, JSON.stringify(gdat, null, 2));
+    }
+
+
+    //see ../docroot/docs/guidenotes.txt
+    function songLookupKey (s, ignore /*p*/) {
+        if(!s.ti) {
+            //console.log("song has no title. p: " + p);
+            return null; }
+        var sk = "";
+        var flds = ["ti", "ar", "ab"];
+        flds.forEach(function (fld) {
+            var val = s[fld] || "";
+            val.trim();
+            sk += val; });
+        sk = sk.toLowerCase();
+        return sk;
+    }
+
+
+    function updateLocalGuideData (gdat, hubret, guide) {
+        var songs = JSON.parse(hubret);
+        songs.forEach(function (song) {
+            var key = songLookupKey(song);
+            gdat.songs[key] = song;
+            if(song.modified > guide.lastrating) {
+                guide.lastrating = song.modified; } });
+        if(songs.length) {  //received some newer ratings
+            gdat.songcount = Object.keys(gdat.songs).length;
+            writeLocalGuideData(guide.dsId, gdat);
+            guide.songcount = gdat.songcount;
+            guide.lastcheck = guide.lastrating; }  //note need to fetch more
+        else {  //lastcheck > lastrating means up to date
+            guide.lastcheck = new Date().toISOString(); }
+        db.writeConfigurationFile();  //save updated guide info
     }
 
 
@@ -148,43 +196,41 @@ module.exports = (function () {
     }
 
 
-    function mergeWriteGuideData(sdat, hubret, gid) {
-        var songs = JSON.parse(hubret);
-
-        var rp = path.join(db.conf().cachePath, "guide_" + gid + "raw.json");
-        db.writeFile(rp, JSON.stringify(songs, null, 2));
-
-        var mergelog = "";
-
-        console.log("mergeWriteGuideData merging " + songs.length + " songs.");
-        songs.forEach(function (s) {
-            var key = songLookupKey(s);
-            if(!sdat.songs[key]) {
-                mergelog += "adding " + key + "\n";
-                sdat.songcount += 1; }
-            else {
-                mergelog += "merged " + key + "\n"; }
-            sdat.songs[key] = s;
-            if(s.modified > sdat.lastrating) {
-                sdat.lastrating = s.modified; } });
-
-        var mp = path.join(db.conf().cachePath, "guide_" + gid + "merge.txt");
-        db.writeFile(mp, mergelog);
-        
-        if(songs.length < 1000) {  //got all the songs from this guide
-            sdat.lastcheck = new Date().toISOString(); }
-        else {  //need to fetch more
-            sdat.lastcheck = sdat.lastrating; }
-        var gdf = path.join(db.conf().cachePath, "guide_" + gid + ".json");
-        db.writeFile(gdf, JSON.stringify(sdat, null, 2));
-        return sdat;
-    }
-
-
-    function resError (res, code, msg) {
+    function resError (res, msg, code) {
+        code = code || 400;
         console.log("hub resError " + code + ": " + msg);
         res.writeHead(code, {"Content-Type": "text/plain"});
         res.end(msg);
+    }
+
+
+    function hubPostFields (res, apiname, procf, fldsobj) {
+        var ctx = {reqflds:fldsobj,
+                   url:hs + "/api/" + apiname,
+                   rqs:{method:"POST",
+                        headers:{"Content-Type":
+                                 "application/x-www-form-urlencoded"},
+                        body:bodify(fldsobj)}};
+        console.log(apiname + " -> " + ctx.url);
+        fetch(ctx.url, ctx.rqs)
+            .then(function (hubr) {
+                ctx.code = hubr.status;
+                return hubr.text(); })
+            .then(function (btxt) {
+                if(ctx.code !== 200) {
+                    return resError(res, btxt, ctx.code); }
+                ctx.restext = btxt;
+                if(procf) {  //local server side effects like writing data
+                    ctx.restext = procf(btxt, ctx.reqflds) || ctx.restext; }
+                res.writeHead(200, {"Content-Type": "application/json"});
+                res.end(ctx.restext); })
+            .catch(function (err) {
+                if(ctx.restext) {
+                    console.log("ctx.restext: " + ctx.restext); }
+                if(ctx.code === 200) {
+                    ctx.code = 400; }
+                resError(res, "call to " + ctx.url + " failed: " + err,
+                         (ctx.code || 400)); });
     }
 
 
@@ -192,33 +238,8 @@ module.exports = (function () {
         var fif = new formidable.IncomingForm();
         fif.parse(req, function (err, fields) {
             if(err) {
-                return resError(res, 400, apiname + " form error: " + err); }
-            var ctx = {reqflds: fields,
-                       url:hs + "/api/" + apiname,
-                       rqs:{method:"POST",
-                            headers:{"Content-Type":
-                                     "application/x-www-form-urlencoded"},
-                            body:bodify(fields)}};
-            console.log(apiname + " -> " + ctx.url);
-            fetch(ctx.url, ctx.rqs)
-                .then(function (hubr) {
-                    ctx.code = hubr.status;
-                    return hubr.text(); })
-                .then(function (btxt) {
-                    if(ctx.code !== 200) {
-                        return resError(res, ctx.code, btxt); }
-                    ctx.restext = btxt;
-                    if(procf) {  //local server side effects like writing data
-                        procf(btxt, ctx.reqflds); }
-                    res.writeHead(200, {"Content-Type": "application/json"});
-                    res.end(btxt); })
-                .catch(function (err) {
-                    if(ctx.restext) {
-                        console.log("ctx.restext: " + ctx.restext); }
-                    if(ctx.code === 200) {
-                        ctx.code = 400; }
-                    resError(res, (ctx.code || 400), 
-                             "call to " + ctx.url + " failed: " + err); }); });
+                return resError(res, apiname + " form error: " + err); }
+            hubPostFields(res, apiname, procf, fields); });
     }
 
 
@@ -234,7 +255,7 @@ module.exports = (function () {
                 return hubr.text(); })
             .then(function (btxt) {
                 if(ctx.code !== 200) {
-                    return resError(res, ctx.code, btxt); }
+                    return resError(res, btxt, ctx.code); }
                 ctx.restext = btxt;
                 if(procf) {  //local server side effects like writing data
                     ctx.restext = procf(ctx.restext) || ctx.restext; }
@@ -245,8 +266,8 @@ module.exports = (function () {
                     console.log("ctx.restext: " + ctx.restext); }
                 if(ctx.code === 200) {
                     ctx.code = 400; }
-                resError(res, (ctx.code || 400), 
-                         "call to get " + apiname + " failed: " + err); });
+                resError(res, "call to get " + apiname + " failed: " + err,
+                         (ctx.code || 400)); });
     }
 
 
@@ -257,7 +278,7 @@ module.exports = (function () {
         var fif = new formidable.IncomingForm();
         fif.parse(req, function (err, fields) {
             if(err) {
-                return resError(res, 400, "accountsInfo form error " + err); }
+                return resError(res, "accountsInfo form error " + err); }
             var conf = db.conf();
             conf.acctsinfo = conf.acctsinfo || {currid:0, accts:[]};
             if(fields.acctsinfo) {  //data passed in. update.
@@ -270,7 +291,7 @@ module.exports = (function () {
 
     function mailpwr (pu, ignore /*req*/, res) {
         if(!pu.query.email) {
-            return resError(res, 400, "Wrong password email required."); }
+            return resError(res, "Wrong password email required."); }
         var params = {email:pu.query.email};
         return hubget("mailpwr", params, res);
     }
@@ -290,36 +311,51 @@ module.exports = (function () {
 
 
     function guidedat (pu, ignore /*req*/, res) {
-        if(!pu.query.gid) {
-            return resError(res, 400, "gid parameter required."); }
-        var gdat = getLocalGuideData(pu.query.gid);
+        var guide = getGuideById(pu.query.gid);
+        if(!guide) {
+            return resError(res, "Guide " + pu.query.gid + " not found."); }
+        var gdat = loadLocalGuideData(pu.query.gid);
+        guide.lastrating = "";
+        Object.values(gdat.songs).forEach(function (s) {
+            if(s.modified > guide.lastrating) {
+                guide.lastrating = s.modified; } });
         var params = {email:pu.query.email, at:pu.query.at, gid:pu.query.gid,
-                      since:gdat.lastcheck};
+                      since:guide.lastrating};
         return hubget("guidedat", params, res, function (hubret) {
-            gdat = mergeWriteGuideData(gdat, hubret, pu.query.gid);
-            return JSON.stringify({lastrating:gdat.lastrating,
-                                   lastcheck:gdat.lastcheck}); });
+            updateLocalGuideData(gdat, hubret, guide);
+            return JSON.stringify(guide); });
     }
 
 
     function ratimp (pu, ignore /*req*/, res) {
-        if(!pu.query.gid) {
-            return resError(res, 400, "gid parameter required."); }
-        var gdat = getLocalGuideData(pu.query.gid);
+        var guide = getGuideById(pu.query.gid);
+        if(!guide) {
+            return resError(res, "Guide " + pu.query.gid + " not found."); }
+        guide.filled = guide.filled || 0;
+        var gdat = loadLocalGuideData(pu.query.gid);
+        var ces = [];  //Collab entries for filled in ratings
         var dbo = db.dbo();
-        Object.values(dbo.songs).forEach(function (s) {
+        Object.entries(dbo.songs).forEach(function ([p, s]) {
             if(isUnratedSong(s)) {
-                var key = songLookupKey(s);
-                if(gdat[key] && isUnratedSong(gdat[key])) {
-                    gdat.filled += 1;
-                    gdat.lastimport = new Date().toISOString();
-                    var copyfields = ["el", "al", "kws", "rv"];
-                    copyfields.forEach(function (cf) {
-                        s[cf] = gdat[key][cf]; }); } } });
-        db.writeDatabaseObject();
-        return JSON.stringify([{lastimport:gdat.lastimport,
-                                filled:gdat.filled},
-                              dbo]);
+                var key = songLookupKey(s, p);
+                if(key) {
+                    if(gdat.songs[key] && isUnratedSong(gdat.songs[key])) {
+                        console.log("ratimp " + key);
+                        var copyfields = ["el", "al", "kws", "rv"];
+                        copyfields.forEach(function (cf) {
+                            s[cf] = gdat.songs[key][cf]; });
+                        guide.filled += 1;
+                        guide.lastimport = new Date().toISOString();
+                        ces.push({ctype:"inrat", rec:pu.query.aid,
+                                  src:guide.dsId,
+                                  ssid:gdat.songs[key].dsId}); } } } });
+        var fldsobj = {email:pu.query.email, at:pu.query.at,
+                       cacts:JSON.stringify(ces)};
+        return hubPostFields(res, "collabs", function () {
+            db.writeDatabaseObject();  //record updated ratings
+            db.writeConfigurationFile();  //save updated guide info
+            return JSON.stringify([guide, dbo]); },
+                             fldsobj);
     }
 
 
