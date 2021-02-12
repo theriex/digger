@@ -1,0 +1,4 @@
+#!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+APP="$DIR/server"
+osascript -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script "'$APP'"'

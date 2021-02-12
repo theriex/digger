@@ -2,8 +2,8 @@
 # Create the default platform executables
 pkg ../../
 
-# Copy the updated macos unix exe into Digger.app as "Digger"
-cp digger-macos Digger/Digger.app/Contents/Resources/Digger
+# Copy the updated macos unix exe into Digger.app
+cp digger-macos Digger/Digger.app/Contents/MacOS/server
 
 # Move the unix executable files to the hub downloads directory
 mv digger-* ../../../diggerhub/site/public/downloads
@@ -32,5 +32,3 @@ mv Digger.icns Digger/Digger.app/Contents/Resources/
 # Disk Utility | File | New Image | Image from Folder...  (work/Digger)
 # Move the dmg file to the hub downloads directory
 mv Digger.dmg ../../../diggerhub/site/public/downloads
-
-

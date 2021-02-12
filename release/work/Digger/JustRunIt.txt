@@ -1,9 +1,0 @@
-You can just launch Digger.app directly.  You don't need to copy it to your
-Applications folder, but you can copy it there or anywhere else if you want.
-
-Digger.app is the digger-macos unix executable packaged with just enough
-basic info to allow it to be placed in the Dock.  That's its only purpose.
-When you open the app, it starts the Digger server, which keeps running
-until you force quit the app.  There is no interface.
-
-See https://github.com/theriex/digger for configuration options.

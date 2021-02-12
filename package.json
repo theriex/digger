@@ -18,6 +18,7 @@
       "./docroot/js/amd/db.js",
       "./docroot/js/amd/filter.js",
       "./docroot/js/amd/player.js",
+      "./docroot/js/amd/hub.js",
       "./docroot/index.html"
     ]
   },
