@@ -223,13 +223,18 @@ app.db = (function () {
                 jt.byId("kwdefupdb").disabled = false; }
             return errmsg; },
         saveKeywordDefs: function () {
+            //either showing the full keywords form, or swapping a bowtie ctrl
             if(jt.byId("kwdefupdb")) {  //called from local form
-                jt.byId("kwdefupdb").disabled = true;  //debounce
+                jt.byId("kwdefupdb").disabled = true;  //debounce button
                 jt.out("kwupdstatdiv", "Saving..."); }
             if(mgrs.kwd.keywordDefsError()) { return; }
             uka.forEach(function (kd) {  //update kwdefs directly
-                var descr = jt.byId(kd.kw + "descrdiv").innerText || "";
-                kwdefs[kd.kw] = {pos:kd.pos, sc:kd.sc, ig:kd.ig, dsc:descr}; });
+                var def = {pos:kd.pos, sc:kd.sc, ig:kd.ig, dsc:kd.dsc || ""};
+                var descr = jt.byId(kd.kw + "descrdiv");
+                if(descr) {
+                    descr = descr.innerText || "";
+                    def.dsc = descr.trim(); }
+                app.hub.curracct().kwdefs[kd.kw] = def; });
             app.hub.managerDispatch("loc", "updateAccount",
                 function () {
                     mgrs.lib.togdlg("close");
