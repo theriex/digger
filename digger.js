@@ -73,9 +73,13 @@ db.init(function (conf) {
     var sd = conf.spawn && conf.spawn[require("os").platform()];
     if(sd) {
         console.log(sd.command + " " + sd.args.join(" "));
+        //child_process feels free to modify the given opts, so make a copy
+        //to avoid having things like env variables and the like ending up
+        //saved back into .digger_config
+        var opts = JSON.parse(JSON.stringify(sd.options));
         setTimeout(function () {
             const { spawn } = require("child_process");
-            spawn(sd.command, sd.args, sd.options); }, 800); }
+            spawn(sd.command, sd.args, opts); }, 800); }
     else {
         console.log("Digger available at http://localhost:" + conf.port); }
 });
