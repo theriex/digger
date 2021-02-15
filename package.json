@@ -10,7 +10,7 @@
       "./server/db.js"
     ],
     "assets": [
-      "config.json",
+      "./config.json",
       "./docroot/css/site.css",
       "./docroot/img/*.png",
       "./docroot/js/app.js",

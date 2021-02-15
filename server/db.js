@@ -114,11 +114,15 @@ module.exports = (function () {
 
 
     function getConfigFileName () {
-        var acf = path.join(appdir, "config.json");
         var cfp = path.join(os.homedir(), ".digger_config.json");
         if(!jslf(fs, "existsSync", cfp)) {
-            console.log("Created " + cfp);
-            jslf(fs, "copyFileSync", acf, cfp); }
+            //copyFileSync fails when running within pkg. Do manually:
+            //console.log("appdir: " + appdir);
+            //console.log(fs.readdirSync(appdir));
+            var afp = path.join(appdir, "config.json");
+            var cc = jslf(fs, "readFileSync", afp, "utf8");  //read as string
+            jslf(fs, "writeFileSync", cfp, cc, "utf8");
+            console.log("Created " + cfp); }
         return cfp;
     }
 
