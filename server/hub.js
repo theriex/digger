@@ -339,7 +339,7 @@ module.exports = (function () {
             if(isUnratedSong(s)) {
                 var key = songLookupKey(s, p);
                 if(key) {
-                    if(gdat.songs[key] && isUnratedSong(gdat.songs[key])) {
+                    if(gdat.songs[key] && !isUnratedSong(gdat.songs[key])) {
                         console.log("ratimp " + key);
                         var copyfields = ["el", "al", "kws", "rv"];
                         copyfields.forEach(function (cf) {
