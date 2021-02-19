@@ -1,4 +1,4 @@
-/*global app, jt */
+/*global app, jt, confirm */
 /*jslint browser, white, fudge, for, long */
 
 app.db = (function () {
@@ -270,6 +270,65 @@ app.db = (function () {
     }());
 
 
+    //Config manager handles path changes requiring an app restart.
+    mgrs.cfg = (function () {
+        var cdat = null;
+    return {
+        restart: function () {
+            cdat = null;
+            app.init2(); },
+        updateConfig: function () {
+            cdat.musicPath = jt.byId("mlibin").value;
+            cdat.dbPath = jt.byId("dbfin").value;
+            jt.call("POST", "/cfgchg", jt.objdata(cdat),
+                    function () {
+                        mgrs.cfg.restart(); },
+                    function (code, errtxt) {
+                        jt.out("configstatdiv", "Config update failed " +
+                               code + ": " + errtxt); },
+                    jt.semaphore("cfg.updateConfig")); },
+        launch: function () {
+            cdat = {musicPath:config.musicPath, dbPath:config.dbPath};
+            jt.out("contentdiv", jt.tac2html(
+                ["div", {cla:"paneldiv"},
+                 [["div", {id:"titlediv"},
+                   ["span", {cla:"titlespan"}, "Digger Config"]],
+                  ["div", {id:"ciheadingdiv"},
+                   ["Changes will be saved to ",
+                    ["span", {cla:"filenamespan"}, ".digger_config.json"],
+                    " in your home folder."]],
+                  //Local file names are not accessible via JS.  A folder
+                  //selected via webkitdirectory sends all the contained
+                  //files which is prohibitive for a large music library.
+                  //Putting digdat.json in your music library folder faces
+                  //similar issues.
+                  ["div", {cla:"configitemdiv"},
+                   [["div", {cla:"cidescdiv"},
+                     "Find my music library at:"],
+                    ["input", {type:"text", id:"mlibin", size:40,
+                               value:cdat.musicPath}]]],
+                  ["div", {cla:"configitemdiv"},
+                   [["div", {cla:"cidescdiv"},
+                     "Move my song rating database to:"],
+                    ["input", {type:"text", id:"dbfin", size:40,
+                               value:cdat.dbPath}]]],
+                  ["div", {id:"configstatdiv"}],
+                  ["div", {cla:"dlgbuttonsdiv"},
+                   [["button", {type:"button", id:"cicancelb",
+                                title:"Restart without changing config",
+                                onclick:mdfs("cfg.restart")},
+                    "Cancel"],
+                    ["button", {type:"button", id:"cichangeb",
+                                title:"Restart with config changes",
+                                onclick:mdfs("cfg.updateConfig")},
+                    "Update"]]]]])); },
+        confirmStart: function () {
+            if(confirm("Restart the app to change the location of music files or data?")) {
+                mgrs.cfg.launch(); } }
+    };  //end of mgrs.kwd returned functions
+    }());
+
+
     //Ignore Folders manager handles folders to be ignored on scan/play.
     mgrs.igf = (function () {
         var igfolds = null;
@@ -401,10 +460,14 @@ app.db = (function () {
                 return fetchConfigInfo(mgrs.lib.writeDialogContent); }
             jt.out("dbdlgdiv", jt.tac2html(
                 [["div", {cla:"pathdiv"},
-                  [["span", {cla:"pathlabelspan"}, "Music Files:"],
+                  [["a", {href:"#configure", onclick:mdfs("cfg.confirmStart"),
+                          title:"Configure music and data file locations"},
+                    ["span", {cla:"pathlabelspan"}, "Music Files:"]],
                    ["span", {cla:"pathspan"}, config.musicPath]]],
                  ["div", {cla:"pathdiv"},
-                  [["span", {cla:"pathlabelspan"}, "Digger Data:"],
+                  [["a", {href:"#configure", onclick:mdfs("cfg.confirmStart"),
+                          title:"Configure music and data file locations"},
+                    ["span", {cla:"pathlabelspan"}, "Digger Data:"]],
                    ["span", {cla:"pathspan"}, config.dbPath]]],
                  ["div", {cla:"dlgbuttonsdiv"},
                   [["button", {type:"button", id:"rfbutton",
@@ -415,10 +478,13 @@ app.db = (function () {
                                title:"Ignore folders when reading music files",
                                onclick:mdfs("igf.igMusicFolders")},
                     "Ignore Folders"],
-                   ["button", {type:"button", id:"mdbutton",
-                               title:"Merge data from another Digger file",
-                               onclick:mdfs("lib.mergeData")},
-                    "Merge Data"],
+                   //Merge data has been obviated by DiggerHub guides, but
+                   //leaving the code in place for now in case it is useful
+                   //as a basis for other functions later.
+                   // ["button", {type:"button", id:"mdbutton",
+                   //             title:"Merge data from another Digger file",
+                   //             onclick:mdfs("lib.mergeData")},
+                   //  "Merge Data"],
                    ["button", {type:"button", id:"ckbutton",
                                title:"Choose keywords to use for filtering",
                                onclick:mdfs("kwd.chooseKeywords")},

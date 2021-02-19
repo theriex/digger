@@ -371,6 +371,26 @@ app.player = (function () {
     }
 
 
+    function handlePlayerError (errval) {
+        //On Firefox, errval is a DOMException
+        var errmsg = String(errval);  //error name and detail text
+        jt.log("Play error " + errmsg + " " + stat.song.path);
+        //NotAllowedError is normal on app start. Autoplay is generally
+        //disabled until the user has interacted with the player.
+        if(errmsg.indexOf("NotAllowedError")) {
+            var player = jt.byId("playeraudio");
+            if(!player.duration) {
+                jt.log("Song has no duration. Re-read db?"); } }
+        //NotSupportedError means file is unplayable by the current player,
+        //but might be ok.  For example on MacOS, Safari handles an .m4a
+        //but Firefox doesn't.  Best to skip to the next file, assuming this
+        //is an anomaly and the next one will likely play.
+        if(errmsg.indexOf("NotSupportedError") >= 0) {
+            playerrs[stat.song.path] = errmsg;
+            app.player.skip(); }
+    }
+
+
     function play () {
         stat.status = "playing";
         jt.log(JSON.stringify(stat.song));
@@ -388,14 +408,8 @@ app.player = (function () {
         player.play().then(
             function (ignore /*successvalue*/) {
                 jt.log("Playing " + stat.song.path); },
-            //Autoplay disabled (NotAllowedError) is ok, just click play.
-            //Media type not playable (NotSupportedError) needs handling.
-            function (errorvalue) {  //FF error value is a DOMException
-                var errmsg = String(errorvalue);  //error name and detail text
-                jt.log("Play error " + errmsg + " " + stat.song.path);
-                if(errmsg.indexOf("NotSupportedError") >= 0) {
-                    playerrs[stat.song.path] = errorvalue;
-                    app.player.skip(); } });
+            function (errorvalue) {
+                handlePlayerError(errorvalue); });
     }
 
 

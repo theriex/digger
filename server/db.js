@@ -113,15 +113,33 @@ module.exports = (function () {
     }
 
 
+    function safeCopyJSONFile (source, target) {
+        //copyFileSync fails when running within pkg, so do manually.
+        console.log("safeCopyJSONFile reading " + source);
+        var cc = jslf(fs, "readFileSync", source, "utf8");  //read as string
+        console.log("safeCopyJSONFile writing " + target);
+        jslf(fs, "writeFileSync", target, cc, "utf8");
+    }
+
+
+    function backupFileName (name) {
+        var ts = new Date().toISOString();
+        ts = ts.replace(/[\-:.]/g, "");
+        var prefix = name;
+        var suffix = "";
+        if(name.indexOf(".") > 0) {
+            prefix = name.slice(0, name.lastIndexOf("."));
+            suffix = name.slice(name.lastIndexOf(".")); }
+        return prefix + "_" + ts + suffix;
+    }
+
+
     function getConfigFileName () {
         var cfp = path.join(os.homedir(), ".digger_config.json");
         if(!jslf(fs, "existsSync", cfp)) {
-            //copyFileSync fails when running within pkg. Do manually:
             //console.log("appdir: " + appdir);
             //console.log(fs.readdirSync(appdir));
-            var afp = path.join(appdir, "config.json");
-            var cc = jslf(fs, "readFileSync", afp, "utf8");  //read as string
-            jslf(fs, "writeFileSync", cfp, cc, "utf8");
+            safeCopyJSONFile(path.join(appdir, "config.json"), cfp);
             console.log("Created " + cfp); }
         return cfp;
     }
@@ -441,9 +459,10 @@ module.exports = (function () {
     }
 
 
-    function resError (res, code, msg) {
-        console.log("resError " + code + ": " + msg);
-        res.writeHead(404, {"Content-Type": "text/plain"});
+    function resError (res, msg, code) {
+        code = code || 400;
+        console.log("db resError " + code + ": " + msg);
+        res.writeHead(code, {"Content-Type": "text/plain"});
         res.end(msg);
     }
 
@@ -457,7 +476,7 @@ module.exports = (function () {
             //PENDING: handle segues after there is UI for it
             var song = dbo.songs[fields.path];
             if(!song) {
-                return resError(res, 404, "No song " + fields.path); }
+                return resError(res, "No song " + fields.path, 404); }
             if(fields.settings) {
                 dbo.settings = JSON.parse(fields.settings); }
             song.fq = fields.fq;
@@ -516,8 +535,7 @@ module.exports = (function () {
             fif.parse(req, function (err, fields) {
                 if(err) {
                     exp.stat.state = "Failed";
-                    return resError(res, 400, "playlistExport form error " +
-                                    err); }
+                    return resError(res, "playlistExport form error " + err); }
                 exp.spec = fields;
                 try {
                     exp.stat.remaining = JSON.parse(exp.spec.songs);
@@ -525,7 +543,7 @@ module.exports = (function () {
                         writePlaylistFile(); }
                     setTimeout(exportNextSong, 200);
                 } catch(e) {
-                    return resError(res, 400, "playlistExport error " + e); }
+                    return resError(res, "playlistExport error " + e); }
                 res.writeHead(200, {"Content-Type": "application/json"});
                 res.end(JSON.stringify(exp)); }); }
     }
@@ -569,6 +587,49 @@ module.exports = (function () {
     }
 
 
+    function changeConfig (req, res) {
+        var updat = new formidable.IncomingForm();
+        updat.parse(req, function (err, fields) {
+            if(err) {
+                return resError(res, "updateSong form error: " + err); }
+            var vmf = false;  //valid music folder
+            try {
+                vmf = jslf(fs, "lstatSync", fields.musicPath).isDirectory();
+            } catch(ignore) {}
+            if(!vmf) {
+                return resError(res, "Folder not found: " + fields.musicPath); }
+            try {
+                if(jslf(fs, "lstatSync", fields.dbPath).isDirectory()) {
+                    fields.dbPath = path.join(fields.dbPath, "digdat.json"); }
+                //If the music path has changed, then the current digdat
+                //file likely contains thousands of relative paths that
+                //don't match real files anymore.  That leads to a seemingly
+                //never ending sequence of player failures, which is not ok.
+                //There is an off chance all the music files will also have
+                //been moved over manually, but in that case the user can
+                //restore the backup.
+                if(conf.musicPath !== fields.musicPath) {
+                    safeCopyJSONFile(conf.dbPath, backupFileName(conf.dbPath));
+                    createDatabaseFile();
+                    console.log("changeConfig musicPath: " + conf.musicPath +
+                                " -> " + fields.musicPath);
+                    conf.musicPath = fields.musicPath; }
+                //Regardless of whether the db file was reinitialized or not,
+                //copy it to the new location and remove the old one.
+                if(conf.dbPath !== fields.dbPath) {
+                    safeCopyJSONFile(conf.dbPath, fields.dbPath);
+                    jslf(fs, "unlinkSync", conf.dbPath);
+                    console.log("changeConfig dbPath: " + conf.dbPath +
+                                " -> " + fields.dbPath);
+                    conf.dbPath = fields.dbPath; }
+                writeConfigurationFile();
+            } catch(e) {
+                return resError(res, e.toString()); }
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(JSON.stringify(conf)); });
+    }
+
+
     return {
         //server utilities
         appdir: function () { return appdir; },
@@ -593,6 +654,7 @@ module.exports = (function () {
         songupd: function (req, res) { return updateSong(req, res); },
         plistexp: function (req, res) { return playlistExport(req, res); },
         audio: function (pu, req, res) { return serveAudio(pu, req, res); },
-        version: function (req, res) { return serveVersion(req, res); }
+        version: function (req, res) { return serveVersion(req, res); },
+        cfgchg: function (req, res) { return changeConfig(req, res); }
     };
 }());
