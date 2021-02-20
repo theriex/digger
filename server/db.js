@@ -591,7 +591,7 @@ module.exports = (function () {
         var updat = new formidable.IncomingForm();
         updat.parse(req, function (err, fields) {
             if(err) {
-                return resError(res, "updateSong form error: " + err); }
+                return resError(res, "changeConfig form error: " + err); }
             var vmf = false;  //valid music folder
             try {
                 vmf = jslf(fs, "lstatSync", fields.musicPath).isDirectory();
