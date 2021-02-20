@@ -31,7 +31,7 @@ app = {
         if(href.indexOf("?") > 0) {
             href = href.slice(0, href.indexOf("?")); }
         jt.loadAppModules(app, modules.map((x) => "js/amd/" + x), 
-                          href, app.init2, "?v=191014");
+                          href, app.init2, "?v=210219");
     },
 
 

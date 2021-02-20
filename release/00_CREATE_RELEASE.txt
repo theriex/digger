@@ -1,14 +1,19 @@
-# From the digger/release/work directory...
+# All commands here are run from the same directory as this file.
+# If needed, bump the release version by editing
+# ../server/db.js diggerVersion then change 
+# ./Digger/Digger.app/Contents/Info.plist CFBundleVersion to match
+
+# Update the static resource cache bust flag
+node cachev.js
+
 # Create the default platform executables
-pkg ../../
+pkg ../
 
 # Copy the updated macos unix exe into Digger.app
 cp digger-macos Digger/Digger.app/Contents/MacOS/server
 
 # Move the unix executable files to the hub downloads directory
-mv digger-* ../../../diggerhub/site/public/downloads
-
-# Edit Digger/Digger.app/Contents/Info.plist and update CFBundleVersion
+mv digger-* ../../diggerhub/site/public/downloads
 
 # Clean up any editing backup files
 find .. -name "*~" -delete
@@ -29,6 +34,6 @@ iconutil -c icns Digger.iconset
 rm -R Digger.iconset
 mv Digger.icns Digger/Digger.app/Contents/Resources/
 
-# Disk Utility | File | New Image | Image from Folder...  (work/Digger)
+# Disk Utility | File | New Image | Image from Folder...  (./Digger)
 # Move the dmg file to the hub downloads directory
-mv Digger.dmg ../../../diggerhub/site/public/downloads
+mv Digger.dmg ../../diggerhub/site/public/downloads
