@@ -5,6 +5,7 @@ var hub = require("./server/hub");
 var db = require("./server/db");
 db.init(function (conf) {
     var nodestatic = require("node-static");
+    //Not specifying any header options here, default caching is one hour.
     var fileserver = new nodestatic.Server(path.join(db.appdir(), "docroot"));
 
     function params2Obj (str) {
