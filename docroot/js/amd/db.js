@@ -371,10 +371,13 @@ app.db = (function () {
                  ["input", {type:"text", id:"igfin", size:30}]]));
             jt.out("igfstatdiv", ""); },
         updateIgnoreFolders: function () {
+            app.hub.curracct().igfolds = igfolds;
             jt.out("igfstatdiv", "Updating ignore folders...");
             app.hub.managerDispatch("loc", "updateAccount",
                 function () {
                     jt.out("igfstatdiv", "");
+                    mgrs.igf.unmarkIgnoreSongs();
+                    mgrs.igf.markIgnoreSongs();
                     app.hub.managerDispatch("loc", "notifyAccountChanged",
                                             "igfolders"); },
                 function (code, errtxt) {
@@ -391,7 +394,27 @@ app.db = (function () {
             if(igfolds.indexOf(afn) < 0) {  //doesn't already exist
                 igfolds.push(afn);
                 igfolds.sort(); }
-            mgrs.igf.updateIgnoreFolders(); }
+            mgrs.igf.updateIgnoreFolders(); },
+        unmarkIgnoreSongs: function () {
+            Object.values(dbo.songs).forEach(function (s) {
+                if(s.fq.startsWith("I")) {
+                    s.fq = s.fq.slice(1); } }); },
+        markIgnoreSongs: function () {
+            igfolds = igfolds || app.hub.curracct().igfolds;
+            Object.entries(dbo.songs).forEach(function ([p, s]) {
+                if(mgrs.ws.isReadableSong(s) && mgrs.igf.isIgnorePath(p)) {
+                    jt.log("Ignoring " + s.ti);
+                    s.fq = "I" + s.fq; } }); },
+        isIgnorePath: function (p) {
+            var pes = p.split("/");
+            if(pes.length <= 1) {  //top level file, or windows
+                pes = p.split("\\"); }
+            if(pes.length > 1) {
+                return igfolds.some((f) =>
+                    (pes[pes.length - 2] === f ||
+                     (f.endsWith("*") &&
+                      pes[pes.length  - 2].startsWith(f)))); }
+            return false; }
     };  //end of mgrs.igf returned functions
     }());
 
@@ -427,6 +450,7 @@ app.db = (function () {
                     jt.semaphore("db.readSongFiles")); },
         rebuildSongData: function (databaseobj) {
             dbo = databaseobj;
+            mgrs.igf.markIgnoreSongs();
             mgrs.kwd.rebuildKeywords();
             jt.out("countspan", String(dbo.songcount) + " songs");
             jt.out("dbstatdiv", "");
@@ -666,16 +690,20 @@ app.db = (function () {
 
     //Working set manager handles sourcing content for what's on deck.
     mgrs.ws = {
+        isReadableSong: function (s) {
+            if(s.fq && s.fq.match(/^[DNI]/)) { //see player mgrs.tun.subcats
+                return false; }
+            return true; },
         rebuildWorkingSet: function () {
-            deckstat.ws = [];
-            deckstat.fcs = [];
-            Object.keys(dbo.songs).forEach(function (path) {
-                var song = dbo.songs[path];
-                if(!song.fq.startsWith("D") && !song.fq.startsWith("U")) {
-                    //song file eligible. Artist/Album/Title may be incomplete.
-                    song.path = path;
-                    deckstat.ws.push(song); } });
-            mgrs.dk.appendInfoCount("Readable files"); },
+            var ses = Object.entries(dbo.songs);
+            mgrs.dk.appendInfoCount("Total songs", ses.length);
+            deckstat.ws = [];    //reset working set
+            deckstat.fcs = [];   //reset active filter controls
+            ses.forEach(function ([p, s]) {
+                if(!s.fq.startsWith("D") && !s.fq.startsWith("U")) { //readable
+                    s.path = p;  //for runtime lookup after update
+                    deckstat.ws.push(s); } });
+            mgrs.dk.appendInfoCount("Readable songs"); },
         filterBySearchText: function () {
             var st = jt.byId("srchin").value || "";
             st = st.toLowerCase().trim();
@@ -855,8 +883,9 @@ app.db = (function () {
                 deckstat.pns.unshift(deckstat.ws[idx]);  //prepend to pns
                 deckstat.ws.splice(idx, 1); } //remove from ws
             app.player.next(); },
-        appendInfoCount: function (phasename) {
-            deckstat.fcs.push({filter:phasename, sc:deckstat.ws.length});
+        appendInfoCount: function (phasename, count) {
+            count = count || deckstat.ws.length;
+            deckstat.fcs.push({filter:phasename, sc:count});
             var html = [];
             deckstat.fcs.forEach(function (stat) {
                 html.push(["div", {cla:"dinfrecdiv"},
@@ -1111,6 +1140,7 @@ app.db = (function () {
                     if(!dbo.scanned) {
                         mgrs.lib.readSongFiles(); }
                     else {
+                        mgrs.igf.markIgnoreSongs();
                         mgrs.dk.updateDeck(); } },
                 function (code, errtxt) {
                     errstat("db.fetchData", code, errtxt); },
