@@ -25,14 +25,14 @@ app = {
 
     init: function () {
         jtminjsDecorateWithUtilities(jt);
-        jt.log("loading app modules v=210220");
+        jt.log("loading app modules v=210222");
         var href = window.location.href;
         if(href.indexOf("#") > 0) {
             href = href.slice(0, href.indexOf("#")); }
         if(href.indexOf("?") > 0) {
             href = href.slice(0, href.indexOf("?")); }
         jt.loadAppModules(app, modules.map((x) => "js/amd/" + x),
-                          href, app.init2, "?v=210220");
+                          href, app.init2, "?v=210222");
     },
 
 

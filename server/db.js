@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "dv0.5";
+        return "dv0.6";
     }
 
 
