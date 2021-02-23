@@ -178,12 +178,15 @@ app.hub = (function () {
                 clearTimeout(tmo); }
             tmo = setTimeout(function () {
                 tmo = null;
+                jt.out("modindspan", "hub");
                 var data = mgrs.loc.makeSendSyncData();
                 //see ../../docs/hubsyncNotes.txt
                 jt.call("POST", "/hubsync", data,
                         function (updates) {
+                            jt.out("modindspan", "");
                             mgrs.loc.processReceivedSyncData(updates); },
                         function (code, errtxt) {
+                            jt.out("modindspan", "");
                             upldsongs = null;
                             mgrs.loc.handleSyncError(code, errtxt); },
                         jt.semaphore("loc.syncToHub")); },
