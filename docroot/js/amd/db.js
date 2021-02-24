@@ -994,10 +994,10 @@ app.db = (function () {
             var song = mgrs.alb.albumPlayNext();
             if(song) {  //in album mode and had next track to play
                 return mgrs.hist.addSongToHistory(song); }
-            if(deckstat.pns.length > 0) {
+            if(deckstat.pns.length > 0) {  //play next specified song
                 song = deckstat.pns[0];
                 deckstat.pns = deckstat.pns.slice(1); }
-            else if(deckstat.ws.length > 0) {
+            else if(deckstat.ws.length > 0) {  //play next song on deck
                 song = deckstat.ws[0];
                 deckstat.ws = deckstat.ws.slice(1); }
             if(song) {  //immediately mark as played so not re-retrieved
@@ -1005,7 +1005,8 @@ app.db = (function () {
                 song.lp = new Date().toISOString();
                 updateSavedSongData(song, function (updsong) {
                     jt.log("updated last played " + updsong.path);
-                    mgrs.dk.updateDeck(); }); }
+                    //disruptive to rebuild deck from scratch, just redisplay
+                    mgrs.sop.displaySongs(); }); }
             return mgrs.hist.addSongToHistory(song); }
     };
 
