@@ -26,8 +26,12 @@ app.filter = (function () {
                   hnob:{x:25, y:59, w:10, h:21, maxx:263}};
 
 
+    //General container for all managers, used for dispatch
+    var mgrs = {};
+
+
     function findSetting (avs) {
-        var settings = app.filter.settings() || {};
+        var settings = mgrs.stg.settings() || {};
         settings.ctrls = settings.ctrls || [];
         return settings.ctrls.find((x) =>
             Object.entries(avs).every(function ([attr, val]) {
@@ -113,7 +117,7 @@ app.filter = (function () {
         rcr.rgfoc.min = Math.round((ladj / rangemax) * 100);
         rcr.rgfoc.max = 99 - Math.round((radj / rangemax) * 100);
         //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
-        app.filter.filterValueChanged();
+        mgrs.stg.filterValueChanged();
     }
 
 
@@ -244,10 +248,6 @@ app.filter = (function () {
     }
 
 
-    //General container for all managers, used for dispatch
-    var mgrs = {};
-
-
     //BowTie manager handles 3-way toggle controls for keyword filtering
     mgrs.btc = (function () {
         var tbs = [{sy:"-", id:"neg", bp:"left", ti:"No $NAME Songs"},
@@ -304,6 +304,7 @@ app.filter = (function () {
             ctrls.bts[idx].tog = tog;  //note the value for filtering
             mgrs.btc.updateToggleIndicators(idx, tog);
             mgrs.btc.updateToggleLabel(idx, tog);
+            mgrs.stg.filterValueChanged();  //save updated bowtie value
             app.db.deckupd(); },
         addBTSettingsFunc: function (idx) {
             var bt = ctrls.bts[idx];
@@ -367,6 +368,7 @@ app.filter = (function () {
                 jt.byId("filterstarseldiv").style.width = x + "px";
                 jt.byId("filterstarsdiv").title = "Match songs rated " +
                     ctrls.rat.stat.minrat + " or higher.";
+                mgrs.stg.filterValueChanged();  //save updated minrat value
                 app.db.deckupd(); };
             attachMovementListeners("filterstarsanchordiv", ctrls.rat.stat,
                                     ctrls.rat.posf); },
@@ -397,6 +399,7 @@ app.filter = (function () {
             var button = jt.byId("incluntb");
             button.innerHTML = ctrls.rat.tagf.labels[ctrls.rat.tagf.idx];
             button.title = ctrls.rat.tagf.titles[ctrls.rat.tagf.idx];
+            mgrs.stg.filterValueChanged();  //save updated tag filter value
             app.db.deckupd(); },
         init: function (divid) {
             mgrs.mruc.writeHTML(divid);
@@ -444,6 +447,7 @@ app.filter = (function () {
             else {
                 button.title = "Song play frequency filtering disabled.";
                 button.style.background = "transparent"; }
+            mgrs.stg.filterValueChanged();  //save updated freq filter value
             app.db.deckupd(); },
         makeFilter: function () {
             ctrls.fq.settings = function () {
@@ -499,6 +503,7 @@ app.filter = (function () {
                 tmosave = null;
                 settings.ctrls = mgrs.stg.arrayOfAllFilters()
                     .map((filt) => filt.settings());
+                app.hub.curracct().settings = settings;
                 app.hub.managerDispatch("loc", "updateAccount",
                     function () {
                         jt.log("stg.saveSettings completed"); },
@@ -538,8 +543,6 @@ app.filter = (function () {
 return {
 
     init: function () { mainLayout(); },
-    filterValueChanged: function () { mgrs.stg.filterValueChanged(); },
-    settings: function () { return mgrs.stg.settings(); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
     gradient: function () { return ranger.panel.gradient; },

@@ -691,16 +691,18 @@ app.db = (function () {
     //Working set manager handles sourcing content for what's on deck.
     mgrs.ws = {
         isReadableSong: function (s) {
-            if(s.fq && s.fq.match(/^[DNI]/)) { //see player mgrs.tun.subcats
+            if(s.fq && s.fq.match(/^[DUI]/)) { //see player mgrs.tun.subcats
                 return false; }
             return true; },
-        rebuildWorkingSet: function () {
+        skip: function (s, skips) {
+            return skips.find((k) => k.path === s.path); },
+        rebuildWorkingSet: function (shp) {
             var ses = Object.entries(dbo.songs);
             mgrs.dk.appendInfoCount("Total songs", ses.length);
             deckstat.ws = [];    //reset working set
             deckstat.fcs = [];   //reset active filter controls
             ses.forEach(function ([p, s]) {
-                if(!s.fq.startsWith("D") && !s.fq.startsWith("U")) { //readable
+                if(mgrs.ws.isReadableSong(s) && !mgrs.ws.skip(s, shp)) {
                     s.path = p;  //for runtime lookup after update
                     deckstat.ws.push(s); } });
             mgrs.dk.appendInfoCount("Readable songs"); },
@@ -744,7 +746,7 @@ app.db = (function () {
                     sh.end += 1; } }
             jt.log("shuffle from [1] to [" + sh.end + "]");
             return sh.end; },
-        truncateAndShuffle: function () {
+        truncateAndShuffle: function (shp) {
             deckstat.ws = deckstat.ws.slice(0, deckstat.maxdecksel);
             if(deckstat.ws.length <= 2) { return; }  //nothing to shuffle
             var endidx = mgrs.ws.findEndShuffleIndex(deckstat.ws);
@@ -754,7 +756,9 @@ app.db = (function () {
                 j = Math.floor(Math.random() * i);
                 temp = deckstat.ws[i];
                 deckstat.ws[i] = deckstat.ws[j];
-                deckstat.ws[j] = temp; } }
+                deckstat.ws[j] = temp; }
+            shp.slice(0).reverse().forEach(function (s) {
+                deckstat.ws.unshift(s); }); }
     };  //end mgrs.ws functions
 
 
@@ -842,7 +846,9 @@ app.db = (function () {
 
 
     //Deck manager handles actions at affecting what's on deck to play.
-    mgrs.dk = {
+    mgrs.dk = (function () {
+        var shp = [];  //shuffle preserve songs on deck
+    return {
         remove: function (type, prefix, idx) {
             var song = deckstat[prefix][idx];
             if(type === "ns") {
@@ -959,7 +965,7 @@ app.db = (function () {
                  ["div", {id:"decksongsdiv"}]]));
             mgrs.dk.makeToggleControls();
             deckstat.toggles.togfiltb(true); },
-        updateDeck: function () {
+        updateDeck: function (keep) {
             if(!app.filter.filtersReady()) {
                 return; }  //ignore spurious calls before filter ready
             if(deckstat.work.status) {  //already ongoing
@@ -969,6 +975,7 @@ app.db = (function () {
                 deckstat.work.timer = setTimeout(mgrs.dk.updateDeck, 1200);
                 return; }
             deckstat.work.status = "updating";
+            shp = deckstat.ws.slice(0, (keep || 0));
             setTimeout(mgrs.dk.updateDeckSynchronous, 50); }, //yield to UI
         updateDeckSynchronous: function () {
             if(!jt.byId("deckheaderdiv")) {
@@ -976,13 +983,13 @@ app.db = (function () {
             if(deckstat.toggles.infotimeout) {
                 clearTimeout(deckstat.toggles.infotimeout);
                 deckstat.toggles.infotimeout = null; }
-            deckstat.toggles.toginfob(true);  //show status while working
-            mgrs.ws.rebuildWorkingSet();  //initializes deckstat.ws/fcs
+            deckstat.toggles.toginfob(!shp);  //show status while working
+            mgrs.ws.rebuildWorkingSet(shp);  //initializes deckstat.ws/fcs
             mgrs.ws.filterBySearchText();
             mgrs.ws.filterByFilters();
             mgrs.ws.pullPNSFromWS();
             mgrs.ws.sortByLastPlayed();
-            mgrs.ws.truncateAndShuffle();
+            mgrs.ws.truncateAndShuffle(shp);
             if(deckstat.ws.length) {  //show songs if any found
                 app.player.deckUpdated();
                 deckstat.toggles.infotimeout = setTimeout(function () {
@@ -1005,10 +1012,11 @@ app.db = (function () {
                 song.lp = new Date().toISOString();
                 updateSavedSongData(song, function (updsong) {
                     jt.log("updated last played " + updsong.path);
-                    //disruptive to rebuild deck from scratch, just redisplay
-                    mgrs.sop.displaySongs(); }); }
+                    //disruptive to rebuild whole deck from scratch
+                    mgrs.dk.updateDeck(6);  }); }  //keep first few songs
             return mgrs.hist.addSongToHistory(song); }
-    };
+    };  //end of mgrs.dk returned functions
+    }());
 
 
     //Album manager handles album info and playback
