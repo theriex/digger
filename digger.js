@@ -29,6 +29,16 @@ db.init(function (conf) {
         return pu;
     }
 
+    //If a server is already running on a given port, the server throws.  If
+    //you closed the browser, and then clicked the digger app to get the
+    //interface back, then the server throw needs to be caught so the spawn
+    //command has a chance to execute before the process exits.  If there
+    //is a catastrophic failure from some REST endpoint it is also better
+    //to keep going.  So just catch it all.
+    process.on('uncaughtException', function (err) {
+        console.log("uncaughtException: " + err);
+    });
+
     //start the server
     require("http").createServer(function (req, rsp) {
         try {
