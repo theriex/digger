@@ -294,18 +294,20 @@ app.filter = (function () {
                  [["option", {value:kwd}, kwd],
                   ...kwdefs.slice(4).map((kd) =>
                       ["option", {value:kd.kw}, kd.kw])]])); },
-        swapKeyword: function (idx) {
+        swapKeyword: function (idx) {  //only called if keyword actually changed
             ctrls.trapdrag = true;
             var kwd = jt.byId("btswapsel" + idx).value;
             var pos = idx + 1;
             app.db.managerDispatch("kwd", "swapFilterKeyword", kwd, pos); },
         setValue: function (idx, tog) {
             ctrls.trapdrag = true;
+            var prev = ctrls.bts[idx].tog;
             ctrls.bts[idx].tog = tog;  //note the value for filtering
             mgrs.btc.updateToggleIndicators(idx, tog);
             mgrs.btc.updateToggleLabel(idx, tog);
-            mgrs.stg.filterValueChanged();  //save updated bowtie value
-            app.db.deckupd(); },
+            if(prev !== ctrls.bts[idx].tog) {
+                mgrs.stg.filterValueChanged();  //save updated bowtie value
+                app.db.deckupd(); } },
         addBTSettingsFunc: function (idx) {
             var bt = ctrls.bts[idx];
             bt.settings = function () {
