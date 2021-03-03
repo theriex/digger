@@ -79,14 +79,17 @@ app.hub = (function () {
 
     //General hub communication utilities
     mgrs.hcu = (function () {
-        var ajfs = ["kwdefs", "igfolds", "settings", "guides"];
+        //account JSON fields
+        var ajfs = {kwdefs:{cmp:["pos", "ig", "dsc"]},
+                    igfolds:{}, settings:{},
+                    guides:{cmp:["dsId", "email", "firstname", "hashtag"]}};
     return {
         serializeAccount: function (acct) {
-            ajfs.forEach(function (sf) {
+            Object.keys(ajfs).forEach(function (sf) {
                 if(acct[sf] && typeof acct[sf] !== "string") {
                     acct[sf] = JSON.stringify(acct[sf]); } }); },
         deserializeAccount: function (acct) {
-            ajfs.forEach(function (sf) {
+            Object.keys(ajfs).forEach(function (sf) {
                 if(acct[sf] && typeof acct[sf] === "string") {
                     acct[sf] = JSON.parse(acct[sf]); } }); },
         accountAsData: function (acct) {
@@ -96,12 +99,16 @@ app.hub = (function () {
             return data; },
         verifyDefaultAccountFields: function (acct) {
             var da = hai.accts.find((a) => a.dsId === "101");
-            ajfs.forEach(function (df) {
+            Object.keys(ajfs).forEach(function (df) {
                 acct[df] = acct[df] || da[df] || ""; }); },
+        equivField: function (fld, a, b) {  //compare deserialized objs
+            if(fld && ajfs[fld] && ajfs[fld].cmp) {
+                return ajfs[fld].cmp.every((f) => a[f] === b[f]); }
+            return JSON.stringify(a[fld]) === JSON.stringify(b[fld]); },
         accountDisplayDiff: function (a, b) {
             if(!a || !b) { return false; }  //nothing to compare
-            var changed = ajfs.find((x) =>
-                JSON.stringify(a[x]) !== JSON.stringify(b[x]));
+            var changed = Object.keys(ajfs).find((fld) =>
+                !mgrs.hcu.equivField(fld, a, b));
             return changed || false; },
         noteReturnedCurrentAccount: function (acct, token) {
             mgrs.hcu.deserializeAccount(acct);
@@ -117,11 +124,12 @@ app.hub = (function () {
         noteUpdatedAccountsInfo: function (acctsinfo) {
             curracct = null;  //clear any stale ref
             hai = acctsinfo;
-            if(hai.currid) {
-                curracct = hai.accts.find((a) => a.dsId === hai.currid);
-                jt.out("hubtogspan", curracct.firstname); }
-            else {  //no current account
-                jt.out("hubtogspan", "Digger"); } }
+            if(!hai || !hai.currid) {
+                throw("Bad acctsinfo"); }
+            curracct = hai.accts.find((a) => a.dsId === hai.currid);
+            if(!curracct) {
+                throw("No current account found"); }
+            jt.out("hubtogspan", curracct.firstname); }
     };  //end mgrs.hcu returned functions
     }());
 
@@ -183,7 +191,8 @@ app.hub = (function () {
                 //see ../../docs/hubsyncNotes.txt
                 jt.call("POST", "/hubsync", data,
                         function (updates) {
-                            jt.out("modindspan", "");
+                            //leave the indicator light on while processing
+                            //jt.out("modindspan", "");
                             mgrs.loc.processReceivedSyncData(updates); },
                         function (code, errtxt) {
                             jt.out("modindspan", "");
@@ -214,7 +223,9 @@ app.hub = (function () {
             if(changed) { //need to rebuild display with updated info
                 mgrs.loc.notifyAccountChanged(); }
             var songs = updates.slice(1);
+            jt.log("processReceivedSyncData " + songs.length + " songs.");
             songs.forEach(function (s) { app.db.noteUpdatedSongData(s); });
+            jt.out("modindspan", "");
             if(curracct.syncsince && curracct.syncsince < curracct.modified) {
                 mgrs.loc.syncToHub(); } }
     };  //end mgrs.loc returned functions
