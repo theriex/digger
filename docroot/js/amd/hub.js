@@ -120,6 +120,7 @@ app.hub = (function () {
             hai.accts = [acct,
                          ...hai.accts.filter((a) => a.dsId !== acct.dsId)];
             app.db.config().acctsinfo = hai;
+            mgrs.dlg.noteSyncCompleted();
             return changed; },
         noteUpdatedAccountsInfo: function (acctsinfo) {
             curracct = null;  //clear any stale ref
@@ -249,7 +250,8 @@ app.hub = (function () {
         var mafs = [{n:"email", x:true},
                     {n:"firstname", d:"first name", p:"Name for display"},
                     {n:"hashtag", p:"Your unique user tag"},
-                    {n:"guides", d:"guides", x:"guides"}];
+                    {n:"guides", d:"guides", x:"guides"},
+                    {n:"modified", d:"last sync", x:"locdt"}];
     return {
         chooseAccount: function () {
             var ars = hai.accts.map((ai) =>
@@ -331,7 +333,10 @@ app.hub = (function () {
                 var value = curracct[fd.n];
                 if(fd.x === "guides") {
                     value = mgrs.gin.accountFormDisplayValue(); }
-                return ["span", {cla:"formvalspan"}, value]; }
+                if(fd.x === "locdt") {
+                    value = jt.tz2human(value); }
+                return ["span", {id:"fmvspan" + fd.n, cla:"formvalspan"},
+                        value]; }
             return ["input", {type:"text", id:fd.n + "in",
                               placeholder:fd.p || "", value:curracct[fd.n]}]; },
         acctFieldsHTML: function () {
@@ -483,7 +488,10 @@ app.hub = (function () {
                 if(curracct) {
                     mgrs.dlg.accountSettings(); }
                 else {  //choose from existing accounts or add new
-                    mgrs.dlg.chooseAccount(); } } }
+                    mgrs.dlg.chooseAccount(); } } },
+        noteSyncCompleted: function () {
+            if(jt.byId("fmvspanmodified")) {
+                jt.out("fmvspanmodified", jt.tz2human(curracct.modified)); } }
     };  //end mgrs.dlg returned functions
     }());
 

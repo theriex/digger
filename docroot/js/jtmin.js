@@ -454,7 +454,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
 
     uo.tz2human = function (zd) {
         if(typeof zd === "string") {
-            zd = uo.isoString2Time(zd); }
+            zd = uo.isoString2Time(zd, true); }
         zd = uo.tz2loc(zd);  //convert back to local time
         //having adjusted the time, have to fetch all the date components as
         //UTC to avoid having them automatically adjusted again.
