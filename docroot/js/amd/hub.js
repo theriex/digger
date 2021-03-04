@@ -138,7 +138,7 @@ app.hub = (function () {
     //change first needs to be reflected locally, then secondarily updated
     //at DiggerHub if a DiggerHub account has been set up.
     mgrs.loc = (function () {
-        var tmo = null;  //sync timeout
+        var syt = {tmo:null, stat:"", resched:false};  //sync task info
         var upldsongs = null;
     return {
         init: function () {
@@ -173,6 +173,7 @@ app.hub = (function () {
                             errf(code, errtxt); } },
                     jt.semaphore("hub.loc.updateAccount")); },
         handleSyncError: function (code, errtxt) {
+            upldsongs = null;
             if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
                 //Credentials are no longer valid, so this is old account info
                 //and should not be attempting to sync.  To fix, the user will
@@ -182,24 +183,30 @@ app.hub = (function () {
         syncToHub: function () {
             if(!curracct || curracct.dsId === "101" || !curracct.token) {
                 return; }  //invalid account or not set up yet
-            if(tmo) {  //reset the sync timer if currently waiting
-                clearTimeout(tmo); }
-            tmo = setTimeout(function () {
-                tmo = null;
-                jt.out("modindspan", "hub");
-                var data = mgrs.loc.makeSendSyncData();
-                //see ../../docs/hubsyncNotes.txt
-                jt.call("POST", "/hubsync", data,
-                        function (updates) {
-                            //leave the indicator light on while processing
-                            //jt.out("modindspan", "");
-                            mgrs.loc.processReceivedSyncData(updates); },
-                        function (code, errtxt) {
-                            jt.out("modindspan", "");
-                            upldsongs = null;
-                            mgrs.loc.handleSyncError(code, errtxt); },
-                        jt.semaphore("loc.syncToHub")); },
-                                20 * 1000); },
+            if(syt.tmo) {  //already scheduled
+                if(syt.stat) {  //currently running
+                    syt.resched = true;  //reschedule when finished
+                    return; }
+                clearTimeout(syt.tmo); }  //not running. reschedule now
+            syt.tmo = setTimeout(mgrs.loc.hubSyncStart, 20 * 1000); },
+        hubSyncStart: function () { //see ../../docs/hubsyncNotes.txt
+            syt.stat = "executing";
+            jt.out("modindspan", "hub");  //turn on work indicator
+            jt.call("POST", "/hubsync", mgrs.loc.makeSendSyncData(),
+                    function (updates) {
+                        mgrs.loc.processReceivedSyncData(updates);
+                        mgrs.loc.hubSyncFinished(); },
+                    function (code, errtxt) {
+                        mgrs.loc.handleSyncError(code, errtxt);
+                        mgrs.loc.hubSyncFinished(); },
+                    jt.semaphore("loc.syncToHub")); },
+        hubSyncFinished: function () {
+            jt.out("modindspan", "");  //turn off work indicator
+            syt.tmo = null;
+            syt.stat = "";
+            if(syt.resched) {
+                syt.resched = false;
+                mgrs.loc.syncToHub(); } },
         makeSendSyncData: function () {
             //send the current account + any songs that need sync.  If just
             //signed in, then don't send the current song or anything else
@@ -445,7 +452,6 @@ app.hub = (function () {
                                errtxt); },
                     jt.semaphore("hub.dlg.emailPwdReset")); },
         signInOrJoin: function (endpoint) {
-            curracct = null;
             if(!jt.byId("siojfdiv")) {  //form not displayed yet
                 return mgrs.dlg.showSignInJoinForm(); }
             mgrs.dlg.siojbDisable(true);

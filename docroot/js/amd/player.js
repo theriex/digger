@@ -66,6 +66,7 @@ app.player = (function () {
     //General container for all managers, used for dispatch
     var mgrs = {};
 
+    //handle the tuning fork actions and info display
     mgrs.tun = (function () {
         var fos = [{v:"P", t:"Playable"}, {v:"B", t:"Tired"},
                    {v:"R", t:"Don't Suggest"}];
@@ -128,6 +129,7 @@ app.player = (function () {
     }());
 
 
+    //handle the pan controls for energy and accessability
     mgrs.pan = {
         createControl: function (id, det) {
             var pc = {fld:det.fld, pn:det.pn, low:det.low, high:det.high,
@@ -218,6 +220,7 @@ app.player = (function () {
     };  //end mgrs.pan
 
 
+    //handle the selected keywords display and entry
     mgrs.kwd = (function () {
         var kwdefs = null;
     return {
@@ -287,6 +290,7 @@ app.player = (function () {
     }());
 
 
+    //handle the song comment display and entry
     mgrs.cmt = {
         toggleCommentDisplay: function (togstate) {
             var cdiv = jt.byId("commentdiv");
@@ -449,6 +453,7 @@ return {
     song: function () { return stat.song; },
     playerr: function (path) { return playerrs[path]; },
     noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; },
+    updateSong: function (updsong) { stat.song = updsong; play(); },
     managerDispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.tabular, args); }
 

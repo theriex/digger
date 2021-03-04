@@ -57,12 +57,25 @@ app.db = (function () {
     }
 
 
+    function isUnratedSong (s) {
+        return (!s.kws && s.el === 49 && s.al === 49);
+    }
+
+
     function noteUpdatedSongData (updsong) {
         dbo.songs[updsong.path] = updsong;
         var wssi = deckstat.ws.findIndex(
             (s) => s.path === updsong.path);
         if(wssi >= 0) {  //update working set song with latest copy
             deckstat.ws[wssi] = updsong; }
+        //If hubsync returned a rated song, and what we have is not rated,
+        //then update the player to reflect the rated values.
+        var ps = app.player.song();
+        if(ps && ps.path === updsong.path) {  //currently playing
+            //update display only if unrated and pulled ratings, because
+            //rebuilding player controls can restart the song playing.
+            if(isUnratedSong(ps) && !isUnratedSong(updsong)) {
+                app.player.updateSong(updsong); } }
     }
 
 
