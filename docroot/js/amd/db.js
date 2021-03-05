@@ -12,7 +12,7 @@ app.db = (function () {
                   reading: "Reading Files...",
                   merging: "Merging Data..."};
     var deckstat = {filter:true, qstr:"", disp:"songs", toggles:{},
-                    maxdecksel:1000, work:{status:"", timer:null},
+                    maxdecksel:1000,
                     ws:[],    //working set (array of songs to be played)
                     fcs:[],   //filter controls to apply 
                     pns:[]};  //play next songs (as selected from deck/history)
@@ -416,7 +416,7 @@ app.db = (function () {
             igfolds = igfolds || app.hub.curracct().igfolds;
             Object.entries(dbo.songs).forEach(function ([p, s]) {
                 if(mgrs.ws.isReadableSong(s) && mgrs.igf.isIgnorePath(p)) {
-                    jt.log("Ignoring " + s.ti);
+                    //jt.log("Ignoring " + s.ti);  //might be a lot of output
                     s.fq = "I" + s.fq; } }); },
         isIgnorePath: function (p) {
             var pes = p.split("/");
@@ -755,7 +755,7 @@ app.db = (function () {
                 sh.cutoff = new Date(
                     jt.isoString2Time(arr[sh.end].lp).getTime() +
                         (24 * 60 * 60 * 1000)).toISOString();
-                while(sh.end < arr.length && arr[sh.end].lp < sh.cutoff) {
+                while(sh.end < arr.length - 1 && arr[sh.end].lp < sh.cutoff) {
                     sh.end += 1; } }
             jt.log("shuffle from [1] to [" + sh.end + "]");
             return sh.end; },
@@ -768,6 +768,8 @@ app.db = (function () {
             for(i = endidx; i > 0; i -= 1) {
                 j = Math.floor(Math.random() * i);
                 temp = deckstat.ws[i];
+                if(!temp) {
+                    throw("deckstat.ws index " + i + " was undefined"); }
                 deckstat.ws[i] = deckstat.ws[j];
                 deckstat.ws[j] = temp; }
             shp.slice(0).reverse().forEach(function (s) {
@@ -860,7 +862,9 @@ app.db = (function () {
 
     //Deck manager handles actions at affecting what's on deck to play.
     mgrs.dk = (function () {
-        var shp = [];  //shuffle preserve songs on deck
+        var wrk = {tmo:null, stat:"", keep:0, resched:false, rkp:0,
+                   wait:50};  //initial wait on startup is short
+        var shp = [];  //"shuffle preserved" deck songs
     return {
         remove: function (type, prefix, idx) {
             var song = deckstat[prefix][idx];
@@ -980,23 +984,22 @@ app.db = (function () {
             deckstat.toggles.togfiltb(true); },
         updateDeck: function (keep) {
             if(!app.filter.filtersReady()) {
-                return; }  //ignore spurious calls before filter ready
-            if(deckstat.work.status) {  //already ongoing
-                if(deckstat.work.timer) {
-                    clearTimeout(deckstat.work.timer);
-                    deckstat.work.timer = null; }
-                deckstat.work.timer = setTimeout(mgrs.dk.updateDeck, 1200);
-                return; }
-            deckstat.work.status = "updating";
-            shp = deckstat.ws.slice(0, (keep || 0));
-            setTimeout(mgrs.dk.updateDeckSynchronous, 50); }, //yield to UI
-        updateDeckSynchronous: function () {
+                return; }  //ignore spurious calls before filters displayed
+            if(wrk.tmo) {  //already scheduled
+                if(wrk.stat) {  //currently running
+                    wrk.resched = true;  //reschedule when finished
+                    wrk.rkp = keep || 0;
+                    return; }
+                clearTimeout(wrk.tmo); }  //didn't start yet. reschedule
+            wrk.keep = keep || 0;
+            wrk.tmo = setTimeout(mgrs.dk.updateDeckWork, wrk.wait); },
+        updateDeckWork: function () {
+            wrk.stat = "updating";
+            wrk.wait = 1200;  //standard wait after initial run
+            shp = deckstat.ws.slice(0, wrk.keep);
             if(!jt.byId("deckheaderdiv")) {
                 mgrs.dk.initElements(); }
-            if(deckstat.toggles.infotimeout) {
-                clearTimeout(deckstat.toggles.infotimeout);
-                deckstat.toggles.infotimeout = null; }
-            deckstat.toggles.toginfob(!shp);  //show status while working
+            deckstat.toggles.toginfob(!shp.length); //show info while working
             mgrs.ws.rebuildWorkingSet(shp);  //initializes deckstat.ws/fcs
             mgrs.ws.filterBySearchText();
             mgrs.ws.filterByFilters();
@@ -1005,11 +1008,15 @@ app.db = (function () {
             mgrs.ws.truncateAndShuffle(shp);
             if(deckstat.ws.length) {  //show songs if any found
                 app.player.deckUpdated();
-                deckstat.toggles.infotimeout = setTimeout(function () {
-                    deckstat.toggles.toginfob(false);
-                    deckstat.toggles.infotimeout = null; }, 800); }
+                //leave info up momentarily while displays update
+                setTimeout(function () {
+                    deckstat.toggles.toginfob(false); }, 800); }
             mgrs.sop.displaySongs();
-            deckstat.work.status = ""; },
+            wrk.tmo = null;
+            wrk.stat = "";
+            if(wrk.resched) {
+                wrk.resched = false;
+                mgrs.dk.updateDeck(wrk.rkp); } },
         popSongFromDeck: function () {
             var song = mgrs.alb.albumPlayNext();
             if(song) {  //in album mode and had next track to play
