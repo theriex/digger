@@ -191,6 +191,8 @@ app.hub = (function () {
                 clearTimeout(syt.tmo); }  //not running. reschedule now
             syt.tmo = setTimeout(mgrs.loc.hubSyncStart, 20 * 1000); },
         hubSyncStart: function () { //see ../../docs/hubsyncNotes.txt
+            if(curracct.dsId === "101") {
+                return jt.log("hubSyncStart aborted since not signed in"); }
             syt.stat = "executing";
             jt.out("modindspan", "hub");  //turn on work indicator
             jt.call("POST", "/hubsync", mgrs.loc.makeSendSyncData(),
@@ -282,14 +284,13 @@ app.hub = (function () {
         removeAccount: function (aid) {
             jt.out("dbstatdiv", "Removing account...");
             if(aid === hai.currid) {
-                hai.currid = 0; }
+                hai.currid = "101"; }
             hai.accts = hai.accts.filter((a) => a.dsId !== aid);
             mgrs.loc.updateAccount(
                 function (acctsinfo) {
                     jt.out("dbstatdiv", "");
-                    mgrs.hcu.noteUpdatedAccountsInfo(acctsinfo); },
-                    //Don't automatically displayAccountInfo, let them toggle
-                    //the dialog open if they want.
+                    mgrs.hcu.noteUpdatedAccountsInfo(acctsinfo);
+                    app.hub.toggle("close"); },
                 function (code, errtxt) {
                     jt.out("dbstatdiv", code + ": " + errtxt); }); },
         changePwdForm: function () {
@@ -491,7 +492,8 @@ app.hub = (function () {
                     mgrs.dlg.chooseAccount(); } } },
         noteSyncCompleted: function () {
             if(jt.byId("fmvspanmodified")) {
-                jt.out("fmvspanmodified", jt.tz2human(curracct.modified)); } }
+                var lastsync = curracct.syncsince || curracct.modified;
+                jt.out("fmvspanmodified", jt.tz2human(lastsync)); } }
     };  //end mgrs.dlg returned functions
     }());
 
@@ -632,9 +634,9 @@ app.hub = (function () {
     }
 
 
-    function toggleHubDialog () {
+    function toggleHubDialog (state) {
         var dlgdiv = jt.byId("dbdlgdiv");
-        if(dlgdiv.dataset.mode === "hub") {  //currently displaying hub dlg
+        if(state === "close" || (!state && dlgdiv.dataset.mode === "hub")) {
             dlgdiv.dataset.mode = "empty";
             dlgdiv.innerHTML = ""; }
         else {
@@ -648,7 +650,7 @@ return {
     dataLoaded: function () { mgrs.loc.dataLoaded(); },
     curracct: function () { return curracct; },
     titleHTML: function () { return titleHTML(); },
-    toggle: function () { toggleHubDialog(); },
+    toggle: function (state) { toggleHubDialog(state); },
     managerDispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.hub, args); }
 };  //end of returned functions
