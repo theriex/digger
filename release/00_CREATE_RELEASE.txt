@@ -1,7 +1,9 @@
 # All commands here are run from the same directory as this file.
-# If needed, bump the release version by editing
-# ../server/db.js diggerVersion then change 
-# ./Digger/Digger.app/Contents/Info.plist CFBundleVersion to match
+
+# If needed, bump the release version by editing:
+#   ../server/db.js diggerVersion (string, preceding 'v')
+#   ./Digger/Digger.app/Contents/Info.plist CFBundleVersion (numeric, no 'v')
+#   ../../diggerhub/site/py/util.py version (string, preceding 'v')
 
 # Update the static resource cache bust flag
 node cachev.js

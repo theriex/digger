@@ -83,6 +83,7 @@ app.hub = (function () {
         var ajfs = {kwdefs:{cmp:["pos", "ig", "dsc"]},
                     igfolds:{}, settings:{},
                     guides:{cmp:["dsId", "email", "firstname", "hashtag"]}};
+        var verstat = {};
     return {
         serializeAccount: function (acct) {
             Object.keys(ajfs).forEach(function (sf) {
@@ -120,8 +121,18 @@ app.hub = (function () {
             hai.accts = [acct,
                          ...hai.accts.filter((a) => a.dsId !== acct.dsId)];
             app.db.config().acctsinfo = hai;
+            mgrs.hcu.verifyClientVersion();
             mgrs.dlg.noteSyncCompleted();
             return changed; },
+        verifyClientVersion: function () {
+            if(curracct.hubVersion && curracct.diggerVersion) {
+                verstat.hub = curracct.hubVersion;
+                verstat.loc = curracct.diggerVersion;
+                if(!verstat.notice && verstat.hub !== verstat.loc) {
+                    verstat.notice = true;
+                    jt.err("You are running " + verstat.loc + ". The hub is " +
+                           verstat.hub + ". You might want to download and " +
+                           "install the latest version."); } } },
         noteUpdatedAccountsInfo: function (acctsinfo) {
             curracct = null;  //clear any stale ref
             hai = acctsinfo;

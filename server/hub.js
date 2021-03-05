@@ -113,6 +113,8 @@ module.exports = (function () {
 
     function processReceivedSyncData (updates) {
         updates = JSON.parse(updates);
+        updates[0].diggerVersion = db.diggerVersion();
+        var retval = JSON.stringify(updates);
         var updacc = updates[0];
         deserializeAccountFields(updacc);
         writeUpdatedAccount(updacc);  //reflect modified timestamp
@@ -123,6 +125,7 @@ module.exports = (function () {
             updsongs.forEach(function (s) {
                 updateLocalSong(dbo, s); });
             db.writeDatabaseObject(); }
+        return retval;
     }
 
 
@@ -300,7 +303,7 @@ module.exports = (function () {
     function hubsync (req, res) {
         //see ../docroot/docs/hubsyncNotes.txt
         return hubpost(req, res, "hubsync", function (hubret) {
-            processReceivedSyncData(hubret); });
+            return processReceivedSyncData(hubret); });
     }
 
 
