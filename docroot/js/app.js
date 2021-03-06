@@ -60,8 +60,20 @@ app = {
                     arg = "'" + arg + "'"; }
                 return acc + "," + arg; }, ""); }  //always start with comma
         return ps;
-    }
+    },
 
+
+    cb: function (endpoint, params, toklev) {
+        toklev = toklev || "second";
+        params = params || "";
+        if(typeof params === "object") {
+            params = jt.objdata(params); }
+        var url = endpoint + "?";
+        if(params) {
+            url += params + "&"; }
+        url += jt.ts("cb=", toklev);
+        return url;
+    }
 
 };
 }());

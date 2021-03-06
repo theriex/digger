@@ -40,7 +40,7 @@ app.hub = (function () {
             curracct[gidx] = guide; },
         fetch: function () {
             pfs.procupd("Fetching ratings...");
-            jt.call("GET", "/guidedat?" + params, null,
+            jt.call("GET", app.cb("/guidedat", params), null,
                     function (updg) {  //updg has updated lastrating/lastcheck
                         pfs.noteUpdatedGuideInfo(updg);
                         pfs.merge(); },
@@ -50,7 +50,7 @@ app.hub = (function () {
                     jt.semaphore("hub.fmp" + guide.dsId + ".fetch")); },
         merge: function () {
             pfs.procupd("Importing ratings...");
-            jt.call("GET", "/ratimp?" + params, null,
+            jt.call("GET", app.cb("/ratimp", params), null,
                     function ([updg, dbo]) {
                         pfs.noteUpdatedGuideInfo(updg);
                         app.db.managerDispatch("lib", "rebuildSongData", dbo);
@@ -461,7 +461,7 @@ app.hub = (function () {
         emailPwdReset: function () {
             jt.out("siojerrhelpdiv", "");
             var data = jt.objdata({email:jt.byId("emailin").value});
-            jt.call("GET", "/mailpwr?" + data, null,
+            jt.call("GET", app.cb("/mailpwr", data), null,
                     function () {
                         jt.out("siojstatdiv", "Reset password link sent."); },
                     function (code, errtxt) {

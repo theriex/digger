@@ -246,7 +246,16 @@ module.exports = (function () {
     }
 
 
+    function makeCacheBustToken () {
+        var iso = new Date().toISOString();
+        var slug = iso.slice(2,4) + iso.slice(5,7) + iso.slice(8,10) +
+            iso.slice(11,13) + iso.slice(14,16) + iso.slice(17,19);
+        return slug;
+    }
+
+
     function hubget (apiname, params, res, procf) {
+        params.cachebust = params.cachebust || makeCacheBustToken();
         var data = Object.entries(params)
             .map(function ([a, v]) { return a + "=" + encodeURIComponent(v); })
             .join("&");

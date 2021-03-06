@@ -100,7 +100,7 @@ app.db = (function () {
 
 
     function fetchConfigInfo(contf) {
-        jt.call("GET", "/config", null,
+        jt.call("GET", app.cb("/config"), null,
                 function(configobj) {
                     config = configobj;
                     contf(); },
@@ -435,7 +435,7 @@ app.db = (function () {
     //Library manager deals with lib level actions and data
     mgrs.lib = {
         monitorReadTotal: function () {
-            jt.call("GET", "/songscount", null,
+            jt.call("GET", app.cb("/songscount"), null,
                     function (info) {
                         jt.out("countspan", String(info.count) + " songs");
                         dbstat.currstat = info.status;
@@ -454,7 +454,7 @@ app.db = (function () {
                 return; }  //already reading
             dbstat.currstat = "reading";
             setTimeout(mgrs.lib.monitorReadTotal, 800);  //monitor after GET
-            jt.call("GET", "/dbread", null,
+            jt.call("GET", app.cb("/dbread"), null,
                     function (databaseobj) {
                         mgrs.lib.rebuildSongData(databaseobj); },
                     function (code, errtxt) {
@@ -537,7 +537,7 @@ app.db = (function () {
                   ["button", {type:"button",
                               onclick:mdfs("lib.reReadSongFiles", "confirmed")},
                    "Go!"]]]));
-            jt.call("GET", "/songscount", null,
+            jt.call("GET", app.cb("/songscount"), null,
                     function (info) {
                         jt.out("musicfolderdiv", info.musicpath); },
                     function (code, errtxt) {
@@ -577,7 +577,7 @@ app.db = (function () {
                     var txt = fc.body.innerHTML;
                     if(txt.startsWith("Received")) {  //successful upload
                         jt.byId("mergefileformdiv").style.display = "none";
-                        jt.call("GET", "/mergestat", null,
+                        jt.call("GET", app.cb("/mergestat"), null,
                                 function (info) {
                                     mgrs.lib.updateMergeStatus(info);
                                     if(info.state === "merging") {
@@ -685,7 +685,7 @@ app.db = (function () {
                    " of " + JSON.parse(xob.spec.songs).length);
             if(xob.stat.state === "Copying") {
                 setTimeout(function () {
-                    jt.call("GET", "/plistexp", null,
+                    jt.call("GET", app.cb("/plistexp"), null,
                             function (xob) {
                                 mgrs.exp.updateExportStatus(xob); },
                             function (code, errtxt) {
@@ -1157,7 +1157,7 @@ app.db = (function () {
 
 
     function fetchInitialData () {
-        jt.call("GET", "/startdata", null,
+        jt.call("GET", app.cb("/startdata"), null,
                 function (startdata) {
                     config = startdata.config;
                     config.acctsinfo.accts.forEach(function (acct) {
