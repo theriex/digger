@@ -644,6 +644,7 @@ module.exports = (function () {
             return jslf(fs, "writeFileSync", path, txt, "utf8"); },
         mkdir: function (path) { return jslf(fs, "mkdirSync", path); },
         diggerVersion: function () { return diggerVersion(); },
+        isMusicFile: function (fn) { return isMusicFile(fn); },
         //server endpoints
         config: function (req, res) { return serveConfig(req, res); },
         startdata: function (req, res) { return startupData(req, res); },

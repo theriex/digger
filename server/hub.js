@@ -23,8 +23,9 @@ module.exports = (function () {
         if(!conf.acctsinfo.accts.find((x) => x.dsId === "101")) {
             conf.acctsinfo.accts.push(
                 {dsType:"DigAcc", dsId:"101", firstname:"Digger",
-                 email:"support@diggerhub.com", token:"none",
-                 kwdefs:initkwds, igfolds:["Ableton", "GarageBand"]}); }
+                 email:"support@diggerhub.com", token:"none", kwdefs:initkwds,
+                 igfolds:["Ableton", "Audiffex", "Audio Music Apps",
+                          "GarageBand", "JamKazam"]}); }
         if(!conf.acctsinfo.currid) {
             conf.acctsinfo.currid = "101"; }
     }
