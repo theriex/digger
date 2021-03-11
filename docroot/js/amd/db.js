@@ -707,15 +707,13 @@ app.db = (function () {
             if(s.fq && s.fq.match(/^[DUI]/)) { //see player mgrs.tun.subcats
                 return false; }
             return true; },
-        skip: function (s, skips) {
-            return skips.find((k) => k.path === s.path); },
-        rebuildWorkingSet: function (shp) {
+        rebuildWorkingSet: function () {
             var ses = Object.entries(dbo.songs);
             mgrs.dk.appendInfoCount("Total songs", ses.length);
             deckstat.ws = [];    //reset working set
             deckstat.fcs = [];   //reset active filter controls
             ses.forEach(function ([p, s]) {
-                if(mgrs.ws.isReadableSong(s) && !mgrs.ws.skip(s, shp)) {
+                if(mgrs.ws.isReadableSong(s)) {
                     s.path = p;  //for runtime lookup after update
                     deckstat.ws.push(s); } });
             mgrs.dk.appendInfoCount("Readable songs"); },
@@ -737,9 +735,10 @@ app.db = (function () {
                 app.filter.filters("active").forEach(function (ftr) {
                     deckstat.ws = deckstat.ws.filter((song) => ftr.match(song));
                     mgrs.dk.appendInfoCount(ftr.actname || ftr.pn); }); } },
-        pullPNSFromWS: function () {
-            deckstat.ws = deckstat.ws.filter(function (song) {
-                return (deckstat.pns.indexOf(song) < 0); }); },
+        pullExplicitOrderSongs: function (shp) {
+            deckstat.ws = deckstat.ws.filter((s) =>
+                (!deckstat.pns.find((x) => x.path === s.path) &&
+                 !shp.find((x) => x.path === s.path))); },
         sortByLastPlayed: function () {
             deckstat.ws.sort(function (a, b) {
                 if(a.lp && !b.lp) { return 1; }
@@ -759,7 +758,7 @@ app.db = (function () {
                     sh.end += 1; } }
             jt.log("shuffle from [1] to [" + sh.end + "]");
             return sh.end; },
-        truncateAndShuffle: function (shp) {
+        truncateAndShuffle: function () {
             deckstat.ws = deckstat.ws.slice(0, deckstat.maxdecksel);
             if(deckstat.ws.length <= 2) { return; }  //nothing to shuffle
             var endidx = mgrs.ws.findEndShuffleIndex(deckstat.ws);
@@ -771,9 +770,7 @@ app.db = (function () {
                 if(!temp) {
                     throw("deckstat.ws index " + i + " was undefined"); }
                 deckstat.ws[i] = deckstat.ws[j];
-                deckstat.ws[j] = temp; }
-            shp.slice(0).reverse().forEach(function (s) {
-                deckstat.ws.unshift(s); }); }
+                deckstat.ws[j] = temp; } }
     };  //end mgrs.ws functions
 
 
@@ -1000,12 +997,14 @@ app.db = (function () {
             if(!jt.byId("deckheaderdiv")) {
                 mgrs.dk.initElements(); }
             deckstat.toggles.toginfob(!shp.length); //show info while working
-            mgrs.ws.rebuildWorkingSet(shp);  //initializes deckstat.ws/fcs
+            mgrs.ws.rebuildWorkingSet();  //initializes deckstat.ws/fcs
             mgrs.ws.filterBySearchText();
             mgrs.ws.filterByFilters();
-            mgrs.ws.pullPNSFromWS();
+            mgrs.ws.pullExplicitOrderSongs(shp);
             mgrs.ws.sortByLastPlayed();
-            mgrs.ws.truncateAndShuffle(shp);
+            mgrs.ws.truncateAndShuffle();
+            shp.slice(0).reverse().forEach(function (s) {
+                deckstat.ws.unshift(s); });
             if(deckstat.ws.length) {  //show songs if any found
                 app.player.deckUpdated();
                 //leave info up momentarily while displays update
@@ -1021,10 +1020,10 @@ app.db = (function () {
             var song = mgrs.alb.albumPlayNext();
             if(song) {  //in album mode and had next track to play
                 return mgrs.hist.addSongToHistory(song); }
-            if(deckstat.pns.length > 0) {  //play next specified song
+            if(deckstat.pns.length > 0) {  //pull from "play next specified"
                 song = deckstat.pns[0];
                 deckstat.pns = deckstat.pns.slice(1); }
-            else if(deckstat.ws.length > 0) {  //play next song on deck
+            else if(deckstat.ws.length > 0) {  //pull from deck
                 song = deckstat.ws[0];
                 deckstat.ws = deckstat.ws.slice(1); }
             if(song) {  //immediately mark as played so not re-retrieved
