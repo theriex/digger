@@ -3,11 +3,9 @@ Contextual music library access.
 
 ## Concept
 
-Digger is a local web server to access your music based on your current listening context.  Working?  Party?  Automatically pull music from your library that *you* think is appropriate.
+Digger is mixing panel for your music library that automatically pulls and plays music matching your [listening context](https://epinova.com/more/contextual-music-retrieval.html).  Now you don't have to face a wall of files just to get noise in the room.
 
-Digger is based on the idea of [contextual music retrieval](https://epinova.com/more/contextual-music-retrieval.html).  Your impressions of a song, and the tags you have associated with it, are used to automatically pull songs from your personal library.  The goal is to get you back to enjoying your music collection without having to browse a wall of files just to get noise in the room.
-
-Digger currently works only on locally available music files.  It has an export feature for copying music to playlists, and rudimentary data import/merge.  https://youtu.be/P9uGBJkQj5k has a walkthrough of some of the interface features.
+Digger consists of a node.js server for file access and a browser interface for listening.  Prebuilt downloads, and a demo of the interface, are available on [DiggerHub](https://diggerhub.com).
 
 
 ## Customize
@@ -25,9 +23,7 @@ Digger copies the default [config.json](https://github.com/theriex/digger/blob/m
 
 ## Install
 
-Digger is available as single packaged executable that can be downloaded and run by double clicking it.  You can find linux|macos|win versions under "Assets" in the latest [release](https://github.com/theriex/digger/releases).
-
-If you prefer to run from source, follow these steps:
+To run from source, follow these steps:
 
 Setup:
 1. Download the digger source code or git clone the project.
