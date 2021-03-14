@@ -35,7 +35,7 @@ db.init(function (conf) {
     //command has a chance to execute before the process exits.  If there
     //is a catastrophic failure from some REST endpoint it is also better
     //to keep going.  So just catch it all.
-    process.on('uncaughtException', function (err) {
+    process.on("uncaughtException", function (err) {
         console.log("uncaughtException: " + err);
     });
 
@@ -82,6 +82,8 @@ db.init(function (conf) {
             console.error(posterr); }
     }).listen(conf.port);
 
+    console.log("Digger running at http://localhost:" + conf.port);
+
     var sd = conf.spawn && conf.spawn[require("os").platform()];
     if(sd) {
         console.log(sd.command + " " + sd.args.join(" "));
@@ -91,6 +93,4 @@ db.init(function (conf) {
         setTimeout(function () {
             const { spawn } = require("child_process");
             spawn(sd.command, sd.args, sd.options); }, 800); }
-    else {
-        console.log("Digger available at http://localhost:" + conf.port); }
 });

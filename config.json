@@ -10,5 +10,10 @@
       "comment": "MacOS supports opening a URL with the default browser",
       "command": "open",
       "args": ["http://localhost:6980"],
-      "options": {"stdio": "ignore"} } }
+      "options": {"stdio": "ignore"} },
+    "win32": {
+      "comment": "Theoretically, this should work.",
+      "command": "start",
+      "args": ["http://localhost:6980"],
+      "options": {"shell": "true"} } }
 }

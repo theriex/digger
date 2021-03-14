@@ -28,7 +28,6 @@
     "node-fetch": "^2.6.1",
     "node-static": "^0.7.11"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
