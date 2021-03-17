@@ -11,7 +11,7 @@
     ],
     "assets": [
       "./config.json",
-      "./docroot/css/site.css",
+      "./docroot/css/digger.css",
       "./docroot/img/*.png",
       "./docroot/js/app.js",
       "./docroot/js/jtmin.js",
