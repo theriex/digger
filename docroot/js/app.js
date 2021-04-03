@@ -7,14 +7,14 @@ var jt = {};
 (function () {
     "use strict";
 
-    var modules = ["db", "player", "filter", "hub"];
+    var modules = ["svc", "top", "player", "filter", "deck"];
 
 
 app = {
 
     init2: function () {
         jt.out("contentdiv", jt.tac2html(
-            [["div", {cla:"paneldiv", id:"pandbdiv"}],
+            [["div", {cla:"paneldiv", id:"pantopdiv"}],
              ["div", {cla:"paneldiv", id:"panplaydiv"}],
              ["div", {cla:"paneldiv", id:"panfiltdiv"}],
              ["div", {cla:"paneldiv", id:"pandeckdiv"}]]));
@@ -60,6 +60,18 @@ app = {
                     arg = "'" + arg + "'"; }
                 return acc + "," + arg; }, ""); }  //always start with comma
         return ps;
+    },
+
+
+    //Dispatch function string.  Return an onwhatever function string.
+    dfs: function (module, mgrfname, args) {
+        var pstr = app.paramstr(args);
+        mgrfname = mgrfname.split(".");
+        var fstr = "app." + module + ".dispatch('" + mgrfname[0] + "','" +
+            mgrfname[1] + "'" + pstr + ")";
+        if(pstr !== ",event") {  //don't return false from event hooks
+            fstr = jt.fs(fstr); }
+        return fstr;
     },
 
 

@@ -42,7 +42,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 /* DB Panel */
 
 .buttonico { max-height:30px; vertical-align:middle; padding:0px 5px; }
-#dbdlgdiv { display:table; }
+#topdlgdiv { display:table; }
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
 .statdiv { font-size:medium; }
 
@@ -195,10 +195,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckhistorydiv {
   height:160px; min-height:160px; max-height:160px; overflow:scroll; }
 
-.songtitlediv { font-size:medium; }
+.songtitlediv { font-size:medium; position:relative; padding:0px 0px 10px 0px; }
 .dsarspan { font-size:small; }
 .dsabspan { font-size:small; font-style:italic; }
-.decksongactdiv { padding-bottom:10px; }
+.decksongactdiv { position:absolute; top:0px; left:20px; }
+.sopa { margin:0px 15px; }
 
 .albumsongdiv { font-size:smaller; margin:5px 0px; }
 .albumsonglink { padding-left:15px; }

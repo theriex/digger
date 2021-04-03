@@ -10,6 +10,9 @@ node cachev.js
 
 # Create the default platform executables
 pkg ../
+# Browsers won't download .exe files directly so zip it
+zip -r -X digger-win.zip digger-win.exe
+rm digger-win.exe
 
 # Copy the updated macos unix exe into Digger.app
 cp digger-macos Digger/Digger.app/Contents/MacOS/server

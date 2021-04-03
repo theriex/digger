@@ -11,7 +11,7 @@ app.player = (function () {
 
     function saveSongDataIfModified (ignoreupdate) {
         if(!stat.songModified) { return; }
-        app.db.updateSavedSongData(stat.song, function (updsong) {
+        app.svc.updateSong(stat.song, function (updsong) {
             if(!ignoreupdate) {
                 stat.song = updsong;
                 jt.out("modindspan", "");
@@ -52,19 +52,11 @@ app.player = (function () {
     }
 
 
-    function mdfs (mgrfname, ...args) {
-        var pstr = app.paramstr(args);
-        mgrfname = mgrfname.split(".");
-        var fstr = "app.player.managerDispatch('" + mgrfname[0] + "','" +
-            mgrfname[1] + "'" + pstr + ")";
-        if(pstr !== ",event") {  //don't return false from event hooks
-            fstr = jt.fs(fstr); }
-        return fstr;
+    var mgrs = {};  //general container for managers 
+    function mdfs (mgrfname, ...args) {  //module dispatch function string
+        return app.dfs("player", mgrfname, args);
     }
 
-
-    //General container for all managers, used for dispatch
-    var mgrs = {};
 
     //handle the tuning fork actions and info display
     mgrs.tun = (function () {
@@ -119,11 +111,18 @@ app.player = (function () {
                 ["tr", {cla:"tuneoptdettr"},
                  [["td", {cla:"tuneoptdetattr"}, fld.a + ": "],
                   ["td", {cla:"tuneoptdetval"}, fld.v]]])]); },
-        bumpTired: function () {
-            if(stat.song && stat.song.fq) {
-                var tfqidx = subcats.B.indexOf(stat.song.fq);
-                if(tfqidx >= 0 && tfqidx < subcats.B.length - 1) {
-                    stat.song.fq = subcats.B[tfqidx + 1];
+        bumpTired: function (song) {  //general utility
+            var tfqidx = subcats.B.indexOf(stat.song.fq);
+            if(tfqidx < 0) {  //not currently marked as tired
+                song.fq = "B";
+                return true; }
+            if(tfqidx >= 0 && tfqidx < subcats.B.length - 1) {
+                song.fq = subcats.B[tfqidx + 1];
+                return true; }
+            return false; },
+        bumpCurrentIfTired: function () {
+            if(stat.song && stat.song.fq) {  //already marked as tired
+                if(mgrs.tun.bumpTired(stat.song)) {  //made tireder
                     noteSongModified(); } } }
     };  //end of mgrs.tun returned functions
     }());
@@ -241,10 +240,10 @@ app.player = (function () {
             else {
                 button.className = "kwdtogoff";
                 stat.song.kws = stat.song.kws.csvremove(button.innerHTML); }
-            app.db.managerDispatch("lib", "togdlg", "close");  //sc changed
+            app.top.dispatch("lib", "togdlg", "close");  //sc changed
             noteSongModified(); },
         rebuildToggles: function (context) {
-            kwdefs = app.db.managerDispatch("kwd", "defsArray", true);
+            kwdefs = app.top.dispatch("kwd", "defsArray", true);
             jt.out("kwdsdiv", jt.tac2html(
                 [["button", {type:"button", id:"kwdexpb",
                              onclick:mdfs("kwd.toggleExpansion")},
@@ -285,7 +284,7 @@ app.player = (function () {
             if(!stat.song.kws.csvcontains(kwd)) {
                 stat.song.kws = stat.song.kws.csvappend(kwd);
                 noteSongModified(); }
-            app.db.managerDispatch("kwd", "addKeyword", kwd, "playeradd"); }
+            app.top.dispatch("kwd", "addKeyword", kwd, "playeradd"); }
     };  //end mgrs.kwd returned functons
     }());
 
@@ -362,17 +361,17 @@ app.player = (function () {
 
 
     function updateSongTitleDisplay () {
-        var titleTAC = app.db.songTitleTAC(stat.song);
-        titleTAC[2].unshift(jt.tac2html(
-            ["div", {id:"playtitlebuttonsdiv"},
-             [["span", {id:"modindspan"}],
-              ["a", {href:"#tuneoptions", title:"Tune Playback Options",
-                     id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
-               ["img", {src:"img/tunefork.png", cla:"ptico"}]],
-              ["a", {href:"#skip", title:"Skip To Next Song",
-                     onclick:jt.fs("app.player.skip()")},
-               ["img", {src:"img/skip.png", cla:"ptico"}]]]]));
-        jt.out("playertitle", jt.tac2html(titleTAC));
+        jt.out("playertitle", jt.tac2html(
+            ["div", {cla:"songtitlediv"},
+             [["div", {id:"playtitlebuttonsdiv"},
+               [["span", {id:"modindspan"}],
+                ["a", {href:"#tuneoptions", title:"Tune Playback Options",
+                       id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
+                 ["img", {src:"img/tunefork.png", cla:"ptico"}]],
+                ["a", {href:"#skip", title:"Skip To Next Song",
+                       onclick:jt.fs("app.player.skip()")},
+                 ["img", {src:"img/skip.png", cla:"ptico"}]]]],
+             app.deck.dispatch("sop", "songIdentHTML", stat.song)]]));
     }
 
 
@@ -423,7 +422,7 @@ app.player = (function () {
         mgrs.tun.toggleTuningOpts("off");
         mgrs.cmt.toggleCommentDisplay("off");
         stat.status = "";
-        stat.song = app.db.popdeck();
+        stat.song = app.deck.popdeck();
         mgrs.cmt.updateCommentIndicator();
         if(!stat.song) {
             jt.out("mediadiv", "No songs to play."); }
@@ -433,7 +432,7 @@ app.player = (function () {
 
 
     function skip () {
-        mgrs.tun.bumpTired();  //bumps the fq value if tired song
+        mgrs.tun.bumpCurrentIfTired();  //bumps the fq value if tired song
         next();
     }
 
@@ -453,9 +452,8 @@ return {
     song: function () { return stat.song; },
     playerr: function (path) { return playerrs[path]; },
     noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; },
-    updateSong: function (updsong) { stat.song = updsong; play(); },
-    managerDispatch: function (mgrname, fname, ...args) {
-        return mgrs[mgrname][fname].apply(app.tabular, args); }
+    dispatch: function (mgrname, fname, ...args) {
+        return mgrs[mgrname][fname].apply(app.player, args); }
 
 };  //end of returned functions
 }());

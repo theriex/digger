@@ -28,6 +28,9 @@ app.filter = (function () {
 
     //General container for all managers, used for dispatch
     var mgrs = {};
+    function mdfs (mgrfname, ...args) {  //module dispatch function string
+        return app.dfs("filter", mgrfname, args);
+    }
 
 
     function findSetting (avs) {
@@ -223,7 +226,7 @@ app.filter = (function () {
     }
 
 
-    function mainLayout () {
+    function initializeInterface () {
         jt.out("panfiltdiv", jt.tac2html(
             ["div", {id:"panfiltcontentdiv"},
              [["div", {cla:"paneltitlediv"}, "FILTERS"],
@@ -233,18 +236,7 @@ app.filter = (function () {
               ["div", {id:"bowtiesdiv"}],
               ["div", {id:"ratdiv"}]]]));
         containingDivEventTraps();
-    }
-
-
-    //manager dispatch function string shorthand generator
-    function mdfs (mgrfname, ...args) {
-        var pstr = app.paramstr(args);
-        mgrfname = mgrfname.split(".");
-        var fstr = "app.filter.managerDispatch('" + mgrfname[0] + "','" +
-            mgrfname[1] + "'" + pstr + ")";
-        if(pstr !== ",event") {  //don't return false from event hooks
-            fstr = jt.fs(fstr); }
-        return fstr;
+        mgrs.stg.rebuildAllControls();
     }
 
 
@@ -298,7 +290,7 @@ app.filter = (function () {
             ctrls.trapdrag = true;
             var kwd = jt.byId("btswapsel" + idx).value;
             var pos = idx + 1;
-            app.db.managerDispatch("kwd", "swapFilterKeyword", kwd, pos); },
+            app.top.dispatch("kwd", "swapFilterKeyword", kwd, pos); },
         setValue: function (idx, tog) {
             ctrls.trapdrag = true;
             var prev = ctrls.bts[idx].tog;
@@ -307,7 +299,7 @@ app.filter = (function () {
             mgrs.btc.updateToggleLabel(idx, tog);
             if(prev !== ctrls.bts[idx].tog) {
                 mgrs.stg.filterValueChanged();  //save updated bowtie value
-                app.db.deckupd(); } },
+                app.deck.update("keyword filter"); } },
         addBTSettingsFunc: function (idx) {
             var bt = ctrls.bts[idx];
             bt.settings = function () {
@@ -337,7 +329,7 @@ app.filter = (function () {
                 var setting = findSetting({tp:"kwbt", k:bt.pn}) || dfltset;
                 mgrs.btc.setValue(idx, setting.v || dfltset.v); }); },
         rebuildControls: function () {
-            kwdefs = app.db.managerDispatch("kwd", "defsArray", true);
+            kwdefs = app.top.dispatch("kwd", "defsArray", true);
             ctrls.bts = [];
             mgrs.btc.makeFiltersAndDivs();
             mgrs.btc.createAndInitControls(); }
@@ -371,7 +363,7 @@ app.filter = (function () {
                 jt.byId("filterstarsdiv").title = "Match songs rated " +
                     ctrls.rat.stat.minrat + " or higher.";
                 mgrs.stg.filterValueChanged();  //save updated minrat value
-                app.db.deckupd(); };
+                app.deck.update("star filter"); };
             attachMovementListeners("filterstarsanchordiv", ctrls.rat.stat,
                                     ctrls.rat.posf); },
         makeFilter: function () {
@@ -402,7 +394,7 @@ app.filter = (function () {
             button.innerHTML = ctrls.rat.tagf.labels[ctrls.rat.tagf.idx];
             button.title = ctrls.rat.tagf.titles[ctrls.rat.tagf.idx];
             mgrs.stg.filterValueChanged();  //save updated tag filter value
-            app.db.deckupd(); },
+            app.deck.update("tag filter"); },
         init: function (divid) {
             mgrs.mruc.writeHTML(divid);
             mgrs.mruc.makeControls();
@@ -419,7 +411,7 @@ app.filter = (function () {
         var waitdays = null;
     return {
         initWaitDays: function () {
-            var settings = mgrs.stg.settings();
+            var settings = mgrs.stg.settings() || {};
             settings.waitcodedays = settings.waitcodedays || {
                 B:90,   //Backburner songs max once per 90 days by default
                 Z:180,  //Sleeper songs max once per 180 days by default
@@ -450,7 +442,7 @@ app.filter = (function () {
                 button.title = "Song play frequency filtering disabled.";
                 button.style.background = "transparent"; }
             mgrs.stg.filterValueChanged();  //save updated freq filter value
-            app.db.deckupd(); },
+            app.deck.update("freq filter"); },
         makeFilter: function () {
             ctrls.fq.settings = function () {
                 return {tp:"fqb", v:fqb}; };
@@ -492,11 +484,11 @@ app.filter = (function () {
         filterValueChanged: function () {  //waits until controls stop moving
             if(!ctrls.filtersReady) { //ignore spurious startup events
                 return; }
+            app.deck.update("filterValueChanged");  //flag deck update needed
             if(tmofilt) {  //reset the filtering timer if currently waiting
                 clearTimeout(tmofilt); }
             tmofilt = setTimeout(function () {
                 tmofilt = null;
-                app.db.deckupd();
                 mgrs.stg.saveSettings(); }, 700); },
         saveSettings: function () {
             if(tmosave) {
@@ -505,8 +497,8 @@ app.filter = (function () {
                 tmosave = null;
                 settings.ctrls = mgrs.stg.arrayOfAllFilters()
                     .map((filt) => filt.settings());
-                app.hub.curracct().settings = settings;
-                app.hub.managerDispatch("loc", "updateAccount",
+                app.top.dispatch("gen", "getAccount").settings = settings;
+                app.top.dispatch("gen", "updateAccount",
                     function () {
                         jt.log("stg.saveSettings completed"); },
                     function (code, errtxt) {
@@ -527,8 +519,9 @@ app.filter = (function () {
             filts.push(ctrls.rat);
             filts.push(ctrls.fq);
             return filts; },
-        rebuildAllControls: function () {
-            settings = app.hub.curracct().settings;
+        rebuildAllControls: function (ready) {
+            var ca = app.top.dispatch("gen", "getAccount");
+            if(ca && ca.settings) { settings = ca.settings; }
             rcids.forEach(function (cid) {
                 if(!jt.byId(cid + "vnd")) {  //no knob displayed yet
                     createRangeControl(cid); }
@@ -536,7 +529,7 @@ app.filter = (function () {
                     initRangeSetting(cid); } });
             mgrs.btc.rebuildControls();
             mgrs.mruc.init("ratdiv");
-            ctrls.filtersReady = true; }
+            ctrls.filtersReady = ready; }
     };  //end of mgrs.stg returned functions
     }());
 
@@ -544,12 +537,13 @@ app.filter = (function () {
 
 return {
 
-    init: function () { mainLayout(); },
+    init: function () { initializeInterface(); },
+    initialDataLoaded: function () { mgrs.stg.rebuildAllControls(true); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
     gradient: function () { return ranger.panel.gradient; },
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
-    managerDispatch: function (mgrname, fname, ...args) {
+    dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.filter, args); }
 
 
