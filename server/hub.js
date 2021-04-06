@@ -21,8 +21,10 @@ module.exports = (function () {
             Solstice:{pos:0, sc:0, ig:0, dsc:"Holiday seasonal."}};
         conf.acctsinfo = conf.acctsinfo || {currid:"", accts:[]};
         if(!conf.acctsinfo.accts.find((x) => x.dsId === "101")) {
+            var diggerbday = "2019-10-11T00:00:00Z";
             conf.acctsinfo.accts.push(
                 {dsType:"DigAcc", dsId:"101", firstname:"Digger",
+                 created:diggerbday, modified:diggerbday + ";1",
                  email:"support@diggerhub.com", token:"none", kwdefs:initkwds,
                  igfolds:["Ableton", "Audiffex", "Audio Music Apps",
                           "GarageBand", "JamKazam"]}); }
@@ -145,13 +147,38 @@ module.exports = (function () {
     }
 
 
+    function recountFilledByGuide (gid) {
+        var filled = 0;  //array.reduce is fugly with if
+        Object.values(db.dbo().songs).forEach(function (song) {
+            if(song.guiderated && song.guiderated.startsWith(gid)) {
+                filled += 1; } });
+        return filled;
+    }
+
+
     function loadLocalGuideData (gid) {
-        var gdf = guideDataFileName(gid);
-        if(db.fileExists(gdf)) {
-            return JSON.parse(db.readFile(gdf)); }
-        return {version:db.diggerVersion(),
-                songcount:0,     //total songs from this guide
-                songs:{}};       //canonicalsongname:songdata
+        var gdat = {version:db.diggerVersion(),
+                    songcount:0,     //total songs from this guide
+                    songs:{}};       //canonicalsongname:songdata
+        var guide = getGuideById(gid);
+        if(guide) {
+            var gdf = guideDataFileName(gid);
+            if(db.fileExists(gdf)) {
+                var gfc = null;
+                try {
+                    gfc = JSON.parse(db.readFile(gdf));
+                } catch(e) {
+                    console.log("hub.loadLocalGuideData " + gdf + " err: " + e);
+                }
+                if(gfc && gfc.version !== db.diggerVersion()) {
+                    gfc = null; }
+                if(gfc) {
+                    gdat = gfc; }
+                else {  //previous guide data unavailable, reset guide info.
+                    guide.lastrating = "";
+                    guide.lastcheck = "";
+                    guide.filled = recountFilledByGuide(guide.dsId); } } }
+        return [guide, gdat];
     }
 
 
@@ -324,10 +351,9 @@ module.exports = (function () {
 
 
     function guidedat (pu, ignore /*req*/, res) {
-        var guide = getGuideById(pu.query.gid);
+        var guide; var gdat; [guide, gdat] = loadLocalGuideData(pu.query.gid);
         if(!guide) {
             return resError(res, "Guide " + pu.query.gid + " not found."); }
-        var gdat = loadLocalGuideData(pu.query.gid);
         guide.lastrating = "";
         Object.values(gdat.songs).forEach(function (s) {
             if(s.modified > guide.lastrating) {
@@ -340,12 +366,36 @@ module.exports = (function () {
     }
 
 
+    var gdutil = (function () {
+        var gdflds = ["el", "al", "rv", "kws"];
+    return {
+        fillSong: function (guide, guidesong, ddsong) {
+            gdflds.forEach(function (cf) {
+                ddsong[cf] = guidesong[cf]; });
+            //tighter and no serialization confusion with a ';' sep value.
+            ddsong.guiderated = guide.dsId;
+            gdflds.forEach(function (cf) {
+                ddsong.guiderated += ":" + guidesong[cf]; });
+            guide.filled += 1;
+            guide.lastimport = new Date().toISOString(); },
+        verifyGuideRating: function (song) {
+            if(!song.guiderated) { return; }
+            var gvals = song.guiderated.split(";").slice(1);
+            var chg = gdflds.find((fld, idx) =>
+                String(song[fld]) !== gvals[idx]);
+            if(chg) {
+                console.log("Removed guiderated due to changed " + chg);
+                delete song.guiderated; } }
+    };  //end returned gdutil functions
+    }());
+
+
     function ratimp (pu, ignore /*req*/, res) {
-        var guide = getGuideById(pu.query.gid);
+        var guide; var gdat; [guide, gdat] = loadLocalGuideData(pu.query.gid);
         if(!guide) {
             return resError(res, "Guide " + pu.query.gid + " not found."); }
+        guide.songcount = gdat.songcount || 0;  //verify value filled in
         guide.filled = guide.filled || 0;
-        var gdat = loadLocalGuideData(pu.query.gid);
         var ces = [];  //Collab entries for filled in ratings
         var dbo = db.dbo();
         Object.entries(dbo.songs).forEach(function ([p, s]) {
@@ -354,11 +404,7 @@ module.exports = (function () {
                 if(key) {
                     if(gdat.songs[key] && !isUnratedSong(gdat.songs[key])) {
                         console.log("ratimp " + key);
-                        var copyfields = ["el", "al", "kws", "rv"];
-                        copyfields.forEach(function (cf) {
-                            s[cf] = gdat.songs[key][cf]; });
-                        guide.filled += 1;
-                        guide.lastimport = new Date().toISOString();
+                        gdutil.fillSong(guide, gdat.songs[key], s);
                         ces.push({ctype:"inrat", rec:pu.query.aid,
                                   src:guide.dsId,
                                   ssid:gdat.songs[key].dsId}); } } } });
@@ -372,10 +418,26 @@ module.exports = (function () {
     }
 
 
+    function gdclear (pu, ignore /*req*/, res) {
+        var gid = pu.query.gid;
+        Object.values(db.dbo().songs).forEach(function (s) {
+            if(s.guiderated && s.guiderated.startsWith(gid)) {
+                s.el = 49;
+                s.al = 49;
+                s.rv = 5;
+                s.kws = "";
+                delete s.guiderated; } });
+        db.writeDatabaseObject();  //record updated ratings
+        res.writeHead(200, {"Content-Type": "application/json"});
+        res.end(JSON.stringify(db.dbo()));
+    }
+
+
     return {
         //server utilities
         verifyDefaultAccount: function (conf) { verifyDefaultAccount(conf); },
         isIgnoreDir: function (ws, dn) { return isIgnoreDir(ws, dn); },
+        verifyGuideRating: function (song) { gdutil.verifyGuideRating(song); },
         //server endpoints
         acctsinfo: function (req, res) { return accountsInfo(req, res); },
         newacct: function (req, res) { return hubpost(req, res, "newacct"); },
@@ -385,6 +447,7 @@ module.exports = (function () {
         hubsync: function (req, res) { return hubsync(req, res); },
         addguide: function (req, res) { return addguide(req, res); },
         guidedat: function (pu, req, res) { return guidedat(pu, req, res); },
-        ratimp: function (pu, req, res) { return ratimp(pu, req, res); }
+        ratimp: function (pu, req, res) { return ratimp(pu, req, res); },
+        gdclear: function (pu, req, res) { return gdclear(pu, req, res); }
     };
 }());

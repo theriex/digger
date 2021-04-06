@@ -57,7 +57,7 @@ app.svc = (function () {
                         loadproc.stat = info.status;
                         if(info.status === "reading") {  //work ongoing, monitor
                             jt.out(loadproc.divid, info.lastrpath);
-                            setTimeout(mgrs.lib.monitorReadTotal, 500); }
+                            setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete
                             //app.deck.updateDeck(); handled by dbread return
                             jt.out(loadproc.divid, ""); } },
@@ -78,7 +78,8 @@ app.svc = (function () {
                         song.ar = pes[pes.length - 2]; } } });
             app.top.markIgnoreSongs();
             app.top.rebuildKeywords();
-            jt.out(loadproc.divid, "");
+            if(loadproc && loadproc.divid) {  //called from full rebuild
+                jt.out(loadproc.divid, ""); }
             app.deck.update("rebuildSongData"); },
         readSongFiles: function () {
             jt.out("topdlgdiv", "");  //clear confirmation prompt if displayed
@@ -112,7 +113,7 @@ app.svc = (function () {
                 [["div", {cla:"cldiv"}, "Confirm: Re-read all music files in"],
                  ["div", {cla:"statdiv", id:"musicfolderdiv"},
                   config.musicPath],
-                 ["div", {cla:"cldiv"}, mgrs.lib.timeEstimateReadText()],
+                 ["div", {cla:"cldiv"}, mgrs.loc.timeEstimateReadText()],
                  ["div", {cla:"dlgbuttonsdiv"},
                   [["button", {type:"button", onclick:mdfs("loc.cancelRead")},
                     "Cancel"],
@@ -120,10 +121,11 @@ app.svc = (function () {
                                onclick:mdfs("loc.readSongFiles")},
                     "Go!"]]]])); },
         loadLibrary: function (procdivid, cnf, procdonef) {
+            procdivid = procdivid || "topdlgdiv";
             if(loadproc && loadproc.stat) {
                 return jt.log("loc.loadLibrary already in progress"); }
             loadproc = {divid:procdivid, donef:procdonef};
-            if(!cnf) { return mgrs.loc.readSongfiles(); }
+            if(!cnf) { return mgrs.loc.readSongFiles(); }
             mgrs.loc.confirmRead(); },
         getConfig: function () { return config; },
         noteUpdatedAcctsInfo: function(acctsinfo) {
@@ -153,7 +155,8 @@ app.svc = (function () {
                     jt.semaphore("mgrs.loc.updateSong")); },
         noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
             var song = dbo.songs[updsong.path];
-            mgrs.gen.copyUpdatedSongData(song, updsong); },
+            if(song) {  //hub sync might send something not available locally
+                mgrs.gen.copyUpdatedSongData(song, updsong); } },
         updateAccount: function (acctsinfo, contf, errf) {
             var data = jt.objdata({acctsinfo:JSON.stringify(acctsinfo)});
             jt.call("POST", "/acctsinfo", data, contf, errf,
@@ -177,6 +180,9 @@ app.svc = (function () {
         mergeGuideData: function (gid, params, contf, errf) {
             jt.call("GET", app.cb("/ratimp", params), null, contf, errf,
                     jt.semaphore("svc.loc.mergeGuideData" + gid)); },
+        removeGuideRatings: function (gid, params, contf, errf) {
+            jt.call("GET", app.cb("/gdclear", params), null, contf, errf,
+                    jt.semaphore("svc.loc.removeGuideRatings" + gid)); },
         addGuide: function (data, contf, errf) {
             jt.call("POST", "/addguide", data, contf, errf,
                     jt.semaphore("svc.loc.addGuide")); },
@@ -188,7 +194,7 @@ app.svc = (function () {
                         mgrs.gen.initialDataLoaded();
                         jt.out("countspan", String(dbo.songcount) + " songs");
                         if(!dbo.scanned) {
-                            setTimeout(mgrs.loc.readSongFiles, 50); }
+                            setTimeout(mgrs.loc.loadLibrary, 50); }
                         contf(); },
                     errf,
                     jt.semaphore("svc.loc.loadInitialData")); }

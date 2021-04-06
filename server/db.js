@@ -490,6 +490,7 @@ module.exports = (function () {
             song.ab = fields.ab || "";
             song.ti = fields.ti || "";
             normalizeIntegerValues(song);
+            require("./hub").verifyGuideRating(song);
             writeDatabaseObject();
             song.path = fields.path;
             console.log("Updated " + song.path);

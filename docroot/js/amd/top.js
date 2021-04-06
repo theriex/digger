@@ -153,28 +153,30 @@ app.top = (function () {
         //token. Leaving email as read-only for now.
         var mafs = [{n:"email", x:true},
                     {n:"firstname", d:"first name", p:"Name for display"},
-                    {n:"hashtag", p:"Your unique user tag"},
-                    {n:"guides", d:"guides", x:"guides"},
+                    {n:"hashtag", p:"Your unique user tag", wr:true},
+                    {n:"guides", d:"guides", x:"guides", wr:true},
                     {n:"modified", d:"last sync", x:"locdt"}];
     return {
         chooseAccount: function () {
+            function removeAccountLink (ai) {
+                if(ai.dsId === "101") { return ""; }
+                return ["a", {href:"#remove",
+                              onclick:mdfs("h2a.removeAccount", ai.dsId)},
+                        ["img", {cla:"rowbuttonimg",
+                                 src:"img/trash.png"}]]; }
             var ars = mgrs.locam.getAcctsInfo().accts.map((ai) =>
                 ["tr",
                  [["td",
                    ["div", {cla:"dachoicediv"},
                     ["a", {href:"#" + ai.firstname,
-                           onclick:mdfs("dlg.selectAccount", ai.dsId)},
+                           onclick:mdfs("h2a.selectAccount", ai.dsId)},
                      ai.firstname]]],
-                  ["td",
-                   ["a", {href:"#remove",
-                          onclick:mdfs("dlg.removeAccount", ai.dsId)},
-                    ["img", {cla:"rowbuttonimg",
-                             src:"img/trash.png"}]]]]]);
+                  ["td", removeAccountLink(ai)]]]);
             ars.push(["tr",
                       ["td", {colspan:2},
                        ["div", {cla:"dachoicediv"},
                         ["a", {href:"#add",
-                               onclick:mdfs("dlg.signInOrJoin")},
+                               onclick:mdfs("h2a.signInOrJoin")},
                          "Add Account"]]]]);
             jt.out("topdlgdiv", jt.tac2html(
                 ["div", {id:"hubacctseldiv"},
@@ -190,7 +192,7 @@ app.top = (function () {
             if(aid === aci.currid) {
                 aci.currid = "101"; }
             aci.accts = aci.accts.filter((a) => a.dsId !== aid);
-            mgrs.a2h.updateAccount(
+            mgrs.locam.updateAccount(
                 function (acctsinfo) {
                     jt.out("topstatdiv", "");
                     mgrs.locam.noteUpdatedAccountsInfo(acctsinfo);
@@ -207,7 +209,7 @@ app.top = (function () {
                   ["div", {id:"chgpwdstatdiv"}],
                   ["div", {id:"chgpwdbuttonsdiv", cla:"dlgbuttonsdiv"},
                    ["button", {type:"button", id:"chgpwdb",
-                               onclick:mdfs("dlg.changePassword")},
+                               onclick:mdfs("h2a.changePassword")},
                     "Change Password"]]]])); },
         changePassword: function () {
             jt.byId("chgpwdb").disabled = true;
@@ -224,11 +226,18 @@ app.top = (function () {
                     jt.out("chgpwdstatdiv", code + ": " + errtxt); }); },
         signOut: function () {
             mgrs.h2a.removeAccount(mgrs.locam.getAccount().dsId); },
+        usingDefaultAccount: function () {
+            var curracct = mgrs.locam.getAccount();
+            if(!curracct || curracct.dsId === "101") {
+                return true; }
+            return false; },
         acctTopActionsHTML: function () {
             var tas = [
-                {h:"#switch", oc:"dlg.chooseAccount", t:"switch accounts"},
-                {h:"#chgpwd", oc:"dlg.changePwdForm", t:"change password"},
-                {h:"#signout", oc:"dlg.signOut", t:"sign out"}];
+                {h:"#switch", oc:"h2a.chooseAccount", t:"switch accounts"},
+                {h:"#chgpwd", oc:"h2a.changePwdForm", t:"change password"},
+                {h:"#signout", oc:"h2a.signOut", t:"sign out"}];
+            if(mgrs.h2a.usingDefaultAccount()) {
+                tas = tas.slice(0, 1); }
             return jt.tac2html(
                 ["div", {id:"hubaccttopdiv"},
                  tas.map((ta) =>
@@ -236,7 +245,7 @@ app.top = (function () {
                  .join(" &nbsp;|&nbsp ")]); },
         inputOrDispText: function (fd) {
             var curracct = mgrs.locam.getAccount();
-            if(fd.x) { 
+            if(fd.x || mgrs.h2a.usingDefaultAccount()) {
                 var value = curracct[fd.n];
                 if(fd.x === "guides") {
                     value = mgrs.gin.accountFormDisplayValue(); }
@@ -247,18 +256,23 @@ app.top = (function () {
             return ["input", {type:"text", id:fd.n + "in",
                               placeholder:fd.p || "", value:curracct[fd.n]}]; },
         acctFieldsHTML: function () {
+            var uda = mgrs.h2a.usingDefaultAccount();
+            var updbutton = "";
+            if(!uda) {
+                updbutton = ["button", {type:"button", id:"acctfldsupdb",
+                               onclick:mdfs("h2a.updAcctFlds")},
+                             "Update Account"]; }
             return jt.tac2html(
                 ["div", {id:"hubacctfldsdiv"},
                  [["table",
-                   mafs.map((fd) =>
+                   mafs.filter((fd) => !(fd.wr && uda))
+                   .map((fd) =>
                        ["tr",
                         [["td", {cla:"formattr"}, fd.d || fd.n],
                          ["td", mgrs.h2a.inputOrDispText(fd)]]])],
                   ["div", {id:"accupdstatdiv"}],
                   ["div", {cla:"dlgbuttonsdiv"},
-                   ["button", {type:"button", id:"acctfldsupdb",
-                               onclick:mdfs("dlg.updAcctFlds")},
-                    "Update Account"]]]]); },
+                   updbutton]]]); },
         updAcctFlds: function () {
             jt.out("accupdstatdiv", "");  //clear any previous message
             var curracct = mgrs.locam.getAccount();
@@ -289,7 +303,7 @@ app.top = (function () {
                         errf(code, errtxt); } }); },
         writeUpdAcctToAccounts: function (accntok, contf, errf) {
             mgrs.locam.noteReturnedCurrAcct(accntok[0], accntok[1]);
-            mgrs.a2h.updateAccount(
+            mgrs.gen.updateAccount(
                 function (acctsinfo) {
                     mgrs.locam.noteUpdatedAccountsInfo(acctsinfo);
                     if(contf) {
@@ -320,7 +334,7 @@ app.top = (function () {
                     ["tr",
                      ["td", {colspan:2},
                       [["input", {type:"checkbox", id:"siotcb", checked:true,
-                                  onclick:mdfs("dlg.togsioj", "event")}],
+                                  onclick:mdfs("h2a.togsioj", "event")}],
                        ["label", {fo:"siotcb", cla:"cblab"},
                         "Create new hub account"]]]]]],
                   ["div", {id:"siojstatdiv"}],
@@ -334,13 +348,13 @@ app.top = (function () {
                 jt.byId("firstnamerow").style.display = "table-row";
                 jt.out("siojbuttonsdiv", jt.tac2html(
                     ["button", {type:"button", id:"newacctb",
-                                onclick:mdfs("dlg.signInOrJoin", "newacct")},
+                                onclick:mdfs("h2a.signInOrJoin", "newacct")},
                      "Create Account"])); }
             else {
                 jt.byId("firstnamerow").style.display = "none";
                 jt.out("siojbuttonsdiv", jt.tac2html(
                     ["button", {type:"button", id:"signinb",
-                                onclick:mdfs("dlg.signInOrJoin", "acctok")},
+                                onclick:mdfs("h2a.signInOrJoin", "acctok")},
                      "Sign In"])); } },
         siojbDisable: function (disabled) {
             var bids = ["newacctb", "signinb"];
@@ -351,7 +365,7 @@ app.top = (function () {
             if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
                 jt.out("siojerrhelpdiv", jt.tac2html(
                     ["a", {href:"#pwdreset", title:"Send password reset email",
-                           onclick:mdfs("dlg.emailPwdReset")},
+                           onclick:mdfs("h2a.emailPwdReset")},
                      "Send password reset"])); } },
         emailPwdReset: function () {
             jt.out("siojerrhelpdiv", "");
@@ -431,11 +445,13 @@ app.top = (function () {
                     pfs.procupd("guidedat failed " + code + ": " + errtxt);
                     state = "stopped"; }); },
         merge: function () {
+            if(state === "stopped") {
+                return pfs.procupd(); }  //aborted while waiting
             pfs.procupd("Importing ratings...");
             app.svc.dispatch("loc", "mergeGuideData", guide.dsId, params,
                 function ([updg, dbo]) {
                     pfs.noteUpdatedGuideInfo(updg);
-                    mgrs.lib.rebuildSongData(dbo);
+                    app.svc.dispatch("loc", "rebuildSongData", dbo);
                     if(guide.lastcheck > guide.lastrating) { //done fetching
                         state = "stopped"; }
                     else {
@@ -452,7 +468,18 @@ app.top = (function () {
             if(state !== "running") {
                 state = "running";
                 jt.log(logpre + " started.");
-                pfs.fetch(); } }
+                pfs.fetch(); } },
+        removeGuideData: function (contf) {
+            state = "stopped";
+            pfs.procupd("Removing default ratings...");
+            app.svc.dispatch("loc", "removeGuideRatings", guide.dsId, params,
+                function (dbo) {
+                    app.svc.dispatch("loc", "rebuildSongData", dbo);
+                    pfs.procupd();
+                    contf(); },
+                function (code, errtxt) {
+                    pfs.procupd("removeGuideData failed " + code + ": " +
+                                errtxt); }); }
     };  //end makeFetchMergeProcessor returned functions
     }()); }
 
@@ -537,8 +564,7 @@ app.top = (function () {
                         cg.firstname]],
                       " (",
                       ["a", {href:"mailto:" + cg.email}, cg.email], ")"]]]],
-                  ["div", {id:"cgsongcountdiv", cla:"cblab"}],
-                  ["div", {id:"cglastcheckdiv", cla:"cblab"}],
+                  ["div", {id:"cgsongcheckdiv", cla:"cblab"}],
                   ["div", {id:"cgfilleddiv", cla:"cblab"}],
                   ["div", {id:"guidestatdiv"}],
                   ["div", {id:"guidebuttonsdiv", cla:"dlgbuttonsdiv"},
@@ -556,9 +582,10 @@ app.top = (function () {
             var dispchecked = "never";
             if(cg.lastcheck) {
                 dispchecked = jt.tz2human(cg.lastcheck); }
-            jt.out("cgsongcountdiv", (cg.songcount || 0) + " songs");
-            jt.out("cglastcheckdiv", "last checked: " + dispchecked);
-            jt.out("cgfilleddiv", (cg.filled || 0) + " ratings contributed.");
+            jt.out("cgsongcheckdiv", (cg.songcount || "No") +
+                   " ratings, checked " + dispchecked);
+            jt.out("cgfilleddiv", (cg.filled || "No") + 
+                   " default ratings in use.");
             jt.byId("gratb").disabled = false;
             jt.out("guidestatdiv", ""); },
         startFetchMerge: function () {
@@ -576,15 +603,17 @@ app.top = (function () {
         removeGuide: function (gidx) {
             var ca = mgrs.locam.getAccount();
             var remg = ca.guides[gidx];
-            jt.out("guidestatdiv", "Removing " + remg.firstname + "...");
-            if(gdmps[remg.dsId]) { gdmps[remg.dsId].stop(); }
-            ca.guides.splice(gidx, 1);
-            mgrs.h2a.updateHubAccount(
-                function () {
-                    mgrs.h2a.accountSettings(); },
-                function (code, errtxt) {
-                    jt.out("guidestatdiv", "Remove failed " + code + ": " +
-                           errtxt); }); }
+            //makeFetchMergeProcessor already called when guide selected
+            gdmps[remg.dsId].removeGuideData(function () {
+                delete gdmps[remg.dsId];
+                jt.out("guidestatdiv", "Removing " + remg.firstname + "...");
+                ca.guides.splice(gidx, 1);
+                mgrs.h2a.updateHubAccount(
+                    function () {
+                        mgrs.h2a.accountSettings(); },
+                    function (code, errtxt) {
+                        jt.out("guidestatdiv", "Remove failed " + code + ": " +
+                               errtxt); }); }); }
     };  //end mgrs.gin returned functions
     }());
 
@@ -641,7 +670,8 @@ app.top = (function () {
                 app.filter.dispatch("stg", "rebuildAllControls"); } },
         initialDataLoaded: function () {
             var config = app.svc.dispatch("loc", "getConfig");
-            mgrs.locam.noteUpdatedAccountsInfo(config.acctsinfo); },
+            mgrs.locam.noteUpdatedAccountsInfo(config.acctsinfo);
+            mgrs.kwd.rebuildKeywords(); },
         dispAcct: function () { mgrs.h2a.accountSettings(); },
         getAccount: function () { return curracct; }
     };  //end mgrs.locam returned functions
@@ -802,10 +832,10 @@ app.top = (function () {
         markIgnoreSongs: function () {
             igfolds = igfolds || mgrs.locam.getAccount().igfolds;
             Object.entries(app.svc.songs()).forEach(function ([p, s]) {
-                if(mgrs.ws.isReadableSong(s) && mgrs.igf.isIgnorePath(p)) {
-                    //jt.log("Ignoring " + s.ti);  //might be a lot of output
+                if((!s.fq || !s.fq.match(/^[DU]/)) && mgrs.igf.isIgPath(p)) {
+                    //jt.log("Ignoring " + s.ti);  //can be a lot of output..
                     s.fq = "I" + s.fq; } }); },
-        isIgnorePath: function (p) {
+        isIgPath: function (p) {
             var pes = p.split("/");
             if(pes.length <= 1) {  //top level file, or windows
                 pes = p.split("\\"); }
@@ -991,7 +1021,7 @@ app.top = (function () {
             {sc:"loc", ty:"cfgp", oc:mdfs("cfg.confirmStart"),
              tt:"Configure music and data file locations",
              p:"dbPath", n:"Digger Data"},
-            {sc:"loc", ty:"btn", oc:app.dfs("svc", "loc.confirmRead"),
+            {sc:"loc", ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
              tt:"Read all files in the music folder", n:"Read Files"},
             {sc:"loc", ty:"btn", oc:mdfs("igf.igMusicFolders"),
              tt:"Ignore folders when reading music files", n:"Ignore Folders"},

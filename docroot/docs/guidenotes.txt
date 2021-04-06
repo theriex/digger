@@ -1,18 +1,16 @@
 A guide is another DiggerHub account whose ratings are used to fill out
-unrated songs.  When you add a guide, the guide's ratings are downloaded
-and their rating information is used to create a starting point for unrated
+unrated songs.  When you add a guide, the guide's ratings are downloaded and
+their rating information is used to create a starting point for unrated
 songs.  Any songs with ratings are left alone, guides only provide initial
-ratings for unrated songs.
-
-There is no aggregate guide concept.  You add individual guides whose
-musical tastes you trust as a starting point.
+ratings for unrated songs.  There is no aggregate guide concept.  You add
+individual guides whose musical tastes you trust.
 
 Merging is done by title/artist/album.  A song title is required by
 DiggerHub, and in the absence of file metadata from the import process,
 Digger may synthesize a title using the file path to allow for hub sync.
 Songs without proper metadata are unlikely to merge when serving as guide
-information for other users.  Local songs that have not been played yet may
-be missing title/artist/album values, and so won't be found for merge.
+information for other users.  Local songs that have not been played yet and
+are missing title/artist/album values won't be found for merge.
 
 There is no wildcard matching with missing artist/album values.  If a song
 does not have album metadata, it will match other songs that do not have
@@ -23,12 +21,14 @@ greatest hits album version of the song won't match the original release
 version despite being equivalent, but no merge is better than inappropriate
 merge.  Merge requires an exact match of title/artist/album.
 
-Guide ratings are merged when the guide is added.  You can request a merge
-again later for newer data by clicking to check for new ratings. 
+Guide ratings are fetched and merged when the guide is added, selected for
+display, or if the "Check For Ratings" button is clicked.
 
-Rating data from guides is saved in the diggercache folder which is defined
-by the cachePath value in .digger_config.json.  Guide files have names like
-"guide_<guideId>.json".
+Guide data and processing information:
+  - account.guides (working info rebuilt if guide removed and re-added)
+  - cachePath/guide_<guideId>.json (rebuilt if missing or version mismatch)
+  - digdat.json (rebuilt if deleted, but without contributed guide ratings)
+  - diggerhub Collab historical records written as ratings imported
 
 When you add a guide, your account info is updated on DiggerHub, the guide
 is displayed, and fetch/merge kicks off.  Guide data is retrieved ordered by

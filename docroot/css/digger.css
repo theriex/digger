@@ -73,7 +73,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 
 .formattr { font-size:small; text-align:right; }
 .cblab { font-size:small; }
-#hubaccttopdiv { font-size:small; text-align:center; }
+#hubaccttopdiv { font-size:small; padding-left:4px; }
 .formvalspan { font-size:medium; color:#666; font-style:italic;
   margin-left:2px; }
 #hubacctseldiv { min-width:200px; }
