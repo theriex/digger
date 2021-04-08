@@ -422,7 +422,7 @@ app.player = (function () {
         mgrs.tun.toggleTuningOpts("off");
         mgrs.cmt.toggleCommentDisplay("off");
         stat.status = "";
-        stat.song = app.deck.popdeck();
+        stat.song = app.deck.getNextSong();
         mgrs.cmt.updateCommentIndicator();
         if(!stat.song) {
             jt.out("mediadiv", "No songs to play."); }

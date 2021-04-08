@@ -202,5 +202,5 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .sopa { margin:0px 15px; }
 
 .albumsongdiv { font-size:smaller; margin:5px 0px; }
-.albumsonglink { padding-left:15px; }
+.albumsonglink { display:block; font-size:smaller; padding:0px 0px 2px 15px; }
 .albumarrow { padding-right:3px; vertical-align:middle; }

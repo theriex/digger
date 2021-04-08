@@ -21,19 +21,22 @@ app.svc = (function () {
     mgrs.cpx = (function () {
         var cfs = null;
     return {
-        monitorExportStatus: function (xob) {
-            if(xob && xob.stat.state === "Done") {
-                jt.log("cpx export completed");
-                return cfs.contf(xob); }
-            if(!xob || xob.stat.state === "Copying") {
-                setTimeout(function () {
-                    jt.call("GET", app.cb("/plistexp"), null,
-                            function (xob) {
-                                cfs.statf(xob);
-                                mgrs.cpx.monitorExportStatus(xob); },
-                            cfs.errf,
-                            jt.semaphore("cpx.monitorExportStatus")); },
-                           250); } },
+        statusUpdate: function (xob) {
+            if(!xob || !xob.stat) {
+                return cfs.errf(400, "No stat info available"); }
+            switch(xob.stat.state) {
+            case "Failed": return cfs.errf(400, xob.stat.errmsg);
+            case "Done": jt.log("cpx export completed."); return cfs.contf(xob);
+            default: //"Copying"
+                cfs.statf(xob);
+                mgrs.cpx.monitorExportStatus(xob); } },
+        monitorExportStatus: function () {
+            setTimeout(function () {
+                jt.call("GET", app.cb("/plistexp"), null,
+                        mgrs.cpx.statusUpdate,
+                        cfs.errf,
+                        jt.semaphore("cpx.monitorExportStatus")); },
+                       250); },
         exportSongs: function (dat, statusfunc, contfunc, errfunc) {
             cfs = {statf:statusfunc, contf:contfunc, errf:errfunc};
             jt.call("POST", "/plistexp", jt.objdata(dat),
@@ -122,7 +125,7 @@ app.svc = (function () {
                     "Go!"]]]])); },
         loadLibrary: function (procdivid, cnf, procdonef) {
             procdivid = procdivid || "topdlgdiv";
-            if(loadproc && loadproc.stat) {
+            if(loadproc && loadproc.stat !== "ready") {
                 return jt.log("loc.loadLibrary already in progress"); }
             loadproc = {divid:procdivid, donef:procdonef};
             if(!cnf) { return mgrs.loc.readSongFiles(); }

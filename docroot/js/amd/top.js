@@ -809,7 +809,7 @@ app.top = (function () {
                     jt.out("igfstatdiv", "");
                     mgrs.igf.unmarkIgnoreSongs();
                     mgrs.igf.markIgnoreSongs();
-                    app.locam.notifyAccountChanged("igfolders"); },
+                    mgrs.locam.notifyAccountChanged("igfolders"); },
                 function (code, errtxt) {
                     jt.out("kwupdstatdiv", String(code) + ": " + errtxt); }); },
         removeIgnoreFolder: function (foldername) {
@@ -981,7 +981,7 @@ app.top = (function () {
             mgrs.locam.updateAccount(
                 function () {
                     mgrs.lib.togdlg("close");
-                    app.locam.notifyAccountChanged("keywords"); },
+                    mgrs.locam.notifyAccountChanged("keywords"); },
                 function (code, errtxt) {
                     jt.out("kwupdstatdiv", String(code) + ": " + errtxt); }); },
         same: function (kwa, kwb) {  //localeCompare base not yet on mobile
@@ -1093,10 +1093,14 @@ app.top = (function () {
                     mgrs.exp.displayExportProgress(xob); },
                 function (xob) {  //completion
                     mgrs.exp.displayExportProgress(xob);
-                    if(xob.spec.markplayed) {  //rebuild deck with newer songs
+                    if(xob.spec.markplayed) {
+                        dat.count = parseInt(dat.count, 10);
+                        while(dat.count > 1) {
+                            dat.count -= 1;
+                            app.deck.dispatch("dk", "skip", "cpx", 0); }
                         app.deck.update("song export"); } },
                 function (code, errtxt) {
-                    jt.out("exportdiv", "Copy request failed " + code +
+                    jt.out("exportdiv", "Export failed " + code +
                            ": " + errtxt); }); },
         cpxDialog: function () {  //local copy file export
             var config = app.svc.dispatch("loc", "getConfig");
@@ -1123,7 +1127,7 @@ app.top = (function () {
                      ["label", {fo:"mpcb"}, "Mark songs as played"]]],
                    ["div", {cla:"dlgbuttonsdiv", id:"exportbuttonsdiv"},
                     ["button", {type:"button", onclick:mdfs("exp.cpxStart")},
-                     "Copy Playlist"]]]]])); },
+                     "Export"]]]]])); },
         togdlg: function () {
             var dlgdiv = jt.byId("topdlgdiv");
             if(dlgdiv.dataset.mode === "download") {  //toggle dialog closed

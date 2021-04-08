@@ -48,7 +48,8 @@ app.deck = (function () {
             mgrs.ws.filterByFilters(); },
         findSongIndex: function (song, songs) {
             return songs.findIndex((s) => 
-                ((s.dsId === song.dsId) || (s.path === song.path))); },
+                ((s.dsId && s.dsId === song.dsId) ||
+                 (s.path && s.path === song.path))); },
         preserveExistingDeckSongs: function () {
             //some people like to anticipate what they saw on deck, so leave
             //the first songs intact to the extent possible
@@ -220,10 +221,13 @@ app.deck = (function () {
             mgrs.dk.markAsPlayedAndMoveToHistory(idx); },
         markAsPlayedAndMoveToHistory: function (idx) {
             var song = ds[idx];
-            song.lp = new Date().toISOString();
-            mgrs.hst.noteSongPlayed(song);
+            mgrs.dk.markSongPlayed(song);
             ds.splice(idx, 1);
-            mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
+            mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
+        markSongPlayed: function (song) {
+            song.lp = new Date().toISOString();
+            if(song.fq === "N") { song.fq = "P"; }
+            mgrs.hst.noteSongPlayed(song);
             app.svc.updateSong(song); },
         popSongFromDeck: function () {
             if(mgrs.gen.deckinfo().di === "album") {
@@ -233,9 +237,7 @@ app.deck = (function () {
                 song = ds.shift();
                 if(song.bumped) { delete song.bumped; }
                 app.player.noteprevplay(song.lp);
-                song.lp = new Date().toISOString();
-                mgrs.hst.noteSongPlayed(song);
-                app.svc.updateSong(song); }
+                mgrs.dk.markSongPlayed(song); }
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
             return song; }
     };  //end of mgrs.dk returned functions
@@ -247,13 +249,14 @@ app.deck = (function () {
         var cak = "";  //current album key (artist + album)
         var aid = {};  //current index and songs organized by album key
     return {
+        songs: function () { return aid[cak].songs; },
         songByIndex: function (idx) { return aid[cak].songs[idx]; },
         makeAlbumKey: function (song) {
             if(!(song.ar && song.ab)) { return ""; }
             return song.ar + " - " + song.ab; },
         setAlbumSongs: function (fetchsong, albumsongs) {
             aid[mgrs.alb.makeAlbumKey(fetchsong)] = {
-                ci:mgrs.alb.findSongIndex(fetchsong, albumsongs),
+                ci:mgrs.ws.findSongIndex(fetchsong, albumsongs),
                 songs:albumsongs};
             mgrs.alb.updateDisplayContent(); },
         albumFetchFailure: function (code, errtxt) {
@@ -295,7 +298,10 @@ app.deck = (function () {
         nextSong: function () {
             if(aid[cak].ci < aid[cak].songs.length - 1) {
                 aid[cak].ci += 1;
-                return aid[cak].songs[aid[cak].ci]; }
+                var song = aid[cak].songs[aid[cak].ci];
+                mgrs.dk.markSongPlayed(song);
+                mgrs.alb.displayAlbum(song);
+                return song; }
             return null; }
     };  //end of mgrs.alb returned functions
     }());
@@ -335,7 +341,7 @@ app.deck = (function () {
                      jt.byId("panfiltcontentdiv").style.opacity = 1.0; }
                  else {
                      jt.byId("panfiltcontentdiv").style.opacity = 0.3; }
-                 mgrs.ws.updateDeck(); }},
+                 mgrs.ws.rebuild("togfiltb"); }},
             {id:"toginfob", ti:"Filtering Information",
              onimg:"img/infoact.png", offimg:"img/info.png",
              togf:function (state) {
@@ -413,9 +419,9 @@ app.deck = (function () {
                    ["input", {type:"text", id:"srchin", size:18,
                               placeholder:"artist/album/song...",
                               value:deckstat.qstr,
-                              oninput:mdfs("ws.updateDeck")}],
+                              oninput:mdfs("ws.rebuild", "srchin")}],
                    ["a", {href:"#search", title:"Search Songs",
-                          onclick:mdfs("ws.updateDeck")},
+                          onclick:mdfs("ws.rebuild", "srchin")},
                     ["img", {src:"img/search.png", cla:"ico20"}]],
                    ["div", {cla:"togbdiv", id:"toginfob"}],
                    ["div", {cla:"togbdiv", id:"togalb"}],
@@ -432,7 +438,11 @@ app.deck = (function () {
             case "album": di.songs = mgrs.alb.songs(); break;
             case "history": di.songs = mgrs.hst.songs(); break;
             default: di.disp = "deck"; di.songs = mgrs.dk.songs(); }
-            return di; }
+            return di; },
+        getNextSong: function () {
+            if(deckstat.disp === "album") {
+                return mgrs.alb.nextSong(); }
+            return mgrs.dk.popSongFromDeck(); }
     };  //end mgrs.gen returned functions
     }());
 
@@ -440,7 +450,7 @@ return {
     init: function () { mgrs.gen.initDisplay(); },
     deckinfo: function () { return mgrs.gen.deckinfo(); },
     update: function (caller) { mgrs.ws.rebuild(caller); },
-    popdeck: function () { return mgrs.dk.popSongFromDeck(); },
+    getNextSong: function () { return mgrs.gen.getNextSong(); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.deck, args); }
 };  //end of module returned functions

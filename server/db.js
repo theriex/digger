@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.6";
+        return "v0.7";
     }
 
 
@@ -502,7 +502,7 @@ module.exports = (function () {
     function writePlaylistFile () {
         var songs = JSON.parse(exp.spec.songs).map((s) => s.split("/").pop());
         var txt = "#EXTM3U\n" + songs.join("\n") + "\n";
-        jslf(fs, "writeFileSync", conf.exPath + exp.spec.plfilename,
+        jslf(fs, "writeFileSync", path.join(conf.exPath, exp.spec.plfilename),
              txt, "utf8");
     }
 
@@ -510,18 +510,17 @@ module.exports = (function () {
     function exportNextSong () {
         if(!exp.stat.remaining.length) {
             exp.stat.state = "Done";
-            if(exp.spec.markplayed) {  //song.lp updated when copied, save.
-                writeDatabaseObject(); }
             return; }
         var song = exp.stat.remaining.pop();
+        var src = path.join(conf.musicPath, song);
         var exn = song.split(path.sep).pop();
-        fs.copyFile(conf.musicPath + song, conf.exPath + exn, function (err) {
+        var dest = path.join(conf.exPath, exn);
+        fs.copyFile(src, dest, function (err) {
             if(err) {
                 exp.stat.state = "Failed";
-                console.log(err); }
+                exp.stat.errmsg = "Could not copy " + exn;
+                return console.log(err); }
             exp.stat.copied += 1;
-            if(exp.spec.markplayed) {
-                dbo.songs[song].lp = new Date().toISOString(); }
             exportNextSong(); });
     }
 
@@ -536,6 +535,7 @@ module.exports = (function () {
             fif.parse(req, function (err, fields) {
                 if(err) {
                     exp.stat.state = "Failed";
+                    exp.stat.errmsg = "playlistExport form error " + err;
                     return resError(res, "playlistExport form error " + err); }
                 exp.spec = fields;
                 try {
@@ -544,6 +544,8 @@ module.exports = (function () {
                         writePlaylistFile(); }
                     setTimeout(exportNextSong, 200);
                 } catch(e) {
+                    exp.stat.state = "Failed";
+                    exp.stat.errmsg = "playlistExport error " + e;
                     return resError(res, "playlistExport error " + e); }
                 res.writeHead(200, {"Content-Type": "application/json"});
                 res.end(JSON.stringify(exp)); }); }
