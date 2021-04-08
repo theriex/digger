@@ -229,6 +229,9 @@ app.deck = (function () {
             if(song.fq === "N") { song.fq = "P"; }
             mgrs.hst.noteSongPlayed(song);
             app.svc.updateSong(song); },
+        removeFromDeck: function (song) {
+            ds = ds.filter((s) => s.path !== song.path);
+            mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         popSongFromDeck: function () {
             if(mgrs.gen.deckinfo().di === "album") {
                 return mgrs.alb.nextSong(); }
@@ -285,7 +288,7 @@ app.deck = (function () {
             return ["a", {href:"#playsong" + tn, title:"Play track " + tn,
                           cla:"albumsonglink",
                           //dk handles history and deck bookkeeping
-                          onclick:mdfs("dk.playnow", "alb", idx)},
+                          onclick:mdfs("alb.playnow", idx)},
                     song.ti]; },
         displayAlbum: function (np) {
             jt.out("deckalbumdiv", jt.tac2html(
@@ -295,11 +298,15 @@ app.deck = (function () {
                    ["span", {cla:"dsarspan"}, np.ar]]],
                  aid[cak].songs.map((song, idx) =>
                      mgrs.alb.makeAlbumSongDiv(song, idx))])); },
+        playnow: function (idx) {
+            aid[cak].ci = idx - 1;
+            app.player.next(); },
         nextSong: function () {
             if(aid[cak].ci < aid[cak].songs.length - 1) {
                 aid[cak].ci += 1;
                 var song = aid[cak].songs[aid[cak].ci];
                 mgrs.dk.markSongPlayed(song);
+                mgrs.dk.removeFromDeck(song);
                 mgrs.alb.displayAlbum(song);
                 return song; }
             return null; }
