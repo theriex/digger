@@ -15,10 +15,11 @@
       "./docroot/img/*.png",
       "./docroot/js/app.js",
       "./docroot/js/jtmin.js",
-      "./docroot/js/amd/db.js",
-      "./docroot/js/amd/filter.js",
+      "./docroot/js/amd/svc.js",
+      "./docroot/js/amd/top.js",
       "./docroot/js/amd/player.js",
-      "./docroot/js/amd/hub.js",
+      "./docroot/js/amd/filter.js",
+      "./docroot/js/amd/deck.js",
       "./docroot/index.html"
     ]
   },
