@@ -1075,6 +1075,17 @@ app.top = (function () {
                    {pn:"bandcamp playlist", av:"nope"},
                    {pn:"SoundCloud playlist", av:"notyet"}];
     return {
+        makePlaylistName: function () {  //caps sort before lowercase.
+            var name = "Digger";
+            var sep = "_";
+            app.filter.filters("active").forEach(function (filt) {
+                if(filt.actname) {
+                    if(filt.actname.startsWith("+")) {
+                        name += sep + filt.actname.slice(1); }
+                    else if(filt.actname.startsWith("-")) {
+                        name += sep + "X" + filt.actname.slice(1); } } });
+            name += ".m3u";
+            return name; },
         displayExportProgress: function (xob) {
             jt.out("exportdiv", xob.stat.state + " " + xob.stat.copied +
                    " of " + JSON.parse(xob.spec.songs).length); },
@@ -1104,6 +1115,7 @@ app.top = (function () {
                            ": " + errtxt); }); },
         cpxDialog: function () {  //local copy file export
             var config = app.svc.dispatch("loc", "getConfig");
+            var m3uname = mgrs.exp.makePlaylistName();
             jt.out("topdlgdiv", jt.tac2html(
                 [["div", {cla:"pathdiv"},
                   [["span", {cla:"pathlabelspan"}, "Copy To:"],
@@ -1114,17 +1126,18 @@ app.top = (function () {
                                 min:1, max:200}],
                      ["label", {fo:"xttlin"}, " songs from on deck"]]],
                    ["div", {cla:"expoptdiv"},
-                    [["input", {type:"checkbox", id:"plcb", checked:"checked"}],
-                     ["label", {fo:"plcb"}, "Make playlist "],
-                     ["label", {fo:"m3ufin"}, " file "],
-                     ["input", {type:"text", id:"m3ufin", value:"digger.m3u",
-                                placeholder:"digger.m3u", size:10}]]],
-                   ["div", {cla:"expoptdiv"},
                     [["input", {type:"checkbox", id:"fccb", checked:"checked"}],
                      ["label", {fo:"fccb"}, "Copy music files"]]],
                    ["div", {cla:"expoptdiv"},
                     [["input", {type:"checkbox", id:"mpcb", checked:"checked"}],
                      ["label", {fo:"mpcb"}, "Mark songs as played"]]],
+                   ["div", {cla:"expoptdiv"},
+                    [["input", {type:"checkbox", id:"plcb", checked:"checked"}],
+                     ["label", {fo:"plcb"}, "Make playlist "],
+                     ["label", {fo:"m3ufin"}, " file "],
+                     ["div", {id:"exportfileindiv"},
+                      ["input", {type:"text", id:"m3ufin", value:m3uname,
+                                 placeholder:m3uname, size:28}]]]],
                    ["div", {cla:"dlgbuttonsdiv", id:"exportbuttonsdiv"},
                     ["button", {type:"button", onclick:mdfs("exp.cpxStart")},
                      "Export"]]]]])); },

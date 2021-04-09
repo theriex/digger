@@ -119,6 +119,12 @@ app.filter = (function () {
         //update the current range focus min/max search values
         rcr.rgfoc.min = Math.round((ladj / rangemax) * 100);
         rcr.rgfoc.max = 99 - Math.round((radj / rangemax) * 100);
+        if(rcr.rgfoc.min <= 25 && rcr.rgfoc.max <= 60) {
+            rcr.actname = "+" + rcr.low; }
+        else if(rcr.rgfoc.min > 25 && rcr.rgfoc.max > 60) {
+            rcr.actname = "+" + rcr.high; }
+        else {
+            rcr.actname = ""; }
         //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
         mgrs.stg.filterValueChanged();
     }

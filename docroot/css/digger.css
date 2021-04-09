@@ -49,6 +49,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .pathdiv { font-size:small; }
 .pathlabelspan { font-size:x-small; font-style:italic; }
 .expoptdiv { font-size:medium; padding:5px 0px 5px 8px; }
+#exportfileindiv { margin-left:20px; }
 
 .statespan { padding-right:5px; }
 .counterlabel { font-size:medium; font-style:italic; padding-right:5px; }
