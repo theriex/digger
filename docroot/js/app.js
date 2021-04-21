@@ -9,7 +9,6 @@ var jt = {};
 
     var modules = ["svc", "top", "player", "filter", "deck"];
 
-
 app = {
 
     init2: function () {
@@ -25,14 +24,19 @@ app = {
 
     init: function () {
         jtminjsDecorateWithUtilities(jt);
-        jt.log("loading app modules v=210415");
+        jt.log("loading app modules v=210421");
         var href = window.location.href;
         if(href.indexOf("#") > 0) {
             href = href.slice(0, href.indexOf("#")); }
         if(href.indexOf("?") > 0) {
             href = href.slice(0, href.indexOf("?")); }
         jt.loadAppModules(app, modules.map((x) => "js/amd/" + x),
-                          href, app.init2, "?v=210415");
+                          href, app.init2, "?v=210421");
+    },
+
+
+    fileVersion: function () {
+        return "v=210421";  //updated as part of release process
     },
 
 

@@ -14,8 +14,8 @@ pkg ../
 zip -r -X digger-win.zip digger-win.exe
 rm digger-win.exe
 
-# Copy the updated macos unix exe into Digger.app
-cp digger-macos Digger/Digger.app/Contents/MacOS/server
+# Move the updated macos unix exe into Digger.app
+mv digger-macos Digger/Digger.app/Contents/MacOS/server
 
 # Move the unix executable files to the hub downloads directory
 mv digger-* ../../diggerhub/site/public/downloads

@@ -647,6 +647,8 @@ app.top = (function () {
             curracct = hai.accts.find((a) => a.dsId === hai.currid);
             if(!curracct) {
                 throw("No current account found"); }
+            jt.byId("hubtogspan").title = "Account Info (" +
+                curracct.diggerVersion + ", " + app.fileVersion() + ")";
             jt.out("hubtogspan", curracct.firstname); },
         updateAccount: function (contf, errf) {  //curracct updated by caller
             app.svc.dispatch("loc", "updateAccount", hai,
@@ -1174,7 +1176,9 @@ app.top = (function () {
             jt.out("pantopdiv", jt.tac2html(
                 [["div", {id:"titlediv"},
                   [["a", {href:"#DiggerHub", onclick:mdfs("gen.togam")},
-                    ["span", {id:"hubtogspan", cla:"titlespan"}, "Digger"]],
+                    ["span", {id:"hubtogspan", cla:"titlespan",
+                             title:"Sign In or Choose Account"},
+                     "Digger"]],
                    ["span", {id:"countspan"}, "Loading..."],
                    ["a", {href:"#database", title:"Library Actions",
                           onclick:mdfs("lib.togdlg")},
