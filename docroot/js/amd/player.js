@@ -13,7 +13,7 @@ app.player = (function () {
         if(!stat.songModified) { return; }
         app.svc.updateSong(stat.song, function (updsong) {
             if(!ignoreupdate) {
-                stat.song = updsong;
+                //stat.song = updsong; song data copied, keep current reference
                 jt.out("modindspan", "");
                 stat.songModified = false; }
             jt.log("song data updated " + JSON.stringify(updsong)); });

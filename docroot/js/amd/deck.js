@@ -140,13 +140,13 @@ app.deck = (function () {
     //Song options manager handles actions at the level of specific song
     mgrs.sop = (function () {
         var opts = [{id:"playnow", tt:"Play this song right now",
-                     img:"play.png", act:"dk.playnow"},
+                     img:"play.png", act:"playnow"},
                     {id:"playnext", tt:"Play this song next",
-                     img:"bumpup.png", act:"dk.playnext"},
+                     img:"bumpup.png", act:"playnext"},
                     {id:"skipsong", tt:"Skip this song",
-                     img:"skip.png", act:"dk.skip", x:"hst"},
+                     img:"skip.png", act:"skip", x:"hst"},
                     {id:"tiredskip", tt:"Note song as tired and skip",
-                     img:"snooze.png", act:"dk.snooze", x:"hst"}];
+                     img:"snooze.png", act:"snooze", x:"hst"}];
     return {
         togOptions: function  (mgrnm, idx) {
             var optdivid = "da" + mgrnm + idx;
@@ -160,8 +160,12 @@ app.deck = (function () {
                     ((!o.x || o.x.indexOf(mgrnm) < 0) &&
                      (o.id !== "playnext" || idx > 0)))
                 .map((o) => ["a", {href:"#" + o.id, title:o.tt, cla:"sopa",
-                                   onclick:mdfs(o.act, "dk", idx)},
+                                   onclick:mdfs("sop.dispatchOption", o.act,
+                                                mgrnm, idx)},
                              ["img", {src:"img/" + o.img, cla:"ptico"}]]))); },
+        dispatchOption: function (action, mgrnm, idx) {
+            mgrs.sop.togOptions(mgrnm, idx);  //remove actions overlay
+            mgrs.dk[action](mgrnm, idx); },   //do clicked action
         songIdentHTML: function (song) {
             var idh = [["span", {cla:"dstispan"}, song.ti],
                        " - ",
@@ -319,6 +323,7 @@ app.deck = (function () {
         var pps = [];  //previously played songs
     return {
         songs: function () { return pps; },
+        songByIndex: function (idx) { return pps[idx]; },
         playbackError: function (prefix, idx) {
             var playerr = "";
             if(prefix === "hst") {

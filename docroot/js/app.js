@@ -24,19 +24,19 @@ app = {
 
     init: function () {
         jtminjsDecorateWithUtilities(jt);
-        jt.log("loading app modules v=210421");
+        jt.log("loading app modules v=210422");
         var href = window.location.href;
         if(href.indexOf("#") > 0) {
             href = href.slice(0, href.indexOf("#")); }
         if(href.indexOf("?") > 0) {
             href = href.slice(0, href.indexOf("?")); }
         jt.loadAppModules(app, modules.map((x) => "js/amd/" + x),
-                          href, app.init2, "?v=210421");
+                          href, app.init2, "?v=210422");
     },
 
 
     fileVersion: function () {
-        return "v=210421";  //updated as part of release process
+        return "v=210422";  //updated as part of release process
     },
 
 
