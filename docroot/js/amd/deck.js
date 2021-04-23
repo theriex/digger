@@ -105,7 +105,7 @@ app.deck = (function () {
                 app.player.deckUpdated();
                 setTimeout(function () {  //leave info momentarily
                     mgrs.gen.showSection("songs"); }, 800); }
-            mgrs.sop.displaySongs("ws", "decksongsdiv", wrk.songs);
+            mgrs.sop.displaySongs("dk", "decksongsdiv", wrk.songs);
             wrk.tmo = null;
             wrk.stat = "";
             if(wrk.resched) {
