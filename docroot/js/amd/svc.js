@@ -142,7 +142,7 @@ app.svc = (function () {
                 contf(dbo.songs); }, 200); },
         fetchAlbum: function (song, contf) {
             var abs = Object.values(dbo.songs)
-                .filter((s) => s.ab === song.ab)
+                .filter((s) => s.ar === song.ar && s.ab === song.ab)
                 .sort(function (a, b) {
                     return a.path.localeCompare(b.path); });
             contf(song, abs); },
