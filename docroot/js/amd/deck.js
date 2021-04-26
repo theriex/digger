@@ -70,7 +70,7 @@ app.deck = (function () {
             var first = []; var rest = [];
             Object.values(ba).forEach(function (songs) {
                 first.push(songs.shift());
-                rest.concat(songs); });
+                rest = rest.concat(songs); });
             //leave [0] (2nd oldest song), Fisher-Yates shuffle rest
             var i; var j; var temp;
             for(i = rest.length - 1; i > 0; i -= 1) {
