@@ -13,10 +13,22 @@
 </head>
 <body id="bodyid">
 
-<div id="contentdiv">
-  Digger
-</div> <!-- contentdiv -->
+<div id="outercontentdiv">
+  <div id="contentdiv">
+    Digger
+  </div>
+</div>
 
+<script>
+  var diggerapp = {
+      context:"local",
+      modules:[
+          {name:"svc", type:"dm", desc:"webapp server interaction calls"},
+          {name:"top", type:"dm", desc:"top panel functions"},
+          {name:"player", type:"dm", desc:"player panel functions"},
+          {name:"filter", type:"dm", desc:"filter panel functions"},
+          {name:"deck", type:"dm", desc:"deck panel functions"}]};
+</script>
 <script src="js/jtmin.js?v=210426"></script>
 <script src="js/app.js?v=210426"></script>
 <script>

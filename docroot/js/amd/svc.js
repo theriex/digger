@@ -214,7 +214,19 @@ app.svc = (function () {
             var key = song.ti + (song.ar || "") + (song.ab || "");
             key = key.replace(/[\s'"]/g, "");
             return key; },
-        songs: function () { return pool; }
+        songs: function () { return pool; },
+        makeStartData: function (auth) {
+            //account has added hubVersion diggerVersion fields 
+            return {config:{acctsinfo:{currid:auth.dsId, accts:[auth]}},
+                    songdata:{version:auth.hubVersion,
+                              songs:pool}}; },
+        loadInitialData: function (contf, ignore /*errf*/) {
+            var auth = app.login.getAuth();
+            if(!auth) {  //Can't use web player if not signed in, redirect home
+                window.location.href = window.location.href
+                    .split("/").slice(0,3).join("/");
+                return; }
+            contf(mgrs.web.makeStartData(auth)); }
     };  //end mgrs.web returned functions
     }());
 
@@ -222,6 +234,7 @@ app.svc = (function () {
     //general manager is main interface for app logic
     mgrs.gen = (function () {
         var dwurl = "https://diggerhub.com/digger";
+        var dwdev = "http://localhost:8080/digger";
         var hdm = "loc";  //host data manager.  either loc or web
         var songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
                           "el", "al", "kws", "rv", "fq", "lp", "nt",
@@ -236,7 +249,8 @@ app.svc = (function () {
         initialDataFailed: function (code, errtxt) {
             jt.err("Initial data load failed " + code + ": " + errtxt); },
         initialize: function () {
-            if(window.location.href.toLowerCase().startsWith(dwurl)) {
+            var url = window.location.href.toLowerCase();
+            if(url.startsWith(dwurl) || url.startsWith(dwdev)) {
                 hdm = "web"; }
             else {  //localhost or LAN
                 hdm = "loc"; }
@@ -276,4 +290,3 @@ return {
         return mgrs[mgrname][fname].apply(app.svc, args); }
 };  //end of returned functions
 }());
-

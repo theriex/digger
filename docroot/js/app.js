@@ -1,4 +1,4 @@
-/*global jtminjsDecorateWithUtilities, window */
+/*global jtminjsDecorateWithUtilities, window, diggerapp */
 /*jslint browser, white, fudge */
 
 var app = {};
@@ -7,31 +7,45 @@ var jt = {};
 (function () {
     "use strict";
 
-    var modules = ["svc", "top", "player", "filter", "deck"];
-
 app = {
 
     init2: function () {
-        jt.out("contentdiv", jt.tac2html(
-            [["div", {cla:"paneldiv", id:"pantopdiv"}],
-             ["div", {cla:"paneldiv", id:"panplaydiv"}],
-             ["div", {cla:"paneldiv", id:"panfiltdiv"}],
-             ["div", {cla:"paneldiv", id:"pandeckdiv"}]]));
-        modules.forEach(function (modname) {
-            app[modname].init(); });
+        app.amdtimer.load.end = new Date();
+        jt.log("window.innerWidth: " + window.innerWidth);
+        app.startParams = jt.parseParams("String");
+        app.startPath = window.location.pathname.toLowerCase();
+        if(diggerapp.context !== "local") {
+            app.login.init(); }
+        if(diggerapp.context === "local" || app.startPath === "/digger") {
+            if(diggerapp.context === "web") {
+                jt.byId("topsectiondiv").style.display = "none"; }
+            jt.out("outercontentdiv", jt.tac2html(
+                ["div", {id:"contentdiv"},
+                 [["div", {cla:"paneldiv", id:"pantopdiv"}],
+                  ["div", {cla:"paneldiv", id:"panplaydiv"}],
+                  ["div", {cla:"paneldiv", id:"panfiltdiv"}],
+                  ["div", {cla:"paneldiv", id:"pandeckdiv"}]]]));
+            diggerapp.modules.forEach(function (md) {
+                if(md.type === "dm") {
+                    app[md.name].init(); } }); }
     },
 
 
     init: function () {
+        var ox = window.location.href;
+        if(!diggerapp.context === "web") {
+            if((ox.toLowerCase().indexOf("https:") !== 0) &&
+               (ox.search(/:\d080/) < 0)) {  //local dev
+                window.location.href = "https:" + ox.slice(ox.indexOf("/"));
+                return; } }  //stop and let the redirect happen.
+        app.docroot = ox.split("/").slice(0, 3).join("/") + "/";
+        if(!jtminjsDecorateWithUtilities) { //support lib not loaded yet
+            return setTimeout(app.init, 50); }
         jtminjsDecorateWithUtilities(jt);
-        jt.log("loading app modules v=210426");
-        var href = window.location.href;
-        if(href.indexOf("#") > 0) {
-            href = href.slice(0, href.indexOf("#")); }
-        if(href.indexOf("?") > 0) {
-            href = href.slice(0, href.indexOf("?")); }
-        jt.loadAppModules(app, modules.map((x) => "js/amd/" + x),
-                          href, app.init2, "?v=210426");
+        var loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
+        app.amdtimer = {};
+        app.amdtimer.load = { start: new Date() };
+        jt.loadAppModules(app, loadfs, app.docroot, app.init2, "?v=210426");
     },
 
 
@@ -89,7 +103,18 @@ app = {
             url += params + "&"; }
         url += jt.ts("cb=", toklev);
         return url;
-    }
+    },
 
+
+    //app.docroot is initialized with a terminating '/' so it can be
+    //concatenated directly with a relative path, but remembering and
+    //relying on whether a slash is required is annoying.  Double slashes
+    //are usually handled properly but can be a source of confusion, so this
+    //strips off any preceding slash in the relpath.
+    dr: function (relpath) {
+        if(relpath.startsWith("/")) {
+            relpath = relpath.slice(1); }
+        return app.docroot + relpath;
+    }
 };
 }());
