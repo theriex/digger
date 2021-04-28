@@ -469,6 +469,8 @@ app.filter = (function () {
         setFrequencyFiltering: function (fqsetting) {
             fqsetting = fqsetting || {tp:"fqb", v:"on"};
             mgrs.fq.toggleFreqFiltering(fqsetting.v); },
+        getFrequencyFiltering: function () {
+            return fqb; },
         init: function (divid) {
             mgrs.fq.initWaitDays();
             mgrs.fq.writeHTML(divid);
@@ -525,6 +527,18 @@ app.filter = (function () {
             filts.push(ctrls.rat);
             filts.push(ctrls.fq);
             return filts; },
+        buttonsCSV: function (togval) {
+            return ctrls.bts.filter((b) => b.tog === togval)
+                .map((b) => b.pn).join(","); },
+        summarizeFiltering: function () {
+            return {elmin:ctrls.el.rgfoc.min, elmax:ctrls.el.rgfoc.max,
+                    almin:ctrls.al.rgfoc.min, almax:ctrls.al.rgfoc.max,
+                    poskws:mgrs.stg.buttonsCSV("pos"),
+                    negkws:mgrs.stg.buttonsCSV("neg"),
+                    minrat:ctrls.rat.stat.minrat,
+                    tagfidx:ctrls.rat.tagf.idx,   //Both|Tagged|Untagged
+                    fq:mgrs.fq.getFrequencyFiltering(),  //on|off
+                    srchtxt:jt.byId("srchin").value || ""}; },
         rebuildAllControls: function (ready) {
             var ca = app.top.dispatch("gen", "getAccount");
             if(ca && ca.settings) { settings = ca.settings; }
@@ -547,6 +561,7 @@ return {
     initialDataLoaded: function () { mgrs.stg.rebuildAllControls(true); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
+    summary: function () { return mgrs.stg.summarizeFiltering(); },
     gradient: function () { return ranger.panel.gradient; },
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
     dispatch: function (mgrname, fname, ...args) {

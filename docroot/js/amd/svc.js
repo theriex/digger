@@ -209,6 +209,7 @@ app.svc = (function () {
     mgrs.web = (function () {
         //var libs = {};  //active libraries to match against for song retrieval
         var pool = {};  //locally cached songs by title/artist/album key
+        var lastfvsj = null;
     return {
         key: function (song) {
             var key = song.ti + (song.ar || "") + (song.ab || "");
@@ -226,7 +227,35 @@ app.svc = (function () {
                 window.location.href = window.location.href
                     .split("/").slice(0,3).join("/");
                 return; }
-            contf(mgrs.web.makeStartData(auth)); }
+            mgrs.gen.initialDataLoaded();
+            jt.out("countspan", "DiggerHub");
+            jt.byId("countspan").style.fontStyle = "italic";
+            jt.byId("countspan").style.opacity = 0.6;
+            contf(mgrs.web.makeStartData(auth)); },
+        fetchSongs: function (contf, errf) {  //retrieve more songs
+            var fvsj = JSON.stringify(app.filter.summary());
+            if(lastfvsj && lastfvsj === fvsj) {
+                setTimeout(function () {
+                    contf(pool); }, 200); }
+            else {
+                lastfvsj = fvsj;
+                var auth = app.login.getAuth();
+                //cache bust shouldn't be necessary since fvsj changes
+                var ps = jt.objdata({fvs:fvsj, an:auth.email, at:auth.token});
+                jt.call("GET", app.dr("/api/songfetch?" + ps), null,
+                        function (songs) {
+                            songs.forEach(function (song) {
+                                pool[mgrs.web.key(song)] = song; });
+                            contf(pool); },
+                        errf,
+                        jt.semaphore("mgrs.web.fetchSongs")); } },
+        fetchAlbum: function (song, contf, ignore /*errf*/) {
+            jt.err("mgrs.web.fetchAlbum not implemented yet.");
+            contf(song, []); },
+        updateSong: function (song, contf) {
+            jt.log("mgrs.web.updateSong not calling update yet.");
+            if(contf) {
+                contf(song); } }
     };  //end mgrs.web returned functions
     }());
 

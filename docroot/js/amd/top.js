@@ -647,9 +647,7 @@ app.top = (function () {
             curracct = hai.accts.find((a) => a.dsId === hai.currid);
             if(!curracct) {
                 throw("No current account found"); }
-            jt.byId("hubtogspan").title = "Account Info (" +
-                curracct.diggerVersion + ", " + app.fileVersion() + ")";
-            jt.out("hubtogspan", curracct.firstname); },
+            mgrs.gen.updateHubToggleSpan(curracct); },
         updateAccount: function (contf, errf) {  //curracct updated by caller
             app.svc.dispatch("loc", "updateAccount", hai,
                 function (acctsinfo) {
@@ -688,11 +686,12 @@ app.top = (function () {
     mgrs.webam = (function () {
     return {
         initialDataLoaded: function () {
-            jt.log("webam.initialDataLoaded not implemented yet"); },
+            mgrs.gen.updateHubToggleSpan(app.login.getAuth());
+            mgrs.kwd.rebuildKeywords(); },
         dispAcct: function () {
             jt.log("webam.dispAcct not implemented yet"); },
         getAccount: function () {
-            jt.log("webam.getAccount not implemented yet"); },
+            return app.login.getAuth(); },
         updateAccount: function (/*contf, errf*/) {
             jt.log("webam.updateAccount not implemented yet"); }
     };
@@ -1201,7 +1200,11 @@ app.top = (function () {
                 dlgdiv.dataset.mode = "am";  //account management
                 mgrs[app.svc.hostDataManager() + "am"].dispAcct(); } },
         initialDataLoaded: function () {
-            mgrs[app.svc.hostDataManager() + "am"].initialDataLoaded(); }
+            mgrs[app.svc.hostDataManager() + "am"].initialDataLoaded(); },
+        updateHubToggleSpan: function (acct) {
+            jt.byId("hubtogspan").title = "Account Info (" +
+                acct.diggerVersion + ", " + app.fileVersion() + ")";
+            jt.out("hubtogspan", acct.firstname); }
     };  //end mgrs.gen returned functions
     }());
 
