@@ -234,7 +234,7 @@ app.svc = (function () {
             contf(mgrs.web.makeStartData(auth)); },
         fetchSongs: function (contf, errf) {  //retrieve more songs
             var fvsj = JSON.stringify(app.filter.summary());
-            if(lastfvsj && lastfvsj === fvsj) {
+            if(lastfvsj && lastfvsj === fvsj) {  //no change, return existing
                 setTimeout(function () {
                     contf(pool); }, 200); }
             else {
@@ -255,7 +255,12 @@ app.svc = (function () {
         updateSong: function (song, contf) {
             jt.log("mgrs.web.updateSong not calling update yet.");
             if(contf) {
-                contf(song); } }
+                contf(song); } },
+        spotifyTokenInfo: function (contf, errf) {
+            var auth = app.login.getAuth();
+            var ps = jt.objdata({an:auth.email, at:auth.token});
+            jt.call("GET", app.dr("/api/spotifytoken?" + ps), null,
+                    contf, errf, jt.semaphore("mgrs.web.spotifyTokenInfo")); }
     };  //end mgrs.web returned functions
     }());
 
@@ -269,6 +274,7 @@ app.svc = (function () {
                           "el", "al", "kws", "rv", "fq", "lp", "nt",
                           "dsId", "modified"];
     return {
+        getHostDataManager: function () { return hdm; },
         initialDataLoaded: function () {
             //Setting the filter values triggers a call to app.deck.update
             //which rebuilds the deck and starts the player.

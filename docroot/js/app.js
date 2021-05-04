@@ -45,12 +45,12 @@ app = {
         var loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, app.init2, "?v=210426");
+        jt.loadAppModules(app, loadfs, app.docroot, app.init2, "?v=210504");
     },
 
 
     fileVersion: function () {
-        return "v=210426";  //updated as part of release process
+        return "v=210504";  //updated as part of release process
     },
 
 

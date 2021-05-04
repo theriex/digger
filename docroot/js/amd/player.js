@@ -1,4 +1,4 @@
-/*global app, jt */
+/*global app, jt, Spotify */
 /*jslint browser, white, fudge, for, long */
 
 app.player = (function () {
@@ -56,6 +56,296 @@ app.player = (function () {
     function mdfs (mgrfname, ...args) {  //module dispatch function string
         return app.dfs("player", mgrfname, args);
     }
+
+
+    //local audio interface uses standard audio element
+    mgrs.loa = (function () {
+    return {
+        verifyPlayer: function () {
+            if(!jt.byId("playeraudio")) {
+                jt.out("audiodiv", jt.tac2html(
+                    ["audio", {id:"playeraudio", controls:"controls",
+                               autoplay:"autoplay"},  //may or may not happen
+                     "WTF? Your browser doesn't support audio.."]));
+                jt.on("playeraudio", "ended", app.player.next); }
+            mgrs.loa.bumpPlayerLeftIfOverhang(); },
+        bumpPlayerLeftIfOverhang: function  () {
+            var player = jt.byId("playeraudio");
+            var playw = player.offsetWidth;
+            var maxw = jt.byId("panplaydiv").offsetWidth;
+            maxw -= (2 * 6) + (2 * 8);  //padding and border
+            if(playw > maxw) {
+                var shift = Math.round(-0.5 * (playw - maxw));
+                player.style.marginLeft = shift + "px"; } },
+        handleNotAllowedError: function () {
+            var player = jt.byId("playeraudio");
+            if(!player.duration) {
+                jt.log("Song has no duration."); } },
+        playSong: function (song) {
+            var player = jt.byId("playeraudio");
+            player.src = "/audio?path=" + jt.enc(song.path);
+            //player.play returns a Promise, check result via then.
+            player.play().then(
+                function (ignore /*successvalue*/) {
+                    jt.log("Playing " + song.path); },
+                function (errorvalue) {
+                    mgrs.aud.handlePlayerError(errorvalue); }); }
+    };  //end mgrs.loa returned functions
+    }());
+
+
+    //Spotify audio interface
+    //https://developer.spotify.com/documentation/web-playback-sdk/reference/
+    mgrs.spa = (function () {
+        var accretry = 4;
+        var tokinfo = null;
+        var sdkstate = null;
+        var pendingSong = null;
+        var currSong = null;
+        var playername = "Digger Spotify Player";
+        var swpi = null;  //Spotify Web Player instance
+        var pstat = "";   //current player status
+        var pdid = "";    //Spotify Web Player device Id
+        var wpso = null;  //Latest returned WebPlayerState object
+        var paused = false;  //current pause state.
+        function pmsg (tac) {  //display a player message (major status or err)
+            jt.out("audiodiv", jt.tac2html(tac)); }
+    return {
+        login: function () {  //verify logged in
+            if(app.login.getAuth()) { return true; }
+            if(accretry > 0) {
+                accretry -= 1;
+                pmsg("Waiting for account info...");
+                setTimeout(mgrs.spa.verifyPlayer, 500); }
+            else {
+                pmsg(["a", {href:app.docroot},
+                      "Sign In to use the Spotify web player"]); } },
+        hubcode: function () {  //verify user authorization from spotify
+            var acct = app.login.getAuth();  //server provides hubdat.spa
+            if(acct.hubdat.spa.code) {  // have authorization code from spotify
+                return true; }
+            if(app.startParams.state === acct.token) {  //spotify called back
+                if(app.startParams.code) {
+                    acct.hubdat.spa.code = app.startParams.code;
+                    var data = jt.objdata({an:acct.email, at:acct.token,
+                                           hubdat:JSON.stringify(acct.hubdat)});
+                    app.login.dispatch("act", "updateAccount", data,
+                        function (ignore /*result*/) {
+                            mgrs.spa.verifyPlayer(); },
+                        function (code, errtxt) {
+                            pmsg("Failed to write authorization code " + code +
+                                 ": " + errtxt); }); }
+                else { //spotify called back with an error
+                    pmsg("Spotify authorization failed: " +
+                         app.startParams.error); }
+                window.history.replaceState({}, document.title, "/digger");
+                return false; }
+            //provide redirect to spotify for authorization
+            var scopes = ["user-read-playback-state",  //current track info
+                          "playlist-modify-public",  //create playlist
+                          "user-modify-playback-state",  //pause, resume etc
+                          "user-read-currently-playing",  //get current track
+                          "streaming"];  //required for web playback
+            var params = {client_id:acct.hubdat.spa.clikey,
+                          response_type:"code",
+                          redirect_uri:acct.hubdat.spa.returi,
+                          state:acct.token,
+                          scope:scopes.join(" ")};
+            var spurl = "https://accounts.spotify.com/authorize?" +
+                       jt.objdata(params);
+            pmsg(["a", {href:spurl},
+                 "DiggerHub needs permission to play music from your Spotify" +
+                 " Premium account."]);
+            return false; },
+        token: function (contf) {  //verify token info, or contf(token)
+            if(tokinfo && (new Date().toISOString() < tokinfo.useby)) {
+                if(contf) {  //called from spotify player
+                    setTimeout(function () { contf(tokinfo.access_token); },
+                               50); }
+                return true; }
+            //fetch token info from Spotify
+            if(!contf) {
+                pmsg("Verifying Spotify access token..."); }
+            app.svc.dispatch("web", "spotifyTokenInfo",
+                function (info) {
+                    tokinfo = info;
+                    if(!contf) {
+                        pmsg("Spotify token received. Verifying...");
+                        mgrs.spa.verifyPlayer(); }
+                    else {
+                        contf(tokinfo.access_token); } },
+                function (code, errtxt) {
+                    pmsg("Spotify token retrieval failed " + code +
+                         ": " + errtxt); }); },
+        sdkload: function () {
+            if(sdkstate === "loaded") { return true; }
+            if(!sdkstate) {
+                sdkstate = "loading";
+                pmsg("Loading Spotify SDK...");
+                window.onSpotifyWebPlaybackSDKReady = function () {
+                    sdkstate = "loaded";
+                    pmsg("Spotify Player Loaded. Starting...");
+                    mgrs.spa.verifyPlayer(); };
+                setTimeout(function () {  //this can take a while to load
+                    var script = document.createElement("script");
+                    script.id = "diggerspasdk";
+                    script.async = true;
+                    script.src = "https://sdk.scdn.co/spotify-player.js";
+                    document.body.appendChild(script); },
+                           50); }
+            return false; },
+        playerSetup: function () {
+            if(swpi && pstat === "connected") { return true; }
+            if(!swpi) {
+                pmsg("Connecting Spotify Web Player...");
+                swpi = new Spotify.Player({name:playername,
+                                           getOAuthToken:mgrs.spa.token});
+                var listeners = {
+                    "ready":function (deviceId) {
+                        pdid = deviceId;
+                        pstat = "connected";
+                        if(pendingSong) {
+                            mgrs.spa.playSong(pendingSong);
+                            pendingSong = null; }
+                        else if(currSong) {
+                            mgrs.spa.playSong(currSong); } },
+                    "not_ready":function (deviceId) {
+                        pdid = deviceId;
+                        pstat = "notready";
+                        mgrs.spa.playerConnect(); },
+                    "player_state_changed":function (obj) {
+                        wpso = obj;
+                        mgrs.spa.refreshPlayerState(); }};
+                Object.entries(listeners).forEach(function (e, f) {
+                    swpi.addListener(e, f); });
+                var errors = {
+                    initialization_error:"Player initialization failed",
+                    authentication_error:"Could not authenticate",
+                    account_error:"Could not validate Spotify account",
+                    playback_error:"Track playback failed"};
+                var makeErrorFunction = function (err, txt) {
+                    return function (msg) {
+                        pstat = err;
+                        pmsg([txt + ": " + msg + " ",
+                              ["a", {href:"#Retry",
+                                     onclick:mdfs("spa.playerConnect")},
+                               "Retry"]]); }; };
+                Object.entries(errors).forEach(function ([err, txt]) {
+                    swpi.on(err, makeErrorFunction(err, txt)); }); }
+            mgrs.spa.playerConnect();
+            return false; },
+        playerConnect: function () {
+            if(pstat !== "connecting") {
+                pstat = "connecting";
+                swpi.connect().then(function (result) {
+                    if(result) {
+                        //pstat updated by on "ready" listener
+                        jt.log("Spotify Web Player connected."); }
+                    else {
+                        pstat = "connfail";
+                        pmsg(["a", {href:"#Reconnect", 
+                                    onclick:mdfs("spa.playerConnect")},
+                              "Reconnect Spotify Web Player"]); } }); } },
+        verifyPlayer: function () {  //called after deck updated
+            if(pstat !== "connected") {
+                var steps = ["login", "hubcode", "token", "sdkload",
+                             "playerSetup"];
+                steps.every((step) => mgrs.spa[step]); } },
+        refreshPlayerState: function () {
+            paused = wpso.paused;
+            pmsg("position: " + wpso.position +
+                 ", duration: " + wpso.duration); },
+        togglePause: function () {
+            if(paused) {
+                swpi.resume().then(function () {
+                    paused = false;
+                    jt.log("playing"); }); }
+            else {
+                swpi.pause().then(function () {
+                    paused = true;
+                    jt.log("paused"); }); } },
+        playSong: function (song) {
+            if(sdkstate !== "loaded") {
+                pendingSong = song;
+                return; }
+            currSong = song;
+            fetch(
+                `https://api.spotify.com/v1/me/player/play?device_id=${pdid}`,
+                {method:"PUT",
+                 body:JSON.stringify({uris:["spotify:track:" +
+                                            currSong.spid.slice(2)]}),
+                 headers:{
+                     "Content-Type":"application/json",
+                     "Authorization":`Bearer ${tokinfo.access_token}`}}); }
+    };  //end mgrs.spa returned functions
+    }());
+
+
+    //general interface for whatever audio player is being used.
+    mgrs.aud = (function () {
+        var ctx = "loc";  //local reference of svc.mgrs.gen.hdm
+        var cap = "loa";  //current audio player
+    return {
+        init: function () {
+            ctx = app.svc.dispatch("gen", "getHostDataManager"); },
+        playerForSong: function (song) {
+            if(ctx === "loc") {
+                return "loa"; }
+            else {  //"web"
+                if(!song.spid || !song.spid.startsWith("z:")) {
+                    jt.log("Song " + song.dsId + " bad spid: " + song.spid); }
+                return "spa"; } },
+        verifyPlayerControls: function () {  //called when deck updated
+            if(!jt.byId("playerdiv")) {
+                jt.out("mediadiv", jt.tac2html(
+                    ["div", {id:"playerdiv"},
+                     [["div", {id:"playertitle"}, "Starting"],
+                      ["div", {id:"playertuningdiv"}],
+                      ["div", {id:"audiodiv"}]]])); }
+            mgrs[cap].verifyPlayer(); },
+        handlePlayerError: function (errval) {
+            //On Firefox, errval is a DOMException
+            var errmsg = String(errval);  //error name and detail text
+            jt.log("Play error " + errmsg + " " + stat.song.path);
+            //NotAllowedError is normal on app start. Autoplay is generally
+            //disabled until the user has interacted with the player.
+            if(errmsg.indexOf("NotAllowedError")) {
+                if(mgrs[cap].handleNotAllowedError) {
+                    return mgrs[cap].handleNotAllowedError(errmsg); }
+                return; }
+            //NotSupportedError means file is unplayable by the current
+            //player, but might be ok.  For example on MacOS, Safari handles
+            //an .m4a but Firefox doesn't.  Best to skip to the next file,
+            //assuming this is an anomaly and the next one will likely play.
+            if(errmsg.indexOf("NotSupportedError") >= 0) {
+                playerrs[stat.song.path] = errmsg;
+                app.player.skip(); } },
+        updateSongTitleDisplay: function () {
+            jt.out("playertitle", jt.tac2html(
+                ["div", {cla:"songtitlediv"},
+                 [["div", {id:"playtitlebuttonsdiv"},
+                   [["span", {id:"modindspan"}],
+                    ["a", {href:"#tuneoptions", title:"Tune Playback Options",
+                           id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
+                     ["img", {src:"img/tunefork.png", cla:"ptico"}]],
+                    ["a", {href:"#skip", title:"Skip To Next Song",
+                           onclick:jt.fs("app.player.skip()")},
+                     ["img", {src:"img/skip.png", cla:"ptico"}]]]],
+                  app.deck.dispatch("sop", "songIdentHTML", stat.song)]])); },
+        playAudio: function () {
+            stat.status = "playing";
+            jt.log(JSON.stringify(stat.song));
+            mgrs.kwd.rebuildToggles();
+            cap = mgrs.aud.playerForSong(stat.song);
+            mgrs.aud.verifyPlayerControls();
+            mgrs.aud.updateSongTitleDisplay();
+            mgrs.pan.updateControl("al", stat.song.al);
+            mgrs.pan.updateControl("el", stat.song.el);
+            stat.song.rv = stat.song.rv || 0;  //verify numeric value
+            ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2));
+            mgrs[cap].playSong(stat.song); }
+    };  //end mgrs.aud returned functions
+    }());
 
 
     //handle the tuning fork actions and info display
@@ -331,89 +621,9 @@ app.player = (function () {
                 ["img", {id:"togcommentimg", src:"img/comment.png"}]]]],
              ["div", {id:"commentdiv"}]]));
         mgrs.pan.makePanControls();
-        //togggle controls rebuilt after data loaded
+        //toggle controls rebuilt after data loaded
         makeRatingValueControl();
-    }
-
-
-    function verifyPlayerControls () {
-        if(!jt.byId("playerdiv")) {
-            jt.out("mediadiv", jt.tac2html(
-                ["div", {id:"playerdiv"},
-                 [["div", {id:"playertitle"}, "Starting"],
-                  ["div", {id:"playertuningdiv"}],
-                  ["audio", {id:"playeraudio", controls:"controls",
-                             autoplay:"autoplay"},  //may or may not happen
-                   "WTF? Your browser doesn't support audio.."]]]));
-            jt.on("playeraudio", "ended", app.player.next); }
-    }
-
-
-    function bumpPlayerLeftIfOverhang () {
-        var player = jt.byId("playeraudio");
-        var playw = player.offsetWidth;
-        var maxw = jt.byId("panplaydiv").offsetWidth;
-        maxw -= (2 * 6) + (2 * 8);  //padding and border
-        if(playw > maxw) {
-            var shift = Math.round(-0.5 * (playw - maxw));
-            player.style.marginLeft = shift + "px"; }
-    }
-
-
-    function updateSongTitleDisplay () {
-        jt.out("playertitle", jt.tac2html(
-            ["div", {cla:"songtitlediv"},
-             [["div", {id:"playtitlebuttonsdiv"},
-               [["span", {id:"modindspan"}],
-                ["a", {href:"#tuneoptions", title:"Tune Playback Options",
-                       id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
-                 ["img", {src:"img/tunefork.png", cla:"ptico"}]],
-                ["a", {href:"#skip", title:"Skip To Next Song",
-                       onclick:jt.fs("app.player.skip()")},
-                 ["img", {src:"img/skip.png", cla:"ptico"}]]]],
-             app.deck.dispatch("sop", "songIdentHTML", stat.song)]]));
-    }
-
-
-    function handlePlayerError (errval) {
-        //On Firefox, errval is a DOMException
-        var errmsg = String(errval);  //error name and detail text
-        jt.log("Play error " + errmsg + " " + stat.song.path);
-        //NotAllowedError is normal on app start. Autoplay is generally
-        //disabled until the user has interacted with the player.
-        if(errmsg.indexOf("NotAllowedError")) {
-            var player = jt.byId("playeraudio");
-            if(!player.duration) {
-                jt.log("Song has no duration. Re-read db?"); } }
-        //NotSupportedError means file is unplayable by the current player,
-        //but might be ok.  For example on MacOS, Safari handles an .m4a
-        //but Firefox doesn't.  Best to skip to the next file, assuming this
-        //is an anomaly and the next one will likely play.
-        if(errmsg.indexOf("NotSupportedError") >= 0) {
-            playerrs[stat.song.path] = errmsg;
-            app.player.skip(); }
-    }
-
-
-    function play () {
-        stat.status = "playing";
-        jt.log(JSON.stringify(stat.song));
-        mgrs.kwd.rebuildToggles();
-        verifyPlayerControls();
-        bumpPlayerLeftIfOverhang();
-        updateSongTitleDisplay();
-        mgrs.pan.updateControl("al", stat.song.al);
-        mgrs.pan.updateControl("el", stat.song.el);
-        stat.song.rv = stat.song.rv || 0;  //verify numeric value
-        ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2));
-        var player = jt.byId("playeraudio");
-        player.src = "/audio?path=" + jt.enc(stat.song.path);
-        //player.play returns a Promise, check result via then.
-        player.play().then(
-            function (ignore /*successvalue*/) {
-                jt.log("Playing " + stat.song.path); },
-            function (errorvalue) {
-                handlePlayerError(errorvalue); });
+        mgrs.aud.init();
     }
 
 
@@ -427,7 +637,7 @@ app.player = (function () {
         if(!stat.song) {
             jt.out("mediadiv", "No songs to play."); }
         else {
-            play(); }
+            mgrs.aud.playAudio(); }
     }
 
 
