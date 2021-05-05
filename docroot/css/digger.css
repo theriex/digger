@@ -107,6 +107,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .tuneoptdetattr { text-align:right; font-size:small; font-style:italic;
   margin:0px 10px 0px 0px; }
 .tuneoptdetval { text-align:left; font-size:small; }
+#pmsgdiv { font-size:small; font-weight:bold; }
 
 .pandiv { display:inline-block; position:relative; }
 #elpandiv { margin-right:7px; }

@@ -1,7 +1,6 @@
 /*global app, jt */
 /*jslint browser, white, fudge, long */
 
-
 //Server communications for local/web
 app.svc = (function () {
     "use strict";
@@ -217,15 +216,17 @@ app.svc = (function () {
             return key; },
         songs: function () { return pool; },
         makeStartData: function (auth) {
-            //account has added hubVersion diggerVersion fields 
+            //account has added hubVersion, diggerVersion fields
             return {config:{acctsinfo:{currid:auth.dsId, accts:[auth]}},
                     songdata:{version:auth.hubVersion,
                               songs:pool}}; },
         loadInitialData: function (contf, ignore /*errf*/) {
             var auth = app.login.getAuth();
             if(!auth) {  //Can't use web player if not signed in, redirect home
-                window.location.href = window.location.href
-                    .split("/").slice(0,3).join("/");
+                var home = window.location.href.split("/").slice(0,3).join("/");
+                jt.out("outercontentdiv", jt.tac2html(
+                    ["a", {href:home}, "Sign in required."]));
+                setTimeout(function () { window.location.href = home; }, 2000);
                 return; }
             mgrs.gen.initialDataLoaded();
             jt.out("countspan", "DiggerHub");

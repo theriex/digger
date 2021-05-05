@@ -7,15 +7,19 @@ var jt = {};
 (function () {
     "use strict";
 
-app = {
 
-    init2: function () {
+    function initDiggerModules () {
+        diggerapp.modules.forEach(function (md) {
+            if(md.type === "dm") {
+                app[md.name].init(); } });
+    }
+
+
+    function init2 () {
         app.amdtimer.load.end = new Date();
         jt.log("window.innerWidth: " + window.innerWidth);
         app.startParams = jt.parseParams("String");
         app.startPath = window.location.pathname.toLowerCase();
-        if(diggerapp.context !== "local") {
-            app.login.init(); }
         if(diggerapp.context === "local" || app.startPath === "/digger") {
             if(diggerapp.context === "web") {
                 jt.byId("topsectiondiv").style.display = "none"; }
@@ -25,11 +29,16 @@ app = {
                   ["div", {cla:"paneldiv", id:"panplaydiv"}],
                   ["div", {cla:"paneldiv", id:"panfiltdiv"}],
                   ["div", {cla:"paneldiv", id:"pandeckdiv"}]]]));
-            diggerapp.modules.forEach(function (md) {
-                if(md.type === "dm") {
-                    app[md.name].init(); } }); }
-    },
+            if(app.startPath === "/digger") {  //web startup needs auth info
+                app.login.init(false, initDiggerModules); }
+            else {
+                initDiggerModules(); } }
+        else if(diggerapp.context === "web") {
+            app.login.init(); }
+    }
 
+
+app = {
 
     init: function () {
         var ox = window.location.href;
@@ -45,12 +54,12 @@ app = {
         var loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, app.init2, "?v=210504");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=210505");
     },
 
 
     fileVersion: function () {
-        return "v=210504";  //updated as part of release process
+        return "v=210505";  //updated as part of release process
     },
 
 

@@ -109,7 +109,7 @@ app.player = (function () {
         var wpso = null;  //Latest returned WebPlayerState object
         var paused = false;  //current pause state.
         function pmsg (tac) {  //display a player message (major status or err)
-            jt.out("audiodiv", jt.tac2html(tac)); }
+            jt.out("audiodiv", jt.tac2html(["div", {id:"pmsgdiv"}, tac])); }
     return {
         login: function () {  //verify logged in
             if(app.login.getAuth()) { return true; }
@@ -124,13 +124,19 @@ app.player = (function () {
             var acct = app.login.getAuth();  //server provides hubdat.spa
             if(acct.hubdat.spa.code) {  // have authorization code from spotify
                 return true; }
+            if(app.docroot !== "https://diggerhub.com") {
+                pmsg(["Spotify authorization callback only available from ",
+                      ["a", {href:"https://diggerhub.com"}, "diggerhub.com"]]);
+                return false; }
             if(app.startParams.state === acct.token) {  //spotify called back
                 if(app.startParams.code) {
+                    pmsg("Saving Spotify authorization code...");
                     acct.hubdat.spa.code = app.startParams.code;
                     var data = jt.objdata({an:acct.email, at:acct.token,
                                            hubdat:JSON.stringify(acct.hubdat)});
                     app.login.dispatch("act", "updateAccount", data,
                         function (ignore /*result*/) {
+                            pmsg("Authorization code saved. Verifying...");
                             mgrs.spa.verifyPlayer(); },
                         function (code, errtxt) {
                             pmsg("Failed to write authorization code " + code +
@@ -139,7 +145,7 @@ app.player = (function () {
                     pmsg("Spotify authorization failed: " +
                          app.startParams.error); }
                 window.history.replaceState({}, document.title, "/digger");
-                return false; }
+                return false; }  //done handling spotify callback
             //provide redirect to spotify for authorization
             var scopes = ["user-read-playback-state",  //current track info
                           "playlist-modify-public",  //create playlist
@@ -250,7 +256,7 @@ app.player = (function () {
             if(pstat !== "connected") {
                 var steps = ["login", "hubcode", "token", "sdkload",
                              "playerSetup"];
-                steps.every((step) => mgrs.spa[step]); } },
+                steps.every((step) => mgrs.spa[step]()); } },
         refreshPlayerState: function () {
             paused = wpso.paused;
             pmsg("position: " + wpso.position +
