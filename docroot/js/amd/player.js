@@ -96,54 +96,50 @@ app.player = (function () {
 
     //Spotify audio interface
     //https://developer.spotify.com/documentation/web-playback-sdk/reference/
+    //https://developer.spotify.com/documentation/general/guides/authorization-guide/
     mgrs.spa = (function () {
-        var accretry = 4;
         var tokinfo = null;
         var sdkstate = null;
-        var pendingSong = null;
-        var currSong = null;
         var playername = "Digger Spotify Player";
         var swpi = null;  //Spotify Web Player instance
         var pstat = "";   //current player status
         var pdid = "";    //Spotify Web Player device Id
-        var wpso = null;  //Latest returned WebPlayerState object
-        var paused = false;  //current pause state.
+        var pbi = {  //playback state information
+            song:null,  //Digger song to be playing
+            wpso:null,  //Latest returned WebPlayerState object
+            state:""};  //"playing" or "paused"
         function pmsg (tac) {  //display a player message (major status or err)
+            jt.log("pmsg: " + tac);
             jt.out("audiodiv", jt.tac2html(["div", {id:"pmsgdiv"}, tac])); }
+        function saveSpaDat (msgbase) {
+            pmsg(msgbase + "...");
+            var acct = app.login.getAuth();
+            var data = jt.objdata({an:acct.email, at:acct.token,
+                                   hubdat:JSON.stringify(acct.hubdat)});
+            app.login.dispatch("act", "updateAccount", data,
+                function (ignore /*result*/) {
+                    pmsg(msgbase + ". Verifying...");
+                    mgrs.spa.verifyPlayer(); },
+                function (code, errtxt) {
+                    pmsg(msgbase + " failed " + code + ": " + errtxt); }); }
     return {
-        login: function () {  //verify logged in
-            if(app.login.getAuth()) { return true; }
-            if(accretry > 0) {
-                accretry -= 1;
-                pmsg("Waiting for account info...");
-                setTimeout(mgrs.spa.verifyPlayer, 500); }
-            else {
-                pmsg(["a", {href:app.docroot},
-                      "Sign In to use the Spotify web player"]); } },
         hubcode: function () {  //verify user authorization from spotify
             var acct = app.login.getAuth();  //server provides hubdat.spa
             if(acct.hubdat.spa.code) {  // have authorization code from spotify
                 return true; }
-            if(app.docroot !== "https://diggerhub.com") {
+            if(!app.docroot.startsWith("https://diggerhub.com")) {
                 pmsg(["Spotify authorization callback only available from ",
                       ["a", {href:"https://diggerhub.com"}, "diggerhub.com"]]);
                 return false; }
             if(app.startParams.state === acct.token) {  //spotify called back
                 if(app.startParams.code) {
-                    pmsg("Saving Spotify authorization code...");
                     acct.hubdat.spa.code = app.startParams.code;
-                    var data = jt.objdata({an:acct.email, at:acct.token,
-                                           hubdat:JSON.stringify(acct.hubdat)});
-                    app.login.dispatch("act", "updateAccount", data,
-                        function (ignore /*result*/) {
-                            pmsg("Authorization code saved. Verifying...");
-                            mgrs.spa.verifyPlayer(); },
-                        function (code, errtxt) {
-                            pmsg("Failed to write authorization code " + code +
-                                 ": " + errtxt); }); }
+                    saveSpaDat("Saving Spotify authorization code"); }
                 else { //spotify called back with an error
                     pmsg("Spotify authorization failed: " +
                          app.startParams.error); }
+                app.startParams.state = "";
+                app.startParams.code = "";
                 window.history.replaceState({}, document.title, "/digger");
                 return false; }  //done handling spotify callback
             //provide redirect to spotify for authorization
@@ -173,16 +169,21 @@ app.player = (function () {
             if(!contf) {
                 pmsg("Verifying Spotify access token..."); }
             app.svc.dispatch("web", "spotifyTokenInfo",
-                function (info) {
-                    tokinfo = info;
+                function (infoarray) {
+                    tokinfo = infoarray[0];
                     if(!contf) {
                         pmsg("Spotify token received. Verifying...");
                         mgrs.spa.verifyPlayer(); }
                     else {
                         contf(tokinfo.access_token); } },
                 function (code, errtxt) {
-                    pmsg("Spotify token retrieval failed " + code +
-                         ": " + errtxt); }); },
+                    if(errtxt.indexOf("invalid_grant") >= 0) {
+                        app.login.getAuth().hubdat.spa.code = "";
+                        saveSpaDat("Clearing expired authorization code"); }
+                    else {
+                        pmsg("Spotify token retrieval failed " + code +
+                             ": " + errtxt); } });
+            return false; },
         sdkload: function () {
             if(sdkstate === "loaded") { return true; }
             if(!sdkstate) {
@@ -203,83 +204,92 @@ app.player = (function () {
         playerSetup: function () {
             if(swpi && pstat === "connected") { return true; }
             if(!swpi) {
-                pmsg("Connecting Spotify Web Player...");
+                pmsg("Creating Spotify Web Player...");
                 swpi = new Spotify.Player({name:playername,
                                            getOAuthToken:mgrs.spa.token});
-                var listeners = {
-                    "ready":function (deviceId) {
-                        pdid = deviceId;
-                        pstat = "connected";
-                        if(pendingSong) {
-                            mgrs.spa.playSong(pendingSong);
-                            pendingSong = null; }
-                        else if(currSong) {
-                            mgrs.spa.playSong(currSong); } },
-                    "not_ready":function (deviceId) {
-                        pdid = deviceId;
-                        pstat = "notready";
-                        mgrs.spa.playerConnect(); },
-                    "player_state_changed":function (obj) {
-                        wpso = obj;
-                        mgrs.spa.refreshPlayerState(); }};
-                Object.entries(listeners).forEach(function (e, f) {
-                    swpi.addListener(e, f); });
-                var errors = {
-                    initialization_error:"Player initialization failed",
-                    authentication_error:"Could not authenticate",
-                    account_error:"Could not validate Spotify account",
-                    playback_error:"Track playback failed"};
-                var makeErrorFunction = function (err, txt) {
-                    return function (msg) {
-                        pstat = err;
-                        pmsg([txt + ": " + msg + " ",
-                              ["a", {href:"#Retry",
-                                     onclick:mdfs("spa.playerConnect")},
-                               "Retry"]]); }; };
-                Object.entries(errors).forEach(function ([err, txt]) {
-                    swpi.on(err, makeErrorFunction(err, txt)); }); }
-            mgrs.spa.playerConnect();
-            return false; },
-        playerConnect: function () {
-            if(pstat !== "connecting") {
+                mgrs.spa.addPlayerListeners(); }
+            if(pstat !== "connecting") {  //not already trying to connect
+                pmsg("Connecting to Spotify Web Player...");
                 pstat = "connecting";
                 swpi.connect().then(function (result) {
                     if(result) {
-                        //pstat updated by on "ready" listener
-                        jt.log("Spotify Web Player connected."); }
+                        pstat = "connected";
+                        pmsg("Spotify Web Player Connected.");
+                        //could still get an error if not premium or whatever
+                        setTimeout(mgrs.spa.togglePause, 500); }
                     else {
                         pstat = "connfail";
-                        pmsg(["a", {href:"#Reconnect", 
-                                    onclick:mdfs("spa.playerConnect")},
-                              "Reconnect Spotify Web Player"]); } }); } },
+                        pmsg(["a", {href:"#Reconnect",
+                                    onclick:mdfs("spa.verifyPlayer")},
+                              "Reconnect Spotify Web Player"]); } }); }
+            return false; },
         verifyPlayer: function () {  //called after deck updated
             if(pstat !== "connected") {
-                var steps = ["login", "hubcode", "token", "sdkload",
-                             "playerSetup"];
+                var steps = ["hubcode", "token", "sdkload", "playerSetup"];
                 steps.every((step) => mgrs.spa[step]()); } },
+        addPlayerListeners: function () {
+            var listeners = {
+                "ready":function (deviceId) {
+                    pdid = deviceId;
+                    mgrs.spa.togglePause(); },
+                "not_ready":function (deviceId) {
+                    pdid = deviceId;
+                    pstat = "notready";
+                    pbi.state = "";  //will need to play again
+                    mgrs.spa.verifyPlayer(); },
+                "player_state_changed":function (obj) {
+                    pbi.wpso = obj;
+                    mgrs.spa.refreshPlayerState(); }};
+            var errors = {
+                initialization_error:"Spotify Web Player initialization failed",
+                authentication_error:"Spotify Premium authentication failed",
+                //Invalid token scopes error happens if requesting "streaming"
+                //and not a Spotify Premium account.
+                account_error:"Could not validate Spotify Premium account",
+                //Special case error if not a premium account.
+                playback_error:"Spotify Track playback failed"};
+            var makeErrorFunction = function (err, txt) {
+                return function (msg) {
+                    pstat = err;
+                    swpi.disconnect();  //returns a promise. Ignoring.
+                    pmsg([txt + ": " + msg.message + " ",
+                          ["a", {href:"#Retry",
+                                 onclick:mdfs("spa.verifyPlayer")},
+                           "Retry"]]); }; };
+            Object.entries(errors).forEach(function ([err, txt]) {
+                listeners[err] = makeErrorFunction(err, txt); });
+            Object.entries(listeners).forEach(function ([e, f]) {
+                var added = swpi.addListener(e, f);
+                jt.log("Spotify " + e + " listener: " + added); }); },
         refreshPlayerState: function () {
-            paused = wpso.paused;
-            pmsg("position: " + wpso.position +
-                 ", duration: " + wpso.duration); },
+            if(pbi.wpso.paused) {
+                pbi.state = "paused"; }
+            pmsg("position: " + pbi.wpso.position +
+                 ", duration: " + pbi.wpso.duration); },
         togglePause: function () {
-            if(paused) {
+            switch(pbi.state) {
+            case "paused":
                 swpi.resume().then(function () {
-                    paused = false;
-                    jt.log("playing"); }); }
-            else {
+                    pbi.state = "playing";
+                    jt.log("playing"); });
+                break;
+            case "playing":
                 swpi.pause().then(function () {
-                    paused = true;
-                    jt.log("paused"); }); } },
+                    pbi.state = "paused";
+                    jt.log("paused"); });
+                break;
+            default:
+                mgrs.spa.playSong(pbi.song); } },
         playSong: function (song) {
-            if(sdkstate !== "loaded") {
-                pendingSong = song;
-                return; }
-            currSong = song;
+            pbi.song = song;
+            if(pstat !== "connected") {
+                return; }  //playback starts after connection setup complete.
+            pbi.state = "playing";
             fetch(
                 `https://api.spotify.com/v1/me/player/play?device_id=${pdid}`,
                 {method:"PUT",
                  body:JSON.stringify({uris:["spotify:track:" +
-                                            currSong.spid.slice(2)]}),
+                                            pbi.song.spid.slice(2)]}),
                  headers:{
                      "Content-Type":"application/json",
                      "Authorization":`Bearer ${tokinfo.access_token}`}}); }
