@@ -96,9 +96,30 @@ app.player = (function () {
 
     //Spotify audio interface
     //https://developer.spotify.com/documentation/web-playback-sdk/reference/
-    //https://developer.spotify.com/documentation/general/guides/authorization-guide/
+    //https://developer.spotify.com/documentation/general/guides/scopes/
     mgrs.spa = (function () {
-        var tokinfo = null;
+        var tokflds = ["access_token", "token_type", "expires_in"];
+        var toki = {  //APIs fail if attempted with inadequate privs.
+            scopes:["streaming",           //required for web playback
+                    "user-read-email",     //required for web playback
+                    "user-read-private",   //required for web playback
+                    "ugc-image-upload",    //put a digger icon on gen playlist
+                    "user-read-recently-played",  //avoid repeating
+                    "user-read-playback-state",  //external pause, duration
+                    //user-top-read should not be needed
+                    //app-remote-control iOS/Android only
+                    "playlist-modify-public",  //create digger playlist
+                    "user-modify-playback-state",  //pause playback from digger
+                    "playlist-modify-private", //create digger playlist
+                    //user-follow-modify should not be needed
+                    "user-read-currently-playing", //play nice w/app, import
+                    //user-follow-read should not be needed
+                    //user-library-modify should not be needed
+                    //user-read-playback-position is for Episodes/Shows
+                    "playlist-read-private", //warn before overwrite name
+                    "user-library-read",   //import
+                    "playlist-read-collaborative"],  //name check, import
+            useby:""};
         var sdkstate = null;
         var playername = "Digger Spotify Player";
         var swpi = null;  //Spotify Web Player instance
@@ -111,78 +132,38 @@ app.player = (function () {
         function pmsg (tac) {  //display a player message (major status or err)
             jt.log("pmsg: " + tac);
             jt.out("audiodiv", jt.tac2html(["div", {id:"pmsgdiv"}, tac])); }
-        function saveSpaDat (msgbase) {
-            pmsg(msgbase + "...");
-            var acct = app.login.getAuth();
-            var data = jt.objdata({an:acct.email, at:acct.token,
-                                   hubdat:JSON.stringify(acct.hubdat)});
-            app.login.dispatch("act", "updateAccount", data,
-                function (ignore /*result*/) {
-                    pmsg(msgbase + ". Verifying...");
-                    mgrs.spa.verifyPlayer(); },
-                function (code, errtxt) {
-                    pmsg(msgbase + " failed " + code + ": " + errtxt); }); }
     return {
-        hubcode: function () {  //verify user authorization from spotify
+        token: function (contf) {  //verify token info, or contf(token)
+            if(toki.access_token && (new Date().toISOString() < toki.useby)) {
+                if(contf) {  //called from spotify player
+                    setTimeout(function () { contf(toki.access_token); }, 50); }
+                return true; }  //current token is good to go
             var acct = app.login.getAuth();  //server provides hubdat.spa
-            if(acct.hubdat.spa.code) {  // have authorization code from spotify
-                return true; }
+            if(app.startParams.state === acct.token) {  //spotify called back
+                tokflds.forEach(function (fld) {  //set or clear token info
+                    toki[fld] = app.startParams[fld];
+                    app.startParams[fld] = ""; });
+                if(app.startParams.error) {
+                    pmsg("Spotify token retrieval failed: " +
+                         app.startParams.error);
+                    return false; }
+                toki.useby = new Date(
+                    Date.now() + ((toki.expires_in - 1) * 1000)).toISOString();
+                window.history.replaceState({}, document.title, "/digger");
+                return true; }  //done handling spotify callback
+            pmsg("Redirecting to Spotify for access token...");
             if(!app.docroot.startsWith("https://diggerhub.com")) {
-                pmsg(["Spotify authorization callback only available from ",
+                pmsg(["Spotify authorization redirect only available from ",
                       ["a", {href:"https://diggerhub.com"}, "diggerhub.com"]]);
                 return false; }
-            if(app.startParams.state === acct.token) {  //spotify called back
-                if(app.startParams.code) {
-                    acct.hubdat.spa.code = app.startParams.code;
-                    saveSpaDat("Saving Spotify authorization code"); }
-                else { //spotify called back with an error
-                    pmsg("Spotify authorization failed: " +
-                         app.startParams.error); }
-                app.startParams.state = "";
-                app.startParams.code = "";
-                window.history.replaceState({}, document.title, "/digger");
-                return false; }  //done handling spotify callback
-            //provide redirect to spotify for authorization
-            var scopes = ["user-read-playback-state",  //current track info
-                          "playlist-modify-public",  //create playlist
-                          "user-modify-playback-state",  //pause, resume etc
-                          "user-read-currently-playing",  //get current track
-                          "streaming"];  //required for web playback
             var params = {client_id:acct.hubdat.spa.clikey,
-                          response_type:"code",
+                          response_type:"token",
                           redirect_uri:acct.hubdat.spa.returi,
                           state:acct.token,
-                          scope:scopes.join(" ")};
+                          scope:toki.scopes.join(" ")};
             var spurl = "https://accounts.spotify.com/authorize?" +
-                       jt.objdata(params);
-            pmsg(["a", {href:spurl},
-                 "DiggerHub needs permission to play music from your Spotify" +
-                 " Premium account."]);
-            return false; },
-        token: function (contf) {  //verify token info, or contf(token)
-            if(tokinfo && (new Date().toISOString() < tokinfo.useby)) {
-                if(contf) {  //called from spotify player
-                    setTimeout(function () { contf(tokinfo.access_token); },
-                               50); }
-                return true; }
-            //fetch token info from Spotify
-            if(!contf) {
-                pmsg("Verifying Spotify access token..."); }
-            app.svc.dispatch("web", "spotifyTokenInfo",
-                function (infoarray) {
-                    tokinfo = infoarray[0];
-                    if(!contf) {
-                        pmsg("Spotify token received. Verifying...");
-                        mgrs.spa.verifyPlayer(); }
-                    else {
-                        contf(tokinfo.access_token); } },
-                function (code, errtxt) {
-                    if(errtxt.indexOf("invalid_grant") >= 0) {
-                        app.login.getAuth().hubdat.spa.code = "";
-                        saveSpaDat("Clearing expired authorization code"); }
-                    else {
-                        pmsg("Spotify token retrieval failed " + code +
-                             ": " + errtxt); } });
+                jt.objdata(params);
+            window.location.href = spurl;
             return false; },
         sdkload: function () {
             if(sdkstate === "loaded") { return true; }
@@ -225,15 +206,15 @@ app.player = (function () {
             return false; },
         verifyPlayer: function () {  //called after deck updated
             if(pstat !== "connected") {
-                var steps = ["hubcode", "token", "sdkload", "playerSetup"];
+                var steps = ["token", "sdkload", "playerSetup"];
                 steps.every((step) => mgrs.spa[step]()); } },
         addPlayerListeners: function () {
             var listeners = {
-                "ready":function (deviceId) {
-                    pdid = deviceId;
+                "ready":function (obj) {
+                    pdid = obj.device_id;
                     mgrs.spa.togglePause(); },
-                "not_ready":function (deviceId) {
-                    pdid = deviceId;
+                "not_ready":function (obj) {
+                    pdid = obj.device_id;
                     pstat = "notready";
                     pbi.state = "";  //will need to play again
                     mgrs.spa.verifyPlayer(); },
@@ -243,10 +224,7 @@ app.player = (function () {
             var errors = {
                 initialization_error:"Spotify Web Player initialization failed",
                 authentication_error:"Spotify Premium authentication failed",
-                //Invalid token scopes error happens if requesting "streaming"
-                //and not a Spotify Premium account.
                 account_error:"Could not validate Spotify Premium account",
-                //Special case error if not a premium account.
                 playback_error:"Spotify Track playback failed"};
             var makeErrorFunction = function (err, txt) {
                 return function (msg) {
@@ -285,14 +263,15 @@ app.player = (function () {
             if(pstat !== "connected") {
                 return; }  //playback starts after connection setup complete.
             pbi.state = "playing";
+            pbi.spuri = "spotify:track:" + pbi.song.spid.slice(2);
+            pbi.spuri = "spotify:track:7xGfFoTpQ2E7fRF5lN10tr";
             fetch(
                 `https://api.spotify.com/v1/me/player/play?device_id=${pdid}`,
                 {method:"PUT",
-                 body:JSON.stringify({uris:["spotify:track:" +
-                                            pbi.song.spid.slice(2)]}),
+                 body:JSON.stringify({uris:[pbi.spuri]}),
                  headers:{
                      "Content-Type":"application/json",
-                     "Authorization":`Bearer ${tokinfo.access_token}`}}); }
+                     "Authorization":`Bearer ${toki.access_token}`}}); }
     };  //end mgrs.spa returned functions
     }());
 
