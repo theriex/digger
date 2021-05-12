@@ -134,6 +134,23 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #togcommentlink { padding-left:24px; }
 #commentta { padding:3px 5px; }
 
+#pluidiv { background:#333; margin:2px 0px 6px 0px; padding:10px 0px; }
+#pluibdiv { display:inline-block; padding:2px; }
+#pluibimg { max-height:20px; max-width:20px; }
+#pluiprogdispdiv { display:inline-block; position:relative; }
+#pluiprogbgdiv, #pluiprogdiv, #pluiprogclickdiv {
+  position:absolute; bottom:2px; left:32px; }
+#pluiprogbgdiv, #pluiprogdiv { height:6px; }
+#pluiprogbgdiv { background:black; }
+#pluiprogdiv { background:#666; }
+#pluiposdiv { position:absolute; bottom:2px; left:24px; width:60px;
+  text-align:center; }
+#pluitimeposdiv, #pluitimesepdiv, #pluitimedurdiv {
+  display:inline-block; color:#ffab00; }
+#pluitimeposdiv, #pluitimedurdiv { font-size:small; vertical-align:super; }
+#pluiprogclickdiv { height:28px; bottom:-8px; }
+
+
 
 /****************************************/
 /* Filter Panel */
