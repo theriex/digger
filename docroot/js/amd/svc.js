@@ -240,9 +240,8 @@ app.svc = (function () {
                     contf(pool); }, 200); }
             else {
                 lastfvsj = fvsj;
-                var auth = app.login.getAuth();
                 //cache bust shouldn't be necessary since fvsj changes
-                var ps = jt.objdata({fvs:fvsj, an:auth.email, at:auth.token});
+                var ps = app.login.authdata({fvs:fvsj});
                 jt.call("GET", app.dr("/api/songfetch?" + ps), null,
                         function (songs) {
                             songs.forEach(function (song) {
@@ -250,16 +249,28 @@ app.svc = (function () {
                             contf(pool); },
                         errf,
                         jt.semaphore("mgrs.web.fetchSongs")); } },
-        fetchAlbum: function (song, contf, ignore /*errf*/) {
-            jt.err("mgrs.web.fetchAlbum not implemented yet.");
-            contf(song, []); },
+        fetchAlbum: function (song, contf, errf) {
+            //Import Album is a separate library action (if supported)
+            var ps = app.login.authdata({ar:song.ar, ab:song.ab,
+                                         cb:jt.ts("", "minute")});
+            jt.call("GET", app.dr("/api/albumfetch?" + ps), null,
+                    function (songs) {
+                        songs.forEach(function (song) {
+                            pool[mgrs.web.key(song)] = song; });
+                        contf(songs); },
+                    errf,
+                    jt.semaphore("mgrs.web.fetchAlbum")); },
         updateSong: function (song, contf) {
-            jt.log("mgrs.web.updateSong not calling update yet.");
-            if(contf) {
-                contf(song); } },
+            jt.call("POST", "/api/songupd", app.login.authdata(song),
+                    function (updsong) {
+                        mgrs.gen.copyUpdatedSongData(song, updsong);
+                        if(contf) {
+                            contf(updsong); } },
+                    function (code, errtxt) {
+                        jt.err("songupd failed " + code + ": " + errtxt); },
+                    jt.semaphore("mgrs.web.updateSong")); },
         spotifyTokenInfo: function (contf, errf) {
-            var auth = app.login.getAuth();
-            var ps = jt.objdata({an:auth.email, at:auth.token});
+            var ps = app.login.authdata();
             jt.call("GET", app.dr("/api/spotifytoken?" + ps), null,
                     contf, errf, jt.semaphore("mgrs.web.spotifyTokenInfo")); }
     };  //end mgrs.web returned functions

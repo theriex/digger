@@ -692,9 +692,15 @@ app.top = (function () {
             jt.log("webam.dispAcct not implemented yet"); },
         getAccount: function () {
             return app.login.getAuth(); },
-        updateAccount: function (/*contf, errf*/) {
-            jt.log("webam.updateAccount not implemented yet"); }
-    };
+        updateAccount: function (contf, errf) {
+            var acc = app.login.getAuth();
+            var aadat = {kwdefs:JSON.stringify(acc.kwdefs),
+                         igfolds:JSON.stringify(acc.igfolds),
+                         settings:JSON.stringify(acc.settings),
+                         guides:JSON.stringify(acc.guides)};
+            aadat = app.login.authdata(aadat);
+            app.login.dispatch("act", "updateAccount", aadat, contf, errf); }
+    };  //end mgrs.webam returned functions
     }());
 
 

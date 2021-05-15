@@ -113,7 +113,11 @@ app.player = (function () {
             prog.pos = Math.min(prog.pos + 1000, prog.dur);  //tick 1 sec fwd
             prog.tickcount = (prog.tickcount + 1) % 4;
             if(jt.byId("pluidiv")) { //interface still available
-                prog.ticker = setTimeout(tickf, 1000); } }
+                var rems = prog.dur - prog.pos;
+                if(state === "playing" && rems < 1200) {
+                    setTimeout(app.player.next, rems); }
+                else {
+                    prog.ticker = setTimeout(tickf, 1000); } } }
     return {
         reflectPlaybackState: function () {
             if(state === "paused") {
@@ -176,6 +180,7 @@ app.player = (function () {
             if(!jt.byId("pluidiv")) { //interface not set up yet
                 mgrs.plui.initInterface(); }
             if(state !== pbstate) {
+                state = pbstate;
                 mgrs.plui.reflectPlaybackState(); }
             mgrs.plui.updatePosIndicator(); }
     };  //end mgrs.plui returned functions
