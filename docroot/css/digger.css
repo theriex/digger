@@ -25,7 +25,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #contentdiv { margin:0px auto; width:100vw; max-width:600px;
   border-top:3px solid #363636;
   border-bottom:6px solid #363636;
-  background-image: url('../img/panelsbg.png');
+  background-image: url('/img/panelsbg.png');
   background-attachment: fixed;
   background-size: cover;
   background-repeat: no-repeat; }

@@ -43,8 +43,8 @@ app = {
     init: function () {
         var ox = window.location.href;
         if(!diggerapp.context === "web") {
-            if((ox.toLowerCase().indexOf("https:") !== 0) &&
-               (ox.search(/:\d080/) < 0)) {  //local dev
+            if((ox.toLowerCase().indexOf("https:") !== 0) &&  //not secure
+               (ox.search(/:\d080/) < 0)) {  //and not local dev
                 window.location.href = "https:" + ox.slice(ox.indexOf("/"));
                 return; } }  //stop and let the redirect happen.
         app.docroot = ox.split("/").slice(0, 3).join("/") + "/";
@@ -54,12 +54,12 @@ app = {
         var loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=210514");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=210516");
     },
 
 
     fileVersion: function () {
-        return "v=210514";  //updated as part of release process
+        return "v=210516";  //updated as part of release process
     },
 
 

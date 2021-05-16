@@ -301,6 +301,9 @@ app.svc = (function () {
                 hdm = "web"; }
             else {  //localhost or LAN
                 hdm = "loc"; }
+            //background image fails to load after redirect Mac FF 88.0.1
+            var cssbg = "url('" + app.dr("/img/panelsbg.png") + "')";
+            jt.byId("contentdiv").style.backgroundImage = cssbg;
             //At a minimum, load the current account so settings are available.
             setTimeout(function () {
                 mgrs[hdm].loadInitialData(mgrs.gen.initialDataLoaded,

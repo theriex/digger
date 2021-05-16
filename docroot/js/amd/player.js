@@ -387,7 +387,9 @@ app.player = (function () {
         var cap = "loa";  //current audio player
     return {
         init: function () {
-            ctx = app.svc.dispatch("gen", "getHostDataManager"); },
+            ctx = app.svc.dispatch("gen", "getHostDataManager");
+            if(ctx === "web") {  //deal with Spotify redirect if needed
+                mgrs.spa.token(); } },
         playerForSong: function (song) {
             if(ctx === "loc") {
                 return "loa"; }
@@ -707,6 +709,7 @@ app.player = (function () {
     function initializeDisplay () {
         stat = {status:"", song:null};
         ctrls = {};
+        mgrs.aud.init();  //may redirect to authenticate web player
         jt.out("panplaydiv", jt.tac2html(
             [["div", {cla:"paneltitlediv"}, "PLAYER"],
              ["div", {id:"mediadiv"}, "No songs on deck yet"],
@@ -723,7 +726,6 @@ app.player = (function () {
         mgrs.pan.makePanControls();
         //toggle controls rebuilt after data loaded
         makeRatingValueControl();
-        mgrs.aud.init();
     }
 
 
