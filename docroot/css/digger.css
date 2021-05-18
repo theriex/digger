@@ -84,7 +84,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .guidelinksspan { font-size:small; }
 .sepcomspan { padding:0px 5px 0px 0px; }
 #guidelabelspan { font-size:medium; font-weight:bold; }
-#guideinfospan { font-size:small; }
 #guideinfonamespan { font-size:medium; }
 
 #ciheadingdiv { font-size:small; padding:0px 0px 7px 0px; font-style:italic; }
@@ -134,7 +133,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #togcommentlink { padding-left:24px; }
 #commentta { padding:3px 5px; }
 
-#pluidiv { background:#333; margin:2px 0px 6px 0px; padding:10px 0px; }
+#pluidiv { background:#333; margin:2px 0px 6px 0px; padding:10px 0px;
+  max-width:290px; }
 #pluibdiv { display:inline-block; padding:2px; }
 #pluibimg { max-height:20px; max-width:20px; }
 #pluiprogdispdiv { display:inline-block; position:relative; }
