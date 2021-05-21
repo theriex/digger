@@ -679,12 +679,99 @@ app.top = (function () {
 
     //web account manager handles account/services when running on diggerhub
     mgrs.webam = (function () {
+        var gsvs = ["Active", "New", "Available", "Inactive", "Deleted"];
+        var gselvs = ["Active", "Available", "Inactive"];
+        var guides = null;
     return {
         initialDataLoaded: function () {
             mgrs.gen.updateHubToggleSpan(app.login.getAuth());
             mgrs.kwd.rebuildKeywords(); },
-        dispAcct: function () {
-            jt.log("webam.dispAcct not implemented yet"); },
+        reflectGuideStatus: function (gid, status) {
+            jt.out("gdcbtrdiv" + gid, "");
+            jt.out("gdstseldiv" + gid, "-> " + status);
+            var guide = app.login.getAuth().guides.find((g) => g.dsId === gid);
+            guide.status = status;
+            mgrs.webam.updateAccount(
+                mgrs.webam.dispAcct,  //redraw, might need to create checkbox
+                function (code, errtxt) {
+                    jt.out("topdlgdiv", "Status change failed " + code + ": " +
+                           errtxt); }); },
+        gdTogActive: function (gid) {
+            var guide = guides.find((g) => g.dsId === gid);
+            if(guide.status === "Active") {
+                return mgrs.webam.reflectGuideStatus(gid, "Available"); }
+            mgrs.webam.reflectGuideStatus(gid, "Active"); },
+        gdSelStatus: function (gid) {
+            var sel = jt.byId("gdsel" + gid);
+            mgrs.webam.reflectGuideStatus(
+                gid, sel.options[sel.selectedIndex].value); },
+        gdDelete: function (gid) {
+            mgrs.webam.reflectGuideStatus(gid, "Deleted"); },
+        guideClickControl: function (guide) {
+            if(guide.status === "Inactive") {
+                return ["a", {href:"#DeleteGuide",
+                              onclick:mdfs("webam.gdDelete", guide.dsId)},
+                        ["img", {cla:"rowbuttonimg", src:"img/trash.png"}]]; }
+            return ["input", {type:"checkbox", id:"gdcb" + guide.dsId,
+                              onclick:mdfs("webam.gdTogActive", guide.dsId),
+                              checked:jt.toru(guide.status === "Active")}]; },
+        guideSelectControl: function (guide) {
+            return ["select", {id:"gdsel" + guide.dsId,
+                               onchange:mdfs("webam.gdSelStatus", guide.dsId)},
+                    gselvs.map((s) => ["option", {
+                        value:s, selected:jt.toru((guide.status === s),
+                                                  "selected")}, s])]; },
+        gdAddGuideByEmail: function () {
+            var emaddr = jt.byId("gdemin").value;
+            if(!jt.isProbablyEmail(emaddr)) {
+                return jt.out("gdaddmsgdiv", "Need friend's email..."); }
+            jt.out("gdaddmsgdiv", "Adding " + emaddr + "...");
+            app.svc.dispatch("web", "addGuide", emaddr, mgrs.webam.dispAcct,
+                             function (ignore /*code*/, errtxt) {
+                                 jt.out("gdaddmsgdiv", errtxt); }); },
+        gdAdd: function () {
+            if(jt.byId("gdadddiv").innerHTML) {   //previously displayed
+                return jt.out("gdadddiv", ""); }  //toggle off
+            jt.out("gdadddiv", jt.tac2html(
+                [["label", {fo:"gdemailin"}, "Guide's email address: "],
+                 ["input", {type:"email", id:"gdemin",
+                            placeholder:"personal@example.com"}],
+                 ["button", {type:"button", id:"gdaddbutton",
+                             onclick:mdfs("webam.gdAddGuideByEmail")},
+                  "Add Guide"],
+                 ["div", {id:"gdaddmsgdiv"}]])); },
+        guideHTML: function (guide) {
+            if(guide.status === "New") { guide.status = "Available"; }
+            return jt.tac2html(
+                ["div", {cla:"gdactdiv"},
+                 [["div", {cla:"gdcbtrdiv", id:"gdcbtrdiv" + guide.dsId},
+                   mgrs.webam.guideClickControl(guide)],
+                  ["span", {cla:"gdnamespan"},
+                   ["a", {href:"mailto:" + guide.email},
+                    guide.hashtag || guide.firstname]],
+                  ["div", {cla:"gdstseldiv", id:"gdstseldiv" + guide.dsId},
+                   mgrs.webam.guideSelectControl(guide)]]]); },
+        guidesHTML: function () {
+            guides = app.login.getAuth().guides || [];
+            guides = guides.filter((g) => g.status !== "Deleted");
+            guides.forEach(function (g) { g.status = g.status || "Active"; });
+            guides.sort(function (a, b) {
+                return gsvs.indexOf(a.status) - gsvs.indexOf(b.status); });
+            return jt.tac2html(guides.map((g) => mgrs.webam.guideHTML(g))); },
+        gdOffer: function () {
+            if(jt.byId("gdofferdiv").innerHTML) {   //previously displayed
+                return jt.out("gdofferdiv", ""); }  //toggle off
+            jt.out("gdofferdiv", "Guide offer not implemented yet."); },
+        dispAcct: function () {  //general account info on main site
+            jt.out("topdlgdiv", jt.tac2html(
+                ["div", {id:"guidesdiv"},
+                 [["a", {href:"#offer", onclick:mdfs("webam.gdOffer")},
+                   "Offer to guide a friend"],
+                  ["div", {id:"gdofferdiv"}],
+                  ["div", {id:"gddispdiv"}, mgrs.webam.guidesHTML()],
+                  ["a", {href:"#add", onclick:mdfs("webam.gdAdd")},
+                   "Add a guide"],
+                  ["div", {id:"gdadddiv"}]]])); },
         getAccount: function () {
             return app.login.getAuth(); },
         updateAccount: function (contf, errf) {
