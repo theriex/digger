@@ -329,6 +329,7 @@ app.svc = (function () {
         fetchAlbum: function (song, contf, errf) {
             mgrs[hdm].fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {
+            jt.log("updateSong " + song.ti);
             mgrs[hdm].updateSong(song, contf); },
         copyUpdatedSongData: function (song, updsong) {
             songfields.forEach(function (fld) {

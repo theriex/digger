@@ -98,7 +98,7 @@ app.player = (function () {
     mgrs.plui = (function () {
         var state = "paused";
         var bimg = "img/play.png";
-        var prog = {pos:0, dur:0, w:200, left:32, //matches CSS
+        var prog = {pos:0, dur:0, w:200, left:16, //CSS pluiprogbgdiv left
                     svco:null, divs:["pluiprogbgdiv", "pluiprogclickdiv"]};
         function mmss (ms) {
             ms = Math.round(ms / 1000);
@@ -164,7 +164,8 @@ app.player = (function () {
                   ["div", {id:"pluiprogdispdiv"},
                    [["div", {id:"pluiprogbgdiv"}],
                     ["div", {id:"pluiprogdiv"}],
-                    ["div", {id:"pluiposdiv"},
+                    ["div", {id:"pluiposdiv",
+                             onclick:mdfs("plui.togglePlaybackState")},
                      [["div", {id:"pluitimeposdiv"}, "0:00"],
                       ["div", {id:"pluitimesepdiv"}, "|"],
                       ["div", {id:"pluitimedurdiv"}, "0:00"]]],
@@ -434,17 +435,19 @@ app.player = (function () {
                            onclick:jt.fs("app.player.skip()")},
                      ["img", {src:"img/skip.png", cla:"ptico"}]]]],
                   app.deck.dispatch("sop", "songIdentHTML", stat.song)]])); },
-        playAudio: function () {
-            stat.status = "playing";
-            jt.log(JSON.stringify(stat.song));
+        updateSongDisplay: function () {
             mgrs.kwd.rebuildToggles();
-            cap = mgrs.aud.playerForSong(stat.song);
-            mgrs.aud.verifyPlayerControls();
             mgrs.aud.updateSongTitleDisplay();
             mgrs.pan.updateControl("al", stat.song.al);
             mgrs.pan.updateControl("el", stat.song.el);
             stat.song.rv = stat.song.rv || 0;  //verify numeric value
-            ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2));
+            ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2)); },
+        playAudio: function () {
+            stat.status = "playing";
+            jt.log(JSON.stringify(stat.song));
+            cap = mgrs.aud.playerForSong(stat.song);
+            mgrs.aud.verifyPlayerControls();
+            mgrs.aud.updateSongDisplay();
             mgrs[cap].playSong(stat.song); }
     };  //end mgrs.aud returned functions
     }());
@@ -563,11 +566,11 @@ app.player = (function () {
             mgrs.pan.createControl("al", filters[1]);
             mgrs.pan.updateControl("el");
             mgrs.pan.updateControl("al");
-            jt.on("panplaydiv", "mousedown", function (event) {
+            jt.on("panplaymousingdiv", "mousedown", function (event) {
                 var okinids = ["kwdin", "commentta"];
                 if(!event.target || okinids.indexOf(event.target.id) < 0) {
                     jt.evtend(event); } });  //ignore to avoid selecting ctrls
-            jt.on("panplaydiv", "mouseup", function (event) {
+            jt.on("panplaymousingdiv", "mouseup", function (event) {
                 ctrls.el.pointingActive = false;
                 ctrls.al.pointingActive = false;
                 ctrls.rat.pointingActive = false;
@@ -677,7 +680,7 @@ app.player = (function () {
                 stat.song.kws = stat.song.kws.csvappend(kwd);
                 noteSongModified(); }
             app.top.dispatch("kwd", "addKeyword", kwd, "playeradd"); }
-    };  //end mgrs.kwd returned functons
+    };  //end mgrs.kwd returned functions
     }());
 
 
@@ -706,23 +709,85 @@ app.player = (function () {
     };
 
 
+    //handle the sleep display and entry
+    mgrs.slp = (function () {
+        var sc = {active:false, count:0};
+    return {
+        toggleSleepDisplay: function () {
+            if(jt.byId("sleepdiv").innerHTML) {
+                return jt.out("sleepdiv", ""); }  //toggle off
+            jt.out("sleepdiv", jt.tac2html(
+                [["input", {type:"checkbox", id:"sleepactivecb",
+                            checked:jt.toru(sc.active, "checked"),
+                            onclick:mdfs("slp.togsleepcb", "event")}],
+                 " Pause after ",
+                 ["input", {type:"number", id:"sleepcountin", size:2,
+                            onchange:mdfs("slp.updateSleepCount", "event"),
+                            value:0, min:0, max:8, step:1}],
+                 " more"])); },
+        togsleepcb: function () {
+            sc.active = jt.byId("sleepactivecb").checked;
+            if(sc.active) {
+                jt.byId("togsleepimg").src = "img/sleepactive.png"; }
+            else {
+                jt.byId("togsleepimg").src = "img/sleep.png"; } },
+        updateSleepCount: function () {
+            sc.count = jt.byId("sleepcountin").value; },
+        sleepNow: function () {
+            jt.out("sleepdiv", "");  //clear sleep display if still up
+            if(!sc.active) { return false; }
+            if(sc.count > 0) {
+                sc.count -= 1;
+                return false; }
+            sc = {active:false, count:0};  //reset
+            jt.byId("togsleepimg").src = "img/sleep.png";
+            //The song being paused on will already have been updated when
+            //it was popped from deck, and may be written again due to the
+            //control displays being updated.  So it will be marked as
+            //played even though playback never started.  Not worth getting
+            //in the way of deck update logic for this functionality.
+            mgrs.aud.updateSongDisplay();
+            var odiv = jt.byId("mediaoverlaydiv");
+            odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
+                              jt.byId("playertitle").offsetHeight + 2) + "px";
+            odiv.style.display = "block";
+            odiv.innerHTML = jt.tac2html(
+                ["Sleeping... ",
+                 ["a", {href:"#playnext", onclick:mdfs("slp.resume")},
+                  "Resume playback"],
+                 " &nbsp; &nbsp; "]);
+            return true; },
+        resume: function () {
+            jt.out("mediaoverlaydiv", "");
+            jt.byId("mediaoverlaydiv").style.display = "none";
+            mgrs.aud.playAudio(); }
+    };  //end mgrs.slp returned functions
+    }());
+
+
     function initializeDisplay () {
         stat = {status:"", song:null};
         ctrls = {};
         mgrs.aud.init();  //may redirect to authenticate web player
         jt.out("panplaydiv", jt.tac2html(
-            [["div", {cla:"paneltitlediv"}, "PLAYER"],
-             ["div", {id:"mediadiv"}, "No songs on deck yet"],
-             ["div", {id:"panpotsdiv"},
-              [["div", {cla:"pandiv", id:"elpandiv"}],
-               ["div", {cla:"pandiv", id:"alpandiv"}]]],
-             ["div", {id:"keysratdiv"},
-              [["div", {id:"kwdsdiv"}],
-               ["div", {id:"rvdiv"}],
-               ["a", {id:"togcommentlink", href:"#togglecomment",
-                      title:"", onclick:mdfs("cmt.toggleCommentDisplay")},
-                ["img", {id:"togcommentimg", src:"img/comment.png"}]]]],
-             ["div", {id:"commentdiv"}]]));
+            [["div", {id:"panplaymousingdiv"},
+              [["div", {cla:"paneltitlediv", id:"playpantitlediv"}, "PLAYER"],
+               ["div", {id:"mediadiv"}, "No songs on deck yet"],
+               ["div", {id:"mediaoverlaydiv", style:"display:none"}],
+               ["div", {id:"panpotsdiv"},
+                [["div", {cla:"pandiv", id:"elpandiv"}],
+                 ["div", {cla:"pandiv", id:"alpandiv"}]]],
+               ["div", {id:"keysratdiv"},
+                [["div", {id:"kwdsdiv"}],
+                 ["div", {id:"rvdiv"}],
+                 ["a", {id:"togcommentlink", href:"#togglecomment",
+                        title:"", onclick:mdfs("cmt.toggleCommentDisplay")},
+                  ["img", {id:"togcommentimg", src:"img/comment.png"}]],
+                 ["a", {id:"togsleeplink", href:"#sleepafter",
+                        title:"", onclick:mdfs("slp.toggleSleepDisplay")},
+                  ["img", {id:"togsleepimg", src:"img/sleep.png"}]]]]]],
+             ["div", {id:"commentdiv"}],
+             ["div", {id:"sleepdiv"}]]));
         mgrs.pan.makePanControls();
         //toggle controls rebuilt after data loaded
         makeRatingValueControl();
@@ -738,7 +803,7 @@ app.player = (function () {
         mgrs.cmt.updateCommentIndicator();
         if(!stat.song) {
             jt.out("mediadiv", "No songs to play."); }
-        else {
+        else if(!mgrs.slp.sleepNow()) {
             mgrs.aud.playAudio(); }
     }
 

@@ -27,13 +27,16 @@ app.deck = (function () {
             var st = jt.byId("srchin").value || "";
             st = st.toLowerCase().trim();
             if(st) {
+                jt.byId("clrsrchdiv").style.display = "inline-block";
                 wrk.songs = wrk.songs.filter((song) =>
                     ((song.ar && song.ar.toLowerCase().indexOf(st) >= 0) ||
                      (song.ab && song.ab.toLowerCase().indexOf(st) >= 0) ||
                      (song.ti && song.ti.toLowerCase().indexOf(st) >= 0) ||
                      (song.path.toLowerCase().indexOf(st) >= 0) ||
                      (song.kws && song.kws.toLowerCase().indexOf(st) >= 0)));
-                mgrs.ws.appendInfoCount("Search Text"); } },
+                mgrs.ws.appendInfoCount("Search Text"); }
+            else {  //no search term present, don't show 'x'
+                jt.byId("clrsrchdiv").style.display = "none"; } },
         filterByFilters: function () {
             var togfiltb = jt.byId("togfiltb");
             if(togfiltb && togfiltb.dataset.togstate === "off") {
@@ -424,6 +427,10 @@ app.deck = (function () {
                 tg.w = tg.w || 20;
                 tg.h = tg.h || 20;
                 mgrs.gen.makeToggle(tg); }); },
+        clearSearch: function () {
+            jt.byId("srchin").value = "";
+            mgrs.dk.setSongs([]);  //clear deck to avoid merging
+            mgrs.ws.rebuild("srchin"); },
         initDisplay: function () {
             jt.out("pandeckdiv", jt.tac2html(
                 [["div", {id:"deckheaderdiv"},
@@ -432,6 +439,9 @@ app.deck = (function () {
                               placeholder:"artist/album/song...",
                               value:deckstat.qstr,
                               oninput:mdfs("ws.rebuild", "srchin")}],
+                   ["div", {id:"clrsrchdiv"},
+                    ["a", {href:"#clearsearch", title:"Clear search",
+                           onclick:mdfs("gen.clearSearch")}, 'x']],
                    ["a", {href:"#search", title:"Search Songs",
                           onclick:mdfs("ws.rebuild", "srchin")},
                     ["img", {src:"img/search.png", cla:"ico20"}]],
