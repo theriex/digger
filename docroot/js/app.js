@@ -24,11 +24,12 @@ var jt = {};
             if(diggerapp.context === "web") {
                 jt.byId("topsectiondiv").style.display = "none"; }
             jt.out("outercontentdiv", jt.tac2html(
-                ["div", {id:"contentdiv"},
-                 [["div", {cla:"paneldiv", id:"pantopdiv"}],
-                  ["div", {cla:"paneldiv", id:"panplaydiv"}],
-                  ["div", {cla:"paneldiv", id:"panfiltdiv"}],
-                  ["div", {cla:"paneldiv", id:"pandeckdiv"}]]]));
+                ["div", {id:"contentframingdiv"},
+                 ["div", {id:"contentdiv"},
+                  [["div", {cla:"paneldiv", id:"pantopdiv"}],
+                   ["div", {cla:"paneldiv", id:"panplaydiv"}],
+                   ["div", {cla:"paneldiv", id:"panfiltdiv"}],
+                   ["div", {cla:"paneldiv", id:"pandeckdiv"}]]]]));
             if(app.startPath === "/digger") {  //web startup needs auth info
                 app.login.init(false, initDiggerModules); }
             else {
