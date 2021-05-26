@@ -196,7 +196,7 @@ app.top = (function () {
                 function (acctsinfo) {
                     jt.out("topstatdiv", "");
                     mgrs.locam.noteUpdatedAccountsInfo(acctsinfo);
-                    mgrs.gen.togam("close"); },
+                    mgrs.gen.togtopdlg("am", "close"); },
                 function (code, errtxt) {
                     jt.out("topstatdiv", code + ": " + errtxt); }); },
         changePwdForm: function () {
@@ -613,6 +613,7 @@ app.top = (function () {
     }());
 
 
+
     //Local Account manager handles hub account info from local server.
     mgrs.locam = (function () {
         var hai = null;  //hub accounts info (verified server side)
@@ -667,7 +668,7 @@ app.top = (function () {
             var config = app.svc.dispatch("loc", "getConfig");
             mgrs.locam.noteUpdatedAccountsInfo(config.acctsinfo);
             mgrs.kwd.rebuildKeywords(); },
-        dispAcct: function () { mgrs.h2a.accountSettings(); },
+        writeDlgContent: function () { mgrs.h2a.accountSettings(); },
         getAccount: function () { return curracct; }
     };  //end mgrs.locam returned functions
     }());
@@ -692,7 +693,7 @@ app.top = (function () {
             var guide = app.login.getAuth().guides.find((g) => g.dsId === gid);
             guide.status = status;
             mgrs.webam.updateAccount(
-                mgrs.webam.dispAcct,  //redraw, might need to create checkbox
+                mgrs.webam.writeDlgContent,  //redraw, might need checkbox
                 function (code, errtxt) {
                     jt.out("topdlgdiv", "Status change failed " + code + ": " +
                            errtxt); }); },
@@ -726,7 +727,8 @@ app.top = (function () {
             if(!jt.isProbablyEmail(emaddr)) {
                 return jt.out("gdaddmsgdiv", "Need friend's email..."); }
             jt.out("gdaddmsgdiv", "Adding " + emaddr + "...");
-            app.svc.dispatch("web", "addGuide", emaddr, mgrs.webam.dispAcct,
+            app.svc.dispatch("web", "addGuide", emaddr,
+                             mgrs.webam.writeDlgContent,
                              function (ignore /*code*/, errtxt) {
                                  jt.out("gdaddmsgdiv", errtxt); }); },
         gdAdd: function () {
@@ -762,7 +764,7 @@ app.top = (function () {
             if(jt.byId("gdofferdiv").innerHTML) {   //previously displayed
                 return jt.out("gdofferdiv", ""); }  //toggle off
             jt.out("gdofferdiv", "Guide offer not implemented yet."); },
-        dispAcct: function () {  //general account info on main site
+        writeDlgContent: function () {  //general account info on main site
             jt.out("topdlgdiv", jt.tac2html(
                 ["div", {id:"guidesdiv"},
                  [["a", {href:"#offer", onclick:mdfs("webam.gdOffer")},
@@ -1069,7 +1071,7 @@ app.top = (function () {
                 mgrs.gen.getAccount().kwdefs[kd.kw] = def; });
             mgrs.locam.updateAccount(
                 function () {
-                    mgrs.lib.togdlg("close");
+                    mgrs.gen.togtopdlg("", "close");
                     mgrs.locam.notifyAccountChanged("keywords"); },
                 function (code, errtxt) {
                     jt.out("kwupdstatdiv", String(code) + ": " + errtxt); }); },
@@ -1087,7 +1089,7 @@ app.top = (function () {
                 else {  //brand new keyword
                     kd = {kw:kwd, pos:0, sc:1, ig:0}; }
                 uka.push(kd); }
-            mdfs("lib.togdlg", "close");  //in case open
+            mgrs.gen.togtopdlg("", "close");  //in case open
             mgrs.kwd.saveKeywordDefs(); },
         swapFilterKeyword: function (kwd, pos) {  //called from filter
             uka = uka || mgrs.kwd.defsArray();
@@ -1095,60 +1097,85 @@ app.top = (function () {
             prevkd.pos = 0;
             var currkd = uka.find((kd) => kd.kw === kwd);
             currkd.pos = pos;
-            mdfs("lib.togdlg", "close");  //in case open
+            mgrs.gen.togtopdlg("", "close");  //in case open
             mgrs.kwd.saveKeywordDefs("swapFilterKeyword"); }
     };  //end of mgrs.kwd returned functions
     }());
 
 
-    //Library manager handles lib level actions and data
-    mgrs.lib = (function () {
+    //Local library actions manager handles lib level actions and data.
+    mgrs.locla = (function () {
         var acts = [
-            {sc:"loc", ty:"cfgp", oc:mdfs("cfg.confirmStart"),
+            {ty:"cfgp", oc:mdfs("cfg.confirmStart"),
              tt:"Configure music and data file locations", 
              p:"musicPath", n:"Music Files"},
-            {sc:"loc", ty:"cfgp", oc:mdfs("cfg.confirmStart"),
+            {ty:"cfgp", oc:mdfs("cfg.confirmStart"),
              tt:"Configure music and data file locations",
              p:"dbPath", n:"Digger Data"},
-            {sc:"loc", ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
+            {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
              tt:"Read all files in the music folder", n:"Read Files"},
-            {sc:"loc", ty:"btn", oc:mdfs("igf.igMusicFolders"),
+            {ty:"btn", oc:mdfs("igf.igMusicFolders"),
              tt:"Ignore folders when reading music files", n:"Ignore Folders"},
-            {sc:"all", ty:"btn", oc:mdfs("kwd.chooseKeywords"),
+            {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
              tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
-        var svci = null;
     return {
-        togdlg: function (cmd) {
-            if(!app.svc.dispatch("loc", "getConfig")) { return; }
-            var dlgdiv = jt.byId("topdlgdiv");
-            if(!cmd && dlgdiv.dataset.mode === "libact") {
-                cmd = "close"; }
-            if(cmd === "close") {
-                dlgdiv.dataset.mode = "empty";
-                dlgdiv.innerHTML = ""; }
-            else {  //"open"
-                dlgdiv.dataset.mode = "libact";
-                mgrs.lib.writeDialogContent(); } },
-        writeDialogContent: function () {
-            svci = svci || {hdm:app.svc.hostDataManager(),
-                            hdmMatch:function (sc) {
-                                return sc === "all" || svci.hdm === sc; } };
-            if(svci.hdm === "loc") {
-                svci.config = app.svc.dispatch("loc", "getConfig"); }
+        writeDlgContent: function () {
+            var config = app.svc.dispatch("loc", "getConfig");
             jt.out("topdlgdiv", jt.tac2html(
                 [["div", {cla:"dlgpathsdiv"},
-                  acts.filter((a) => svci.hdmMatch(a.sc) && a.ty === "cfgp")
+                  acts.filter((a) => a.ty === "cfgp")
                   .map((a) =>
                       ["div", {cla:"pathdiv"},
                        [["a", {href:"#configure", onclick:a.oc, title:a.tt},
                          ["span", {cla:"pathlabelspan"}, a.n + ": "]],
-                        ["span", {cla:"pathspan"}, svci.config[a.p]]]])],
+                        ["span", {cla:"pathspan"}, config[a.p]]]])],
                  ["div", {cla:"dlgbuttonsdiv"},
-                  acts.filter((a) => svci.hdmMatch(a.sc) && a.ty === "btn")
+                  acts.filter((a) => a.ty === "btn")
                   .map((a) =>
                       ["button", {type:"button", title:a.tt, onclick:a.oc},
                        a.n])]])); }
-    };  //end mgrs.lib returned functions
+    };  //end mgrs.locla returned functions
+    }());
+
+
+    //Web library actions manager handles lib level actions and data.
+    mgrs.webla = (function () {
+        var acts = [
+            {ty:"stat", lab:"Spotify song count", id:"spscval",
+             valfname:"songCount"},
+            {ty:"btn", oc:mdfs("webla.splikes"),
+             tt:"Import liked songs from Spotify", n:"Import Likes"},
+            {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
+             tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
+    return {
+        songCount: function () {
+            var scs = app.login.getAuth().settings.songcounts;
+            if(!scs || scs.posschg > scs.fetched) {
+                app.svc.dispatch("web", "getSongTotals",
+                    function (acct) {
+                        jt.out("spscval", mgrs.webla.songCount()); },
+                    function (code, errtxt) {
+                        jt.out("spscval", code + ": " + errtxt); });
+                return "Calculating..."; }
+            if(scs.hubdb === 0) {
+                return "No songs yet"; }
+            return scs.spotify + "/" + scs.hubdb + " (" +
+                (Math.round((scs.spotify / scs.hubdb) * 100)) + "%)"; },
+        writeDlgContent: function () {
+            jt.out("topdlgdiv", jt.tac2html(
+                [["div", {cla:"dlgpathsdiv"},
+                  acts.filter((a) => a.ty === "stat")
+                  .map((a) =>
+                      ["div", {cla:"pathdiv"},
+                       [["span", {cla:"pathlabelspan"}, a.lab + ": "],
+                        ["span", {cla:"pathspan", id:a.id},
+                         mgrs.webla[a.valfname]()]]])],
+                 ["div", {cla:"dlgbuttonsdiv"},
+                  acts.filter((a) => a.ty === "btn")
+                  .map((a) =>
+                      ["button", {type:"button", title:a.tt, onclick:a.oc},
+                       a.n])]])); }
+    };  //end mgrs.webla returned functions
     }());
 
 
@@ -1262,13 +1289,14 @@ app.top = (function () {
         initDisplay: function () {
             jt.out("pantopdiv", jt.tac2html(
                 [["div", {id:"titlediv"},
-                  [["a", {href:"#DiggerHub", onclick:mdfs("gen.togam")},
+                  [["a", {href:"#DiggerHub",
+                          onclick:mdfs("gen.togtopdlg", "am")},
                     ["span", {id:"hubtogspan", cla:"titlespan",
                              title:"Sign In or Choose Account"},
                      "Digger"]],
                    ["span", {id:"countspan"}, "Loading..."],
                    ["a", {href:"#database", title:"Library Actions",
-                          onclick:mdfs("lib.togdlg")},
+                          onclick:mdfs("gen.togtopdlg", "la")},
                     ["img", {cla:"buttonico", src:"img/recordcrate.png"}]],
                    ["a", {href:"#copyplaylist", title:"Copy Deck To Playlist",
                           onclick:mdfs("exp.togdlg")},
@@ -1279,14 +1307,14 @@ app.top = (function () {
             return mgrs[app.svc.hostDataManager() + "am"].getAccount(); },
         updateAccount: function (cf, ef) {
             mgrs[app.svc.hostDataManager() + "am"].updateAccount(cf, ef); },
-        togam: function (state) {
+        togtopdlg: function (mode, cmd) {
             var dlgdiv = jt.byId("topdlgdiv");
-            if(state === "close" || (!state && dlgdiv.dataset.mode === "am")) {
+            if(cmd === "close" || (!cmd && dlgdiv.dataset.mode === mode)) {
                 dlgdiv.dataset.mode = "empty";
                 dlgdiv.innerHTML = ""; }
             else {
-                dlgdiv.dataset.mode = "am";  //account management
-                mgrs[app.svc.hostDataManager() + "am"].dispAcct(); } },
+                dlgdiv.dataset.mode = mode;
+                mgrs[app.svc.hostDataManager() + mode].writeDlgContent(); } },
         initialDataLoaded: function () {
             mgrs[app.svc.hostDataManager() + "am"].initialDataLoaded(); },
         updateHubToggleSpan: function (acct) {
@@ -1295,6 +1323,7 @@ app.top = (function () {
             jt.out("hubtogspan", acct.firstname); }
     };  //end mgrs.gen returned functions
     }());
+
 
 return {
     init: function () { mgrs.gen.initDisplay(); },

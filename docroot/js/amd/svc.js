@@ -277,6 +277,14 @@ app.svc = (function () {
                                                  digacc)); },
                     errf,
                     jt.semaphore("mgrs.web.addGuide")); },
+        getSongTotals: function (contf, errf) {
+            jt.call("POST", "/api/songttls", app.login.authdata(),
+                    function (results) {
+                        var digacc = app.refmgr.deserialize(results[0]);
+                        contf(app.login.dispatch("act", "noteUpdatedAccount",
+                                                 digacc)); },
+                    errf,
+                    jt.semaphore("mgrs.web.getSongTotals")); },
         spotifyTokenInfo: function (contf, errf) {
             var ps = app.login.authdata();
             jt.call("GET", app.dr("/api/spotifytoken?" + ps), null,
