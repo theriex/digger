@@ -1,5 +1,5 @@
 /*global app, jt, Spotify */
-/*jslint browser, white, fudge, for, long */
+/*jslint browser, white, fudge, for, long, unordered */
 
 app.player = (function () {
     "use strict";
@@ -229,6 +229,7 @@ app.player = (function () {
             jt.log("pmsg: " + tac);
             jt.out("audiodiv", jt.tac2html(["div", {id:"pmsgdiv"}, tac])); }
     return {
+        getTokenInfo: function () { return toki; },
         token: function (contf) {  //verify token info, or contf(token)
             if(toki.access_token && (new Date().toISOString() < toki.useby)) {
                 if(contf) {  //called from spotify player
@@ -635,7 +636,7 @@ app.player = (function () {
             else {
                 button.className = "kwdtogoff";
                 stat.song.kws = stat.song.kws.csvremove(button.innerHTML); }
-            app.top.dispatch("lib", "togdlg", "close");  //sc changed
+            app.top.dispatch("gen", "togtopdlg", "", "close");  //sc changed
             noteSongModified(); },
         rebuildToggles: function (context) {
             kwdefs = app.top.dispatch("kwd", "defsArray", true);

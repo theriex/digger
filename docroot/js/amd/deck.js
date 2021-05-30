@@ -1,5 +1,5 @@
 /*global app, jt */
-/*jslint browser, white, fudge, long, for */
+/*jslint browser, white, fudge, long, for, unordered */
 
 //Deck display interface and actions
 app.deck = (function () {
@@ -236,6 +236,15 @@ app.deck = (function () {
             if(song.fq === "N") { song.fq = "P"; }
             mgrs.hst.noteSongPlayed(song);
             app.svc.updateSong(song); },
+        markMultipleSongsPlayed: function (count, contf, errf) {
+            count = Math.min(count, ds.length);
+            var pss = ds.splice(0, count);
+            pss.forEach(function (song) {
+                song.lp = new Date().toISOString();
+                mgrs.hst.noteSongPlayed(song); });
+            app.svc.dispatch("gen", "updateMultipleSongs", pss, function () {
+                mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
+                contf(); }, errf); },
         removeFromDeck: function (song) {
             ds = ds.filter((s) => s.path !== song.path);
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
@@ -441,7 +450,7 @@ app.deck = (function () {
                               oninput:mdfs("ws.rebuild", "srchin")}],
                    ["div", {id:"clrsrchdiv"},
                     ["a", {href:"#clearsearch", title:"Clear search",
-                           onclick:mdfs("gen.clearSearch")}, 'x']],
+                           onclick:mdfs("gen.clearSearch")}, "x"]],
                    ["a", {href:"#search", title:"Search Songs",
                           onclick:mdfs("ws.rebuild", "srchin")},
                     ["img", {src:"img/search.png", cla:"ico20"}]],

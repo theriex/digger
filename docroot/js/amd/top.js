@@ -1,5 +1,5 @@
 /*global app, jt, confirm */
-/*jslint browser, white, fudge, long */
+/*jslint browser, white, fudge, long, unordered */
 
 //Top panel interface and actions
 app.top = (function () {
@@ -1152,7 +1152,7 @@ app.top = (function () {
             var scs = app.login.getAuth().settings.songcounts;
             if(!scs || scs.posschg > scs.fetched) {
                 app.svc.dispatch("web", "getSongTotals",
-                    function (acct) {
+                    function () {
                         jt.out("spscval", mgrs.webla.songCount()); },
                     function (code, errtxt) {
                         jt.out("spscval", code + ": " + errtxt); });
@@ -1184,24 +1184,9 @@ app.top = (function () {
     ////////////////////////////////////////////////////////////
 
     //Export manager handles process of exporting a playlist
-    mgrs.exp = (function () {
+    mgrs.locxp = (function () {
         var dki = null;
-        var xps = [{pn:"Copy music files", av:"loc", mgr:"cpx"},
-                   {pn:"Spotify playlist", av:"notyet"},
-                   {pn:"bandcamp playlist", av:"nope"},
-                   {pn:"SoundCloud playlist", av:"notyet"}];
     return {
-        makePlaylistName: function () {  //caps sort before lowercase.
-            var name = "Digger";
-            var sep = "_";
-            app.filter.filters("active").forEach(function (filt) {
-                if(filt.actname) {
-                    if(filt.actname.startsWith("+")) {
-                        name += sep + filt.actname.slice(1); }
-                    else if(filt.actname.startsWith("-")) {
-                        name += sep + "X" + filt.actname.slice(1); } } });
-            name += ".m3u";
-            return name; },
         displayExportProgress: function (xob) {
             jt.out("exportdiv", xob.stat.state + " " + xob.stat.copied +
                    " of " + JSON.parse(xob.spec.songs).length); },
@@ -1217,9 +1202,9 @@ app.top = (function () {
                 dki.songs.slice(0, dat.count).map((s) => s.path));
             app.svc.dispatch("cpx", "exportSongs", dat,
                 function (xob) {  //interim status display
-                    mgrs.exp.displayExportProgress(xob); },
+                    mgrs.locxp.displayExportProgress(xob); },
                 function (xob) {  //completion
-                    mgrs.exp.displayExportProgress(xob);
+                    mgrs.locxp.displayExportProgress(xob);
                     if(xob.spec.markplayed) {
                         dat.count = parseInt(dat.count, 10);
                         while(dat.count > 1) {
@@ -1231,7 +1216,7 @@ app.top = (function () {
                            ": " + errtxt); }); },
         cpxDialog: function () {  //local copy file export
             var config = app.svc.dispatch("loc", "getConfig");
-            var m3uname = mgrs.exp.makePlaylistName();
+            var m3uname = app.filter.dispatch("dsc", "name") + ".m3u";
             jt.out("topdlgdiv", jt.tac2html(
                 [["div", {cla:"pathdiv"},
                   [["span", {cla:"pathlabelspan"}, "Copy To:"],
@@ -1255,27 +1240,164 @@ app.top = (function () {
                       ["input", {type:"text", id:"m3ufin", value:m3uname,
                                  placeholder:m3uname, size:28}]]]],
                    ["div", {cla:"dlgbuttonsdiv", id:"exportbuttonsdiv"},
-                    ["button", {type:"button", onclick:mdfs("exp.cpxStart")},
+                    ["button", {type:"button", onclick:mdfs("locxp.cpxStart")},
                      "Export"]]]]])); },
-        togdlg: function () {
-            var dlgdiv = jt.byId("topdlgdiv");
-            if(dlgdiv.dataset.mode === "download") {  //toggle dialog closed
-                dlgdiv.dataset.mode = "empty";
-                dlgdiv.innerHTML = "";
-                return; }
+        writeDlgContent: function () {
             dki = app.deck.deckinfo();
-            if(!dki.songs.length) { return; }  //nothing to export
-            dlgdiv.dataset.mode = "download";  //note dialog open
-            var xopts = xps.filter((x) => x.av === app.svc.hostDataManager());
-            if(!xopts.length) {
-                jt.out("topdlgdiv", jt.tac2html(
-                    "No export options currently available.")); }
-            else if(xopts.length === 1) {
-                mgrs.exp[xopts[0].mgr + "Dialog"](); }
-            else {  //choose which export to use
-                jt.log("mgrs.exp.togdlg choices not implemented yet");
-                mgrs.exp[xopts[0].mgr + "Dialog"](); } }
-    };  //end mgrs.exp returned functions
+            if(!dki.songs.length) {
+                return jt.out("topdlgdiv", "No songs on deck to export."); }
+            mgrs.locxp.cpxDialog(); }
+    };  //end mgrs.locxp returned functions
+    }());
+
+
+    //Export manager handles creating or updating a Spotify playlist
+    //developer.spotify.com/documentation/general/guides/working-with-playlists
+    mgrs.webxp = (function () {
+        var dki = null;   //deck information for export
+        var xpi = null;   //current persistent export information
+        var xps = null;   //account settings exports info
+        var xpmax = 100;  //maximum number of songs to write (PUT limit)
+        var toki = null;  //current spotify token information 
+        var spl = null;   //spotify playlist info
+        function stat (msg, interim) {
+            jt.out("expstatdiv", msg);
+            if(interim) {
+                jt.byId("exportbuttonsdiv").style.display = "none"; }
+            else {
+                jt.byId("exportbuttonsdiv").style.display = "block"; } }
+        function spAPI (url, meth, bod, desc, contf, errf) {
+            var ctx = {};
+            if(bod) { bod = JSON.stringify(bod); }
+            fetch(url, {method:meth, body:bod, headers:{
+                "Content-Type":"application/json",
+                "Authorization":`Bearer ${toki.access_token}`}})
+                .then(function (resp) {
+                    ctx.resp = resp;
+                    return resp.json(); })
+                .then(function (obj) {
+                    if(obj.error) {
+                        if(errf) {
+                            return errf(obj.error); }
+                        return stat(desc + " failed " + obj.error.status +
+                                    ": " + obj.error.message); }
+                    contf(obj); })
+                .catch(function (err) {
+                    stat(desc + " failure: " + err); }); }
+    return {
+        markSongsPlayed: function () {
+            var msg = "Wrote " + xpi.wrttl + " songs to " + xpi.name + ".";
+            if(xpi.mp) {
+                stat("Marking songs played...", true);
+                app.deck.dispatch("dk", "markMultipleSongsPlayed", xpi.wrttl,
+                    function () {
+                        jt.out("topdlgdiv", msg); },
+                    function (code, errtxt) {
+                        stat("Marking songs played failed " + code + ": " +
+                             errtxt); }); }
+            else {  //not marking played
+                jt.out("topdlgdiv", msg); } },
+        notePlaylistWritten: function () {
+            stat("Noting playlist written...", true);
+            xpi.lastwrite = new Date().toISOString();
+            xps.sp[xpi.name] = xpi;
+            app.login.getAuth().settings.xps = xps;
+            mgrs.gen.updateAccount(mgrs.webxp.markSongsPlayed,
+                function (code, errtxt) {
+                    stat("Playlist " + xpi.spid + " settings " +
+                         code + ": " + errtxt); }); },
+        writePlaylistContent: function () {
+            stat("Writing songs to playlist...");
+            var spuris = dki.songs.slice(0, xpi.xttl).map((s) => 
+                "spotify:track:" + s.spid.slice(2));
+            xpi.wrttl = spuris.length;  //deck might have had fewer
+            spAPI(`https://api.spotify.com/v1/playlists/${xpi.spid}/tracks`,
+                  "PUT", {uris:spuris}, "Write tracks",
+                  mgrs.webxp.notePlaylistWritten); },
+        verifyPlaylistId: function () {
+            stat("Verifying playlist...", true);
+            if(xpi.spid) {  //fetch the playlist to verify it exists
+                spAPI(`https://api.spotify.com/v1/playlists/${xpi.spid}`,
+                      "GET", null, "Playlist fetch",
+                      function (obj) {
+                          spl = obj;
+                          mgrs.webxp.writePlaylistContent(); },
+                      function (obj) {  //error object
+                          jt.log("webxp.verifyPlaylistId " + xpi.spid +
+                                 "error " + obj.status + ": " + obj.message);
+                          xpi.spid = "";  //write new playlist
+                          return mgrs.webxp.verifyPlaylistId(); }); }
+            else {  //create new playlist
+                stat("Creating new playlist...", true);
+                var spud = toki.userprof.id;  //essentially username
+                var data = {name:xpi.name,
+                            description:app.filter.dispatch("dsc", "desc")};
+                spAPI(`https://api.spotify.com/v1/users/${spud}/playlists`,
+                      "POST", data, "Create playlist",
+                      function (obj) {
+                          spl = obj;
+                          xpi.spid = spl.id;
+                          mgrs.webxp.writePlaylistContent(); }); } },
+        verifyWrite: function () {
+            stat("Validating...", true);
+            mgrs.webxp.xpnChange();  //update xpi info
+            if(!xpi.name) {
+                return stat("Name your playlist"); }
+            if(!(xpi.xttl >= 1 && xpi.xttl <= xpmax)) {
+                return stat("Bad input for how many songs to export."); }
+            stat("Getting Spotify user id...", true);
+            if(!toki) {  //need token info from web player setup
+                toki = app.player.dispatch("spa", "getTokenInfo"); }
+            if(!toki) {
+                return stat("Spotify access token unavailable"); }
+            if(toki.userprof) {  //already have the current user spotify id
+                return mgrs.webxp.verifyPlaylistId(); }
+            spAPI("https://api.spotify.com/v1/me", "GET", null, "Get user id",
+                  function (obj) {
+                      toki.userprof = obj;
+                      mgrs.webxp.verifyPlaylistId(); }); },
+        xpnChange: function () {
+            var plname = jt.byId("plnin").value.trim();
+            xpi = xps.sp[plname] || {};
+            xpi.name = plname;
+            xpi.xttl = Number(jt.byId("xttlin").value);
+            xpi.mp = jt.byId("mpcb").checked;
+            if(xpi.spid) {  //have spotify playlist id from previous write
+                jt.out("plxpbutton", "Overwrite"); }
+            else {
+                jt.out("plxpbutton", "Create"); } },
+        writeDlgContent: function () {
+            dki = app.deck.deckinfo();
+            if(!dki.songs.length) {
+                return jt.out("topdlgdiv", "No songs on deck to export."); }
+            xps = app.login.getAuth().settings.xps || {};
+            xps.sp = xps.sp || {};
+            jt.out("topdlgdiv", jt.tac2html(
+                [["div", {cla:"expoptdiv"},
+                  [["label", {fo:"plnin"}, "Playlist Name: "],
+                   ["input", {type:"text", id:"plnin", size:28,
+                              placeholder:"DiggerPlaylistName",
+                              value:"",  //set after dialog created
+                              oninput:mdfs("webxp.xpnChange", "event"),
+                              list:"xpndatalist"}],
+                   ["datalist", {id:"xpndatalist"},
+                    Object.keys(xps.sp).sort().map((pln) =>
+                        ["option", {value:pln}])]]],
+                 ["div", {cla:"expoptdiv"},
+                  ["with ",
+                   ["input", {type:"number", id:"xttlin", size:3, value:20,
+                              min:1, max:xpmax}],
+                   ["label", {fo:"xttlin"}, " songs from on deck"]]],
+                 ["div", {cla:"expoptdiv"},
+                    [["input", {type:"checkbox", id:"mpcb", checked:"checked"}],
+                     ["label", {fo:"mpcb"}, "Mark songs as played"]]],
+                 ["div", {cla:"dlgbuttonsdiv", id:"exportbuttonsdiv"},
+                  ["button", {type:"button", id:"plxpbutton",
+                              onclick:mdfs("webxp.verifyWrite")},
+                   "Create"]],
+                 ["div", {id:"expstatdiv"}]]));
+            jt.byId("plnin").value = app.filter.dispatch("dsc", "name"); }
+    };  //end mgrs.webxp returned functions
     }());
 
 
@@ -1299,7 +1421,7 @@ app.top = (function () {
                           onclick:mdfs("gen.togtopdlg", "la")},
                     ["img", {cla:"buttonico", src:"img/recordcrate.png"}]],
                    ["a", {href:"#copyplaylist", title:"Copy Deck To Playlist",
-                          onclick:mdfs("exp.togdlg")},
+                          onclick:mdfs("gen.togtopdlg", "xp")},
                     ["img", {cla:"buttonico", src:"img/export.png"}]]]],
                  ["div", {id:"topdlgdiv", "data-mode":"empty"}],
                  ["div", {cla:"statdiv", id:"topstatdiv"}]])); },

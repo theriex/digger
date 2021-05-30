@@ -1,5 +1,5 @@
 /*global app, jt */
-/*jslint browser, white, fudge, for, long */
+/*jslint browser, white, fudge, for, long, unordered */
 
 app.filter = (function () {
     "use strict";
@@ -527,18 +527,6 @@ app.filter = (function () {
             filts.push(ctrls.rat);
             filts.push(ctrls.fq);
             return filts; },
-        buttonsCSV: function (togval) {
-            return ctrls.bts.filter((b) => b.tog === togval)
-                .map((b) => b.pn).join(","); },
-        summarizeFiltering: function () {
-            return {elmin:ctrls.el.rgfoc.min, elmax:ctrls.el.rgfoc.max,
-                    almin:ctrls.al.rgfoc.min, almax:ctrls.al.rgfoc.max,
-                    poskws:mgrs.stg.buttonsCSV("pos"),
-                    negkws:mgrs.stg.buttonsCSV("neg"),
-                    minrat:ctrls.rat.stat.minrat,
-                    tagfidx:ctrls.rat.tagf.idx,   //Both|Tagged|Untagged
-                    fq:mgrs.fq.getFrequencyFiltering(),  //on|off
-                    srchtxt:jt.byId("srchin").value || ""}; },
         rebuildAllControls: function (ready) {
             var ca = app.top.dispatch("gen", "getAccount");
             if(ca && ca.settings) { settings = ca.settings; }
@@ -554,6 +542,55 @@ app.filter = (function () {
     }());
 
 
+    //Description manager returns filter summary information
+    mgrs.dsc = (function () {
+        function buttonsCSV (togval) {
+            return ctrls.bts.filter((b) => b.tog === togval)
+                .map((b) => b.pn).join(","); }
+        function formatCSV (csv, sep, prefix) {
+            prefix = prefix || "";
+            return prefix + csv.csvarray().join(sep + prefix); }
+    return {
+        summarizeFiltering: function () {
+            return {elmin:ctrls.el.rgfoc.min, elmax:ctrls.el.rgfoc.max,
+                    almin:ctrls.al.rgfoc.min, almax:ctrls.al.rgfoc.max,
+                    poskws:buttonsCSV("pos"), negkws:buttonsCSV("neg"),
+                    minrat:ctrls.rat.stat.minrat,
+                    tagfidx:ctrls.rat.tagf.idx,   //Both|Tagged|Untagged
+                    fq:mgrs.fq.getFrequencyFiltering(),  //on|off
+                    srchtxt:jt.byId("srchin").value || ""}; },
+        name: function () {
+            var name = "Digger";  //caps sort before lowercase.
+            var sep = "_";
+            var summary = mgrs.dsc.summarizeFiltering();
+            if(summary.fq === "on") {
+                if(ctrls.el.actname) {  //particularly Chill or Amped
+                    name += sep + ctrls.el.actname; }
+                if(ctrls.al.actname) {  //particularly Easy or Hard
+                    name += sep + ctrls.al.actname; }
+                if(summary.poskws) {
+                    name += sep + formatCSV(summary.poskws, sep); }
+                if(summary.negkws) {
+                    name += sep + formatCSV(summary.negkws, sep, "X"); } }
+            if(summary.srchtxt) {
+                name += sep + summary.srchtxt.replace(/\s/g, sep); }
+            return name; },
+        desc: function () {
+            var sum = mgrs.dsc.summarizeFiltering();
+            var desc = "Songs on deck in Digger";
+            if(sum.fq === "on") {
+                desc += ", energy level " + sum.elmin + " to " + sum.elmax +
+                    ", approachability " + sum.almin + " to " + sum.almax;
+                if(sum.poskws) {
+                    desc += ", " + formatCSV(sum.poskws, ", "); }
+                if(sum.negkws) { 
+                    desc += ", " + formatCSV(sum.negkws, ", ", "not "); } }
+            if(sum.srchtxt) {
+                desc += ", " + sum.srchtxt; }
+            return desc; }
+    };  //end of mgrs.dsc returned functions
+    }());
+
 
 return {
 
@@ -561,7 +598,7 @@ return {
     initialDataLoaded: function () { mgrs.stg.rebuildAllControls(true); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
-    summary: function () { return mgrs.stg.summarizeFiltering(); },
+    summary: function () { return mgrs.dsc.summarizeFiltering(); },
     gradient: function () { return ranger.panel.gradient; },
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
     dispatch: function (mgrname, fname, ...args) {

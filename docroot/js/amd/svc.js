@@ -1,5 +1,5 @@
 /*global app, jt */
-/*jslint browser, white, fudge, long */
+/*jslint browser, white, fudge, long, unordered */
 
 //Server communications for local/web
 app.svc = (function () {
@@ -269,6 +269,10 @@ app.svc = (function () {
                     function (code, errtxt) {
                         jt.err("songupd failed " + code + ": " + errtxt); },
                     jt.semaphore("mgrs.web.updateSong")); },
+        updateMultipleSongs: function (updss, contf, errf) {
+            var updobj = {songs:JSON.stringify(updss)};  //100 songs ~= 61k
+            jt.call("POST", "api/multiupd", app.login.authdata(updobj),
+                    contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
         addGuide: function (gdem, contf, errf) {
             jt.call("POST", "/api/addguide", app.login.authdata({gmaddr:gdem}),
                     function (results) {
@@ -339,6 +343,8 @@ app.svc = (function () {
         updateSong: function (song, contf) {
             jt.log("updateSong " + song.ti);
             mgrs[hdm].updateSong(song, contf); },
+        updateMultipleSongs: function (songs, contf, errf) {
+            mgrs[hdm].updateMultipleSongs(songs, contf, errf); },
         copyUpdatedSongData: function (song, updsong) {
             songfields.forEach(function (fld) {
                 if(updsong[fld]) {  //don't copy undefined values
