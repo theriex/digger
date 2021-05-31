@@ -156,6 +156,8 @@ app.player = (function () {
             jt.out("pluitimeposdiv", mmss(prog.pos));
             jt.out("pluitimedurdiv", mmss(prog.dur)); },
         initInterface: function () {
+            if(!jt.byId("audiodiv")) {
+                return jt.log("mgrs.plui.initInterface has no audiodiv"); }
             jt.out("audiodiv", jt.tac2html(
                 ["div", {id:"pluidiv"},
                  [["div", {id:"pluibdiv"},

@@ -1260,6 +1260,7 @@ app.top = (function () {
         var xpmax = 100;  //maximum number of songs to write (PUT limit)
         var toki = null;  //current spotify token information 
         var spl = null;   //spotify playlist info
+        var b64imgdat = "";  //Base64 encoded JPEG image max 256kb
         function stat (msg, interim) {
             jt.out("expstatdiv", msg);
             if(interim) {
@@ -1267,14 +1268,11 @@ app.top = (function () {
             else {
                 jt.byId("exportbuttonsdiv").style.display = "block"; } }
         function spAPI (url, meth, bod, desc, contf, errf) {
-            var ctx = {};
-            if(bod) { bod = JSON.stringify(bod); }
-            fetch(url, {method:meth, body:bod, headers:{
-                "Content-Type":"application/json",
-                "Authorization":`Bearer ${toki.access_token}`}})
-                .then(function (resp) {
-                    ctx.resp = resp;
-                    return resp.json(); })
+            if(bod) {  bod = JSON.stringify(bod); }
+            fetch(url, {method:meth, body:bod,
+                        headers:{"Authorization":`Bearer ${toki.access_token}`,
+                                 "Content-Type":"application/json"}})
+                .then(function (resp) { return resp.json(); })
                 .then(function (obj) {
                     if(obj.error) {
                         if(errf) {
@@ -1306,6 +1304,19 @@ app.top = (function () {
                 function (code, errtxt) {
                     stat("Playlist " + xpi.spid + " settings " +
                          code + ": " + errtxt); }); },
+        uploadPlaylistImage: function () {
+            stat("Uploading playlist image...");
+            fetch(`https://api.spotify.com/v1/playlists/${xpi.spid}/images`,
+                  {method:"PUT", body:b64imgdat, 
+                   headers:{"Authorization":`Bearer ${toki.access_token}`,
+                            "Content-Type":"image/jpeg"}})
+                .then(function (resp) {
+                    if(!resp.ok) {  //bad, but not enough to quit
+                        jt.log("Playlist image upload failed " + resp.status +
+                               ": " + resp.statusText); }
+                    mgrs.webxp.notePlaylistWritten(); })
+                .catch(function (err) {
+                    stat("Failed to upload playlist image: " + err); }); },
         writePlaylistContent: function () {
             stat("Writing songs to playlist...");
             var spuris = dki.songs.slice(0, xpi.xttl).map((s) => 
@@ -1313,7 +1324,7 @@ app.top = (function () {
             xpi.wrttl = spuris.length;  //deck might have had fewer
             spAPI(`https://api.spotify.com/v1/playlists/${xpi.spid}/tracks`,
                   "PUT", {uris:spuris}, "Write tracks",
-                  mgrs.webxp.notePlaylistWritten); },
+                  mgrs.webxp.uploadPlaylistImage); },
         verifyPlaylistId: function () {
             stat("Verifying playlist...", true);
             if(xpi.spid) {  //fetch the playlist to verify it exists
@@ -1366,6 +1377,22 @@ app.top = (function () {
                 jt.out("plxpbutton", "Overwrite"); }
             else {
                 jt.out("plxpbutton", "Create"); } },
+        loadPlaylistImage: function () {
+            if(b64imgdat) { return; }  //already loaded
+            var img = document.createElement("img");  //equiv new Image();
+            img.crossOrigin = "Anonymous";  //must be set or canvas "tainted"
+            img.onload = function () {  //convert to base64 after bitmap ready
+                var canvas = document.createElement("canvas");
+                var ctx = canvas.getContext("2d");
+                canvas.height = img.naturalHeight;
+                canvas.width = img.naturalWidth;
+                jt.log("Playlist image " + img.src + " " + img.naturalWidth +
+                       " x " + img.naturalHeight);
+                ctx.drawImage(img, 0, 0);
+                b64imgdat = canvas.toDataURL("image/jpeg");
+                b64imgdat = b64imgdat.replace(/^data:image.+;base64,/, "");
+                jt.log("b64imgdat length: " + b64imgdat.length); };
+            img.src = app.dr("img/appiconcropped.jpg"); },
         writeDlgContent: function () {
             dki = app.deck.deckinfo();
             if(!dki.songs.length) {
@@ -1396,7 +1423,9 @@ app.top = (function () {
                               onclick:mdfs("webxp.verifyWrite")},
                    "Create"]],
                  ["div", {id:"expstatdiv"}]]));
-            jt.byId("plnin").value = app.filter.dispatch("dsc", "name"); }
+            jt.byId("plnin").value = app.filter.dispatch("dsc", "name");
+            mgrs.webxp.xpnChange();  //verify button name if input val cached
+            mgrs.webxp.loadPlaylistImage(); }
     };  //end mgrs.webxp returned functions
     }());
 
