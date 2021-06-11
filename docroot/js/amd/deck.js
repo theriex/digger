@@ -1,5 +1,5 @@
 /*global app, jt */
-/*jslint browser, white, fudge, long, for, unordered */
+/*jslint browser, white, long, for, unordered */
 
 //Deck display interface and actions
 app.deck = (function () {
@@ -23,9 +23,12 @@ app.deck = (function () {
                 ["div", {cla:"dinfrecdiv"},
                  [["span", {cla:"dinfrectspan"}, fc.filter + ": "],
                   ["span", {cla:"dinfrecnspan"}, fc.sc]]]))); },
-        filterBySearchText: function () {
+        getSearchText: function () {
             var st = jt.byId("srchin").value || "";
             st = st.toLowerCase().trim();
+            return st; },
+        filterBySearchText: function () {
+            var st = mgrs.ws.getSearchText();
             if(st) {
                 jt.byId("clrsrchdiv").style.display = "inline-block";
                 wrk.songs = wrk.songs.filter((song) =>
@@ -105,9 +108,9 @@ app.deck = (function () {
             mgrs.ws.presentSongs();
             mgrs.dk.setSongs(wrk.songs);  //replace working set
             if(wrk.songs.length) {  //show songs if any found
-                app.player.deckUpdated();
-                setTimeout(function () {  //leave info momentarily
-                    mgrs.gen.showSection("songs"); }, 800); }
+                app.player.deckUpdated(); }
+            setTimeout(function () {  //leave info up momentarily
+                mgrs.gen.showSection("songs"); }, 800);
             mgrs.sop.displaySongs("dk", "decksongsdiv", wrk.songs);
             wrk.tmo = null;
             wrk.stat = "";
@@ -135,7 +138,14 @@ app.deck = (function () {
                     return; }  //don't reschedule now.
                 clearTimeout(wrk.tmo); }  //didn't start yet. reschedule
             //jt.log("deck rebuild " + caller + " scheduled.");
-            wrk.tmo = setTimeout(mgrs.ws.rebuildWork, wrk.wait); }
+            wrk.tmo = setTimeout(mgrs.ws.rebuildWork, wrk.wait); },
+        noteUpdatedSongs: function (updatedsongs) {
+            var upds = {};
+            updatedsongs.forEach(function (s) { upds[s.dsId] = s; });
+            wrk.songs.forEach(function (s) {
+                if(upds[s.dsId]) {  //updated
+                    app.svc.dispatch("gen", "copyUpdatedSongData",
+                                     s, upds[s.dsId]); } }); }
     };  //end mgrs.ws returned functions
     }());
 
@@ -177,9 +187,28 @@ app.deck = (function () {
                 idh.push(" - ");
                 idh.push(["span", {cla:"dsabspan"}, song.ab || ""]); }
             return jt.tac2html(idh); },
+        noMatchingSongsHelp: function () {
+            var msgs = ["No matching songs found"];
+            if(mgrs.ws.getSearchText()) {
+                msgs.push("Try clearing search"); }
+            else {
+                var filts = app.filter.filters("active");
+                if(filts.some((f) => f.actname && f.actname.match(/[+\-]/g))) {
+                    msgs.push("Try turning off keywords"); }
+                else if(filts.some((f) =>
+                        f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {
+                    msgs.push("Try wider energy level and approachability"); }
+                var hdm = app.svc.dispatch("gen", "getHostDataManager");
+                if(hdm === "web") {
+                    //No songs might indicate library not imported yet.
+                    app.top.dispatch("webla", "spimpNeeded", "nosongs");
+                    msgs.push("Add a guide to find more music"); }
+                else {  //"loc"
+                    msgs.push("Import more music"); } }
+            return msgs.join(". ") + "."; },
         displaySongs: function (mgrnm, divid, songs) {
             if(!songs.length) {
-                return jt.out(divid, "No matching songs found."); }
+                return jt.out(divid, mgrs.sop.noMatchingSongsHelp()); }
             var songsdiv = jt.byId(divid);
             songsdiv.innerHTML = "";
             songs.forEach(function (song, idx) {
@@ -386,11 +415,13 @@ app.deck = (function () {
             sections.forEach(function (section, idx) {
                 var togbf = deckstat.toggles[buttons[idx]];
                 if(section === showing) {  //button is already toggled on
-                    jt.byId("deck" + section + "div").style.display = "block"; }
+                    jt.byId("deck" + section + "div").style.display = "block";
+                    if(togbf) {
+                        togbf("activate", "reflectonly"); } }
                 else {
                     jt.byId("deck" + section + "div").style.display = "none";
                     if(togbf) {
-                        togbf("", true); } } });
+                        togbf("", "reflectonly"); } } });
             deckstat.disp = showing;
             switch(deckstat.disp) {
             case "album": mgrs.alb.updateDisplayContent(); break;
@@ -444,7 +475,7 @@ app.deck = (function () {
             jt.out("pandeckdiv", jt.tac2html(
                 [["div", {id:"deckheaderdiv"},
                   [["div", {cla:"togbdiv", id:"togfiltb"}],
-                   ["input", {type:"text", id:"srchin", size:18,
+                   ["input", {type:"text", id:"srchin", size:14,
                               placeholder:"artist/album/song...",
                               value:deckstat.qstr,
                               oninput:mdfs("ws.rebuild", "srchin")}],

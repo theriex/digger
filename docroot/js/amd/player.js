@@ -1,5 +1,5 @@
 /*global app, jt, Spotify */
-/*jslint browser, white, fudge, for, long, unordered */
+/*jslint browser, white, for, long, unordered */
 
 app.player = (function () {
     "use strict";
@@ -192,30 +192,7 @@ app.player = (function () {
 
     //Spotify audio interface
     //https://developer.spotify.com/documentation/web-playback-sdk/reference/
-    //https://developer.spotify.com/documentation/general/guides/scopes/
     mgrs.spa = (function () {
-        var tokflds = ["access_token", "token_type", "expires_in"];
-        var toki = {  //APIs fail if attempted with inadequate privs.
-            scopes:["streaming",           //required for web playback
-                    "user-read-email",     //required for web playback
-                    "user-read-private",   //required for web playback
-                    "ugc-image-upload",    //put a digger icon on gen playlist
-                    "user-read-recently-played",  //avoid repeating
-                    "user-read-playback-state",  //external pause, duration
-                    //user-top-read should not be needed
-                    //app-remote-control iOS/Android only
-                    "playlist-modify-public",  //create digger playlist
-                    "user-modify-playback-state",  //pause playback from digger
-                    "playlist-modify-private", //create digger playlist
-                    //user-follow-modify should not be needed
-                    "user-read-currently-playing", //play nice w/app, import
-                    //user-follow-read should not be needed
-                    //user-library-modify should not be needed
-                    //user-read-playback-position is for Episodes/Shows
-                    "playlist-read-private", //warn before overwrite name
-                    "user-library-read",   //import
-                    "playlist-read-collaborative"],  //name check, import
-            useby:""};
         var sdkstate = null;
         var playername = "Digger Spotify Player";
         var swpi = null;  //Spotify Web Player instance
@@ -228,42 +205,10 @@ app.player = (function () {
             dur:0,      //song duration ms
             state:""};  //"playing" or "paused"
         function pmsg (tac) {  //display a player message (major status or err)
-            jt.log("pmsg: " + tac);
-            jt.out("audiodiv", jt.tac2html(["div", {id:"pmsgdiv"}, tac])); }
+            app.svc.dispatch("spc", "playerMessage", tac); }
     return {
-        getTokenInfo: function () { return toki; },
         token: function (contf) {  //verify token info, or contf(token)
-            if(toki.access_token && (new Date().toISOString() < toki.useby)) {
-                if(contf) {  //called from spotify player
-                    setTimeout(function () { contf(toki.access_token); }, 50); }
-                return true; }  //current token is good to go
-            var acct = app.login.getAuth();  //server provides hubdat.spa
-            if(app.startParams.state === acct.token) {  //spotify called back
-                tokflds.forEach(function (fld) {  //set or clear token info
-                    toki[fld] = app.startParams[fld];
-                    app.startParams[fld] = ""; });
-                if(app.startParams.error) {
-                    pmsg("Spotify token retrieval failed: " +
-                         app.startParams.error);
-                    return false; }
-                toki.useby = new Date(
-                    Date.now() + ((toki.expires_in - 1) * 1000)).toISOString();
-                window.history.replaceState({}, document.title, "/digger");
-                return true; }  //done handling spotify callback
-            pmsg("Redirecting to Spotify for access token...");
-            if(!app.docroot.startsWith("https://diggerhub.com")) {
-                pmsg(["Spotify authorization redirect only available from ",
-                      ["a", {href:"https://diggerhub.com"}, "diggerhub.com"]]);
-                return false; }
-            var params = {client_id:acct.hubdat.spa.clikey,
-                          response_type:"token",
-                          redirect_uri:acct.hubdat.spa.returi,
-                          state:acct.token,
-                          scope:toki.scopes.join(" ")};
-            var spurl = "https://accounts.spotify.com/authorize?" +
-                jt.objdata(params);
-            window.location.href = spurl;
-            return false; },
+            return app.svc.dispatch("spc", "token", contf); },
         sdkload: function () {
             if(sdkstate === "loaded") { return true; }
             if(!sdkstate) {
@@ -303,6 +248,7 @@ app.player = (function () {
                                     onclick:mdfs("spa.verifyPlayer")},
                               "Reconnect Spotify Web Player"]); } }); }
             return false; },
+        getPlayerStatus: function () { return pstat; },
         verifyPlayer: function () {  //called after deck updated
             if(pstat !== "connected") {
                 var steps = ["token", "sdkload", "playerSetup"];
@@ -314,10 +260,10 @@ app.player = (function () {
                     mgrs.spa.verifyPlaying(); },
                 "not_ready":function (obj) {
                     pdid = obj.device_id;
-                    toki.access_token = "";  //probably expired
                     pstat = "notready";
                     pbi.state = "";  //will need to call playSong again
                     pmsg("Spotify Web Player not ready. Reconnecting...");
+                    app.svc.dispatch("spc", "refreshToken");
                     mgrs.spa.verifyPlayer(); },
                 "player_state_changed":function (obj) {
                     mgrs.spa.noteWebPlaybackState(obj); }};
@@ -366,6 +312,7 @@ app.player = (function () {
             swpi.seek(ms).then(function () {
                 mgrs.spa.updatePlayState(pbi.state, ms, pbi.dur); }); },
         verifyPlaying: function () {
+            app.top.dispatch("webla", "spimpNeeded", "playstart");
             if(pbi.state !== "playing") {
                 mgrs.spa.playSong(pbi.song); } },
         playSong: function (song) {
@@ -374,13 +321,8 @@ app.player = (function () {
                 return; }  //playback starts after connection setup complete.
             //no autoplay, updatePlayState from clicks or state change notice
             pbi.spuri = "spotify:track:" + pbi.song.spid.slice(2);
-            fetch(
-                `https://api.spotify.com/v1/me/player/play?device_id=${pdid}`,
-                {method:"PUT",
-                 body:JSON.stringify({uris:[pbi.spuri]}),
-                 headers:{
-                     "Content-Type":"application/json",
-                     "Authorization":`Bearer ${toki.access_token}`}}); }
+            app.svc.dispatch("spc", "sjc", `me/player/play?device_id=${pdid}`,
+                             "PUT", {uris:[pbi.spuri]}); }
     };  //end mgrs.spa returned functions
     }());
 

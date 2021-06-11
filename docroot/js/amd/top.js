@@ -1,5 +1,5 @@
 /*global app, jt, confirm */
-/*jslint browser, white, fudge, long, unordered */
+/*jslint browser, white, long, unordered */
 
 //Top panel interface and actions
 app.top = (function () {
@@ -1139,14 +1139,16 @@ app.top = (function () {
 
 
     //Web library actions manager handles lib level actions and data.
+    //developer.spotify.com/documentation/web-api/reference/#category-library
     mgrs.webla = (function () {
         var acts = [
             {ty:"stat", lab:"Spotify song count", id:"spscval",
              valfname:"songCount"},
-            {ty:"btn", oc:mdfs("webla.splikes"),
-             tt:"Import liked songs from Spotify", n:"Import Likes"},
+            {ty:"stat", lab:"Spotify library", id:"splibval",
+             valfname:"splibStat"},
             {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
              tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
+        var spi = {tmo:null, maxconnretries:3};
     return {
         songCount: function () {
             var scs = app.login.getAuth().settings.songcounts;
@@ -1161,7 +1163,88 @@ app.top = (function () {
                 return "No songs yet"; }
             return scs.spotify + "/" + scs.hubdb + " (" +
                 (Math.round((scs.spotify / scs.hubdb) * 100)) + "%)"; },
+        mergeNeeded: function (obj, spi) {
+            if(!obj.items.length) {
+                if(!spi.stat.initsync) {
+                    return true; } } //server records initsync completed
+            else {  //obj.items.length > 0
+                if(spi.stat.lastcheck < obj.items[0].added_at) {
+                    return true; } }  //tracks added to lib since last check
+            jt.out("spimpbspan", "checked just now");
+            app.login.getAuth().settings.spimport.lastcheck =
+                new Date().toISOString();
+            mgrs.gen.updateAccount(
+                function () { jt.log("spimp merge noted complete."); },
+                function (code, errtxt) {
+                    jt.log("spimp merge note " + code + ": " + errtxt); });
+            return false; },
+        spimpProcess: function () {
+            var tpgurl = `me/tracks?offset=${spi.stat.processed}`;
+            app.svc.dispatch("spc", "sjc", tpgurl, "GET", null,
+                function (obj) {
+                    if(!mgrs.webla.mergeNeeded(obj, spi)) {
+                        spi.tmo = null;
+                        return; }
+                    jt.out("spimpbspan", "merging...");
+                    app.svc.dispatch("web", "importSpotifyTracks", obj.items,
+                        function (results) {
+                            spi.tmo = null;
+                            spi.stat = results[0].settings.spimport;
+                            jt.out("spcntspan", spi.stat.processed);
+                            app.deck.dispatch("ws", "noteUpdatedSongs",
+                                              results.slice(1));
+                            mgrs.webla.spimpNeeded(); },
+                        function (code, errtxt) {
+                            spi.tmo = null;
+                            jt.out("spimpbspan", "merge failed " +
+                                   code + ": " + errtxt); }); },
+                function (stat, msg) {
+                    spi.tmo = null;
+                    jt.out("spimpbspan", "fetch failed " +
+                           stat + ": " + msg); }); },
+        spimpNeeded: function (context) {  //return true and start if needed
+            context = context || "";
+            spi.stat = app.login.getAuth().settings.spimport || {
+                lastcheck:"1970-01-01T00:00:00Z",
+                initsync:"",   //when full import completed
+                processed:0,   //how many sp library tracks checked
+                imported:0};   //how many new DiggerHub songs created
+            jt.log("spimpNeeded " + context + " " + JSON.stringify(spi.stat));
+            jt.out("spimpbspan", "fetching...");  //remove button if displayed
+            if(spi.tmo) { return; }  //already scheduled or ongoing
+            if(context === "useraction" || !spi.stat.initsync
+               || !jt.timewithin(spi.stat.lastcheck, "days", 1)) {
+                spi.tmo = setTimeout(function () {
+                    var spconn = app.player.dispatch("spa", "getPlayerStatus");
+                    if(spconn === "connected") {
+                        if(context === "playstart") {  //let player start
+                            spi.tmo = null;
+                            return mgrs.webla.spimpNeeded(); } }
+                    else { //not connected, try waiting
+                        jt.out("spimpbspan", "Waiting for connection...");
+                        if(spi.maxconnretries > 0) {
+                            spi.maxconnretries -= 1;
+                            spi.tmo = null;
+                            return mgrs.webla.spimpNeeded(); } }
+                    //player may not be ready due to no songs, try import.
+                    mgrs.webla.spimpProcess(); }, 2000); }
+            else {  //clear interim status, nothing to do.
+                jt.out("spimpbspan", "checked Today"); } },
+        splibStat: function () {
+            var linkattrs = {onclick:mdfs("webla.spimpNeeded", "useraction"),
+                             title:"Read liked tracks from Spotify"};
+            var ak = ["a", linkattrs, "Read Library"];
+            if(spi.stat.initsync) {
+                ak = ["a", linkattrs, "checked " +
+                      jt.colloquialDate(spi.stat.lastcheck, true, "z2loc")]; }
+            if(spi.tmo) {  //waiting to check
+                ak = "checking..."; }
+            return jt.tac2html(
+                [["span", {id:"spcntspan"}, spi.stat.processed],
+                 " Songs, ",
+                 ["span", {id:"spimpbspan"}, ak]]); },
         writeDlgContent: function () {
+            mgrs.webla.spimpNeeded();
             jt.out("topdlgdiv", jt.tac2html(
                 [["div", {cla:"dlgpathsdiv"},
                   acts.filter((a) => a.ty === "stat")
@@ -1258,30 +1341,17 @@ app.top = (function () {
         var xpi = null;   //current persistent export information
         var xps = null;   //account settings exports info
         var xpmax = 100;  //maximum number of songs to write (PUT limit)
-        var toki = null;  //current spotify token information 
+        var spud = "";    //spotify user id (username string)
         var spl = null;   //spotify playlist info
-        var b64imgdat = "";  //Base64 encoded JPEG image max 256kb
         function stat (msg, interim) {
             jt.out("expstatdiv", msg);
             if(interim) {
                 jt.byId("exportbuttonsdiv").style.display = "none"; }
             else {
                 jt.byId("exportbuttonsdiv").style.display = "block"; } }
-        function spAPI (url, meth, bod, desc, contf, errf) {
-            if(bod) {  bod = JSON.stringify(bod); }
-            fetch(url, {method:meth, body:bod,
-                        headers:{"Authorization":`Bearer ${toki.access_token}`,
-                                 "Content-Type":"application/json"}})
-                .then(function (resp) { return resp.json(); })
-                .then(function (obj) {
-                    if(obj.error) {
-                        if(errf) {
-                            return errf(obj.error); }
-                        return stat(desc + " failed " + obj.error.status +
-                                    ": " + obj.error.message); }
-                    contf(obj); })
-                .catch(function (err) {
-                    stat(desc + " failure: " + err); }); }
+        function makeErrFunc (desc) {
+            return function (stat, msg) {
+                stat(desc + " " + stat + ": " + msg); }; }
     return {
         markSongsPlayed: function () {
             var msg = "Wrote " + xpi.wrttl + " songs to " + xpi.name + ".";
@@ -1306,67 +1376,56 @@ app.top = (function () {
                          code + ": " + errtxt); }); },
         uploadPlaylistImage: function () {
             stat("Uploading playlist image...");
-            fetch(`https://api.spotify.com/v1/playlists/${xpi.spid}/images`,
-                  {method:"PUT", body:b64imgdat, 
-                   headers:{"Authorization":`Bearer ${toki.access_token}`,
-                            "Content-Type":"image/jpeg"}})
-                .then(function (resp) {
-                    if(!resp.ok) {  //bad, but not enough to quit
-                        jt.log("Playlist image upload failed " + resp.status +
-                               ": " + resp.statusText); }
-                    mgrs.webxp.notePlaylistWritten(); })
-                .catch(function (err) {
-                    stat("Failed to upload playlist image: " + err); }); },
+            app.svc.dispatch("spc", "upldimg", `playlists/${xpi.spid}/images`,
+                             "img/appiconcropped.jpg",
+                             mgrs.webxp.notePlaylistWritten,
+                             function (stat, msg) {
+                                 jt.log("Playlist image upload failed " + stat +
+                                        ": " + msg);
+                                 mgrs.webxp.notePlaylistWritten(); }); },
         writePlaylistContent: function () {
             stat("Writing songs to playlist...");
             var spuris = dki.songs.slice(0, xpi.xttl).map((s) => 
                 "spotify:track:" + s.spid.slice(2));
             xpi.wrttl = spuris.length;  //deck might have had fewer
-            spAPI(`https://api.spotify.com/v1/playlists/${xpi.spid}/tracks`,
-                  "PUT", {uris:spuris}, "Write tracks",
-                  mgrs.webxp.uploadPlaylistImage); },
+            app.svc.dispatch("spc", "sjc", `playlists/${xpi.spid}/tracks`,
+                             "PUT", {uris:spuris},
+                             mgrs.webxp.uploadPlaylistImage,
+                             makeErrFunc("Write tracks")); },
         verifyPlaylistId: function () {
             stat("Verifying playlist...", true);
             if(xpi.spid) {  //fetch the playlist to verify it exists
-                spAPI(`https://api.spotify.com/v1/playlists/${xpi.spid}`,
-                      "GET", null, "Playlist fetch",
-                      function (obj) {
-                          spl = obj;
-                          mgrs.webxp.writePlaylistContent(); },
-                      function (obj) {  //error object
-                          jt.log("webxp.verifyPlaylistId " + xpi.spid +
-                                 "error " + obj.status + ": " + obj.message);
-                          xpi.spid = "";  //write new playlist
-                          return mgrs.webxp.verifyPlaylistId(); }); }
+                app.svc.dispatch("spc", "sjc", `playlists/${xpi.spid}`,
+                    "GET", null,
+                    function (obj) {
+                        spl = obj;
+                        mgrs.webxp.writePlaylistContent(); },
+                    function (stat, msg) {
+                        jt.log("webxp.verifyPlaylistId " + xpi.spid +
+                               "error " + stat + ": " + msg);
+                        xpi.spid = "";  //write new playlist
+                        mgrs.webxp.verifyPlaylistId(); }); }
             else {  //create new playlist
                 stat("Creating new playlist...", true);
-                var spud = toki.userprof.id;  //essentially username
                 var data = {name:xpi.name,
                             description:app.filter.dispatch("dsc", "desc")};
-                spAPI(`https://api.spotify.com/v1/users/${spud}/playlists`,
-                      "POST", data, "Create playlist",
-                      function (obj) {
-                          spl = obj;
-                          xpi.spid = spl.id;
-                          mgrs.webxp.writePlaylistContent(); }); } },
+                app.svc.dispatch("spc", "sjc", `users/${spud}/playlists`,
+                    "POST", data,
+                    function (obj) {
+                        spl = obj;
+                        xpi.spid = spl.id;
+                        mgrs.webxp.writePlaylistContent(); },
+                    makeErrFunc("Create playlist")); } },
         verifyWrite: function () {
             stat("Validating...", true);
-            mgrs.webxp.xpnChange();  //update xpi info
+            mgrs.webxp.xpnChange();  //read form vals and update button
             if(!xpi.name) {
                 return stat("Name your playlist"); }
             if(!(xpi.xttl >= 1 && xpi.xttl <= xpmax)) {
                 return stat("Bad input for how many songs to export."); }
-            stat("Getting Spotify user id...", true);
-            if(!toki) {  //need token info from web player setup
-                toki = app.player.dispatch("spa", "getTokenInfo"); }
-            if(!toki) {
-                return stat("Spotify access token unavailable"); }
-            if(toki.userprof) {  //already have the current user spotify id
-                return mgrs.webxp.verifyPlaylistId(); }
-            spAPI("https://api.spotify.com/v1/me", "GET", null, "Get user id",
-                  function (obj) {
-                      toki.userprof = obj;
-                      mgrs.webxp.verifyPlaylistId(); }); },
+            app.svc.dispatch("spc", "userprof", function (userprof) {
+                spud = userprof.id;
+                mgrs.webxp.verifyPlaylistId(); }); },
         xpnChange: function () {
             var plname = jt.byId("plnin").value.trim();
             xpi = xps.sp[plname] || {};
@@ -1377,22 +1436,6 @@ app.top = (function () {
                 jt.out("plxpbutton", "Overwrite"); }
             else {
                 jt.out("plxpbutton", "Create"); } },
-        loadPlaylistImage: function () {
-            if(b64imgdat) { return; }  //already loaded
-            var img = document.createElement("img");  //equiv new Image();
-            img.crossOrigin = "Anonymous";  //must be set or canvas "tainted"
-            img.onload = function () {  //convert to base64 after bitmap ready
-                var canvas = document.createElement("canvas");
-                var ctx = canvas.getContext("2d");
-                canvas.height = img.naturalHeight;
-                canvas.width = img.naturalWidth;
-                jt.log("Playlist image " + img.src + " " + img.naturalWidth +
-                       " x " + img.naturalHeight);
-                ctx.drawImage(img, 0, 0);
-                b64imgdat = canvas.toDataURL("image/jpeg");
-                b64imgdat = b64imgdat.replace(/^data:image.+;base64,/, "");
-                jt.log("b64imgdat length: " + b64imgdat.length); };
-            img.src = app.dr("img/appiconcropped.jpg"); },
         writeDlgContent: function () {
             dki = app.deck.deckinfo();
             if(!dki.songs.length) {
@@ -1424,8 +1467,7 @@ app.top = (function () {
                    "Create"]],
                  ["div", {id:"expstatdiv"}]]));
             jt.byId("plnin").value = app.filter.dispatch("dsc", "name");
-            mgrs.webxp.xpnChange();  //verify button name if input val cached
-            mgrs.webxp.loadPlaylistImage(); }
+            mgrs.webxp.xpnChange(); } //verify button name if input val cached
     };  //end mgrs.webxp returned functions
     }());
 

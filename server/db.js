@@ -1,4 +1,4 @@
-/*jslint node, white, fudge, long */
+/*jslint node, white, long, unordered */
 
 module.exports = (function () {
     "use strict";
@@ -585,7 +585,7 @@ module.exports = (function () {
 
 
     function serveVersion (ignore /*req*/, res) {
-        res.writeHead(200, {"Content-Type": "text/plain"});
+        res.writeHead(200, {"Content-Type": "text/plain; charset=UTF-8"});
         res.end(diggerVersion());
     }
 

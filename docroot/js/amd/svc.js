@@ -1,5 +1,5 @@
 /*global app, jt */
-/*jslint browser, white, fudge, long, unordered */
+/*jslint browser, white, long, unordered */
 
 //Server communications for local/web
 app.svc = (function () {
@@ -43,6 +43,136 @@ app.svc = (function () {
                     jt.semaphore("exp.copyPlaylist"));
             mgrs.cpx.monitorExportStatus(); }
     };  //end mgrs.cpx returned functions
+    }());
+
+
+    //Spotify call manager provides factored api utilities
+    //https://developer.spotify.com/documentation/general/guides/scopes/
+    mgrs.spc = (function () {
+        var tokflds = ["access_token", "token_type", "expires_in"];
+        var toki = {  //APIs fail if attempted with inadequate privs.
+            scopes:["streaming",           //required for web playback
+                    "user-read-email",     //required for web playback
+                    "user-read-private",   //required for web playback
+                    "ugc-image-upload",    //put a digger icon on gen playlist
+                    "user-read-recently-played",  //avoid repeating
+                    "user-read-playback-state",  //external pause, duration
+                    //user-top-read should not be needed
+                    //app-remote-control iOS/Android only
+                    "playlist-modify-public",  //create digger playlist
+                    "user-modify-playback-state",  //pause playback from digger
+                    "playlist-modify-private", //create digger playlist
+                    //user-follow-modify should not be needed
+                    "user-read-currently-playing", //play nice w/app, import
+                    //user-follow-read should not be needed
+                    //user-library-modify should not be needed
+                    //user-read-playback-position is for Episodes/Shows
+                    "playlist-read-private", //warn before overwrite name
+                    "user-library-read",   //import
+                    "playlist-read-collaborative"],  //name check, import
+            useby:""};
+        function pmsg (tac) {  //display a player message (init status or err)
+            jt.log("pmsg: " + tac);
+            jt.out("audiodiv", jt.tac2html(["div", {id:"pmsgdiv"}, tac])); }
+    return {
+        playerMessage: function (tac) {
+            pmsg(tac); },
+        refreshToken: function (contf) {
+            toki.access_token = "";  //clear old
+            if(contf) {
+                jt.log("refreshToken not calling continuation function"); }
+            jt.log("refreshToken not implemented yet"); },
+        token: function (contf) {  //verify token info, or contf(token)
+            if(toki.access_token) {
+                if(new Date().toISOString() < toki.useby) {  //still valid
+                    if(contf) {  //probably called from spotify player
+                        setTimeout(function () {
+                            contf(toki.access_token); }, 50); }
+                    return true; }
+                return mgrs.spc.refreshToken(contf); }
+            var acct = app.login.getAuth();  //server inits acct.hubdat.spa
+            if(app.startParams.state === acct.token) {  //spotify called back
+                tokflds.forEach(function (fld) {  //set or clear token info
+                    toki[fld] = app.startParams[fld];
+                    app.startParams[fld] = ""; });
+                if(app.startParams.error) {  //audiodiv is main app msg space
+                    jt.out("audiodiv", "Spotify token retrieval failed: " +
+                           app.startParams.error);
+                    return false; }
+                toki.useby = new Date(
+                    Date.now() + ((toki.expires_in - 1) * 1000)).toISOString();
+                window.history.replaceState({}, document.title, "/digger");
+                return true; }  //done handling spotify callback
+            pmsg("Redirecting to Spotify for access token...");
+            if(!app.docroot.startsWith("https://diggerhub.com")) {
+                pmsg(["Spotify authorization redirect only available from ",
+                      ["a", {href:"https://diggerhub.com"}, "diggerhub.com"]]);
+                return false; }
+            var params = {client_id:acct.hubdat.spa.clikey,
+                          response_type:"token",
+                          redirect_uri:acct.hubdat.spa.returi,
+                          state:acct.token,
+                          scope:toki.scopes.join(" ")};
+            var spurl = "https://accounts.spotify.com/authorize?" +
+                jt.objdata(params);
+            window.location.href = spurl;
+            return false; },
+        sjc: function (relurl, meth, bod, contf, errf) {
+            if(bod) {  bod = JSON.stringify(bod); }
+            errf = errf || function (stat, msg) {
+                jt.log("spc.sjc error " + stat + ": " + msg); };
+            fetch("https://api.spotify.com/v1/" + relurl, {
+                method:meth, body:bod, headers:{
+                    "Authorization":`Bearer ${toki.access_token}`,
+                    "Content-Type":"application/json"}})
+                .then(function (resp) { return resp.json(); })
+                .then(function (obj) {
+                    if(obj.error) {
+                        return errf(obj.error.status, obj.error.message); }
+                    if(contf) {
+                        contf(obj); }})
+                .catch(function (err) {
+                    errf("call failed", err); }); },
+        userprof: function (contf) {
+            if(toki.userprof) {
+                setTimeout(function () { contf(toki.userprof); }, 50);
+                return; }
+            mgrs.spc.sjc("me", "GET", null,
+                         function (obj) {
+                             toki.userprof = obj;
+                             contf(toki.userprof); }); },
+        //on success, the image may still be being processed by Spotify.
+        upldimg: function (relurl, source, contf, errf) {
+            var img = document.createElement("img");  //equiv new Image();
+            img.crossOrigin = "Anonymous";  //must be set or canvas "tainted"
+            img.onload = function () {  //convert to base64 after bitmap ready
+                var canvas = document.createElement("canvas");
+                var ctx = canvas.getContext("2d");
+                canvas.height = img.naturalHeight;
+                canvas.width = img.naturalWidth;
+                jt.log("spc.upldimg " + img.src + " " + img.naturalWidth +
+                       " x " + img.naturalHeight);
+                ctx.drawImage(img, 0, 0);
+                var b64dat = canvas.toDataURL("image/jpeg");
+                b64dat = b64dat.replace(/^data:image.+;base64,/, "");
+                jt.log("b64dat length: " + b64dat.length);
+                mgrs.spc.upldimgb64(relurl, b64dat, contf, errf); };
+            img.src = app.dr(source); },
+        upldimgb64: function (relurl, b64dat, contf, errf) {
+            errf = errf || function (stat, msg) {
+                jt.log("spc.upldimgb64 error " + stat + ": " + msg); };
+            fetch("https://api.spotify.com/v1/" + relurl, {
+                method:"PUT", body:b64dat, headers:{
+                    "Authorization":`Bearer ${toki.access_token}`,
+                    "Content-Type":"image/jpeg"}})
+                .then(function (resp) {
+                    if(!resp.ok) {
+                        return errf(resp.status, resp.statusText); }
+                    if(contf) {
+                        contf(); }})
+                .catch(function (err) {
+                    errf("img upload failed", err); }); }
+    };  //end mgrs.spc returned functions
     }());
 
 
@@ -289,10 +419,15 @@ app.svc = (function () {
                                                  digacc)); },
                     errf,
                     jt.semaphore("mgrs.web.getSongTotals")); },
-        spotifyTokenInfo: function (contf, errf) {
-            var ps = app.login.authdata();
-            jt.call("GET", app.dr("/api/spotifytoken?" + ps), null,
-                    contf, errf, jt.semaphore("mgrs.web.spotifyTokenInfo")); }
+        importSpotifyTracks: function (items, contf, errf) {
+            var data = app.login.authdata({items:JSON.stringify(items)});
+            jt.call("POST", "/api/impsptracks", data,
+                    function (results) {
+                        var digacc = app.refmgr.deserialize(results[0]);
+                        results[0] = app.login.dispatch(
+                            "act", "noteUpdatedAccount", digacc);
+                        contf(results); },
+                    errf, jt.semaphore("mgrs.web.impsptracks")); }
     };  //end mgrs.web returned functions
     }());
 
