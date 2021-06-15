@@ -104,7 +104,7 @@ module.exports = (function () {
                   fq:"DN",      //Deleted file, Newly added
                   ti:s.ti, ar:s.ar, ab:s.ab,
                   lp:s.lp};     //Played on other setup, but good to have value
-            dbo[s.path] = ls; }
+            dbo.songs[s.path] = ls; }
         var flds = ["modified", "dsId", "rv", "al", "el", "kws", "nt"];
         if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
             flds.push("fq"); }
