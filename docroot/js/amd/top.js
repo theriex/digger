@@ -33,7 +33,7 @@ app.top = (function () {
                     acct[sf] = JSON.parse(acct[sf]); } }); },
         accountAsData: function (acct) {
             mgrs.hcu.serializeAccount(acct);
-            var data = jt.objdata(acct);
+            const data = jt.objdata(acct);
             mgrs.hcu.deserializeAccount(acct);
             return data; },
         verifyDefaultAccountFields: function (acct) {
@@ -47,7 +47,7 @@ app.top = (function () {
             return JSON.stringify(a[fld]) === JSON.stringify(b[fld]); },
         accountDisplayDiff: function (a, b) {
             if(!a || !b) { return false; }  //nothing to compare
-            var changed = Object.keys(ajfs).find((fld) =>
+            const changed = Object.keys(ajfs).find((fld) =>
                 !mgrs.hcu.equivField(fld, a, b));
             return changed || false; },
         verifyClientVersion: function () {
@@ -120,8 +120,8 @@ app.top = (function () {
                     .filter((s) => s.lp > (s.modified || ""));
                 upldsongs = upldsongs.slice(0, 199); }
             mgrs.hcu.serializeAccount(curracct);
-            var obj = {email:curracct.email, token:curracct.token,
-                       syncdata: JSON.stringify([curracct, ...upldsongs])};
+            const obj = {email:curracct.email, token:curracct.token,
+                         syncdata: JSON.stringify([curracct, ...upldsongs])};
             mgrs.hcu.deserializeAccount(curracct);
             return jt.objdata(obj); },
         processReceivedSyncData: function (updates) {
@@ -133,7 +133,7 @@ app.top = (function () {
                                                           curracct.token);
             if(changed) { //need to rebuild display with updated info
                 mgrs.locam.notifyAccountChanged(); }
-            var songs = updates.slice(1);
+            const songs = updates.slice(1);
             jt.log("processReceivedSyncData " + songs.length + " songs.");
             songs.forEach(function (s) {
                 app.svc.dispatch("loc", "noteUpdatedSongData", s); });
@@ -164,7 +164,7 @@ app.top = (function () {
                               onclick:mdfs("h2a.removeAccount", ai.dsId)},
                         ["img", {cla:"rowbuttonimg",
                                  src:"img/trash.png"}]]; }
-            var ars = mgrs.locam.getAcctsInfo().accts.map((ai) =>
+            const ars = mgrs.locam.getAcctsInfo().accts.map((ai) =>
                 ["tr",
                  [["td",
                    ["div", {cla:"dachoicediv"},
@@ -188,7 +188,7 @@ app.top = (function () {
             mgrs.h2a.accountSettings(); },
         removeAccount: function (aid) {
             jt.out("topstatdiv", "Removing account...");
-            var aci = mgrs.locam.getAcctsInfo();
+            const aci = mgrs.locam.getAcctsInfo();
             if(aid === aci.currid) {
                 aci.currid = "101"; }
             aci.accts = aci.accts.filter((a) => a.dsId !== aid);
@@ -213,7 +213,7 @@ app.top = (function () {
                     "Change Password"]]]])); },
         changePassword: function () {
             jt.byId("chgpwdb").disabled = true;
-            var curracct = mgrs.locam.getAccount();
+            const curracct = mgrs.locam.getAccount();
             curracct.updemail = curracct.email;
             curracct.updpassword = jt.byId("pwdin").value;
             mgrs.h2a.updateHubAccount(
@@ -245,16 +245,16 @@ app.top = (function () {
                  .join(" &nbsp;|&nbsp ")]); },
         inputOrDispText: function (fd) {
             var curracct = mgrs.locam.getAccount();
+            var val = curracct[fd.n];
             if(fd.x || mgrs.h2a.usingDefaultAccount()) {
-                var value = curracct[fd.n];
                 if(fd.x === "guides") {
-                    value = mgrs.gin.accountFormDisplayValue(); }
+                    val = mgrs.gin.accountFormDisplayValue(); }
                 if(fd.x === "locdt") {
-                    value = jt.tz2human(value); }
+                    val = jt.tz2human(val); }
                 return ["span", {id:"fmvspan" + fd.n, cla:"formvalspan"},
-                        value]; }
+                        val]; }
             return ["input", {type:"text", id:fd.n + "in",
-                              placeholder:fd.p || "", value:curracct[fd.n]}]; },
+                              placeholder:fd.p || "", value:val}]; },
         acctFieldsHTML: function () {
             var uda = mgrs.h2a.usingDefaultAccount();
             var updbutton = "";
@@ -274,12 +274,12 @@ app.top = (function () {
                   ["div", {cla:"dlgbuttonsdiv"},
                    updbutton]]]); },
         updAcctFlds: function () {
-            jt.out("accupdstatdiv", "");  //clear any previous message
             var curracct = mgrs.locam.getAccount();
             var changed = false;
+            jt.out("accupdstatdiv", "");  //clear any previous message
             mafs.forEach(function (fd) {
                 if(!fd.x) { //not disabled input
-                    var val = jt.byId(fd.n + "in").value.trim();
+                    const val = jt.byId(fd.n + "in").value.trim();
                     if(val !== curracct[fd.n]) {
                         changed = true;
                         curracct[fd.n] = val; }} });
@@ -369,7 +369,7 @@ app.top = (function () {
                      "Send password reset"])); } },
         emailPwdReset: function () {
             jt.out("siojerrhelpdiv", "");
-            var data = jt.objdata({email:jt.byId("emailin").value});
+            const data = jt.objdata({email:jt.byId("emailin").value});
             app.svc.dispatch("loc", "emailPwdReset", data,
                 function () {
                     jt.out("siojstatdiv", "Reset password link sent."); },
@@ -380,11 +380,11 @@ app.top = (function () {
             if(!jt.byId("siojfdiv")) {  //form not displayed yet
                 return mgrs.h2a.showSignInJoinForm(); }
             mgrs.h2a.siojbDisable(true);
-            var data = jt.objdata(
+            const data = jt.objdata(
                 {email:jt.byId("emailin").value,
                  password:jt.byId("pwdin").value,
                  firstname:jt.byId("firstnamein").value});
-            var errf = function (code, errtxt) {
+            const errf = function (code, errtxt) {
                 mgrs.h2a.siojbDisable(false);
                 jt.out("siojstatdiv", code + ": " + errtxt);
                 mgrs.h2a.siojErrHelp(errtxt); };
@@ -413,7 +413,7 @@ app.top = (function () {
         noteSyncCompleted: function () {
             var ca = mgrs.locam.getAccount();
             if(jt.byId("fmvspanmodified")) {
-                var lastsync = ca.syncsince || ca.modified;
+                const lastsync = ca.syncsince || ca.modified;
                 jt.out("fmvspanmodified", jt.tz2human(lastsync)); } }
     };  //end mgrs.h2a returned functions
     }());
@@ -433,7 +433,7 @@ app.top = (function () {
         noteUpdatedGuideInfo: function (updg) {
             guide = updg;
             pfs.procupd();  //reflect updated guide info in display
-            var gidx = ca.guides.findIndex((g) => g.dsId === guide.dsId);
+            const gidx = ca.guides.findIndex((g) => g.dsId === guide.dsId);
             ca[gidx] = guide; },
         fetch: function () {
             pfs.procupd("Fetching ratings...");
@@ -535,13 +535,13 @@ app.top = (function () {
             return okgem; },
         processGuideAdd: function () {
             jt.out("amgstatdiv", "");
-            var okgem = mgrs.gin.verifyGuideEmail(jt.byId("emailin").value);
+            const okgem = mgrs.gin.verifyGuideEmail(jt.byId("emailin").value);
             if(okgem.err) {
                 return jt.out("amgstatdiv", okgem.err); }
             jt.byId("addguideb").disabled = true;
-            var ca = mgrs.locam.getAccount();
-            var data = jt.objdata({email:ca.email, at:ca.token,
-                                   gmaddr:okgem.email});
+            const ca = mgrs.locam.getAccount();
+            const data = jt.objdata({email:ca.email, at:ca.token,
+                                     gmaddr:okgem.email});
             app.svc.dispatch("loc", "addGuide", data,
                 function (accts) {
                     mgrs.locam.noteReturnedCurrAcct(accts[0], ca.token);
@@ -624,7 +624,7 @@ app.top = (function () {
             mgrs.hcu.deserializeAccount(acct);
             mgrs.hcu.verifyDefaultAccountFields(acct);
             acct.token = token;  //not included in returned data
-            var changed = mgrs.hcu.accountDisplayDiff(curracct, acct);
+            const changed = mgrs.hcu.accountDisplayDiff(curracct, acct);
             curracct = acct;
             hai.currid = acct.dsId;
             hai.accts = [acct,
@@ -690,8 +690,8 @@ app.top = (function () {
         reflectGuideStatus: function (gid, status) {
             jt.out("gdcbtrdiv" + gid, "");
             jt.out("gdstseldiv" + gid, "-> " + status);
-            var guide = app.login.getAuth().guides.find((g) => g.dsId === gid);
-            guide.status = status;
+            const gde = app.login.getAuth().guides.find((g) => g.dsId === gid);
+            gde.status = status;
             mgrs.webam.updateAccount(
                 mgrs.webam.writeDlgContent,  //redraw, might need checkbox
                 function (code, errtxt) {
@@ -881,12 +881,12 @@ app.top = (function () {
                                ["img", {cla:"rowbuttonimg",
                                         src:"img/trash.png"}]]]]])]));
             if(activeFolderName) {
-                var tr = jt.byId("igftr" + igfolds.indexOf(activeFolderName));
+                const tr = jt.byId("igftr" + igfolds.indexOf(activeFolderName));
                 if(tr) {
                     tr.scrollIntoView();
                     window.scrollTo(0, 0); }
                 activeFolderName = ""; }
-            var config = app.svc.dispatch("loc", "getConfig");
+            const config = app.svc.dispatch("loc", "getConfig");
             jt.out("igfindiv", jt.tac2html(
                 [["label", {fo:"igfin"},
                   "Ignore " + config.musicPath + "/**/"],
@@ -964,16 +964,16 @@ app.top = (function () {
                     Dance:{pos:4, sc:0, ig:0, dsc:""}}; },
         defsArray: function (actfirst) {
             kwdefs = kwdefs || mgrs.kwd.makeDefaultKeywords();
-            var kds = Object.entries(kwdefs).map(function ([k, d]) {
+            const kds = Object.entries(kwdefs).map(function ([k, d]) {
                 return {pos:d.pos, sc:d.sc, ig:d.ig, kw:k, dsc:d.dsc}; });
-            kds = kds.filter((kd) => !kd.ig);
-            kds.sort(function (a, b) {
+            const aks = kds.filter((kd) => !kd.ig);
+            aks.sort(function (a, b) {
                 if(actfirst) {
                     if(a.pos && b.pos) { return a.pos - b.pos; }
                     if(a.pos && !b.pos) { return -1; }
                     if(!a.pos && b.pos) { return 1; } }
                 return a.kw.localeCompare(b.kw); });
-            return kds; },
+            return aks; },
         makePosSel: function (kw, pos) {
             var pivs = ["-", "1", "2", "3", "4"];  //position indicator values
             var ofs = 0;
@@ -1047,8 +1047,8 @@ app.top = (function () {
             var errmsg = "";
             if(uka.length < 4) {
                 errmsg = "Four keywords required."; }
-            var ords = [{n:"first", v:1}, {n:"second", v:2}, {n:"third", v:3},
-                        {n:"fourth", v:4}];
+            const ords = [{n:"first", v:1}, {n:"second", v:2}, {n:"third", v:3},
+                          {n:"fourth", v:4}];
             ords.reverse().forEach(function (ord) {
                 if(!uka.find((kwd) => kwd.pos === ord.v)) {
                     errmsg = "Missing " + ord.n + " keyword."; } });
@@ -1078,8 +1078,9 @@ app.top = (function () {
         same: function (kwa, kwb) {  //localeCompare base not yet on mobile
             return kwa.toLowerCase() === kwb.toLowerCase(); },
         addKeyword: function (kwd) {  //called from player
+            var kd;
             uka = uka || mgrs.kwd.defsArray();
-            var kd = uka.find((kd) => mgrs.kwd.same(kd.kw, kwd));
+            kd = uka.find((kd) => mgrs.kwd.same(kd.kw, kwd));
             if(kd) {  //already exists and not previously deleted, bump count
                 kd.sc += 1; }
             else {  //not in current working set
@@ -1093,9 +1094,9 @@ app.top = (function () {
             mgrs.kwd.saveKeywordDefs(); },
         swapFilterKeyword: function (kwd, pos) {  //called from filter
             uka = uka || mgrs.kwd.defsArray();
-            var prevkd = uka.find((kd) => kd.pos === pos);
+            const prevkd = uka.find((kd) => kd.pos === pos);
             prevkd.pos = 0;
-            var currkd = uka.find((kd) => kd.kw === kwd);
+            const currkd = uka.find((kd) => kd.kw === kwd);
             currkd.pos = pos;
             mgrs.gen.togtopdlg("", "close");  //in case open
             mgrs.kwd.saveKeywordDefs("swapFilterKeyword"); }
@@ -1336,6 +1337,7 @@ app.top = (function () {
 
     //Export manager handles creating or updating a Spotify playlist
     //developer.spotify.com/documentation/general/guides/working-with-playlists
+    //developer.spotify.com/documentation/web-api/reference/#category-playlists
     mgrs.webxp = (function () {
         var dki = null;   //deck information for export
         var xpi = null;   //current persistent export information
@@ -1385,7 +1387,7 @@ app.top = (function () {
                                  mgrs.webxp.notePlaylistWritten(); }); },
         writePlaylistContent: function () {
             stat("Writing songs to playlist...");
-            var spuris = dki.songs.slice(0, xpi.xttl).map((s) => 
+            const spuris = dki.songs.slice(0, xpi.xttl).map((s) => 
                 "spotify:track:" + s.spid.slice(2));
             xpi.wrttl = spuris.length;  //deck might have had fewer
             app.svc.dispatch("spc", "sjc", `playlists/${xpi.spid}/tracks`,
@@ -1407,8 +1409,8 @@ app.top = (function () {
                         mgrs.webxp.verifyPlaylistId(); }); }
             else {  //create new playlist
                 stat("Creating new playlist...", true);
-                var data = {name:xpi.name,
-                            description:app.filter.dispatch("dsc", "desc")};
+                const data = {name:xpi.name,
+                              description:app.filter.dispatch("dsc", "desc")};
                 app.svc.dispatch("spc", "sjc", `users/${spud}/playlists`,
                     "POST", data,
                     function (obj) {

@@ -1,4 +1,4 @@
-/*jslint browser, white, fudge, this, for, long */
+/*jslint browser, white, this, for, long, unordered */
 
 /*global alert, console, document, window, XMLHttpRequest, JSON, escape, unescape, setTimeout, navigator */
 
@@ -184,7 +184,7 @@
 ////////////////////////////////////////
 // Utility methods.  Library users will need to tolerate this global
 // function, and pass in an object to hold all the utility methods.
-var jtminjsDecorateWithUtilities = function (utilityObject) {
+const jtminjsDecorateWithUtilities = function (utilityObject) {
     "use strict";
 
     var uo = utilityObject;  //local reference for function chaining
@@ -238,7 +238,7 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
         if (node) {
             node.innerHTML = html;
         } else {
-            uo.log("DOM id " + domid + " not available for output");
+            uo.log("DOM id " + domid + " not available for content: " + html);
         }
     };
 
@@ -453,15 +453,16 @@ var jtminjsDecorateWithUtilities = function (utilityObject) {
                   "November", "December" ];
 
     uo.tz2human = function (zd) {
+        var minutes;
         if(typeof zd === "string") {
             zd = uo.isoString2Time(zd, true); }
         zd = uo.tz2loc(zd);  //convert back to local time
         //having adjusted the time, have to fetch all the date components as
         //UTC to avoid having them automatically adjusted again.
-        var minutes = String(zd.getUTCMinutes());
+        minutes = String(zd.getUTCMinutes());
         if(zd.getUTCMinutes() < 10) {
             minutes = "0" + minutes; }
-        var ds = uo.days[zd.getUTCDay()].slice(0, 3) + " " +
+        const ds = uo.days[zd.getUTCDay()].slice(0, 3) + " " +
             zd.getUTCDate() + " " +
             uo.months[zd.getUTCMonth()].slice(0, 3) + " " +
             zd.getUTCFullYear() + " " +

@@ -42,9 +42,8 @@ app.player = (function () {
                      posf:function (x, ignore /*y*/) {
                          //jt.log("ctrls.rat.posf x: " + x);
                          jt.byId("playerstarseldiv").style.width = x + "px";
-                         var val = Math.round((x / 17) * 2);
                          if(stat.song) {
-                             stat.song.rv = val;
+                             stat.song.rv = Math.round((x / 17) * 2);
                              noteSongModified(); } } };
         app.filter.movelisten("playerstarsanchordiv", ctrls.rat.stat,
                               ctrls.rat.posf);
@@ -52,7 +51,7 @@ app.player = (function () {
     }
 
 
-    var mgrs = {};  //general container for managers 
+    const mgrs = {};  //general container for managers
     function mdfs (mgrfname, ...args) {  //module dispatch function string
         return app.dfs("player", mgrfname, args);
     }
@@ -75,7 +74,7 @@ app.player = (function () {
             var maxw = jt.byId("panplaydiv").offsetWidth;
             maxw -= (2 * 6) + (2 * 8);  //padding and border
             if(playw > maxw) {
-                var shift = Math.round(-0.5 * (playw - maxw));
+                const shift = Math.round(-0.5 * (playw - maxw));
                 player.style.marginLeft = shift + "px"; } },
         handleNotAllowedError: function () {
             var player = jt.byId("playeraudio");
@@ -101,9 +100,9 @@ app.player = (function () {
         var prog = {pos:0, dur:0, w:200, left:16, //CSS pluiprogbgdiv left
                     svco:null, divs:["pluiprogbgdiv", "pluiprogclickdiv"]};
         function mmss (ms) {
-            ms = Math.round(ms / 1000);
             var sep = ":";
-            var secs = ms % 60;
+            ms = Math.round(ms / 1000);
+            const secs = ms % 60;
             if(secs <= 9) {
                 sep += "0"; }
             return String(Math.floor(ms / 60)) + sep + secs; }
@@ -113,7 +112,7 @@ app.player = (function () {
             prog.pos = Math.min(prog.pos + 1000, prog.dur);  //tick 1 sec fwd
             prog.tickcount = (prog.tickcount + 1) % 4;
             if(jt.byId("pluidiv")) { //interface still available
-                var rems = prog.dur - prog.pos;
+                const rems = prog.dur - prog.pos;
                 if(state === "playing" && rems < 1200) {
                     setTimeout(app.player.next, rems); }
                 else {
@@ -149,9 +148,9 @@ app.player = (function () {
             if(prog.dur) {
                 progw = Math.round((prog.pos / prog.dur) * prog.w); }
             jt.byId("pluiprogdiv").style.width = progw + "px";
-            var posdiv = jt.byId("pluiposdiv");
-            var posw = posdiv.getBoundingClientRect().width;
-            var left = (prog.left + progw) - Math.floor(posw / 2);
+            const posdiv = jt.byId("pluiposdiv");
+            const posw = posdiv.getBoundingClientRect().width;
+            const left = (prog.left + progw) - Math.floor(posw / 2);
             posdiv.style.left = left + "px";
             jt.out("pluitimeposdiv", mmss(prog.pos));
             jt.out("pluitimedurdiv", mmss(prog.dur)); },
@@ -191,7 +190,7 @@ app.player = (function () {
 
 
     //Spotify audio interface
-    //https://developer.spotify.com/documentation/web-playback-sdk/reference/
+    //developer.spotify.com/documentation/web-playback-sdk/reference/
     mgrs.spa = (function () {
         var sdkstate = null;
         var playername = "Digger Spotify Player";
@@ -251,7 +250,7 @@ app.player = (function () {
         getPlayerStatus: function () { return pstat; },
         verifyPlayer: function () {  //called after deck updated
             if(pstat !== "connected") {
-                var steps = ["token", "sdkload", "playerSetup"];
+                const steps = ["token", "sdkload", "playerSetup"];
                 steps.every((step) => mgrs.spa[step]()); } },
         addPlayerListeners: function () {
             var listeners = {
@@ -445,8 +444,8 @@ app.player = (function () {
             var lastPlayed = "Never";
             if(stat.prevPlayed) {
                 lastPlayed = jt.tz2human(stat.prevPlayed); }
-            var flds = [{a:"Last Played", v:lastPlayed},
-                        {a:"File", v:stat.song.path}];
+            const flds = [{a:"Last Played", v:lastPlayed},
+                          {a:"File", v:stat.song.path}];
             return jt.tac2html(["table", flds.map((fld) =>
                 ["tr", {cla:"tuneoptdettr"},
                  [["td", {cla:"tuneoptdetattr"}, fld.a + ": "],
@@ -484,18 +483,18 @@ app.player = (function () {
                  ["img", {cla:"panbackimg", src:"img/panback.png"}]],
                 ["div", {cla:"pandragdiv", id:pc.fld + "pandragdiv"}]]]));
             //pack the control widthwise
-            var pk = {leftlab:{elem:jt.byId(id + "panlld")},
-                      rightlab:{elem:jt.byId(id + "panrld")},
-                      panbg:{elem:jt.byId(id + "panbgdiv")},
-                      panface:{elem:jt.byId(id + "panfacediv")}};
+            const pk = {leftlab:{elem:jt.byId(id + "panlld")},
+                        rightlab:{elem:jt.byId(id + "panrld")},
+                        panbg:{elem:jt.byId(id + "panbgdiv")},
+                        panface:{elem:jt.byId(id + "panfacediv")}};
             Object.keys(pk).forEach(function (key) {
                 pk[key].bbox = pk[key].elem.getBoundingClientRect(); });
-            var left = 8 + pk.leftlab.bbox.width;
+            const left = 8 + pk.leftlab.bbox.width;
             pk.panbg.elem.style.left = left + "px";
             pk.panface.elem.style.left = left + "px";
             ctrls[id].width = left + 44 + pk.rightlab.bbox.width + 5;
-            var pds = [jt.byId(id + "pancontdiv"), jt.byId(id + "pandiv"),
-                       jt.byId(id + "pandragdiv")];
+            const pds = [jt.byId(id + "pancontdiv"), jt.byId(id + "pandiv"),
+                         jt.byId(id + "pandragdiv")];
             pds.forEach(function (panel) {
                 panel.style.width = ctrls[id].width + "px";
                 panel.style.height = "40px"; });
@@ -529,7 +528,7 @@ app.player = (function () {
             var title = "Dial-In " + ctrls[id].pn;
             if(songtitle) {
                 title += " for " + songtitle; }
-            var div = jt.byId(id + "pandiv");
+            const div = jt.byId(id + "pandiv");
             if(div) {
                 div.title = title; } },
         updateControl: function (id, val) {
@@ -542,19 +541,20 @@ app.player = (function () {
                 mgrs.pan.updateTitle(id, stat.song.ti);
                 noteSongModified(); }
             //set knob face color from gradient
-            var g = app.filter.gradient();
-            g = {f:mgrs.pan.hex2RGB(g.left), t:mgrs.pan.hex2RGB(g.right)};
-            var pct = (val + 1) / 100;
-            var res = {r:0, g:0, b:0};
+            const gra = app.filter.gradient();
+            const grd = {f:mgrs.pan.hex2RGB(gra.left),
+                         t:mgrs.pan.hex2RGB(gra.right)};
+            const pct = (val + 1) / 100;
+            const res = {r:0, g:0, b:0};
             Object.keys(res).forEach(function (key) {
                 res[key] = Math.round(
-                    g.f[key] + (g.t[key] - g.f[key]) * pct); });
-            var pfd = jt.byId(id + "panfacediv");
+                    grd.f[key] + (grd.t[key] - grd.f[key]) * pct); });
+            const pfd = jt.byId(id + "panfacediv");
             pfd.style.backgroundColor = "rgb(" + 
                 res.r + ", " + res.g + ", " + res.b + ")";
             //rotate knob to value
-            var anglemax = 145;
-            var rot = Math.round(2 * anglemax * pct) - anglemax;
+            const anglemax = 145;
+            const rot = Math.round(2 * anglemax * pct) - anglemax;
             pfd.style.transform = "rotate(" + rot + "deg)"; }
     };  //end mgrs.pan
 
@@ -573,7 +573,7 @@ app.player = (function () {
                     kd.kw]; },
         toggleKeyword: function (idx) {
             stat.song.kws = stat.song.kws || "";
-            var button = jt.byId("kwdtog" + idx);
+            const button = jt.byId("kwdtog" + idx);
             if(button.className === "kwdtogoff") {
                 button.className = "kwdtogon";
                 stat.song.kws = stat.song.kws.csvappend(button.innerHTML); }
@@ -692,7 +692,7 @@ app.player = (function () {
             //played even though playback never started.  Not worth getting
             //in the way of deck update logic for this functionality.
             mgrs.aud.updateSongDisplay();
-            var odiv = jt.byId("mediaoverlaydiv");
+            const odiv = jt.byId("mediaoverlaydiv");
             odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
                               jt.byId("playertitle").offsetHeight + 2) + "px";
             odiv.style.display = "block";

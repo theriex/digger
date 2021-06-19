@@ -90,7 +90,7 @@ app.svc = (function () {
                             contf(toki.access_token); }, 50); }
                     return true; }
                 return mgrs.spc.refreshToken(contf); }
-            var acct = app.login.getAuth();  //server inits acct.hubdat.spa
+            const acct = app.login.getAuth();  //server inits acct.hubdat.spa
             if(app.startParams.state === acct.token) {  //spotify called back
                 tokflds.forEach(function (fld) {  //set or clear token info
                     toki[fld] = app.startParams[fld];
@@ -108,11 +108,11 @@ app.svc = (function () {
                 pmsg(["Spotify authorization redirect only available from ",
                       ["a", {href:"https://diggerhub.com"}, "diggerhub.com"]]);
                 return false; }
-            var params = {client_id:acct.hubdat.spa.clikey,
-                          response_type:"token",
-                          redirect_uri:acct.hubdat.spa.returi,
-                          state:acct.token,
-                          scope:toki.scopes.join(" ")};
+            const params = {client_id:acct.hubdat.spa.clikey,
+                            response_type:"token",
+                            redirect_uri:acct.hubdat.spa.returi,
+                            state:acct.token,
+                            scope:toki.scopes.join(" ")};
             var spurl = "https://accounts.spotify.com/authorize?" +
                 jt.objdata(params);
             window.location.href = spurl;
@@ -120,12 +120,20 @@ app.svc = (function () {
         sjc: function (relurl, meth, bod, contf, errf) {
             if(bod) {  bod = JSON.stringify(bod); }
             errf = errf || function (stat, msg) {
-                jt.log("spc.sjc error " + stat + ": " + msg); };
+                jt.log("spc.sjc error " + relurl + ": " + stat + ": " + msg);
+                jt.log("    " + meth + " " + bod); };
             fetch("https://api.spotify.com/v1/" + relurl, {
                 method:meth, body:bod, headers:{
                     "Authorization":`Bearer ${toki.access_token}`,
                     "Content-Type":"application/json"}})
-                .then(function (resp) { return resp.json(); })
+                .then(function (resp) {
+                    if(!resp.ok) {
+                        return JSON.stringify(
+                            {error:{status:resp.status,
+                                    message:resp.statusText}}); }
+                    if(resp.status === 204) {  //No Content
+                        return JSON.stringify({status:"No Content"}); }
+                    return resp.json(); })
                 .then(function (obj) {
                     if(obj.error) {
                         return errf(obj.error.status, obj.error.message); }
@@ -153,8 +161,8 @@ app.svc = (function () {
                 jt.log("spc.upldimg " + img.src + " " + img.naturalWidth +
                        " x " + img.naturalHeight);
                 ctx.drawImage(img, 0, 0);
-                var b64dat = canvas.toDataURL("image/jpeg");
-                b64dat = b64dat.replace(/^data:image.+;base64,/, "");
+                const du = canvas.toDataURL("image/jpeg");
+                const b64dat = du.replace(/^data:image.+;base64,/, "");
                 jt.log("b64dat length: " + b64dat.length);
                 mgrs.spc.upldimgb64(relurl, b64dat, contf, errf); };
             img.src = app.dr(source); },
@@ -174,6 +182,57 @@ app.svc = (function () {
                     errf("img upload failed", err); }); }
     };  //end mgrs.spc returned functions
     }());
+
+
+    //Spotify album manager handles fetching album songs for a track.
+    //Album songs available on Spotify change over time, runtime cache only.
+    //developer.spotify.com/documentation/web-api/reference/#category-albums
+    mgrs.spab = (function () {
+        var tinfs = {};  //track info objects by song id
+        var absgs = {};  //album song arrays by spotify album id
+        var abinfs = {}; //album info objects by track id
+    return {
+        fetchAlbum: function (song, contf, errf) {
+            var tinf = tinfs[song.dsId];
+            if(!tinf) {
+                return mgrs.spc.sjc(`tracks/${song.spid.slice(2)}`, "GET", null,
+                    function (obj) {
+                        tinfs[song.dsId] = obj;
+                        mgrs.spab.fetchAlbum(song, contf, errf); }, errf); }
+            const songs = absgs[tinf.album.id];
+            if(songs) {  //already looked this up before
+                return songs; }  //done
+            const abinf = abinfs[tinf.album.id];
+            if(!abinf) {
+                return mgrs.spc.sjc(`albums/${tinf.album.id}`, "GET", null,
+                    function (obj) {
+                        abinfs[tinf.album.id] = obj;
+                        mgrs.spab.fetchAlbum(song, contf, errf); }, errf); }
+            const cabi = {album:abinf.name,
+                          artists:abinf.artists.map((a) => a.name),
+                          tracks:abinf.tracks.items.map(function (t) {
+                              return {name:t.name, tid:t.id,
+                                      dn:t.disc_number, tn:t.track_number}; })};
+            const dat = {abinf:JSON.stringify(cabi)};
+            jt.call("POST", app.dr("/api/spabimp"), app.login.authdata(dat),
+                    function (songs) {  //all songs now in hub db
+                        var pool = mgrs.web.songs();
+                        var merged = [];
+                        songs.forEach(function (song) {
+                            var pk = mgrs.web.key(song);
+                            if(!pool[pk]) {
+                                pool[pk] = song; }
+                            else {  //already have song, verify spid/mod
+                                pool[pk].spid = song.spid;
+                                pool[pk].modified = song.modified; }
+                            merged.push(pool[pk]); });
+                        absgs[tinf.album.id] = merged;
+                        contf(song, merged); },
+                    errf,
+                    jt.semaphore("mgrs.spab.fetchAlbum")); }
+    };  //end mgrs.spab returned functions
+    }());
+
 
 
     //Local manager handles local server interaction
@@ -201,7 +260,7 @@ app.svc = (function () {
             jt.out("countspan", String(dbo.songcount) + " songs");
             Object.entries(dbo.songs).forEach(function ([path, song]) {
                 if(!song.ar) {  //missing artist, ti probably full path
-                    var pes = path.split("/");
+                    const pes = path.split("/");
                     song.ti = pes[pes.length - 1];
                     if(pes.length >= 3) {
                         song.ar = pes[pes.length - 3];
@@ -231,10 +290,10 @@ app.svc = (function () {
             if(dbo.scanstart && dbo.scanned) {
                 jt.log("dbo.scanstart: " + dbo.scanstart);
                 jt.log("  dbo.scanned: " + dbo.scanned);
-                var start = jt.isoString2Time(dbo.scanstart);
-                var end = jt.isoString2Time(dbo.scanned);
-                var elapsed = end.getTime() - start.getTime();
-                elapsed = Math.round(elapsed / (10 * 60)) / 100;
+                const start = jt.isoString2Time(dbo.scanstart);
+                const end = jt.isoString2Time(dbo.scanned);
+                const diffms = end.getTime() - start.getTime();
+                const elapsed = Math.round(diffms / (10 * 60)) / 100;
                 et = "(last scan took about " + elapsed + " minutes)"; }
             return et; },
         cancelRead: function () {
@@ -338,7 +397,7 @@ app.svc = (function () {
     mgrs.web = (function () {
         //var libs = {};  //active libraries to match against for song retrieval
         var pool = {};  //locally cached songs by title/artist/album key
-        var lastfvsj = null;
+        var lastfvsj = null;  //most recent fetch values json
     return {
         key: function (song) {
             var key = song.ti + (song.ar || "") + (song.ab || "");
@@ -353,10 +412,10 @@ app.svc = (function () {
         loadInitialData: function (contf, ignore /*errf*/) {
             var auth = app.login.getAuth();
             if(!auth) {  //Can't use web player if not signed in, redirect home
-                var home = window.location.href.split("/").slice(0,3).join("/");
+                const hm = window.location.href.split("/").slice(0,3).join("/");
                 jt.out("outercontentdiv", jt.tac2html(
-                    ["a", {href:home}, "Sign in required."]));
-                setTimeout(function () { window.location.href = home; }, 2000);
+                    ["a", {href:hm}, "Sign in required."]));
+                setTimeout(function () { window.location.href = hm; }, 2000);
                 return; }
             mgrs.gen.initialDataLoaded();
             jt.out("countspan", "DiggerHub");
@@ -371,7 +430,7 @@ app.svc = (function () {
             else {
                 lastfvsj = fvsj;
                 //cache bust shouldn't be necessary since fvsj changes
-                var ps = app.login.authdata({fvs:fvsj});
+                const ps = app.login.authdata({fvs:fvsj});
                 jt.call("GET", app.dr("/api/songfetch?" + ps), null,
                         function (songs) {
                             songs.forEach(function (song) {
@@ -380,16 +439,7 @@ app.svc = (function () {
                         errf,
                         jt.semaphore("mgrs.web.fetchSongs")); } },
         fetchAlbum: function (song, contf, errf) {
-            //Import Album is a separate library action (if supported)
-            var ps = app.login.authdata({ar:song.ar, ab:song.ab,
-                                         cb:jt.ts("", "minute")});
-            jt.call("GET", app.dr("/api/albumfetch?" + ps), null,
-                    function (songs) {
-                        songs.forEach(function (song) {
-                            pool[mgrs.web.key(song)] = song; });
-                        contf(songs); },
-                    errf,
-                    jt.semaphore("mgrs.web.fetchAlbum")); },
+            mgrs.spab.fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {
             jt.call("POST", "/api/songupd", app.login.authdata(song),
                     function (updsong) {
@@ -457,7 +507,7 @@ app.svc = (function () {
             else {  //localhost or LAN
                 hdm = "loc"; }
             //background image fails to load after redirect Mac FF 88.0.1
-            var cssbg = "url('" + app.dr("/img/panelsbg.png") + "')";
+            const cssbg = "url('" + app.dr("/img/panelsbg.png") + "')";
             jt.byId("contentdiv").style.backgroundImage = cssbg;
             //At a minimum, load the current account so settings are available.
             setTimeout(function () {
