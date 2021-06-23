@@ -46,10 +46,11 @@ app.svc = (function () {
     }());
 
 
-    //Spotify call manager provides factored api utilities
-    //https://developer.spotify.com/documentation/general/guides/scopes/
+    //Spotify call manager provides factored api utilities.
+    //Only the Implicit Grant Flow seems to work for web app clients.
+    //developer.spotify.com/documentation/general/guides/scopes/
     mgrs.spc = (function () {
-        var tokflds = ["access_token", "token_type", "expires_in"];
+        var tokflds = ["state", "access_token", "token_type", "expires_in"];
         var toki = {  //APIs fail if attempted with inadequate privs.
             scopes:["streaming",           //required for web playback
                     "user-read-email",     //required for web playback
@@ -77,19 +78,13 @@ app.svc = (function () {
     return {
         playerMessage: function (tac) {
             pmsg(tac); },
-        refreshToken: function (contf) {
-            toki.access_token = "";  //clear old
-            if(contf) {
-                jt.log("refreshToken not calling continuation function"); }
-            jt.log("refreshToken not implemented yet"); },
         token: function (contf) {  //verify token info, or contf(token)
             if(toki.access_token) {
                 if(new Date().toISOString() < toki.useby) {  //still valid
                     if(contf) {  //probably called from spotify player
                         setTimeout(function () {
                             contf(toki.access_token); }, 50); }
-                    return true; }
-                return mgrs.spc.refreshToken(contf); }
+                    return true; } }
             const acct = app.login.getAuth();  //server inits acct.hubdat.spa
             if(app.startParams.state === acct.token) {  //spotify called back
                 tokflds.forEach(function (fld) {  //set or clear token info
