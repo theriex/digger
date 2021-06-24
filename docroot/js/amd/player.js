@@ -316,7 +316,7 @@ app.player = (function () {
                 mgrs.spa.playSong(pbi.song); } },
         playSong: function (song) {
             pbi.song = song;
-            if(pstat !== "connected") {
+            if(pstat !== "connected" || !pdid) {
                 return; }  //playback starts after connection setup complete.
             //no autoplay, updatePlayState from clicks or state change notice
             pbi.spuri = "spotify:track:" + pbi.song.spid.slice(2);

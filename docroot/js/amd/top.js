@@ -1186,14 +1186,17 @@ app.top = (function () {
                     if(!mgrs.webla.mergeNeeded(obj, spi)) {
                         spi.tmo = null;
                         return; }
+                    //alert("Library import merge start...");
                     jt.out("spimpbspan", "merging...");
                     app.svc.dispatch("web", "importSpotifyTracks", obj.items,
                         function (results) {
                             spi.tmo = null;
                             spi.stat = results[0].settings.spimport;
                             jt.out("spcntspan", spi.stat.processed);
-                            app.deck.dispatch("ws", "noteUpdatedSongs",
-                                              results.slice(1));
+                            const songs = results.slice(1);
+                            app.deck.dispatch("ws", "noteUpdatedSongs", songs);
+                            app.svc.dispatch("web", "addSongsToPool", songs);
+                            app.deck.dispatch("ws", "rebuildIfLow", "spimport");
                             mgrs.webla.spimpNeeded(); },
                         function (code, errtxt) {
                             spi.tmo = null;
@@ -1210,9 +1213,9 @@ app.top = (function () {
                 initsync:"",   //when full import completed
                 processed:0,   //how many sp library tracks checked
                 imported:0};   //how many new DiggerHub songs created
+            if(spi.tmo) { return; }  //already scheduled or ongoing
             jt.log("spimpNeeded " + context + " " + JSON.stringify(spi.stat));
             jt.out("spimpbspan", "fetching...");  //remove button if displayed
-            if(spi.tmo) { return; }  //already scheduled or ongoing
             if(context === "useraction" || !spi.stat.initsync
                || !jt.timewithin(spi.stat.lastcheck, "days", 1)) {
                 spi.tmo = setTimeout(function () {

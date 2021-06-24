@@ -417,6 +417,13 @@ app.svc = (function () {
             jt.byId("countspan").style.fontStyle = "italic";
             jt.byId("countspan").style.opacity = 0.6;
             contf(mgrs.web.makeStartData(auth)); },
+        addSongsToPool: function (songs) {
+            songs.forEach(function (song) {
+                const sk = mgrs.web.key(song);
+                if(pool[sk]) {
+                    mgrs.gen.copyUpdatedSongData(pool[sk], song); }
+                else {
+                    pool[sk] = song; } }); },
         fetchSongs: function (contf, errf) {  //retrieve more songs
             var fvsj = JSON.stringify(app.filter.summary());
             if(lastfvsj && lastfvsj === fvsj) {  //no change, return existing
@@ -428,8 +435,7 @@ app.svc = (function () {
                 const ps = app.login.authdata({fvs:fvsj});
                 jt.call("GET", app.dr("/api/songfetch?" + ps), null,
                         function (songs) {
-                            songs.forEach(function (song) {
-                                pool[mgrs.web.key(song)] = song; });
+                            mgrs.web.addSongsToPool(songs);
                             contf(pool); },
                         errf,
                         jt.semaphore("mgrs.web.fetchSongs")); } },

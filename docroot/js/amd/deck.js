@@ -59,8 +59,8 @@ app.deck = (function () {
         preserveExistingDeckSongs: function () {
             //some people like to anticipate what they saw on deck, so leave
             //the first songs intact to the extent possible
-            wrk.prs = [];  //reset preserved songs
             var decksongs = mgrs.dk.songs();  var di; var si; var currsong;
+            wrk.prs = [];  //reset preserved songs
             for(di = 0; di < decksongs.length && di < 7; di += 1) {
                 currsong = decksongs[di];
                 si = mgrs.ws.findSongIndex(currsong, wrk.songs);
@@ -68,17 +68,16 @@ app.deck = (function () {
                 wrk.prs.push(wrk.songs[si]);
                 wrk.songs.splice(si, 1); } },
         shuffleSongs: function () {  //oldest first, artisanal variety
+            var first = []; var rest = []; var i; var j; var temp;
             var ba = {};  //string keys traverse in insertion order (ES2015)
             wrk.songs.forEach(function (s) {  //oldest songs first
                 var artist = s.ar || "Unknown";
                 if(!ba[artist]) { ba[artist] = []; }
                 ba[artist].push(s); });
-            var first = []; var rest = [];
             Object.values(ba).forEach(function (songs) {
                 first.push(songs.shift());
                 rest = rest.concat(songs); });
             //leave [0] (2nd oldest song), Fisher-Yates shuffle rest
-            var i; var j; var temp;
             for(i = rest.length - 1; i > 0; i -= 1) {
                 j = Math.floor(Math.random() * i);
                 temp = rest[i];
@@ -139,6 +138,9 @@ app.deck = (function () {
                 clearTimeout(wrk.tmo); }  //didn't start yet. reschedule
             //jt.log("deck rebuild " + caller + " scheduled.");
             wrk.tmo = setTimeout(mgrs.ws.rebuildWork, wrk.wait); },
+        rebuildIfLow: function (caller) {
+            if(wrk.songs.length < 5) {
+                mgrs.ws.rebuild(caller); } },
         noteUpdatedSongs: function (updatedsongs) {
             var upds = {};
             updatedsongs.forEach(function (s) { upds[s.dsId] = s; });
@@ -165,7 +167,7 @@ app.deck = (function () {
             var optdivid = "da" + mgrnm + idx;
             if(jt.byId(optdivid).innerHTML)  { //remove content to close
                 return jt.out(optdivid, ""); }
-            var playerr = mgrs.hst.playbackError(mgrnm, idx);
+            const playerr = mgrs.hst.playbackError(mgrnm, idx);
             if(playerr) {
                 return jt.out(optdivid, playerr); }
             jt.out(optdivid, jt.tac2html(
@@ -192,13 +194,13 @@ app.deck = (function () {
             if(mgrs.ws.getSearchText()) {
                 msgs.push("Try clearing search"); }
             else {
-                var filts = app.filter.filters("active");
+                const filts = app.filter.filters("active");
                 if(filts.some((f) => f.actname && f.actname.match(/[+\-]/g))) {
                     msgs.push("Try turning off keywords"); }
                 else if(filts.some((f) =>
                         f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {
                     msgs.push("Try wider energy level and approachability"); }
-                var hdm = app.svc.dispatch("gen", "getHostDataManager");
+                const hdm = app.svc.dispatch("gen", "getHostDataManager");
                 if(hdm === "web") {
                     //No songs might indicate library not imported yet.
                     app.top.dispatch("webla", "spimpNeeded", "nosongs");
@@ -209,7 +211,7 @@ app.deck = (function () {
         displaySongs: function (mgrnm, divid, songs) {
             if(!songs.length) {
                 return jt.out(divid, mgrs.sop.noMatchingSongsHelp()); }
-            var songsdiv = jt.byId(divid);
+            const songsdiv = jt.byId(divid);
             songsdiv.innerHTML = "";
             songs.forEach(function (song, idx) {
                 var sd = document.createElement("div");
@@ -267,7 +269,7 @@ app.deck = (function () {
             app.svc.updateSong(song); },
         markMultipleSongsPlayed: function (count, contf, errf) {
             count = Math.min(count, ds.length);
-            var pss = ds.splice(0, count);
+            const pss = ds.splice(0, count);
             pss.forEach(function (song) {
                 song.lp = new Date().toISOString();
                 mgrs.hst.noteSongPlayed(song); });
@@ -278,9 +280,9 @@ app.deck = (function () {
             ds = ds.filter((s) => s.path !== song.path);
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         popSongFromDeck: function () {
+            var song = null;
             if(mgrs.gen.deckinfo().di === "album") {
                 return mgrs.alb.nextSong(); }
-            var song = null;
             if(ds.length) {
                 song = ds.shift();
                 if(song.bumped) { delete song.bumped; }
@@ -329,7 +331,7 @@ app.deck = (function () {
                 return [["img", {src:"img/arrow12right.png",
                                  cla:"albumarrow"}],
                         song.ti]; }
-            var tn = idx + 1;  //track number
+            const tn = idx + 1;  //track number
             return ["a", {href:"#playsong" + tn, title:"Play track " + tn,
                           cla:"albumsonglink",
                           //dk handles history and deck bookkeeping
@@ -349,7 +351,7 @@ app.deck = (function () {
         nextSong: function () {
             if(aid[cak].ci < aid[cak].songs.length - 1) {
                 aid[cak].ci += 1;
-                var song = aid[cak].songs[aid[cak].ci];
+                const song = aid[cak].songs[aid[cak].ci];
                 mgrs.dk.markSongPlayed(song);
                 mgrs.dk.removeFromDeck(song);
                 mgrs.alb.displayAlbum(song);
@@ -368,7 +370,7 @@ app.deck = (function () {
         playbackError: function (prefix, idx) {
             var playerr = "";
             if(prefix === "hst") {
-                var song = pps[idx];
+                const song = pps[idx];
                 playerr = app.player.playerr(song.path); }
             return playerr; },
         noteSongPlayed: function (song) {
@@ -410,8 +412,8 @@ app.deck = (function () {
     return {
         showSection: function (showing) {
             showing = showing || "songs";
-            var sections = ["songs", "info", "album", "history"];
-            var buttons = ["", "toginfob", "togalb", "toghistb"];
+            const sections = ["songs", "info", "album", "history"];
+            const buttons = ["", "toginfob", "togalb", "toghistb"];
             sections.forEach(function (section, idx) {
                 var togbf = deckstat.toggles[buttons[idx]];
                 if(section === showing) {  //button is already toggled on
@@ -435,8 +437,8 @@ app.deck = (function () {
             div.style.verticalAlign = "middle";
             div.style.cursor = "pointer";
             div.title = spec.ti;
-            var opas = {onimg:0.0, offimg:1.0};
-            var imgstyle = "position:absolute;top:0px;left:0px;" +
+            const opas = {onimg:0.0, offimg:1.0};
+            const imgstyle = "position:absolute;top:0px;left:0px;" +
                 "width:" + spec.w + "px;" + "height:" + spec.h + "px;";
             div.innerHTML = jt.tac2html(
                 [["img", {cla:"ico20", id:spec.id + "onimg", src:spec.onimg,
