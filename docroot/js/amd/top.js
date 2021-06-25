@@ -954,16 +954,18 @@ app.top = (function () {
                     if(!kwdefs[kw]) {
                         kwdefs[kw] = {pos:0, sc:0, ig:0}; }
                     kwdefs[kw].sc += 1; }); }); },
+        verifyKeywordDefinitions: function () {
+            if(!kwdefs || Object.keys(kwdefs).length < 4) {
+                kwdefs = {Social: {pos:1, sc:0, ig:0, dsc:""},
+                          Personal: {pos:2, sc:0, ig:0, dsc:""},
+                          Ambient:{pos:3, sc:0, ig:0, dsc:""},
+                          Dance:{pos:4, sc:0, ig:0, dsc:""}}; } },
         rebuildKeywords: function () {
             kwdefs = mgrs.gen.getAccount().kwdefs;
+            mgrs.kwd.verifyKeywordDefinitions();
             mgrs.kwd.countSongKeywords(); },
-        makeDefaultKeywords: function () {  //bootstrap before initialDataLoaded
-            return {Social: {pos:1, sc:0, ig:0, dsc:""},
-                    Personal: {pos:2, sc:0, ig:0, dsc:""},
-                    Ambient:{pos:3, sc:0, ig:0, dsc:""},
-                    Dance:{pos:4, sc:0, ig:0, dsc:""}}; },
         defsArray: function (actfirst) {
-            kwdefs = kwdefs || mgrs.kwd.makeDefaultKeywords();
+            mgrs.kwd.verifyKeywordDefinitions();
             const kds = Object.entries(kwdefs).map(function ([k, d]) {
                 return {pos:d.pos, sc:d.sc, ig:d.ig, kw:k, dsc:d.dsc}; });
             const aks = kds.filter((kd) => !kd.ig);
@@ -1150,6 +1152,11 @@ app.top = (function () {
             {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
              tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
         var spi = {tmo:null, maxconnretries:3};
+        function impstat (txt) {
+            if(jt.byId("nomusicstatdiv")) {
+                jt.out("nomusicstatdiv", "Spotify library lookup " + txt); }
+            else {  //replace button with import message, or just log it.
+                jt.out("spimpbspan", txt); } }
     return {
         songCount: function () {
             var scs = app.login.getAuth().settings.songcounts;
@@ -1171,7 +1178,7 @@ app.top = (function () {
             else {  //obj.items.length > 0
                 if(spi.stat.lastcheck < obj.items[0].added_at) {
                     return true; } }  //tracks added to lib since last check
-            jt.out("spimpbspan", "checked just now");
+            impstat("checked just now");
             app.login.getAuth().settings.spimport.lastcheck =
                 new Date().toISOString();
             mgrs.gen.updateAccount(
@@ -1187,7 +1194,7 @@ app.top = (function () {
                         spi.tmo = null;
                         return; }
                     //alert("Library import merge start...");
-                    jt.out("spimpbspan", "merging...");
+                    impstat("merging...");
                     app.svc.dispatch("web", "importSpotifyTracks", obj.items,
                         function (results) {
                             spi.tmo = null;
@@ -1200,12 +1207,11 @@ app.top = (function () {
                             mgrs.webla.spimpNeeded(); },
                         function (code, errtxt) {
                             spi.tmo = null;
-                            jt.out("spimpbspan", "merge failed " +
-                                   code + ": " + errtxt); }); },
+                            impstat("merge failed " + code + ": " +
+                                    errtxt); }); },
                 function (stat, msg) {
                     spi.tmo = null;
-                    jt.out("spimpbspan", "fetch failed " +
-                           stat + ": " + msg); }); },
+                    impstat("fetch failed " + stat + ": " + msg); }); },
         spimpNeeded: function (context) {  //return true and start if needed
             context = context || "";
             spi.stat = app.login.getAuth().settings.spimport || {
@@ -1215,7 +1221,7 @@ app.top = (function () {
                 imported:0};   //how many new DiggerHub songs created
             if(spi.tmo) { return; }  //already scheduled or ongoing
             jt.log("spimpNeeded " + context + " " + JSON.stringify(spi.stat));
-            jt.out("spimpbspan", "fetching...");  //remove button if displayed
+            impstat("fetching...");  //remove button if displayed
             if(context === "useraction" || !spi.stat.initsync
                || !jt.timewithin(spi.stat.lastcheck, "days", 1)) {
                 spi.tmo = setTimeout(function () {
@@ -1225,7 +1231,7 @@ app.top = (function () {
                             spi.tmo = null;
                             return mgrs.webla.spimpNeeded(); } }
                     else { //not connected, try waiting
-                        jt.out("spimpbspan", "Waiting for connection...");
+                        impstat("Waiting for connection...");
                         if(spi.maxconnretries > 0) {
                             spi.maxconnretries -= 1;
                             spi.tmo = null;
@@ -1233,7 +1239,7 @@ app.top = (function () {
                     //player may not be ready due to no songs, try import.
                     mgrs.webla.spimpProcess(); }, 2000); }
             else {  //clear interim status, nothing to do.
-                jt.out("spimpbspan", "checked Today"); } },
+                impstat("checked Today"); } },
         splibStat: function () {
             var linkattrs = {onclick:mdfs("webla.spimpNeeded", "useraction"),
                              title:"Read liked tracks from Spotify"};

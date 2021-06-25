@@ -207,7 +207,8 @@ app.deck = (function () {
                     msgs.push("Add a guide to find more music"); }
                 else {  //"loc"
                     msgs.push("Import more music"); } }
-            return msgs.join(". ") + "."; },
+            return jt.tac2html([msgs.join(". ") + ".",
+                                ["div", {id:"nomusicstatdiv"}]]); },
         displaySongs: function (mgrnm, divid, songs) {
             if(!songs.length) {
                 return jt.out(divid, mgrs.sop.noMatchingSongsHelp()); }
