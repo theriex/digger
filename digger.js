@@ -1,4 +1,4 @@
-/*jslint node, white, fudge */
+/*jslint node, white, unordered */
 
 var path = require("path");
 var hub = require("./server/hub");
@@ -7,6 +7,7 @@ db.init(function (conf) {
     var nodestatic = require("node-static");
     //Not specifying any header options here, default caching is one hour.
     var fileserver = new nodestatic.Server(path.join(db.appdir(), "docroot"));
+    var sd = conf.spawn && conf.spawn[require("os").platform()];
 
     function params2Obj (str) {
         var po = {};
@@ -42,8 +43,8 @@ db.init(function (conf) {
     //start the server
     require("http").createServer(function (req, rsp) {
         try {
-            var quieturls = ["/songscount", "/mergestat"];
-            var pu = parsedURL(req.url);
+            const quieturls = ["/songscount", "/mergestat"];
+            const pu = parsedURL(req.url);
             if(!quieturls.includes(pu.baseurl)) {
                 console.log(req.url); }
             //POST requests (with optional GET support):
@@ -57,7 +58,7 @@ db.init(function (conf) {
             case "/acctok": hub.acctok(req, rsp); break;
             case "/updacc": hub.updacc(req, rsp); break;
             case "/hubsync": hub.hubsync(req, rsp); break;
-            case "/addguide": hub.addguide(req, rsp); break;
+            case "/addmusf": hub.addmusf(req, rsp); break;
             default: //handle after request is fully stabilized
                 req.addListener("end", function () {
                     //GET requests:
@@ -70,7 +71,7 @@ db.init(function (conf) {
                         case "/songscount": db.songscount(req, rsp); break;
                         case "/mergestat": db.mergestat(req, rsp); break;
                         case "/mailpwr": hub.mailpwr(pu, req, rsp); break;
-                        case "/guidedat": hub.guidedat(pu, req, rsp); break;
+                        case "/musfdat": hub.musfdat(pu, req, rsp); break;
                         case "/ratimp": hub.ratimp(pu, req, rsp); break;
                         case "/gdclear": hub.gdclear(pu, req, rsp); break;
                         case "/audio": db.audio(pu, req, rsp); break;
@@ -85,7 +86,6 @@ db.init(function (conf) {
 
     console.log("Digger running at http://localhost:" + conf.port);
 
-    var sd = conf.spawn && conf.spawn[require("os").platform()];
     if(sd) {
         console.log(sd.command + " " + sd.args.join(" "));
         //Launching Safari results in an options.env field being added, so

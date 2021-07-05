@@ -1,9 +1,9 @@
-//Checks how many songs are in common with the given guide
+//Checks how many songs are in common with the given musf
 var fs = require("fs");
 var ddfp = "/Users/theriex/digdat.json";
 var digdat = fs.readFileSync(ddfp);
 digdat = JSON.parse(digdat);
-var gdfp = "/Users/theriex/diggercache/guide_2020.json";
+var gdfp = "/Users/theriex/diggercache/musf_2020.json";
 var gdat = fs.readFileSync(gdfp);
 gdat = JSON.parse(gdat);
 

@@ -204,7 +204,7 @@ app.deck = (function () {
                 if(hdm === "web") {
                     //No songs might indicate library not imported yet.
                     app.top.dispatch("webla", "spimpNeeded", "nosongs");
-                    msgs.push("Add a guide to find more music"); }
+                    msgs.push("Add a friend to find more music"); }
                 else {  //"loc"
                     msgs.push("Import more music"); } }
             return jt.tac2html([msgs.join(". ") + ".",

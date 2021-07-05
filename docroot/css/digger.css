@@ -82,17 +82,17 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #hubacctseldiv table { margin:0px auto; }
 .dachoicediv { min-width:100px; }
 
-.guidelinksspan { font-size:small; }
+.musflinksspan { font-size:small; }
 .sepcomspan { padding:0px 5px 0px 0px; }
-#guidelabelspan { font-size:medium; font-weight:bold; }
-#guideinfonamespan { font-size:medium; }
+#musflabelspan { font-size:medium; font-weight:bold; }
+#musfinfonamespan { font-size:medium; }
 
-#guidesdiv { font-size:medium; }
-#gddispdiv { margin:6px 0px; }
-.gdcbtrdiv, .gdstseldiv { display:inline-block; }
-.gdcbtrdiv { margin-right:2px; }
-.gdstseldiv { margin-left:4px; }
-#gdaddbutton { margin-left:8px; }
+#mfsdiv { font-size:medium; }
+#mfbdiv { display:inline-block; padding:0px 0px 0px 6px; }
+#amfsdiv { margin-top:10px; font-size:medium; }
+#amfsdiv select { margin:0px 6px 0px 6px; }
+.mflinenospan { cursor:pointer; }
+.mflinenospandis { opacity:0.4; }
 
 #ciheadingdiv { font-size:small; padding:0px 0px 7px 0px; font-style:italic; }
 .filenamespan { font-style:normal; }

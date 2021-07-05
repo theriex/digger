@@ -360,18 +360,18 @@ app.svc = (function () {
             //endpoint is either /newacct or /acctok
             jt.call("POST", "/" + endpoint, data, contf, errf,
                     jt.semaphore("svc.loc.signInOrJoin")); },
-        fetchGuideData: function (gid, params, contf, errf) {
-            jt.call("GET", app.cb("/guidedat", params), null, contf, errf,
-                    jt.semaphore("svc.loc.fetchGuideData" + gid)); },
-        mergeGuideData: function (gid, params, contf, errf) {
+        fetchFriendData: function (gid, params, contf, errf) {
+            jt.call("GET", app.cb("/musfdat", params), null, contf, errf,
+                    jt.semaphore("svc.loc.fetchFriendData" + gid)); },
+        mergeFriendData: function (gid, params, contf, errf) {
             jt.call("GET", app.cb("/ratimp", params), null, contf, errf,
-                    jt.semaphore("svc.loc.mergeGuideData" + gid)); },
-        removeGuideRatings: function (gid, params, contf, errf) {
+                    jt.semaphore("svc.loc.mergeFriendData" + gid)); },
+        removeFriendRatings: function (gid, params, contf, errf) {
             jt.call("GET", app.cb("/gdclear", params), null, contf, errf,
-                    jt.semaphore("svc.loc.removeGuideRatings" + gid)); },
-        addGuide: function (data, contf, errf) {
-            jt.call("POST", "/addguide", data, contf, errf,
-                    jt.semaphore("svc.loc.addGuide")); },
+                    jt.semaphore("svc.loc.removeFriendRatings" + gid)); },
+        addFriend: function (data, contf, errf) {
+            jt.call("POST", "/addmusf", data, contf, errf,
+                    jt.semaphore("svc.loc.addFriend")); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {
@@ -454,14 +454,14 @@ app.svc = (function () {
             var updobj = {songs:JSON.stringify(updss)};  //100 songs ~= 61k
             jt.call("POST", "api/multiupd", app.login.authdata(updobj),
                     contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
-        addGuide: function (gdem, contf, errf) {
-            jt.call("POST", "/api/addguide", app.login.authdata({gmaddr:gdem}),
+        addFriend: function (mfem, contf, errf) {
+            jt.call("POST", "/api/addmusf", app.login.authdata({mfaddr:mfem}),
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);
                         contf(app.login.dispatch("act", "noteUpdatedAccount",
                                                  digacc)); },
                     errf,
-                    jt.semaphore("mgrs.web.addGuide")); },
+                    jt.semaphore("mgrs.web.addFriend")); },
         getSongTotals: function (contf, errf) {
             jt.call("POST", "/api/songttls", app.login.authdata(),
                     function (results) {

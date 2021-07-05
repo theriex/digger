@@ -55,7 +55,7 @@ module.exports = (function () {
     function writeDatabaseObject () {
         dbo.version = diggerVersion();
         //write the json with newlines so it can be read in a text editor
-        var json = JSON.stringify(dbo, null, 2);
+        const json = JSON.stringify(dbo, null, 2);
         //max 1 ongoing file write at a time, so use fs.writeFileSync.
         jslf(fs, "writeFileSync", conf.dbPath, json, "utf8");
     }
@@ -116,17 +116,16 @@ module.exports = (function () {
     function safeCopyJSONFile (source, target) {
         //copyFileSync fails when running within pkg, so do manually.
         console.log("safeCopyJSONFile reading " + source);
-        var cc = jslf(fs, "readFileSync", source, "utf8");  //read as string
+        const cc = jslf(fs, "readFileSync", source, "utf8");  //read as string
         console.log("safeCopyJSONFile writing " + target);
         jslf(fs, "writeFileSync", target, cc, "utf8");
     }
 
 
     function backupFileName (name) {
+        var prefix = name; var suffix = "";
         var ts = new Date().toISOString();
         ts = ts.replace(/[\-:.]/g, "");
-        var prefix = name;
-        var suffix = "";
         if(name.indexOf(".") > 0) {
             prefix = name.slice(0, name.lastIndexOf("."));
             suffix = name.slice(name.lastIndexOf(".")); }
@@ -219,12 +218,13 @@ module.exports = (function () {
 
 
     function addSongToDb (fn, tagdata) {
+        var rpath; var rec;
         dbo.songcount += 1;
-        var rpath = fn.slice(conf.musicPath.length);  //make path relative
+        rpath = fn.slice(conf.musicPath.length);  //make path relative
         if(rpath.startsWith(path.sep)) {
             rpath = rpath.slice(1); }
         mostRecentRelativePathRead = rpath;
-        var rec = dbo.songs[rpath];
+        rec = dbo.songs[rpath];
         if(rec) {  //updating existing entry
             //console.log(dbo.songcount + " updating " + rpath);
             if(rec.fq.startsWith("D")) {  //remove deletion mark since found
@@ -251,7 +251,7 @@ module.exports = (function () {
             ws.response.end(JSON.stringify(dbo));
             state = "ready";
             return; }  //done reading
-        var fn = ws.files.pop();
+        const fn = ws.files.pop();
         if(jslf(fs, "lstatSync", fn).isDirectory()) {
             fs.readdir(fn, function (err, files) {
                 if(err) {
@@ -277,8 +277,9 @@ module.exports = (function () {
 
 
     function readFiles (req, res) {
+        var root;
         if(state === "reading") {
-            var msg = "readFiles already in progress";
+            const msg = "readFiles already in progress";
             res.statusCode = 409;
             res.statusMessage = msg;
             res.end();
@@ -291,7 +292,7 @@ module.exports = (function () {
             var fq = dbo.songs[key].fq;
             if(!fq.startsWith("D")) {  //already marked as deleted
                 dbo.songs[key].fq = "D" + fq; } });
-        var root = conf.musicPath;
+        root = conf.musicPath;
         if(root.endsWith("/")) {
             root = root.slice(0, -1); }
         walkFiles({request:req, response:res, files:[root]});
@@ -338,20 +339,21 @@ module.exports = (function () {
     //Could add a flag to the form to do an inner join if needed, then just
     //skip adding.
     function mergeEntry (key, dat) {
+        var dbd; var prefix;
         if(!key || !dat) {
             return console.log("bad mergeEntry " + key + ": " + dat); }
         normalizeIntegerValues(dat);
-        var dbd = dbo.songs[key];
+        dbd = dbo.songs[key];
         if(!dbd) {
-            var cankey = canonicalKeyForSong(dat);
-            var dbkey = mrg.dict[cankey];
+            const cankey = canonicalKeyForSong(dat);
+            const dbkey = mrg.dict[cankey];
             if(dbkey) {
                 dbd = dbo.songs[dbkey]; } }
         if(dbd) {  //supplement local entry if better info
             //fq: use dat frequency if db is default and dat is not.
             if((dat.fq && dat.fq.indexOf("N") < 0 && dat.fq.indexOf("P") < 0) &&
                (dbd.fq.indexOf("N") >= 0 || dbd.fq.indexOf("P") >= 0)) {
-                var prefix = "";  //preserve existing marker prefix if any
+                prefix = "";  //preserve existing marker prefix if any
                 if(dbd.fq.startsWith("U") || dbd.fq.startsWith("D")) {
                     prefix = dbd.fq.slice(0, 1); }
                 dbd.fq = dat.fq;
@@ -437,14 +439,14 @@ module.exports = (function () {
             res.writeHead(200, {"Content-Type": "text/html"});
             res.end("Ready"); }
         else {  //POST
-            var form = new formidable.IncomingForm();  //utf-8 by default
+            const form = new formidable.IncomingForm();  //utf-8 by default
             form.uploadDir = ".";
             // console.log("mergeFile uploadDir: " + form.uploadDir);
             form.parse(req, function (err, ignore /*fields*/, files) {
                 if(err) {
                     throw err; }
                 //have file with no contents if no file specified.
-                var mpath = files.mergefilein.path;
+                const mpath = files.mergefilein.path;
                 mrg.stat.state = "received";
                 fs.readFile(mpath, "utf8", function (err, data) {
                     if(err) {
@@ -474,7 +476,7 @@ module.exports = (function () {
                 console.log("updateSong form error: " + err); }
             //PENDING: error/val checking if opening up the app scope..
             //PENDING: handle segues after there is UI for it
-            var song = dbo.songs[fields.path];
+            const song = dbo.songs[fields.path];
             if(!song) {
                 return resError(res, "No song " + fields.path, 404); }
             if(fields.settings) {
@@ -490,7 +492,7 @@ module.exports = (function () {
             song.ab = fields.ab || "";
             song.ti = fields.ti || "";
             normalizeIntegerValues(song);
-            require("./hub").verifyGuideRating(song);
+            require("./hub").verifyFriendRating(song);
             writeDatabaseObject();
             song.path = fields.path;
             console.log("Updated " + song.path);
@@ -511,10 +513,10 @@ module.exports = (function () {
         if(!exp.stat.remaining.length) {
             exp.stat.state = "Done";
             return; }
-        var song = exp.stat.remaining.pop();
-        var src = path.join(conf.musicPath, song);
-        var exn = song.split(path.sep).pop();
-        var dest = path.join(conf.exPath, exn);
+        const song = exp.stat.remaining.pop();
+        const src = path.join(conf.musicPath, song);
+        const exn = song.split(path.sep).pop();
+        const dest = path.join(conf.exPath, exn);
         fs.copyFile(src, dest, function (err) {
             if(err) {
                 exp.stat.state = "Failed";
@@ -531,7 +533,7 @@ module.exports = (function () {
             res.end(JSON.stringify(exp)); }
         else { //POST
             exp.stat = {state:"Copying", copied:0};
-            var fif = new formidable.IncomingForm();
+            const fif = new formidable.IncomingForm();
             fif.parse(req, function (err, fields) {
                 if(err) {
                     exp.stat.state = "Failed";
@@ -553,26 +555,27 @@ module.exports = (function () {
 
 
     function serveAudio (pu, req, res) {
-        var fn = path.join(conf.musicPath, pu.query.path);
+        var rspec; var rescode; var resb;
+        const fn = path.join(conf.musicPath, pu.query.path);
         if(caud.path !== fn) {
             caud.path = fn;
             caud.buf = jslf(fs, "readFileSync", fn);
-            var ext = fn.slice(fn.lastIndexOf(".")).toLowerCase();
+            const ext = fn.slice(fn.lastIndexOf(".")).toLowerCase();
             caud.ct = fects[ext] || "audio/" + ext.slice(1); }
-        var resh = {"Content-Type": caud.ct,
+        const resh = {"Content-Type": caud.ct,
                     "Content-Length": caud.buf.length,
                     "Accept-Ranges": "bytes"};
-        var rescode = 200;
-        var resb = caud.buf;
+        rescode = 200;
+        resb = caud.buf;
         //console.log(req.headers);
         if(req.headers.range) {  //e.g. "bytes=0-1" (inclusive range)
-            var rspec = req.headers.range.split("=")[1];
+            rspec = req.headers.range.split("=")[1];
             rspec = rspec.split("-");
             if(!rspec[1]) {  //second range index may be omitted
                 rspec[1] = String(caud.buf.length - 1); }
             rspec = rspec.map((x) => parseInt(x, 10));
-            var start = rspec[0];
-            var end = rspec[1];
+            const start = rspec[0];
+            const end = rspec[1];
             resh["Content-Range"] = "bytes " + start + "-" + end + "/" +
                 caud.buf.length;
             resh["Content-Length"] = (end + 1) - start;
@@ -591,11 +594,12 @@ module.exports = (function () {
 
 
     function changeConfig (req, res) {
-        var updat = new formidable.IncomingForm();
+        var vmf;
+        const updat = new formidable.IncomingForm();
         updat.parse(req, function (err, fields) {
             if(err) {
                 return resError(res, "changeConfig form error: " + err); }
-            var vmf = false;  //valid music folder
+            vmf = false;  //valid music folder
             try {
                 vmf = jslf(fs, "lstatSync", fields.musicPath).isDirectory();
             } catch(ignore) {}

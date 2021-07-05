@@ -1,4 +1,4 @@
-/*jslint node, white, fudge, long */
+/*jslint node, white, long, unordered */
 
 module.exports = (function () {
     "use strict";
@@ -21,7 +21,7 @@ module.exports = (function () {
             Solstice:{pos:0, sc:0, ig:0, dsc:"Holiday seasonal."}};
         conf.acctsinfo = conf.acctsinfo || {currid:"", accts:[]};
         if(!conf.acctsinfo.accts.find((x) => x.dsId === "101")) {
-            var diggerbday = "2019-10-11T00:00:00Z";
+            const diggerbday = "2019-10-11T00:00:00Z";
             conf.acctsinfo.accts.push(
                 {dsType:"DigAcc", dsId:"101", firstname:"Digger",
                  created:diggerbday, modified:diggerbday + ";1",
@@ -46,20 +46,20 @@ module.exports = (function () {
     }
 
 
-    function getGuideById (gid) {
+    function getFriendById (gid) {
         if(!gid) { return null; }
-        var ca = getCurrentAccount();
-        if(!ca || !ca.guides || !ca.guides.length) {
+        const ca = getCurrentAccount();
+        if(!ca || !ca.musfs || !ca.musfs.length) {
             return null; }
-        var guide = ca.guides.find((g) => g.dsId === gid);
-        return guide;
+        const musf = ca.musfs.find((g) => g.dsId === gid);
+        return musf;
     }
 
 
     function isIgnoreDir (ws, dirname) {
         if(!ws.curracct) {
             ws.curracct = getCurrentAccount(); }
-        var igfolds = ws.curracct.igfolds;
+        const igfolds = ws.curracct.igfolds;
         if(igfolds.includes(dirname)) {
             return true; }
         if(!ws.wildms) {  //init wildcard ending match strings array
@@ -77,7 +77,7 @@ module.exports = (function () {
 
 
     function deserializeAccountFields (acct) {
-        var sfs = ["kwdefs", "igfolds", "settings", "guides"];
+        var sfs = ["kwdefs", "igfolds", "settings", "musfs"];
         sfs.forEach(function (sf) {
             //console.log("parsing " + sf + ": " + acct[sf]);
             if(acct[sf]) {  //"" won't parse
@@ -105,7 +105,7 @@ module.exports = (function () {
                   ti:s.ti, ar:s.ar, ab:s.ab,
                   lp:s.lp};     //Played on other setup, but good to have value
             dbo.songs[s.path] = ls; }
-        var flds = ["modified", "dsId", "rv", "al", "el", "kws", "nt"];
+        const flds = ["modified", "dsId", "rv", "al", "el", "kws", "nt"];
         if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
             flds.push("fq"); }
         flds.forEach(function (fld) { ls[fld] = s[fld]; });
@@ -117,14 +117,14 @@ module.exports = (function () {
     function processReceivedSyncData (updates) {
         updates = JSON.parse(updates);
         updates[0].diggerVersion = db.diggerVersion();
-        var retval = JSON.stringify(updates);
-        var updacc = updates[0];
+        const retval = JSON.stringify(updates);
+        const updacc = updates[0];
         deserializeAccountFields(updacc);
         writeUpdatedAccount(updacc);  //reflect modified timestamp
         //write any returned updated songs
-        var updsongs = updates.slice(1);  //zero or more newer songs
+        const updsongs = updates.slice(1);  //zero or more newer songs
         if(updsongs.length) {
-            var dbo = db.dbo();
+            const dbo = db.dbo();
             updsongs.forEach(function (s) {
                 updateLocalSong(dbo, s); });
             db.writeDatabaseObject(); }
@@ -139,62 +139,63 @@ module.exports = (function () {
     }
 
 
-    function guideDataFileName (gid) {
+    function musfDataFileName (gid) {
         if(!db.fileExists(db.conf().cachePath)) {
             db.mkdir(db.conf().cachePath); }
-        var gdf = path.join(db.conf().cachePath, "guide_" + gid + ".json");
+        const gdf = path.join(db.conf().cachePath, "musf_" + gid + ".json");
         return gdf;
     }
 
 
-    function recountFilledByGuide (gid) {
+    function recountFilledByFriend (gid) {
         var filled = 0;  //array.reduce is fugly with if
         Object.values(db.dbo().songs).forEach(function (song) {
-            if(song.guiderated && song.guiderated.startsWith(gid)) {
+            if(song.musfrated && song.musfrated.startsWith(gid)) {
                 filled += 1; } });
         return filled;
     }
 
 
-    function loadLocalGuideData (gid) {
+    function loadLocalFriendData (gid) {
+        var gfc;
         var gdat = {version:db.diggerVersion(),
-                    songcount:0,     //total songs from this guide
+                    songcount:0,     //total songs from this musf
                     songs:{}};       //canonicalsongname:songdata
-        var guide = getGuideById(gid);
-        if(guide) {
-            var gdf = guideDataFileName(gid);
+        var musf = getFriendById(gid);
+        if(musf) {
+            const gdf = musfDataFileName(gid);
             if(db.fileExists(gdf)) {
-                var gfc = null;
+                gfc = null;
                 try {
                     gfc = JSON.parse(db.readFile(gdf));
                 } catch(e) {
-                    console.log("hub.loadLocalGuideData " + gdf + " err: " + e);
+                    console.log("hub.loadLocalFriendData " + gdf + " e: " + e);
                 }
                 if(gfc && gfc.version !== db.diggerVersion()) {
                     gfc = null; }
                 if(gfc) {
                     gdat = gfc; }
-                else {  //previous guide data unavailable, reset guide info.
-                    guide.lastrating = "";
-                    guide.lastcheck = "";
-                    guide.filled = recountFilledByGuide(guide.dsId); } } }
-        return [guide, gdat];
+                else {  //previous musf data unavailable, reset musf info.
+                    musf.lastrating = "";
+                    musf.lastcheck = "";
+                    musf.filled = recountFilledByFriend(musf.dsId); } } }
+        return [musf, gdat];
     }
 
 
-    function writeLocalGuideData (gid, gdat) {
-        var gdf = guideDataFileName(gid);
+    function writeLocalFriendData (gid, gdat) {
+        var gdf = musfDataFileName(gid);
         db.writeFile(gdf, JSON.stringify(gdat, null, 2));
     }
 
 
     //see ../docroot/docs/guidenotes.txt
     function songLookupKey (s, ignore /*p*/) {
+        var sk = "";
         if(!s.ti) {
             //console.log("song has no title. p: " + p);
             return null; }
-        var sk = "";
-        var flds = ["ti", "ar", "ab"];
+        const flds = ["ti", "ar", "ab"];
         flds.forEach(function (fld) {
             var val = s[fld] || "";
             val.trim();
@@ -204,21 +205,21 @@ module.exports = (function () {
     }
 
 
-    function updateLocalGuideData (gdat, hubret, guide) {
+    function updateLocalFriendData (gdat, hubret, musf) {
         var songs = JSON.parse(hubret);
         songs.forEach(function (song) {
             var key = songLookupKey(song);
             gdat.songs[key] = song;
-            if(song.modified > guide.lastrating) {
-                guide.lastrating = song.modified; } });
+            if(song.modified > musf.lastrating) {
+                musf.lastrating = song.modified; } });
         if(songs.length) {  //received some newer ratings
             gdat.songcount = Object.keys(gdat.songs).length;
-            writeLocalGuideData(guide.dsId, gdat);
-            guide.songcount = gdat.songcount;
-            guide.lastcheck = guide.lastrating; }  //note need to fetch more
+            writeLocalFriendData(musf.dsId, gdat);
+            musf.songcount = gdat.songcount;
+            musf.lastcheck = musf.lastrating; }  //note need to fetch more
         else {  //lastcheck > lastrating means up to date
-            guide.lastcheck = new Date().toISOString(); }
-        db.writeConfigurationFile();  //save updated guide info
+            musf.lastcheck = new Date().toISOString(); }
+        db.writeConfigurationFile();  //save updated musf info
     }
 
 
@@ -284,10 +285,10 @@ module.exports = (function () {
 
     function hubget (apiname, params, res, procf) {
         params.cachebust = params.cachebust || makeCacheBustToken();
-        var data = Object.entries(params)
+        const data = Object.entries(params)
             .map(function ([a, v]) { return a + "=" + encodeURIComponent(v); })
             .join("&");
-        var ctx = {rps:params, url:hs + "/api/" + apiname + "?" + data};
+        const ctx = {rps:params, url:hs + "/api/" + apiname + "?" + data};
         console.log(apiname + " -> " + ctx.url);
         fetch(ctx.url)
             .then(function (hubr) {
@@ -319,7 +320,7 @@ module.exports = (function () {
         fif.parse(req, function (err, fields) {
             if(err) {
                 return resError(res, "accountsInfo form error " + err); }
-            var conf = db.conf();
+            const conf = db.conf();
             conf.acctsinfo = conf.acctsinfo || {currid:0, accts:[]};
             if(fields.acctsinfo) {  //data passed in. update.
                 conf.acctsinfo = JSON.parse(fields.acctsinfo);
@@ -332,7 +333,7 @@ module.exports = (function () {
     function mailpwr (pu, ignore /*req*/, res) {
         if(!pu.query.email) {
             return resError(res, "Wrong password email required."); }
-        var params = {email:pu.query.email};
+        const params = {email:pu.query.email};
         return hubget("mailpwr", params, res);
     }
 
@@ -344,76 +345,76 @@ module.exports = (function () {
     }
 
 
-    function addguide (req, res) {
-        return hubpost(req, res, "addguide", function (hubret) {
+    function addmusf (req, res) {
+        return hubpost(req, res, "addmusf", function (hubret) {
             noteUpdatedAccount(hubret); });
     }
 
 
-    function guidedat (pu, ignore /*req*/, res) {
-        var guide; var gdat; [guide, gdat] = loadLocalGuideData(pu.query.gid);
-        if(!guide) {
-            return resError(res, "Guide " + pu.query.gid + " not found."); }
-        guide.lastrating = "";
+    function musfdat (pu, ignore /*req*/, res) {
+        var musf; var gdat; [musf, gdat] = loadLocalFriendData(pu.query.gid);
+        if(!musf) {
+            return resError(res, "Friend " + pu.query.gid + " not found."); }
+        musf.lastrating = "";
         Object.values(gdat.songs).forEach(function (s) {
-            if(s.modified > guide.lastrating) {
-                guide.lastrating = s.modified; } });
-        var params = {email:pu.query.email, at:pu.query.at, gid:pu.query.gid,
-                      since:guide.lastrating};
-        return hubget("guidedat", params, res, function (hubret) {
-            updateLocalGuideData(gdat, hubret, guide);
-            return JSON.stringify(guide); });
+            if(s.modified > musf.lastrating) {
+                musf.lastrating = s.modified; } });
+        const params = {email:pu.query.email, at:pu.query.at, gid:pu.query.gid,
+                        since:musf.lastrating};
+        return hubget("musfdat", params, res, function (hubret) {
+            updateLocalFriendData(gdat, hubret, musf);
+            return JSON.stringify(musf); });
     }
 
 
-    var gdutil = (function () {
+    const gdutil = (function () {
         var gdflds = ["el", "al", "rv", "kws"];
     return {
-        fillSong: function (guide, guidesong, ddsong) {
+        fillSong: function (musf, musfsong, ddsong) {
             gdflds.forEach(function (cf) {
-                ddsong[cf] = guidesong[cf]; });
+                ddsong[cf] = musfsong[cf]; });
             //tighter and no serialization confusion with a ';' sep value.
-            ddsong.guiderated = guide.dsId;
+            ddsong.musfrated = musf.dsId;
             gdflds.forEach(function (cf) {
-                ddsong.guiderated += ":" + guidesong[cf]; });
-            guide.filled += 1;
-            guide.lastimport = new Date().toISOString(); },
-        verifyGuideRating: function (song) {
-            if(!song.guiderated) { return; }
-            var gvals = song.guiderated.split(";").slice(1);
-            var chg = gdflds.find((fld, idx) =>
+                ddsong.musfrated += ":" + musfsong[cf]; });
+            musf.filled += 1;
+            musf.lastimport = new Date().toISOString(); },
+        verifyFriendRating: function (song) {
+            if(!song.musfrated) { return; }
+            const gvals = song.musfrated.split(";").slice(1);
+            const chg = gdflds.find((fld, idx) =>
                 String(song[fld]) !== gvals[idx]);
             if(chg) {
-                console.log("Removed guiderated due to changed " + chg);
-                delete song.guiderated; } }
+                console.log("Removed musfrated due to changed " + chg);
+                delete song.musfrated; } }
     };  //end returned gdutil functions
     }());
 
 
     function ratimp (pu, ignore /*req*/, res) {
-        var guide; var gdat; [guide, gdat] = loadLocalGuideData(pu.query.gid);
-        if(!guide) {
-            return resError(res, "Guide " + pu.query.gid + " not found."); }
-        guide.songcount = gdat.songcount || 0;  //verify value filled in
-        guide.filled = guide.filled || 0;
-        var ces = [];  //Collab entries for filled in ratings
-        var dbo = db.dbo();
+        var musf; var gdat; [musf, gdat] = loadLocalFriendData(pu.query.gid);
+        if(!musf) {
+            return resError(res, "Friend " + pu.query.gid + " not found."); }
+        musf.songcount = gdat.songcount || 0;  //verify value filled in
+        musf.filled = musf.filled || 0;
+        const ces = [];  //Collab entries for filled in ratings
+        const dbo = db.dbo();
         Object.entries(dbo.songs).forEach(function ([p, s]) {
             if(isUnratedSong(s)) {
-                var key = songLookupKey(s, p);
+                const key = songLookupKey(s, p);
                 if(key) {
                     if(gdat.songs[key] && !isUnratedSong(gdat.songs[key])) {
                         console.log("ratimp " + key);
-                        gdutil.fillSong(guide, gdat.songs[key], s);
+                        gdutil.fillSong(musf, gdat.songs[key], s);
                         ces.push({ctype:"inrat", rec:pu.query.aid,
-                                  src:guide.dsId,
+                                  src:musf.dsId,
                                   ssid:gdat.songs[key].dsId}); } } } });
-        var fldsobj = {email:pu.query.email, at:pu.query.at,
-                       cacts:JSON.stringify(ces)};
+        const fldsobj = {email:pu.query.email, at:pu.query.at,
+                         cacts:JSON.stringify(ces)};
         return hubPostFields(res, "collabs", function () {
             db.writeDatabaseObject();  //record updated ratings
-            db.writeConfigurationFile();  //save updated guide info
-            return JSON.stringify([guide, dbo]); },
+            db.writeConfigurationFile();  //save updated musf info
+            return JSON.stringify([musf, dbo]); },
                              fldsobj);
     }
 
@@ -421,12 +422,12 @@ module.exports = (function () {
     function gdclear (pu, ignore /*req*/, res) {
         var gid = pu.query.gid;
         Object.values(db.dbo().songs).forEach(function (s) {
-            if(s.guiderated && s.guiderated.startsWith(gid)) {
+            if(s.musfrated && s.musfrated.startsWith(gid)) {
                 s.el = 49;
                 s.al = 49;
                 s.rv = 5;
                 s.kws = "";
-                delete s.guiderated; } });
+                delete s.musfrated; } });
         db.writeDatabaseObject();  //record updated ratings
         res.writeHead(200, {"Content-Type": "application/json"});
         res.end(JSON.stringify(db.dbo()));
@@ -437,7 +438,7 @@ module.exports = (function () {
         //server utilities
         verifyDefaultAccount: function (conf) { verifyDefaultAccount(conf); },
         isIgnoreDir: function (ws, dn) { return isIgnoreDir(ws, dn); },
-        verifyGuideRating: function (song) { gdutil.verifyGuideRating(song); },
+        verifyFriendRating: function (s) { gdutil.verifyFriendRating(s); },
         //server endpoints
         acctsinfo: function (req, res) { return accountsInfo(req, res); },
         newacct: function (req, res) { return hubpost(req, res, "newacct"); },
@@ -445,8 +446,8 @@ module.exports = (function () {
         updacc: function (req, res) { return hubpost(req, res, "updacc"); },
         mailpwr: function (pu, req, res) { return mailpwr(pu, req, res); },
         hubsync: function (req, res) { return hubsync(req, res); },
-        addguide: function (req, res) { return addguide(req, res); },
-        guidedat: function (pu, req, res) { return guidedat(pu, req, res); },
+        addmusf: function (req, res) { return addmusf(req, res); },
+        musfdat: function (pu, req, res) { return musfdat(pu, req, res); },
         ratimp: function (pu, req, res) { return ratimp(pu, req, res); },
         gdclear: function (pu, req, res) { return gdclear(pu, req, res); }
     };

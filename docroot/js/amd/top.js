@@ -20,7 +20,7 @@ app.top = (function () {
         //account JSON fields
         var ajfs = {kwdefs:{cmp:["pos", "ig", "dsc"]},
                     igfolds:{}, settings:{},
-                    guides:{cmp:["dsId", "email", "firstname", "hashtag"]}};
+                    musfs:{cmp:["dsId", "email", "firstname", "hashtag"]}};
         var verstat = {};
     return {
         serializeAccount: function (acct) {
@@ -154,7 +154,7 @@ app.top = (function () {
         var mafs = [{n:"email", x:true},
                     {n:"firstname", d:"first name", p:"Name for display"},
                     {n:"hashtag", p:"Your unique user tag", wr:true},
-                    {n:"guides", d:"guides", x:"guides", wr:true},
+                    {n:"musfs", d:"musfs", x:"musfs", wr:true},
                     {n:"modified", d:"last sync", x:"locdt"}];
     return {
         chooseAccount: function () {
@@ -247,8 +247,8 @@ app.top = (function () {
             var curracct = mgrs.locam.getAccount();
             var val = curracct[fd.n];
             if(fd.x || mgrs.h2a.usingDefaultAccount()) {
-                if(fd.x === "guides") {
-                    val = mgrs.gin.accountFormDisplayValue(); }
+                if(fd.x === "musfs") {
+                    val = mgrs.mfin.accountFormDisplayValue(); }
                 if(fd.x === "locdt") {
                     val = jt.tz2human(val); }
                 return ["span", {id:"fmvspan" + fd.n, cla:"formvalspan"},
@@ -420,39 +420,39 @@ app.top = (function () {
 
 
     function makeFetchMergeProcessor (g) { return (function () {
-        var guide = g;
-        var logpre = "FMP " + guide.dsId + " ";
+        var musf = g;
+        var logpre = "FMP " + musf.dsId + " ";
         var state = "stopped";
         var ca = mgrs.locam.getAccount();
         var params = jt.objdata({email:ca.email, at:ca.token,
-                                 aid:ca.dsId, gid:guide.dsId});
+                                 aid:ca.dsId, gid:musf.dsId});
         var pfs =
     { //processing functions
         procupd: function (msg) {
-            mgrs.gin.fmpStatus(guide, msg); },
-        noteUpdatedGuideInfo: function (updg) {
-            guide = updg;
-            pfs.procupd();  //reflect updated guide info in display
-            const gidx = ca.guides.findIndex((g) => g.dsId === guide.dsId);
-            ca[gidx] = guide; },
+            mgrs.mfin.fmpStatus(musf, msg); },
+        noteUpdatedFriendInfo: function (updg) {
+            musf = updg;
+            pfs.procupd();  //reflect updated music friend info in display
+            const gidx = ca.musfs.findIndex((g) => g.dsId === musf.dsId);
+            ca[gidx] = musf; },
         fetch: function () {
             pfs.procupd("Fetching ratings...");
-            app.svc.dispatch("loc", "fetchGuideData", guide.dsId, params,
+            app.svc.dispatch("loc", "fetchFriendData", musf.dsId, params,
                 function (updg) {  //updg has updated lastrating/lastcheck
-                    pfs.noteUpdatedGuideInfo(updg);
+                    pfs.noteUpdatedFriendInfo(updg);
                     pfs.merge(); },
                 function (code, errtxt) {
-                    pfs.procupd("guidedat failed " + code + ": " + errtxt);
+                    pfs.procupd("musfdat failed " + code + ": " + errtxt);
                     state = "stopped"; }); },
         merge: function () {
             if(state === "stopped") {
                 return pfs.procupd(); }  //aborted while waiting
             pfs.procupd("Importing ratings...");
-            app.svc.dispatch("loc", "mergeGuideData", guide.dsId, params,
+            app.svc.dispatch("loc", "mergeFriendData", musf.dsId, params,
                 function ([updg, dbo]) {
-                    pfs.noteUpdatedGuideInfo(updg);
+                    pfs.noteUpdatedFriendInfo(updg);
                     app.svc.dispatch("loc", "rebuildSongData", dbo);
-                    if(guide.lastcheck > guide.lastrating) { //done fetching
+                    if(musf.lastcheck > musf.lastrating) { //done fetching
                         state = "stopped"; }
                     else {
                         pfs.fetch(); } },
@@ -469,46 +469,46 @@ app.top = (function () {
                 state = "running";
                 jt.log(logpre + " started.");
                 pfs.fetch(); } },
-        removeGuideData: function (contf) {
+        removeFriendData: function (contf) {
             state = "stopped";
             pfs.procupd("Removing default ratings...");
-            app.svc.dispatch("loc", "removeGuideRatings", guide.dsId, params,
+            app.svc.dispatch("loc", "removeFriendRatings", musf.dsId, params,
                 function (dbo) {
                     app.svc.dispatch("loc", "rebuildSongData", dbo);
                     pfs.procupd();
                     contf(); },
                 function (code, errtxt) {
-                    pfs.procupd("removeGuideData failed " + code + ": " +
+                    pfs.procupd("removeFriendData failed " + code + ": " +
                                 errtxt); }); }
     };  //end makeFetchMergeProcessor returned functions
     }()); }
 
 
 
-    //The guide input manager handles adding/removing guides and getting
-    //input from them for songs that have not been rated yet.
-    mgrs.gin = (function () {
+    //The music friend input manager handles adding/removing friends and
+    //getting input from them for songs that have not been rated yet.
+    mgrs.mfin = (function () {
         var gdesc = "Add a digger friend you know to help rate unrated songs in your library";
-        var cg = null;   //current guide being displayed
-        var gdmps = {};  //instantiated guide data merge processors
+        var cg = null;   //current musf being displayed
+        var gdmps = {};  //instantiated musf data merge processors
     return {
         accountFormDisplayValue: function () {
             var ca = mgrs.locam.getAccount();
             var html = [];
-            ca.guides = ca.guides || [];
-            ca.guides.forEach(function (g, idx) {
+            ca.musfs = ca.musfs || [];
+            ca.musfs.forEach(function (g, idx) {
                 html.push([["a", {href:"#digger" + g.dsId,
                                   title:"View details for " + g.email,
-                                  onclick:mdfs("gin.showGuide", idx)},
+                                  onclick:mdfs("gin.showFriend", idx)},
                             g.firstname],
                            ["span", {cla:"sepcomspan"}, ","]]); });
-            html.push(["a", {href:"#addguide", title:gdesc,
-                             onclick:mdfs("gin.addGuideDialog")},
-                       "add guide"]);
-            return jt.tac2html(["span", {cla:"guidelinksspan"}, html]); },
-        addGuideDialog: function () {
+            html.push(["a", {href:"#addmusf", title:gdesc,
+                             onclick:mdfs("gin.addFriendDialog")},
+                       "add music friend"]);
+            return jt.tac2html(["span", {cla:"musflinksspan"}, html]); },
+        addFriendDialog: function () {
             jt.out("topdlgdiv", jt.tac2html(
-                ["div", {id:"guidedlgdiv"},
+                ["div", {id:"musfdlgdiv"},
                  [["table",
                    [["tr",
                      ["td", {colspan:2}, "Get help with unrated songs"]],
@@ -518,62 +518,62 @@ app.top = (function () {
                                         placeholder:"friend@example.com"}]]]]]],
                   ["div", {id:"amgstatdiv"}],
                   ["div", {id:"amgbuttonsdiv", cla:"dlgbuttonsdiv"},
-                   ["button", {type:"button", id:"addguideb",
-                               onclick:mdfs("gin.processGuideAdd")},
-                    "Add Guide"]]]])); },
-        verifyGuideEmail: function (emaddr) {
+                   ["button", {type:"button", id:"addmusfb",
+                               onclick:mdfs("gin.processFriendAdd")},
+                    "Add Friend"]]]])); },
+        verifyFriendEmail: function (emaddr) {
             var ca = mgrs.locam.getAccount();
             var okgem = {email:emaddr, err:""};
             if(!jt.isProbablyEmail(okgem.email)) {
                 okgem.err = "Digger email address required."; }
             okgem.email = okgem.email.trim().toLowerCase();
             if(okgem.email === ca.email) {
-                okgem.err = "A guide is someone other than you."; }
-            else if(ca.guides &&
-                    ca.guides.find((g) => g.email === okgem.email)) {
-                okgem.err = okgem.email + " is already a guide."; }
+                okgem.err = "A friend is someone other than you."; }
+            else if(ca.musfs &&
+                    ca.musfs.find((g) => g.email === okgem.email)) {
+                okgem.err = okgem.email + " is already a friend."; }
             return okgem; },
-        processGuideAdd: function () {
+        processFriendAdd: function () {
             jt.out("amgstatdiv", "");
-            const okgem = mgrs.gin.verifyGuideEmail(jt.byId("emailin").value);
+            const okgem = mgrs.mfin.verifyFriendEmail(jt.byId("emailin").value);
             if(okgem.err) {
                 return jt.out("amgstatdiv", okgem.err); }
-            jt.byId("addguideb").disabled = true;
+            jt.byId("addmusfb").disabled = true;
             const ca = mgrs.locam.getAccount();
             const data = jt.objdata({email:ca.email, at:ca.token,
                                      gmaddr:okgem.email});
-            app.svc.dispatch("loc", "addGuide", data,
+            app.svc.dispatch("loc", "addFriend", data,
                 function (accts) {
                     mgrs.locam.noteReturnedCurrAcct(accts[0], ca.token);
-                    mgrs.gin.showGuide(0); },
+                    mgrs.mfin.showFriend(0); },
                 function (code, errtxt) {
-                    jt.byId("addguideb").disabled = false;
+                    jt.byId("addmusfb").disabled = false;
                     jt.out("amgstatdiv", code + ": " + errtxt); }); },
-        showGuide: function (gidx) {
-            cg = mgrs.locam.getAccount().guides[gidx];
+        showFriend: function (gidx) {
+            cg = mgrs.locam.getAccount().musfs[gidx];
             jt.out("topdlgdiv", jt.tac2html(
-                ["div", {id:"guidedlgdiv"},
+                ["div", {id:"musfdlgdiv"},
                  [["div",
-                   [["span", {id:"guidelabelspan"}, "Guide: "],
-                    ["span", {id:"guideinfonamespan"},
+                   [["span", {id:"musflabelspan"}, "Friend: "],
+                    ["span", {id:"musfinfonamespan"},
                      ["a", {href:"mailto:" + jt.dquotenc(cg.email) +
-                            "?subject=" + jt.dquotenc("Digger guidance")},
+                            "?subject=" + jt.dquotenc("Digger music")},
                       cg.firstname]]]],
                   ["div", {id:"cgsongcheckdiv", cla:"cblab"}],
                   ["div", {id:"cgfilleddiv", cla:"cblab"}],
-                  ["div", {id:"guidestatdiv"}],
-                  ["div", {id:"guidebuttonsdiv", cla:"dlgbuttonsdiv"},
+                  ["div", {id:"musfstatdiv"}],
+                  ["div", {id:"musfbuttonsdiv", cla:"dlgbuttonsdiv"},
                    [["a", {href:"#remove", style:"margin:0px 10px 0px 0px",
-                           title:"Remove " + cg.firstname + " from guides.",
-                           onclick:mdfs("gin.removeGuide", gidx)},
+                           title:"Remove " + cg.firstname + " from friends.",
+                           onclick:mdfs("gin.removeFriend", gidx)},
                      ["img", {cla:"rowbuttonimg",
                               src:"img/trash.png"}]],
                    ["button", {type:"button", id:"gratb",
                                onclick:mdfs("gin.startFetchMerge", gidx)},
                     "Check For Ratings"]]]]]));
-            mgrs.gin.refreshGuideDisplay();
-            mgrs.gin.startFetchMerge(); },
-        refreshGuideDisplay: function () {
+            mgrs.mfin.refreshFriendDisplay();
+            mgrs.mfin.startFetchMerge(); },
+        refreshFriendDisplay: function () {
             var dispchecked = "never";
             if(cg.lastcheck) {
                 dispchecked = jt.tz2human(cg.lastcheck); }
@@ -582,34 +582,34 @@ app.top = (function () {
             jt.out("cgfilleddiv", (cg.filled || "No") + 
                    " default ratings in use.");
             jt.byId("gratb").disabled = false;
-            jt.out("guidestatdiv", ""); },
+            jt.out("musfstatdiv", ""); },
         startFetchMerge: function () {
             if(!gdmps[cg.dsId]) {
                 gdmps[cg.dsId] = makeFetchMergeProcessor(cg); }
             gdmps[cg.dsId].start(); },
-        fmpStatus: function (guide, msg) {
-            if(cg && cg.dsId === guide.dsId) {
-                cg = guide;
-                mgrs.gin.refreshGuideDisplay();
-                jt.out("guidestatdiv", msg || ""); } },
+        fmpStatus: function (musf, msg) {
+            if(cg && cg.dsId === musf.dsId) {
+                cg = musf;
+                mgrs.mfin.refreshFriendDisplay();
+                jt.out("musfstatdiv", msg || ""); } },
         showPlaylist: function (ident) {  //hashtag or id
             //open a new window for https://diggerhub.com/playlist/ident
             jt.err("playlist/" + ident + " not available at server yet"); },
-        removeGuide: function (gidx) {
+        removeFriend: function (gidx) {
             var ca = mgrs.locam.getAccount();
-            var remg = ca.guides[gidx];
-            //makeFetchMergeProcessor already called when guide selected
-            gdmps[remg.dsId].removeGuideData(function () {
+            var remg = ca.musfs[gidx];
+            //makeFetchMergeProcessor already called when musf selected
+            gdmps[remg.dsId].removeFriendData(function () {
                 delete gdmps[remg.dsId];
-                jt.out("guidestatdiv", "Removing " + remg.firstname + "...");
-                ca.guides.splice(gidx, 1);
+                jt.out("musfstatdiv", "Removing " + remg.firstname + "...");
+                ca.musfs.splice(gidx, 1);
                 mgrs.h2a.updateHubAccount(
                     function () {
                         mgrs.h2a.accountSettings(); },
                     function (code, errtxt) {
-                        jt.out("guidestatdiv", "Remove failed " + code + ": " +
+                        jt.out("musfstatdiv", "Remove failed " + code + ": " +
                                errtxt); }); }); }
-    };  //end mgrs.gin returned functions
+    };  //end mgrs.mfin returned functions
     }());
 
 
@@ -680,100 +680,137 @@ app.top = (function () {
 
     //web account manager handles account/services when running on diggerhub
     mgrs.webam = (function () {
-        var gsvs = ["Active", "New", "Available", "Inactive", "Deleted"];
-        var gselvs = ["Active", "Available", "Inactive"];
-        var guides = null;
+        var musfs = null;
+        var actmfs = null;
     return {
         initialDataLoaded: function () {
             mgrs.gen.updateHubToggleSpan(app.login.getAuth());
             mgrs.kwd.rebuildKeywords(); },
-        reflectGuideStatus: function (gid, status) {
-            jt.out("gdcbtrdiv" + gid, "");
-            jt.out("gdstseldiv" + gid, "-> " + status);
-            const gde = app.login.getAuth().guides.find((g) => g.dsId === gid);
-            gde.status = status;
-            mgrs.webam.updateAccount(
-                mgrs.webam.writeDlgContent,  //redraw, might need checkbox
+        removeFriend: function (idx) {
+            jt.out("mfstatdiv", "Removing...");
+            actmfs[idx].status = "Removed";
+            mgrs.webam.updateAccount(mgrs.webam.writeDlgContent,
                 function (code, errtxt) {
-                    jt.out("topdlgdiv", "Status change failed " + code + ": " +
+                    jt.out("mfstatdiv", "Remove failed " + code + ": " +
                            errtxt); }); },
-        gdTogActive: function (gid) {
-            var guide = guides.find((g) => g.dsId === gid);
-            if(guide.status === "Active") {
-                return mgrs.webam.reflectGuideStatus(gid, "Available"); }
-            mgrs.webam.reflectGuideStatus(gid, "Active"); },
-        gdSelStatus: function (gid) {
-            var sel = jt.byId("gdsel" + gid);
-            mgrs.webam.reflectGuideStatus(
-                gid, sel.options[sel.selectedIndex].value); },
-        gdDelete: function (gid) {
-            mgrs.webam.reflectGuideStatus(gid, "Deleted"); },
-        guideClickControl: function (guide) {
-            if(guide.status === "Inactive") {
-                return ["a", {href:"#DeleteGuide",
-                              onclick:mdfs("webam.gdDelete", guide.dsId)},
-                        ["img", {cla:"rowbuttonimg", src:"img/trash.png"}]]; }
-            return ["input", {type:"checkbox", id:"gdcb" + guide.dsId,
-                              onclick:mdfs("webam.gdTogActive", guide.dsId),
-                              checked:jt.toru(guide.status === "Active")}]; },
-        guideSelectControl: function (guide) {
-            return ["select", {id:"gdsel" + guide.dsId,
-                               onchange:mdfs("webam.gdSelStatus", guide.dsId)},
-                    gselvs.map((s) => ["option", {
-                        value:s, selected:jt.toru((guide.status === s),
-                                                  "selected")}, s])]; },
-        gdAddGuideByEmail: function () {
-            var emaddr = jt.byId("gdemin").value;
+        togRemoveFriend: function (idx) {
+            if(actmfs[idx].email === jt.byId("mfemin").value) {  //toggle off
+                mgrs.webam.writeDlgContent(); }  //not common op. just redraw.
+            else {
+                jt.byId("mfemin").value = actmfs[idx].email;
+                jt.out("mfbdiv", jt.tac2html(
+                    ["button", {type:"button",
+                                onclick:mdfs("webam.removeFriend", idx)},
+                     "Remove"])); } },
+        mfLineNumSpan: function (mf, idx) {
+            var lno = (idx + 1) + ".";
+            if(!mf) { return ["span", {cla:"mflinenospandis"}, lno]; }
+            return ["span", {cla:"mflinenospan",
+                             onclick:mdfs("webam.togRemoveFriend", idx)},
+                    lno]; },
+        swapActive: function (idx) {
+            var pmf = actmfs[idx];
+            var sel = jt.byId("mfsel" + idx);
+            var sid = sel.options[sel.selectedIndex].value;
+            var smf = null;
+            if(sid) {
+                smf = musfs.find((m) => m.dsId === sid); }
+            if(smf) {
+                pmf.status = smf.status;  //might be swapping two active
+                pmf.actord = smf.actord || 0;
+                smf.status = "Active";
+                smf.status = idx + 1; }
+            else {
+                pmf.status = "Inactive";
+                pmf.actord = 0; }
+            mgrs.webam.updateAccount(
+                function () {
+                    jt.log("swapActive " + idx + " saved."); },
+                function (code, errtxt) {
+                    jt.out("mfstatdiv", "Swap failed " + code + ": " +
+                           errtxt); });
+            mgrs.webam.writeDlgContent(); },  //reflect now, write background
+        mfNameSel: function (mf, idx) {
+            if(!mf) { return ""; }
+            return ["select", {id:"mfsel" + idx,
+                               onchange:mdfs("webam.swapActive", idx)},
+                    [["option", {value:""}, ""],
+                     ...musfs.map((m) => ["option", {
+                         value:m.dsId, selected:jt.toru((m.dsId === mf.dsId),
+                                                        "selected")},
+                                          m.firstname])]]; },
+        mfMailLink: function (mf) {
+            var subj = "diggin"; var body = "";
+            if(!mf) { return ""; }
+            const song = app.player.song();
+            if(song) {
+                body = "Now playing\nTitle: " + song.ti + "\nArtist: " +
+                    song.ar + "\nAlbum: " + song.ab; }
+            const link = "mailto:" + mf.email +
+                  "?subject=" + jt.dquotenc(subj) +
+                  "&body=" + jt.dquotenc(body) + "%0A%0A";
+            return jt.tac2html(["a", {href:link}, mf.email]); },
+        rebuildMusicFriendRefs: function () {
+            const mfsvs = ["Active", "Inactive"];
+            musfs = app.login.getAuth().musfs || [];
+            actmfs = musfs.filter((m) => m.status === "Active");
+            actmfs.sort(function (a, b) {
+                if(a.actord && b.actord) { return a.actord - b.actord; }
+                if(!a.actord && b.actord) { return 1; }
+                if(a.actord && !b.actord) { return -1; }
+                return 0; });
+            actmfs = [...actmfs, null, null, null, null];
+            actmfs = actmfs.slice(0, 4);
+            musfs = musfs.filter((m) => mfsvs.includes(m.status));
+            musfs.sort(function (a, b) {
+                return (a.firstname.localeCompare(b.firstname) ||
+                        a.email.localeCompare(b.email)); }); },
+        displayActiveFriends: function () {
+            mgrs.webam.rebuildMusicFriendRefs();
+            jt.out("amfsdiv", jt.tac2html(
+                actmfs.map(function (mf, idx) {
+                    return ["div", {cla:"musfseldiv", id:"musfseldiv" + idx},
+                            [mgrs.webam.mfLineNumSpan(mf, idx),
+                             mgrs.webam.mfNameSel(mf, idx),
+                             mgrs.webam.mfMailLink(mf)]]; }))); },
+        inviteHTML: function (emaddr) {
+            var me = app.login.getAuth();
+            var subj = "Invitation to share music on DiggerHub";
+            var body = "I'm inviting you to be a music friend on DiggerHub, so we can use each other's song ratings for new music.\n\n" +
+                "Email goes directly between users. No spam. You can sign up and find me, or use this link to automatically connect: https://diggerhub.com?join=" + emaddr + "&friend=" + me.email + "\n\n" +
+                "It would be great to share your music knowledge,\n" +
+                me.firstname + "\n\n";
+            var link = "mailto:?subject=" + jt.dquotenc(subj) + "&body=" +
+                jt.dquotenc(body) + "%0A%0A";
+            return jt.tac2html(["a", {href:link}, "Send Invite"]); },
+        addFriend: function () {
+            var emaddr = jt.byId("mfemin").value;
             if(!jt.isProbablyEmail(emaddr)) {
-                return jt.out("gdaddmsgdiv", "Need friend's email..."); }
-            jt.out("gdaddmsgdiv", "Adding " + emaddr + "...");
-            app.svc.dispatch("web", "addGuide", emaddr,
-                             mgrs.webam.writeDlgContent,
-                             function (ignore /*code*/, errtxt) {
-                                 jt.out("gdaddmsgdiv", errtxt); }); },
-        gdAdd: function () {
-            if(jt.byId("gdadddiv").innerHTML) {   //previously displayed
-                return jt.out("gdadddiv", ""); }  //toggle off
-            jt.out("gdadddiv", jt.tac2html(
-                [["label", {fo:"gdemailin"}, "Guide's email address: "],
-                 ["input", {type:"email", id:"gdemin",
-                            placeholder:"personal@example.com"}],
-                 ["button", {type:"button", id:"gdaddbutton",
-                             onclick:mdfs("webam.gdAddGuideByEmail")},
-                  "Add Guide"],
-                 ["div", {id:"gdaddmsgdiv"}]])); },
-        guideHTML: function (guide) {
-            if(guide.status === "New") { guide.status = "Available"; }
-            return jt.tac2html(
-                ["div", {cla:"gdactdiv"},
-                 [["div", {cla:"gdcbtrdiv", id:"gdcbtrdiv" + guide.dsId},
-                   mgrs.webam.guideClickControl(guide)],
-                  ["span", {cla:"gdnamespan"},
-                   ["a", {href:"mailto:" + guide.email},
-                    guide.hashtag || guide.firstname]],
-                  ["div", {cla:"gdstseldiv", id:"gdstseldiv" + guide.dsId},
-                   mgrs.webam.guideSelectControl(guide)]]]); },
-        guidesHTML: function () {
-            guides = app.login.getAuth().guides || [];
-            guides = guides.filter((g) => g.status !== "Deleted");
-            guides.forEach(function (g) { g.status = g.status || "Active"; });
-            guides.sort(function (a, b) {
-                return gsvs.indexOf(a.status) - gsvs.indexOf(b.status); });
-            return jt.tac2html(guides.map((g) => mgrs.webam.guideHTML(g))); },
-        gdOffer: function () {
-            if(jt.byId("gdofferdiv").innerHTML) {   //previously displayed
-                return jt.out("gdofferdiv", ""); }  //toggle off
-            jt.out("gdofferdiv", "Guide offer not implemented yet."); },
+                return jt.out("mfstatdiv", "Need a valid email address..."); }
+            jt.out("mfbdiv", "Adding...");
+            app.svc.dispatch("web", "addFriend", emaddr,
+                mgrs.webam.writeDlgContent,
+                function (code, errtxt) {
+                    mgrs.webam.writeDlgContent();
+                    if(code === 404) {
+                        return jt.out("Not found. " +
+                                      mgrs.webam.inviteHTML(emaddr)); }
+                    jt.out("mfstatdiv", "Add failed " + code +
+                           ": " + errtxt); }); },
         writeDlgContent: function () {  //general account info on main site
             jt.out("topdlgdiv", jt.tac2html(
-                ["div", {id:"guidesdiv"},
-                 [["a", {href:"#offer", onclick:mdfs("webam.gdOffer")},
-                   "Offer to guide a friend"],
-                  ["div", {id:"gdofferdiv"}],
-                  ["div", {id:"gddispdiv"}, mgrs.webam.guidesHTML()],
-                  ["a", {href:"#add", onclick:mdfs("webam.gdAdd")},
-                   "Add a guide"],
-                  ["div", {id:"gdadddiv"}]]])); },
+                ["div", {id:"mfsdiv"},
+                 [["div", {id:"addmfdiv"},
+                   [["label", {fo:"mfemin"}, "Music friend's email: "],
+                    ["input", {type:"email", id:"mfemin",
+                               placeholder:"friend@example.com"}],
+                    ["div", {id:"mfbdiv"},
+                     ["button", {type:"button",
+                                 onclick:mdfs("webam.addFriend")},
+                      "Add"]],
+                    ["div", {id:"mfstatdiv"}]]],
+                  ["div", {id:"amfsdiv"}]]]));
+            mgrs.webam.displayActiveFriends(); },
         getAccount: function () {
             return app.login.getAuth(); },
         updateAccount: function (contf, errf) {
@@ -781,7 +818,7 @@ app.top = (function () {
             var aadat = {kwdefs:JSON.stringify(acc.kwdefs),
                          igfolds:JSON.stringify(acc.igfolds),
                          settings:JSON.stringify(acc.settings),
-                         guides:JSON.stringify(acc.guides)};
+                         musfs:JSON.stringify(acc.musfs)};
             aadat = app.login.authdata(aadat);
             app.login.dispatch("act", "updateAccount", aadat, contf, errf); }
     };  //end mgrs.webam returned functions
