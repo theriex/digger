@@ -470,8 +470,9 @@ app.svc = (function () {
                                                  digacc)); },
                     errf,
                     jt.semaphore("mgrs.web.getSongTotals")); },
-        importSpotifyTracks: function (items, contf, errf) {
-            var data = app.login.authdata({items:JSON.stringify(items)});
+        spotifyImport: function (datformat, items, contf, errf) {
+            var data = app.login.authdata({dataformat:datformat,
+                                           items:JSON.stringify(items)});
             jt.call("POST", "/api/impsptracks", data,
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);

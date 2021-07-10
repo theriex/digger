@@ -1178,22 +1178,38 @@ app.top = (function () {
     }());
 
 
-    //Web library actions manager handles lib level actions and data.
+    //Web library actions manager handles lib level actions and data for
+    //streaming platforms.  Currently this isjust Spotify, where liking an
+    //album is separate from liking a track.  In both cases likes are ordered
+    //by time, so it is sufficient to check from the last known offset.
     //developer.spotify.com/documentation/web-api/reference/#category-library
     mgrs.webla = (function () {
-        var acts = [
+        var acts = [  //library actions
             {ty:"stat", lab:"Spotify song count", id:"spscval",
              valfname:"songCount"},
             {ty:"stat", lab:"Spotify library", id:"splibval",
              valfname:"splibStat"},
             {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
              tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
-        var spi = {tmo:null, maxconnretries:3};
+        var spip = {  //spotify import processing
+            mode:"done",        //"scheduled", "albums", "tracks"
+            maxconnretries:3};  //player connection wait count
         function impstat (txt) {
-            if(jt.byId("nomusicstatdiv")) {
+            if(jt.byId("nomusicstatdiv")) {  //alternate status display area
                 jt.out("nomusicstatdiv", "Spotify library lookup " + txt); }
-            else {  //replace button with import message, or just log it.
+            else {  //replace button with import message, or log if unavailable.
                 jt.out("spimpbspan", txt); } }
+        function recentlyChecked (stat) {
+            return (stat && stat.lastcheck &&
+                    jt.timewithin(stat.lastcheck, "days", 1)); }
+        function getSpi () {
+            var spi = app.login.getAuth().settings.spimport;
+            if(!spi || (spi.lastcheck > "2020" &&
+                        spi.lastcheck < "2021-07-10")) {  //server version check
+                spi = {lastcheck:"",
+                       offsets:{albums:0, tracks:0},
+                       imported:0, existing:0}; }
+            return spi; }
     return {
         songCount: function () {
             var scs = app.login.getAuth().settings.songcounts;
@@ -1208,88 +1224,87 @@ app.top = (function () {
                 return "No songs yet"; }
             return scs.spotify + "/" + scs.hubdb + " (" +
                 (Math.round((scs.spotify / scs.hubdb) * 100)) + "%)"; },
-        mergeNeeded: function (obj, spi) {
-            if(!obj.items.length) {
-                if(!spi.stat.initsync) {
-                    return true; } } //server records initsync completed
-            else {  //obj.items.length > 0
-                if(spi.stat.lastcheck < obj.items[0].added_at) {
-                    return true; } }  //tracks added to lib since last check
-            impstat("checked just now");
-            app.login.getAuth().settings.spimport.lastcheck =
-                new Date().toISOString();
-            mgrs.gen.updateAccount(
-                function () { jt.log("spimp merge noted complete."); },
-                function (code, errtxt) {
-                    jt.log("spimp merge note " + code + ": " + errtxt); });
-            return false; },
-        spimpProcess: function () {
-            var tpgurl = `me/tracks?offset=${spi.stat.processed}`;
-            app.svc.dispatch("spc", "sjc", tpgurl, "GET", null,
-                function (obj) {
-                    if(!mgrs.webla.mergeNeeded(obj, spi)) {
-                        spi.tmo = null;
-                        return; }
-                    //alert("Library import merge start...");
-                    impstat("merging...");
-                    app.svc.dispatch("web", "importSpotifyTracks", obj.items,
-                        function (results) {
-                            spi.tmo = null;
-                            spi.stat = results[0].settings.spimport;
-                            jt.out("spcntspan", spi.stat.processed);
-                            const songs = results.slice(1);
-                            app.deck.dispatch("ws", "noteUpdatedSongs", songs);
-                            app.svc.dispatch("web", "addSongsToPool", songs);
-                            app.deck.dispatch("ws", "rebuildIfLow", "spimport");
-                            mgrs.webla.spimpNeeded(); },
+        handleSpotifyLibraryData: function (obj) {
+            if(!obj.items.length) {  //no more items returned from query
+                if(spip.mode === "albums") {
+                    spip.mode = "tracks";
+                    return mgrs.webla.spimpProcess(); }
+                else {  //Done with import, note completed
+                    getSpi().lastcheck = new Date().toISOString();
+                    return mgrs.gen.updateAccount(
+                        function () {
+                            impstat("checked just now");
+                            spip.mode = "done"; },
                         function (code, errtxt) {
-                            spi.tmo = null;
-                            impstat("merge failed " + code + ": " +
-                                    errtxt); }); },
-                function (stat, msg) {
-                    spi.tmo = null;
-                    impstat("fetch failed " + stat + ": " + msg); }); },
-        spimpNeeded: function (context) {  //return true and start if needed
+                            impstat("spimp note " + code + ": " + errtxt);
+                            spip.mode = "done"; }); } }
+            impstat("merging...");
+            app.svc.dispatch("web", "spotifyImport", spip.mode, obj.items,
+                function (results) {
+                    var stat = getSpi();
+                    jt.out("spalbcountspan", stat.offsets.albums);
+                    jt.out("sptrkcountspan", stat.offsets.tracks);
+                    const songs = results.slice(1);
+                    app.deck.dispatch("ws", "noteUpdatedSongs", songs);
+                    app.svc.dispatch("web", "addSongsToPool", songs);
+                    app.deck.dispatch("ws", "rebuildIfLow", "spimport");
+                    mgrs.webla.spimpProcess(); },
+                function (code, errtxt) {
+                    spip.mode = "done";
+                    impstat("merge failed " + code + ": " + errtxt); }); },
+        spimpProcess: function () {
+            var stat = getSpi();
+            if(spip.mode === "scheduled") {
+                spip.mode = "albums"; }
+            impstat("checking " + spip.mode + "...");
+            const spurl = `me/${spip.mode}?offset=${stat.offsets[spip.mode]}`;
+            app.svc.dispatch("spc", "sjc", spurl, "GET", null,
+                function (obj) {
+                    mgrs.webla.handleSpotifyLibraryData(obj); },
+                function (code, msg) {
+                    spip.mode = "done";
+                    impstat("fetch failed " + code + ": " + msg); }); },
+        scheduleImportProcess: function (context) {
+            spip.mode = "scheduled";
+            setTimeout(function () {
+                var spconn = app.player.dispatch("spa", "getPlayerStatus");
+                if(spconn === "connected") {
+                    if(context === "playstart") {  //yield to player startup
+                        spip.mode = "done";
+                        return mgrs.webla.spimpNeeded(); } }
+                else { //not connected, try waiting
+                    spip.mode = "done";
+                    impstat("Waiting for connection...");
+                    if(spip.maxconnretries > 0) {
+                        spip.maxconnretries -= 1;
+                        return mgrs.webla.spimpNeeded(); } }
+                //Try import. Player may never be ready if no songs.
+                mgrs.webla.spimpProcess(); }, 2000); },
+        spimpNeeded: function (context) {
+            var stat = getSpi();
             context = context || "";
-            spi.stat = app.login.getAuth().settings.spimport || {
-                lastcheck:"1970-01-01T00:00:00Z",
-                initsync:"",   //when full import completed
-                processed:0,   //how many sp library tracks checked
-                imported:0};   //how many new DiggerHub songs created
-            if(spi.tmo) { return; }  //already scheduled or ongoing
-            jt.log("spimpNeeded " + context + " " + JSON.stringify(spi.stat));
-            impstat("fetching...");  //remove button if displayed
-            if(context === "useraction" || !spi.stat.initsync
-               || !jt.timewithin(spi.stat.lastcheck, "days", 1)) {
-                spi.tmo = setTimeout(function () {
-                    var spconn = app.player.dispatch("spa", "getPlayerStatus");
-                    if(spconn === "connected") {
-                        if(context === "playstart") {  //let player start
-                            spi.tmo = null;
-                            return mgrs.webla.spimpNeeded(); } }
-                    else { //not connected, try waiting
-                        impstat("Waiting for connection...");
-                        if(spi.maxconnretries > 0) {
-                            spi.maxconnretries -= 1;
-                            spi.tmo = null;
-                            return mgrs.webla.spimpNeeded(); } }
-                    //player may not be ready due to no songs, try import.
-                    mgrs.webla.spimpProcess(); }, 2000); }
+            if(spip.mode !== "done") { return; }  //already scheduled or ongoing
+            jt.log("spimpNeeded " + context + " " + JSON.stringify(stat));
+            impstat("fetching...");  //replace button if displayed
+            if(context === "useraction" || !recentlyChecked(stat)) {
+                mgrs.webla.scheduleImportProcess(context); }
             else {  //clear interim status, nothing to do.
                 impstat("checked Today"); } },
         splibStat: function () {
-            var linkattrs = {onclick:mdfs("webla.spimpNeeded", "useraction"),
-                             title:"Read liked tracks from Spotify"};
-            var ak = ["a", linkattrs, "Read Library"];
-            if(spi.stat.initsync) {
-                ak = ["a", linkattrs, "checked " +
-                      jt.colloquialDate(spi.stat.lastcheck, true, "z2loc")]; }
-            if(spi.tmo) {  //waiting to check
-                ak = "checking..."; }
+            var stat = getSpi();
             return jt.tac2html(
-                [["span", {id:"spcntspan"}, spi.stat.processed],
-                 " Songs, ",
-                 ["span", {id:"spimpbspan"}, ak]]); },
+                [["span", {id:"spalbcountspan"}, String(stat.offsets.albums)],
+                 " Albums, ",
+                 ["span", {id:"sptrkcountspan"}, String(stat.offsets.tracks)],
+                 " Tracks, ",
+                 ["span", {id:"spimpbspan"},
+                  //if they open the library display, and checking is ongoing
+                  //then this link will be replaced on the next status update.
+                  ["a", {onclick:mdfs("webla.spimpNeeded", "useraction"),
+                         title:"Read liked albums and tracks from Spotify"},
+                   ((!stat.lastcheck)? "Read Library" :
+                    ("checked " + jt.colloquialDate(
+                        stat.lastcheck, true, "z2loc")))]]]); },
         writeDlgContent: function () {
             mgrs.webla.spimpNeeded();
             jt.out("topdlgdiv", jt.tac2html(
