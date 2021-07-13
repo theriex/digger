@@ -52,29 +52,53 @@ app = {
         if(!jtminjsDecorateWithUtilities) { //support lib not loaded yet
             return setTimeout(app.init, 50); }
         jtminjsDecorateWithUtilities(jt);
-        var loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
+        const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=210710");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=210713");
     },
 
 
     fileVersion: function () {
-        return "v=210710";  //updated as part of release process
+        return "v=210713";  //updated as part of release process
     },
 
 
-    togdivdisp: function (divid, display) {
-        var div = jt.byId(divid);
-        if(!div) {  //div not available yet, so nothing to do
-            return; }
+    //divdesc can be a string divid to display/hide, or a toggle group spec:
+    // {rootids:[srcdivroot, srcdivroot2...]
+    //  clicked:srcdivroot}
+    //The toggleable content group clicked element is "tcgc" + srcdivroot
+    //The toggleable content group display element is "tcgd" + srcdivroot
+    //Clicked elements have "tcgcactive" or "tcgcinactive" classes added
+    togdivdisp: function (divdesc, display) {
+        var dispelem = null;
+        if(divdesc.rootids) {
+            dispelem = jt.byId("tcgd" + divdesc.clicked); }
+        else {
+            dispelem = jt.byId(divdesc); }
         if(!display) {
-            display = div.style.display;
+            display = dispelem.style.display;
             if(display === "none") {
                 display = "block"; }
             else {
                 display = "none"; } }
-        div.style.display = display;
+        if(divdesc.rootids) {
+            divdesc.rootids.forEach(function (rid) {
+                var tcgce = jt.byId("tcgc" + rid);
+                var tcgde = jt.byId("tcgd" + rid);
+                if(rid === divdesc.clicked) {
+                    tcgce.classList.remove("tcgcinactive");
+                    tcgce.classList.add("tcgcactive");
+                    tcgde.style.display = display; }
+                else {
+                    if(display === "block") {
+                        tcgce.classList.add("tcgcinactive"); }
+                    else {
+                        tcgce.classList.remove("tcgcinactive"); }
+                    tcgce.classList.remove("tcgcactive");
+                    tcgde.style.display = "none"; } }); }
+        else {
+            dispelem.style.display = display; }
     },
 
 
@@ -93,9 +117,9 @@ app = {
 
     //Dispatch function string.  Return an onwhatever function string.
     dfs: function (module, mgrfname, args) {
-        var pstr = app.paramstr(args);
+        var pstr = app.paramstr(args); var fstr;
         mgrfname = mgrfname.split(".");
-        var fstr = "app." + module + ".dispatch('" + mgrfname[0] + "','" +
+        fstr = "app." + module + ".dispatch('" + mgrfname[0] + "','" +
             mgrfname[1] + "'" + pstr + ")";
         if(pstr !== ",event") {  //don't return false from event hooks
             fstr = jt.fs(fstr); }
@@ -104,11 +128,11 @@ app = {
 
 
     cb: function (endpoint, params, toklev) {
+        var url = endpoint + "?";
         toklev = toklev || "second";
         params = params || "";
         if(typeof params === "object") {
             params = jt.objdata(params); }
-        var url = endpoint + "?";
         if(params) {
             url += params + "&"; }
         url += jt.ts("cb=", toklev);
