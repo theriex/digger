@@ -431,9 +431,8 @@ app.svc = (function () {
                     contf(pool); }, 200); }
             else {
                 lastfvsj = fvsj;
-                //cache bust shouldn't be necessary since fvsj changes
                 const ps = app.login.authdata({fvs:fvsj});
-                jt.call("GET", app.dr("/api/songfetch?" + ps), null,
+                jt.call("GET", app.cb(app.dr("/api/songfetch"), ps), null,
                         function (songs) {
                             mgrs.web.addSongsToPool(songs);
                             contf(pool); },
