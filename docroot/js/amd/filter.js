@@ -1,5 +1,5 @@
 /*global app, jt */
-/*jslint browser, white, fudge, for, long, unordered */
+/*jslint browser, white, for, long, unordered */
 
 app.filter = (function () {
     "use strict";
@@ -48,10 +48,10 @@ app.filter = (function () {
             rd.h = dims.maxy - rd.y; }
         else if(mousearea === "maxx") {
             rd.w = dims.maxx - rd.x; }
-        var style = "left:" + rd.x + "px;" +
-                    "top:" + rd.y + "px;" +
-                    "width:" + rd.w + "px;" +
-                    "height:" + rd.h + "px;";
+        const style = "left:" + rd.x + "px;" +
+                      "top:" + rd.y + "px;" +
+                      "width:" + rd.w + "px;" +
+                      "height:" + rd.h + "px;";
         return style;
     }
 
@@ -87,7 +87,7 @@ app.filter = (function () {
         //They may be intermixed on devices that support both interfaces.
         jt.on(div, "touchstart", function (event) {
             stat.pointingActive = true;
-            var coords = touchEventToOffsetCoords(event);
+            const coords = touchEventToOffsetCoords(event);
             posf(coords.x, coords.y); });
         jt.on(div, "touchend", function (ignore /*event*/) {
             stat.pointingActive = false; });
@@ -111,9 +111,9 @@ app.filter = (function () {
         rangemax = ranger.hnob.maxx - ranger.hnob.x;
         pcnt = -1 * (0.5 - (basex / rangemax));
         //update the left and right curtains to reflect the focus.
-        var curtw = Math.floor((ranger.panel.inner.w - focw) / 2);
-        var ladj = curtw + Math.round(2 * pcnt * curtw);
-        var radj = curtw - Math.round(2 * pcnt * curtw);
+        const curtw = Math.floor((ranger.panel.inner.w - focw) / 2);
+        const ladj = curtw + Math.round(2 * pcnt * curtw);
+        const radj = curtw - Math.round(2 * pcnt * curtw);
         jt.byId(cid + "lcdiv").style.width = ladj + "px";
         jt.byId(cid + "rcdiv").style.width = radj + "px";
         //update the current range focus min/max search values
@@ -285,7 +285,7 @@ app.filter = (function () {
             labdiv.style.fontWeight = labind[tog].fw; },
         activateLabel: function (idx) {
             ctrls.trapdrag = false;
-            var kwd = ctrls.bts[idx].pn;
+            const kwd = ctrls.bts[idx].pn;
             jt.out("btlab" + idx, jt.tac2html(
                 ["select", {id:"btswapsel" + idx, title:"Swap Keyword",
                             onchange:mdfs("btc.swapKeyword", idx)},
@@ -294,12 +294,12 @@ app.filter = (function () {
                       ["option", {value:kd.kw}, kd.kw])]])); },
         swapKeyword: function (idx) {  //only called if keyword actually changed
             ctrls.trapdrag = true;
-            var kwd = jt.byId("btswapsel" + idx).value;
-            var pos = idx + 1;
+            const kwd = jt.byId("btswapsel" + idx).value;
+            const pos = idx + 1;
             app.top.dispatch("kwd", "swapFilterKeyword", kwd, pos); },
         setValue: function (idx, tog) {
             ctrls.trapdrag = true;
-            var prev = ctrls.bts[idx].tog;
+            const prev = ctrls.bts[idx].tog;
             ctrls.bts[idx].tog = tog;  //note the value for filtering
             mgrs.btc.updateToggleIndicators(idx, tog);
             mgrs.btc.updateToggleLabel(idx, tog);
@@ -331,8 +331,8 @@ app.filter = (function () {
         createAndInitControls: function () {
             ctrls.bts.forEach(function (bt, idx) {
                 mgrs.btc.makeControl(bt, idx);
-                var dfltset = {v:"off"};
-                var setting = findSetting({tp:"kwbt", k:bt.pn}) || dfltset;
+                const dfltset = {v:"off"};
+                const setting = findSetting({tp:"kwbt", k:bt.pn}) || dfltset;
                 mgrs.btc.setValue(idx, setting.v || dfltset.v); }); },
         rebuildControls: function () {
             kwdefs = app.top.dispatch("kwd", "defsArray", true);
@@ -396,7 +396,7 @@ app.filter = (function () {
             ctrls.rat.posf(Math.round((rvs.m / 2) * 17)); },
         toggleTagFiltering: function () {
             ctrls.rat.tagf.idx = (ctrls.rat.tagf.idx + 1) % 3;
-            var button = jt.byId("incluntb");
+            const button = jt.byId("incluntb");
             button.innerHTML = ctrls.rat.tagf.labels[ctrls.rat.tagf.idx];
             button.title = ctrls.rat.tagf.titles[ctrls.rat.tagf.idx];
             mgrs.stg.filterValueChanged();  //save updated tag filter value
@@ -440,7 +440,7 @@ app.filter = (function () {
                 else {
                     value = "on"; } }
             fqb = value;
-            var button = jt.byId("fqtogb");
+            const button = jt.byId("fqtogb");
             if(fqb === "on") {
                 button.title = "Song play frequency filtering active.";
                 button.style.background = ctrls.activecolor; }
@@ -453,6 +453,7 @@ app.filter = (function () {
             ctrls.fq.settings = function () {
                 return {tp:"fqb", v:fqb}; };
             ctrls.fq.match = function (song) {
+                var eligible;
                 if(fqb === "off") {
                     return true; }
                 if(!song.lp) {  //not played before
@@ -460,7 +461,7 @@ app.filter = (function () {
                 if(!song.fq || !waitdays[song.fq]) {
                     return false; }  //"R" (reference only), or invalid fq
                 try {
-                    var eligible = jt.isoString2Day(song.lp).getTime();
+                    eligible = jt.isoString2Day(song.lp).getTime();
                     eligible += waitdays[song.fq] * (24 * 60 * 60 * 1000);
                     return (eligible < Date.now());
                 } catch(e) {
@@ -558,6 +559,7 @@ app.filter = (function () {
                     minrat:ctrls.rat.stat.minrat,
                     tagfidx:ctrls.rat.tagf.idx,   //Both|Tagged|Untagged
                     fq:mgrs.fq.getFrequencyFiltering(),  //on|off
+                    fpst:mgrs.dsc.filteringPanelState(),  //on|off
                     srchtxt:jt.byId("srchin").value || ""}; },
         name: function () {
             var name = "Digger";  //caps sort before lowercase.
@@ -587,7 +589,12 @@ app.filter = (function () {
                     desc += ", " + formatCSV(sum.negkws, ", ", "not "); } }
             if(sum.srchtxt) {
                 desc += ", " + sum.srchtxt; }
-            return desc; }
+            return desc; },
+        filteringPanelState: function () {
+            var togfiltb = jt.byId("togfiltb");
+            if(togfiltb && togfiltb.dataset.togstate === "off") {
+                return "off"; }
+            return "on"; }
     };  //end of mgrs.dsc returned functions
     }());
 
@@ -599,6 +606,7 @@ return {
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
     summary: function () { return mgrs.dsc.summarizeFiltering(); },
+    filteringPanelState: function () { return mgrs.dsc.filteringPanelState(); },
     gradient: function () { return ranger.panel.gradient; },
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
     dispatch: function (mgrname, fname, ...args) {

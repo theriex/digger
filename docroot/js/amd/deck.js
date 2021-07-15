@@ -41,9 +41,8 @@ app.deck = (function () {
             else {  //no search term present, don't show 'x'
                 jt.byId("clrsrchdiv").style.display = "none"; } },
         filterByFilters: function () {
-            var togfiltb = jt.byId("togfiltb");
-            if(togfiltb && togfiltb.dataset.togstate === "off") {
-                return; }  //no filtering, explicitely turned off
+            if(app.filter.filteringPanelState() === "off") {
+                return; }
             app.filter.filters("active").forEach(function (ftr) {
                 wrk.songs = wrk.songs.filter((song) => ftr.match(song));
                 mgrs.ws.appendInfoCount(ftr.actname || ftr.pn); }); },
@@ -192,7 +191,10 @@ app.deck = (function () {
         noMatchingSongsHelp: function () {
             var msgs = ["No matching songs found"];
             if(mgrs.ws.getSearchText()) {
-                msgs.push("Try clearing search"); }
+                if(app.filter.filteringPanelState() === "on") {
+                    msgs.push("Try turning off the filter panel using the button to the left of the search text, or clear the search"); }
+                else {
+                    msgs.push("Try clearing search"); } }
             else {
                 const filts = app.filter.filters("active");
                 if(filts.some((f) => f.actname && f.actname.match(/[+\-]/g))) {
