@@ -49,7 +49,7 @@ module.exports = (function () {
     function getFriendById (gid) {
         if(!gid) { return null; }
         const ca = getCurrentAccount();
-        if(!ca || !ca.musfs || !ca.musfs.length) {
+        if(!ca || !ca.musfs || !Array.isArray(ca.musfs) || !ca.musfs.length) {
             return null; }
         const musf = ca.musfs.find((g) => g.dsId === gid);
         return musf;

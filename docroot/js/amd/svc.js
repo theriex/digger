@@ -123,11 +123,10 @@ app.svc = (function () {
                     "Content-Type":"application/json"}})
                 .then(function (resp) {
                     if(!resp.ok) {
-                        return JSON.stringify(
-                            {error:{status:resp.status,
-                                    message:resp.statusText}}); }
+                        return {error:{status:resp.status,
+                                       message:resp.statusText}}; }
                     if(resp.status === 204) {  //No Content
-                        return JSON.stringify({status:"No Content"}); }
+                        return {status:"No Content"}; }
                     return resp.json(); })
                 .then(function (obj) {
                     if(obj.error) {
@@ -209,7 +208,7 @@ app.svc = (function () {
                               return {name:t.name, tid:t.id,
                                       dn:t.disc_number, tn:t.track_number}; })};
             const dat = {abinf:JSON.stringify(cabi)};
-            jt.call("POST", app.dr("/api/spabimp"), app.login.authdata(dat),
+            jt.call("POST", app.dr("/api/spabimp"), app.svc.authdata(dat),
                     function (songs) {  //all songs now in hub db
                         var pool = mgrs.web.songs();
                         var merged = [];
@@ -369,9 +368,14 @@ app.svc = (function () {
         removeFriendRatings: function (gid, params, contf, errf) {
             jt.call("GET", app.cb("/gdclear", params), null, contf, errf,
                     jt.semaphore("svc.loc.removeFriendRatings" + gid)); },
-        addFriend: function (data, contf, errf) {
-            jt.call("POST", "/addmusf", data, contf, errf,
-                    jt.semaphore("svc.loc.addFriend")); },
+        addFriend: function (mfem, contf, errf) {
+            jt.call("POST", "/addmusf", app.svc.authdata({mfaddr:mfem}),
+                    function (accts) {
+                        const ca = mgrs.gen.getAccount();
+                        app.top.dispatch("locam", "noteReturnedCurrAcct",
+                                         accts[0], ca.token);
+                        contf(accts); },
+                    errf, jt.semaphore("svc.loc.addFriend")); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {
@@ -431,7 +435,7 @@ app.svc = (function () {
                     contf(pool); }, 200); }
             else {
                 lastfvsj = fvsj;
-                const ps = app.login.authdata({fvs:fvsj});
+                const ps = app.svc.authdata({fvs:fvsj});
                 jt.call("GET", app.cb(app.dr("/api/songfetch"), ps), null,
                         function (songs) {
                             mgrs.web.addSongsToPool(songs);
@@ -441,7 +445,7 @@ app.svc = (function () {
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {
-            jt.call("POST", "/api/songupd", app.login.authdata(song),
+            jt.call("POST", "/api/songupd", app.svc.authdata(song),
                     function (updsong) {
                         mgrs.gen.copyUpdatedSongData(song, updsong);
                         if(contf) {
@@ -451,10 +455,10 @@ app.svc = (function () {
                     jt.semaphore("mgrs.web.updateSong")); },
         updateMultipleSongs: function (updss, contf, errf) {
             var updobj = {songs:JSON.stringify(updss)};  //100 songs ~= 61k
-            jt.call("POST", "api/multiupd", app.login.authdata(updobj),
+            jt.call("POST", "api/multiupd", app.svc.authdata(updobj),
                     contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
         addFriend: function (mfem, contf, errf) {
-            jt.call("POST", "/api/addmusf", app.login.authdata({mfaddr:mfem}),
+            jt.call("POST", "/api/addmusf", app.svc.authdata({mfaddr:mfem}),
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);
                         contf(app.login.dispatch("act", "noteUpdatedAccount",
@@ -462,7 +466,7 @@ app.svc = (function () {
                     errf,
                     jt.semaphore("mgrs.web.addFriend")); },
         getSongTotals: function (contf, errf) {
-            jt.call("POST", "/api/songttls", app.login.authdata(),
+            jt.call("POST", "/api/songttls", app.svc.authdata(),
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);
                         contf(app.login.dispatch("act", "noteUpdatedAccount",
@@ -470,8 +474,8 @@ app.svc = (function () {
                     errf,
                     jt.semaphore("mgrs.web.getSongTotals")); },
         spotifyImport: function (datformat, items, contf, errf) {
-            var data = app.login.authdata({dataformat:datformat,
-                                           items:JSON.stringify(items)});
+            var data = app.svc.authdata({dataformat:datformat,
+                                         items:JSON.stringify(items)});
             jt.call("POST", "/api/impsptracks", data,
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);
@@ -534,7 +538,15 @@ app.svc = (function () {
         copyUpdatedSongData: function (song, updsong) {
             songfields.forEach(function (fld) {
                 if(updsong[fld]) {  //don't copy undefined values
-                    song[fld] = updsong[fld]; } }); }
+                    song[fld] = updsong[fld]; } }); },
+        authdata: function (obj) { //return obj post data, with an/at added
+            var digacc = app.top.dispatch("gen", "getAccount");
+            var authdat = jt.objdata({an:digacc.email, at:digacc.token});
+            if(obj) {
+                authdat += "&" + jt.objdata(obj); }
+            return authdat; },
+        addFriend: function (mfem, contf, errf) {
+            mgrs[hdm].addFriend(mfem, contf, errf); }
     };  //end mgrs.gen returned functions
     }());
 
@@ -545,6 +557,7 @@ return {
     fetchSongs: function (cf, ef) { mgrs.gen.fetchSongs(cf, ef); },
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
     updateSong: function (song, contf) { mgrs.gen.updateSong(song, contf); },
+    authdata: function (obj) { return mgrs.gen.authdata(obj); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }
 };  //end of returned functions

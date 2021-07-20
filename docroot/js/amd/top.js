@@ -492,10 +492,27 @@ app.top = (function () {
         var cg = null;   //current musf being displayed
         var gdmps = {};  //instantiated musf data merge processors
     return {
+        getMusicalFriends: function (curracc) {
+            curracc = curracc || mgrs.gen.getAccount();
+            if(!Array.isArray(curracc.musfs)) {
+                curracc.musfs = []; }
+            return curracc.musfs; },
+        cleanMusicalFriends: function () {
+            var srcmfs = mgrs.mfin.getMusicalFriends();
+            var fixmfs = [];
+            var dlu = {};
+            srcmfs.forEach(function (mf) {
+                if(mf.actord) {
+                    delete mf.actord; }
+                if(!dlu[mf.dsId]) {
+                    dlu[mf.dsId] = mf;
+                    fixmfs.push(mf); } });
+            mgrs.gen.getAccount().musfs = fixmfs;
+            return fixmfs; },
         accountFormDisplayValue: function () {
-            var ca = mgrs.locam.getAccount();
+            var ca = mgrs.gen.getAccount();
             var html = [];
-            ca.musfs = ca.musfs || [];
+            ca.musfs = mgrs.mfin.getMusicalFriends(ca);
             ca.musfs.forEach(function (g, idx) {
                 html.push([["a", {href:"#digger" + g.dsId,
                                   title:"View details for " + g.email,
@@ -522,15 +539,15 @@ app.top = (function () {
                                onclick:mdfs("gin.processFriendAdd")},
                     "Add Friend"]]]])); },
         verifyFriendEmail: function (emaddr) {
-            var ca = mgrs.locam.getAccount();
+            var ca = mgrs.gen.getAccount();
             var okgem = {email:emaddr, err:""};
             if(!jt.isProbablyEmail(okgem.email)) {
                 okgem.err = "Digger email address required."; }
             okgem.email = okgem.email.trim().toLowerCase();
             if(okgem.email === ca.email) {
                 okgem.err = "A friend is someone other than you."; }
-            else if(ca.musfs &&
-                    ca.musfs.find((g) => g.email === okgem.email)) {
+            else if(mgrs.mfin.getMusicalFriends(ca)
+                    .find((g) => g.email === okgem.email)) {
                 okgem.err = okgem.email + " is already a friend."; }
             return okgem; },
         processFriendAdd: function () {
@@ -539,18 +556,14 @@ app.top = (function () {
             if(okgem.err) {
                 return jt.out("amgstatdiv", okgem.err); }
             jt.byId("addmusfb").disabled = true;
-            const ca = mgrs.locam.getAccount();
-            const data = jt.objdata({email:ca.email, at:ca.token,
-                                     gmaddr:okgem.email});
-            app.svc.dispatch("loc", "addFriend", data,
-                function (accts) {
-                    mgrs.locam.noteReturnedCurrAcct(accts[0], ca.token);
+            app.svc.dispatch("gen", "addFriend", okgem.email,
+                function (ignore /*accts*/) {
                     mgrs.mfin.showFriend(0); },
                 function (code, errtxt) {
                     jt.byId("addmusfb").disabled = false;
                     jt.out("amgstatdiv", code + ": " + errtxt); }); },
         showFriend: function (gidx) {
-            cg = mgrs.locam.getAccount().musfs[gidx];
+            cg = mgrs.mfin.getMusicalFriends()[gidx];
             jt.out("topdlgdiv", jt.tac2html(
                 ["div", {id:"musfdlgdiv"},
                  [["div",
@@ -596,8 +609,8 @@ app.top = (function () {
             //open a new window for https://diggerhub.com/playlist/ident
             jt.err("playlist/" + ident + " not available at server yet"); },
         removeFriend: function (gidx) {
-            var ca = mgrs.locam.getAccount();
-            var remg = ca.musfs[gidx];
+            var ca = mgrs.gen.getAccount();
+            var remg = mgrs.mfin.getMusicalFriends(ca)[gidx];
             //makeFetchMergeProcessor already called when musf selected
             gdmps[remg.dsId].removeFriendData(function () {
                 delete gdmps[remg.dsId];
@@ -680,8 +693,8 @@ app.top = (function () {
 
     //web account manager handles account/services when running on diggerhub
     mgrs.webam = (function () {
-        var musfs = null;
-        var actmfs = null;
+        var musfs = null;    //Active and Inactive friends by firstname, email.
+        var actmfs = null;   //Active friends in priority order
     return {
         initialDataLoaded: function () {
             mgrs.gen.updateHubToggleSpan(app.login.getAuth());
@@ -709,28 +722,53 @@ app.top = (function () {
                              onclick:mdfs("webam.togRemoveFriend", idx)},
                     lno]; },
         swapActive: function (idx) {
-            var pmf = actmfs[idx];
+            var pmf = actmfs[idx];  //previously selected musical friend
             var sel = jt.byId("mfsel" + idx);
             var sid = sel.options[sel.selectedIndex].value;
-            var smf = null;
+            var smf = null;         //selected musical friend
             if(sid) {
                 smf = musfs.find((m) => m.dsId === sid); }
-            if(smf) {
-                pmf.status = smf.status;  //might be swapping two active
-                pmf.actord = smf.actord || 0;
-                smf.status = "Active";
-                smf.status = idx + 1; }
-            else {
+            if(!smf) {  //not swapping positions with another friend
                 pmf.status = "Inactive";
-                pmf.actord = 0; }
+                actmfs = actmfs.filter((m) => m.status === "Active"); }
+            else {  //swapping positions with another friend
+                const sidx = actmfs.findIndex((m) => m.dsId === smf.dsId);
+                actmfs[idx] = smf;  //put selected friend in selected position
+                smf.status = "Active";
+                if(sidx >= 0) {  //swapping position of two active friends
+                    actmfs[sidx] = pmf; }
+                else {  //smf was not previously active, adjust actms
+                    actmfs.splice(idx + 1, 0, pmf);
+                    if(actmfs.length > 4 && actmfs[4]) {  //bottom falls off
+                        actmfs[4].status = "Inactive"; }
+                    actmfs = actmfs.slice(0, 4); } }
+            mgrs.webam.updateAccountMusicalFriends();  //background db write
+            mgrs.webam.writeDlgContent(); },  //reflect changes immediately
+        updateAccountMusicalFriends: function () {
+            var ca = mgrs.gen.getAccount();
+            var amfs = mgrs.mfin.getMusicalFriends(ca);
+            ca.musfs = [...actmfs.filter((m) => m !== null),
+                        ...musfs.filter((m) => m.status === "Inactive"),
+                        ...amfs.filter((m) => m.status === "Removed")];
             mgrs.webam.updateAccount(
                 function () {
-                    jt.log("swapActive " + idx + " saved."); },
+                    jt.log("updateAccountMusicalFriends saved."); },
                 function (code, errtxt) {
-                    jt.out("mfstatdiv", "Swap failed " + code + ": " +
-                           errtxt); });
-            mgrs.webam.writeDlgContent(); },  //reflect now, write background
+                    jt.out("mfstatdiv", "updateAccountMusicalFriends failed " +
+                           code + ": " + errtxt); }); },
+        rebuildMusicFriendRefs: function () {
+            musfs = mgrs.mfin.cleanMusicalFriends();
+            const mfsvs = ["Active", "Inactive"];
+            musfs = musfs.filter((m) => mfsvs.includes(m.status));
+            actmfs = musfs.filter((m) => m.status === "Active");
+            actmfs = [...actmfs, null, null, null, null];
+            actmfs = actmfs.slice(0, 4);
+            musfs.sort(function (a, b) {
+                return (a.firstname.localeCompare(b.firstname) ||
+                        a.email.localeCompare(b.email)); }); },
         mfNameSel: function (mf, idx) {
+            if(!mf && idx < musfs.length) {
+                mf = {dsId:0, firstname:""}; }
             if(!mf) { return ""; }
             return ["select", {id:"mfsel" + idx,
                                onchange:mdfs("webam.swapActive", idx)},
@@ -750,23 +788,9 @@ app.top = (function () {
                   "?subject=" + jt.dquotenc(subj) +
                   "&body=" + jt.dquotenc(body) + "%0A%0A";
             return jt.tac2html(["a", {href:link}, mf.email]); },
-        rebuildMusicFriendRefs: function () {
-            const mfsvs = ["Active", "Inactive"];
-            musfs = app.login.getAuth().musfs || [];
-            actmfs = musfs.filter((m) => m.status === "Active");
-            actmfs.sort(function (a, b) {
-                if(a.actord && b.actord) { return a.actord - b.actord; }
-                if(!a.actord && b.actord) { return 1; }
-                if(a.actord && !b.actord) { return -1; }
-                return 0; });
-            actmfs = [...actmfs, null, null, null, null];
-            actmfs = actmfs.slice(0, 4);
-            musfs = musfs.filter((m) => mfsvs.includes(m.status));
-            musfs.sort(function (a, b) {
-                return (a.firstname.localeCompare(b.firstname) ||
-                        a.email.localeCompare(b.email)); }); },
         displayActiveFriends: function () {
-            mgrs.webam.rebuildMusicFriendRefs();
+            if(!musfs || !actmfs) {
+                mgrs.webam.rebuildMusicFriendRefs(); }
             jt.out("amfsdiv", jt.tac2html(
                 actmfs.map(function (mf, idx) {
                     return ["div", {cla:"musfseldiv", id:"musfseldiv" + idx},
@@ -819,7 +843,7 @@ app.top = (function () {
                          igfolds:JSON.stringify(acc.igfolds),
                          settings:JSON.stringify(acc.settings),
                          musfs:JSON.stringify(acc.musfs)};
-            aadat = app.login.authdata(aadat);
+            aadat = app.svc.authdata(aadat);
             app.login.dispatch("act", "updateAccount", aadat, contf, errf); }
     };  //end mgrs.webam returned functions
     }());
@@ -1254,8 +1278,9 @@ app.top = (function () {
                     impstat("merge failed " + code + ": " + errtxt); }); },
         spimpProcess: function () {
             var stat = getSpi();
-            if(spip.mode === "scheduled") {
-                spip.mode = "albums"; }
+            if(spip.mode === "done") {  //already checked recently
+                return impstat("done."); }
+            if(spip.mode === "scheduled") { spip.mode = "albums"; }
             impstat("checking " + spip.mode + "...");
             const spurl = `me/${spip.mode}?offset=${stat.offsets[spip.mode]}`;
             app.svc.dispatch("spc", "sjc", spurl, "GET", null,
