@@ -722,24 +722,35 @@ app.top = (function () {
                              onclick:mdfs("webam.togRemoveFriend", idx)},
                     lno]; },
         swapActive: function (idx) {
-            var pmf = actmfs[idx];  //previously selected musical friend
+            var pmf = actmfs[idx];  //previously selected musical friend or null
             var sel = jt.byId("mfsel" + idx);
             var sid = sel.options[sel.selectedIndex].value;
             var smf = null;         //selected musical friend
+            var saidx = -1;         //selected friend actmfs index
             if(sid) {
-                smf = musfs.find((m) => m.dsId === sid); }
-            if(!smf) {  //not swapping positions with another friend
-                pmf.status = "Inactive";
-                actmfs = actmfs.filter((m) => m.status === "Active"); }
-            else {  //swapping positions with another friend
-                const sidx = actmfs.findIndex((m) => m.dsId === smf.dsId);
-                actmfs[idx] = smf;  //put selected friend in selected position
+                smf = musfs.find((m) => m.dsId === sid);
+                saidx = actmfs.findIndex((m) => m && m.dsId === smf.dsId); }
+            if(!smf) {  //deactivating
+                if(pmf) {  //previous may also have been empty select option
+                    jt.log("deactivating " + pmf.firstname);
+                    pmf.status = "Inactive"; }
+                mgrs.webam.rebuildActiveMusicalFriends(); }
+            else if(smf && !pmf) {  //activating (previously blank slot)
+                if(saidx >= 0) {  //already in active, attempting to add dupe
+                    sel.value = "";
+                    return; }
+                jt.log("activating " + smf.firstname);
                 smf.status = "Active";
-                if(sidx >= 0) {  //swapping position of two active friends
-                    actmfs[sidx] = pmf; }
-                else {  //smf was not previously active, adjust actms
-                    actmfs.splice(idx + 1, 0, pmf);
-                    if(actmfs.length > 4 && actmfs[4]) {  //bottom falls off
+                actmfs[idx] = smf; }
+            else {  //have smf && pmf
+                actmfs[idx] = smf;
+                if(saidx >= 0) {  //selected friend in actmfs, swap positions
+                    jt.log("swap " + pmf.firstname + " --> " + smf.firstname);
+                    actmfs[saidx] = pmf; }
+                else {  //move rest of active friends down to make room
+                    jt.log("moving " + pmf.firstname + " down");
+                    actmfs.splice(idx + 1, 0, pmf);  //move previous down
+                    if(actmfs.length > 4 && actmfs[4]) {  //last falls off
                         actmfs[4].status = "Inactive"; }
                     actmfs = actmfs.slice(0, 4); } }
             mgrs.webam.updateAccountMusicalFriends();  //background db write
@@ -756,13 +767,20 @@ app.top = (function () {
                 function (code, errtxt) {
                     jt.out("mfstatdiv", "updateAccountMusicalFriends failed " +
                            code + ": " + errtxt); }); },
+        rebuildActiveMusicalFriends: function () {
+            var rebmfs = musfs.filter((m) => m.status === "Active");
+            actmfs = actmfs || [];
+            rebmfs.sort(function (a, b) {
+                var aidx = actmfs.findIndex((m) => m && m.dsId === a.dsId);
+                var bidx = actmfs.findIndex((m) => m && m.dsId === b.dsId);
+                return aidx - bidx; });
+            actmfs = [...rebmfs, null, null, null, null];
+            actmfs = actmfs.slice(0, 4); },
         rebuildMusicFriendRefs: function () {
             musfs = mgrs.mfin.cleanMusicalFriends();
             const mfsvs = ["Active", "Inactive"];
             musfs = musfs.filter((m) => mfsvs.includes(m.status));
-            actmfs = musfs.filter((m) => m.status === "Active");
-            actmfs = [...actmfs, null, null, null, null];
-            actmfs = actmfs.slice(0, 4);
+            mgrs.webam.rebuildActiveMusicalFriends();
             musfs.sort(function (a, b) {
                 return (a.firstname.localeCompare(b.firstname) ||
                         a.email.localeCompare(b.email)); }); },
@@ -813,7 +831,10 @@ app.top = (function () {
                 return jt.out("mfstatdiv", "Need a valid email address..."); }
             jt.out("mfbdiv", "Adding...");
             app.svc.dispatch("web", "addFriend", emaddr,
-                mgrs.webam.writeDlgContent,
+                function () {
+                    musfs = null;
+                    actmfs = null;
+                    mgrs.webam.writeDlgContent(); },
                 function (code, errtxt) {
                     mgrs.webam.writeDlgContent();
                     if(code === 404) {
