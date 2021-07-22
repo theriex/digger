@@ -156,11 +156,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #pluiprogbgdiv, #pluiprogdiv { height:6px; }
 #pluiprogbgdiv { background:black; }
 #pluiprogdiv { background:#666; }
-#pluiposdiv { position:absolute; bottom:2px; left:24px; width:60px;
+#pluiposdiv { position:absolute; bottom:2px; left:24px; width:68px;
   text-align:center; }
 #pluitimeposdiv, #pluitimesepdiv, #pluitimedurdiv {
   display:inline-block; color:#ffab00; }
-#pluitimeposdiv, #pluitimedurdiv { font-size:small; vertical-align:super; }
+#pluitimeposdiv, #pluitimedurdiv { font-size:14px; vertical-align:super; }
 #pluiprogclickdiv { height:28px; bottom:-8px; }
 
 
