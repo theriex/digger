@@ -429,7 +429,9 @@ app.svc = (function () {
                 else {
                     pool[sk] = song; } }); },
         fetchSongs: function (contf, errf) {  //retrieve more songs
-            var fvsj = JSON.stringify(app.filter.summary());
+            var fvsj = app.filter.summary();
+            fvsj.friendidcsv = app.top.dispatch("webam", "musicalFriendsIdCSV");
+            fvsj = JSON.stringify(fvsj);
             if(lastfvsj && lastfvsj === fvsj) {  //no change, return existing
                 setTimeout(function () {
                     contf(pool); }, 200); }

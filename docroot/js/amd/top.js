@@ -699,6 +699,10 @@ app.top = (function () {
         initialDataLoaded: function () {
             mgrs.gen.updateHubToggleSpan(app.login.getAuth());
             mgrs.kwd.rebuildKeywords(); },
+        musicalFriendsIdCSV: function () {
+            if(!actmfs) {
+                mgrs.webam.rebuildMusicFriendRefs(); }
+            return actmfs.filter((m) => m).map((m) => m.dsId).join(","); },
         removeFriend: function (idx) {
             jt.out("mfstatdiv", "Removing...");
             actmfs[idx].status = "Removed";
