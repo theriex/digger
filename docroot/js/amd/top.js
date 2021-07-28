@@ -799,17 +799,19 @@ app.top = (function () {
                          value:m.dsId, selected:jt.toru((m.dsId === mf.dsId),
                                                         "selected")},
                                           m.firstname])]]; },
+        friendEmailClick: function (event) {
+            jt.log("friendEmailClick " + event.target.innerHTML); },
         mfMailLink: function (mf) {
-            var subj = "diggin"; var body = "";
+            var subj = "diggin";
             if(!mf) { return ""; }
-            const song = app.player.song();
-            if(song) {
-                body = "Now playing\nTitle: " + song.ti + "\nArtist: " +
-                    song.ar + "\nAlbum: " + song.ab; }
             const link = "mailto:" + mf.email +
                   "?subject=" + jt.dquotenc(subj) +
-                  "&body=" + jt.dquotenc(body) + "%0A%0A";
-            return jt.tac2html(["a", {href:link}, mf.email]); },
+                  "&body=" + jt.dquotenc(
+                      "\n\n" + mgrs.webam.currentSongsText()) + "%0A%0A";
+            return jt.tac2html(
+                ["a", {href:link,
+                       onclick:mdfs("webam.friendEmailClick", "event")},
+                 mf.email]); },
         displayActiveFriends: function () {
             if(!musfs || !actmfs) {
                 mgrs.webam.rebuildMusicFriendRefs(); }
@@ -819,16 +821,75 @@ app.top = (function () {
                             [mgrs.webam.mfLineNumSpan(mf, idx),
                              mgrs.webam.mfNameSel(mf, idx),
                              mgrs.webam.mfMailLink(mf)]]; }))); },
-        inviteHTML: function (emaddr) {
+        currentSongsText: function () {
+            var txt = "";
+            var np = app.player.song();  //now playing
+            if(np) {
+                txt += np.ti + " - " + np.ar + " - " + np.ab + "\n"; }
+            const dki = app.deck.deckinfo();
+            dki.songs.slice(0, 5).forEach(function (song) {
+                txt += song.ti + " - " + song.ar + " - " + song.ab + "\n"; });
+            if(txt) {
+                txt = "Cued up and playing:\n" + txt; }
+            return txt; },
+        friendInviteClick: function (ignore /*event*/) {
+            jt.byId("mfinvdoneb").disabled = false;
+            jt.byId("mfinvdonebdiv").style.opacity = 1.0; },
+        inviteSendHTML: function (dat) {
             var me = app.login.getAuth();
-            var subj = "Invitation to share music on DiggerHub";
-            var body = "I'm inviting you to be a music friend on DiggerHub, so we can use each other's song ratings for new music.\n\n" +
-                "Email goes directly between users. No spam. You can sign up and find me, or use this link to automatically connect: https://diggerhub.com?join=" + emaddr + "&friend=" + me.email + "\n\n" +
-                "It would be great to share your music knowledge,\n" +
-                me.firstname + "\n\n";
-            var link = "mailto:?subject=" + jt.dquotenc(subj) + "&body=" +
-                jt.dquotenc(body) + "%0A%0A";
-            return jt.tac2html(["a", {href:link}, "Send Invite"]); },
+            var subj = "DiggerHub music friend invitation";
+            var body = "Hi " + dat.firstname + ",\n\n" +
+"I just added you as a music friend on DiggerHub!  Looking forward to pulling the best from each other's music libraries when digging through the stacks.\n\n" +
+"Happy listening,\n" + me.firstname + "\n\n" +
+"P.S. You should have already received an access link from support@diggerhub.com\n\n" + mgrs.webam.currentSongsText();
+            var link = "mailto:" + dat.emaddr + "?subject=" +
+                jt.dquotenc(subj) + "&body=" + jt.dquotenc(body) + "%0A%0A";
+            return jt.tac2html(
+                [["a", {href:link, id:"mfinvitelink",
+                        onclick:mdfs("webam.friendInviteClick", "event")},
+                  "&gt;&gt; Send Invite to " + dat.firstname +
+                  " &lt;&lt;&nbsp; "],
+                 ["div", {id:"mfinvdonebdiv", style:"opacity:0.4"},
+                  ["button", {type:"button", id:"mfinvdoneb", disabled:true,
+                              onclick:mdfs("webam.writeDlgContent", "event")},
+                   "Done"]]]); },
+        createFriend: function () {
+            var dat = {emaddr:jt.byId("mfemin").value,
+                       firstname:jt.byId("friendnamein").value};
+            if(!dat.emaddr || !dat.firstname) { return; }
+            jt.out("mfsubformbdiv", "Creating...");
+            app.svc.dispatch("web", "createFriend", dat,
+                function () {
+                    mgrs.webam.rebuildMusicFriendRefs();
+                    jt.out("mfsubstatdiv", "");
+                    jt.out("mfsubformdiv", mgrs.webam.inviteSendHTML(dat)); },
+                function (code, errtxt) {
+                    mgrs.webam.writeDlgContent();
+                    jt.out("mfsubformdiv", "Add failed " +
+                           code + ": " + errtxt); }); },
+        mfnameinput: function (ignore /*event*/) {
+            if(!jt.byId("mfsubformbutton")) {
+                jt.out("mfsubformbdiv", jt.tac2html(
+                    ["button", {type:"button", id:"mfsubformbutton",
+                                onclick:mdfs("webam.createFriend")},
+                     "Create"])); }
+            if(jt.byId("friendnamein").value) {
+                jt.byId("mfsubformbutton").disabled = false;
+                jt.byId("mfsubformbdiv").style.opacity = 1.0; }
+            else {
+                jt.byId("mfsubformbutton").disabled = true;
+                jt.byId("mfsubformbdiv").style.opacity = 0.4; } },
+        inviteCreate: function () {
+            jt.out("mfbdiv", "");  //Clear button and status
+            jt.out("mfstatdiv", jt.tac2html(
+                ["div", {id:"statformdiv"},
+                 [["div", {id:"mfsubstatdiv"}, "Not found. Create and invite?"],
+                  ["div", {id:"mfsubformdiv", cla:"formlinediv"},
+                   [["label", {fo:"friendnamein"}, "First name:"],
+                    ["input", {id:"friendnamein", type:"text", size:8,
+                               oninput:mdfs("webam.mfnameinput", "event")}],
+                    ["div", {id:"mfsubformbdiv"}]]]]]));
+            mgrs.webam.mfnameinput(); }, //display disabled button
         addFriend: function () {
             var emaddr = jt.byId("mfemin").value;
             if(!jt.isProbablyEmail(emaddr)) {
@@ -841,24 +902,36 @@ app.top = (function () {
                     mgrs.webam.writeDlgContent(); },
                 function (code, errtxt) {
                     mgrs.webam.writeDlgContent();
+                    jt.byId("mfemin").value = emaddr;
                     if(code === 404) {
-                        return jt.out("Not found. " +
-                                      mgrs.webam.inviteHTML(emaddr)); }
+                        return mgrs.webam.inviteCreate(); }
                     jt.out("mfstatdiv", "Add failed " + code +
                            ": " + errtxt); }); },
+        mfeminput: function (ignore /*event*/) {
+            jt.out("mfstatdiv", "");
+            if(!jt.byId("mfaddb")) {
+                jt.out("mfbdiv", jt.tac2html(
+                    ["button", {type:"button", id:"mfaddb",
+                                onclick:mdfs("webam.addFriend")},
+                     "Add"])); }
+            if(jt.isProbablyEmail(jt.byId("mfemin").value)) {
+                jt.byId("mfaddb").disabled = false;
+                jt.byId("mfbdiv").style.opacity = 1.0; }
+            else {
+                jt.byId("mfaddb").disabled = true;
+                jt.byId("mfbdiv").style.opacity = 0.4; } },
         writeDlgContent: function () {  //general account info on main site
             jt.out("topdlgdiv", jt.tac2html(
                 ["div", {id:"mfsdiv"},
                  [["div", {id:"addmfdiv"},
                    [["label", {fo:"mfemin"}, "Music friend's email: "],
                     ["input", {type:"email", id:"mfemin",
+                               oninput:mdfs("webam.mfeminput", "event"),
                                placeholder:"friend@example.com"}],
-                    ["div", {id:"mfbdiv"},
-                     ["button", {type:"button",
-                                 onclick:mdfs("webam.addFriend")},
-                      "Add"]],
+                    ["div", {id:"mfbdiv"}],
                     ["div", {id:"mfstatdiv"}]]],
                   ["div", {id:"amfsdiv"}]]]));
+            mgrs.webam.mfeminput();  //display disabled button
             mgrs.webam.displayActiveFriends(); },
         getAccount: function () {
             return app.login.getAuth(); },

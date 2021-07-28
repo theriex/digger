@@ -93,6 +93,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #amfsdiv select { margin:0px 6px 0px 6px; }
 .mflinenospan { cursor:pointer; }
 .mflinenospandis { opacity:0.4; }
+#mfsubstatdiv { padding:4px 0px 0px 0px; }
+#mfsubformdiv label { margin-right:4px; }
+#mfsubformdiv input { margin-right:4px; }
+#mfsubformbdiv, #mfinvdonebdiv { display:inline-block; }
+#mfinvitelink { font-weight:bold; font-size:large; }
 
 #ciheadingdiv { font-size:small; padding:0px 0px 7px 0px; font-style:italic; }
 .filenamespan { font-style:normal; }

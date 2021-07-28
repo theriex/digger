@@ -376,6 +376,8 @@ app.svc = (function () {
                                          accts[0], ca.token);
                         contf(accts); },
                     errf, jt.semaphore("svc.loc.addFriend")); },
+        createFriend: function (dat, contf, errf) {
+            jt.err("createFriend not implemented yet"); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {
@@ -467,6 +469,14 @@ app.svc = (function () {
                                                  digacc)); },
                     errf,
                     jt.semaphore("mgrs.web.addFriend")); },
+        createFriend: function (dat, contf, errf) {
+            jt.call("POST", "/api/createmusf", app.svc.authdata(dat),
+                    function (results) {
+                        var digacc = app.refmgr.deserialize(results[0]);
+                        contf(app.login.dispatch("act", "noteUpdatedAccount",
+                                                 digacc)); },
+                    errf,
+                    jt.semaphore("mgrs.web.createFriend")); },
         getSongTotals: function (contf, errf) {
             jt.call("POST", "/api/songttls", app.svc.authdata(),
                     function (results) {
@@ -492,11 +502,13 @@ app.svc = (function () {
     //general manager is main interface for app logic
     mgrs.gen = (function () {
         var dwurl = "https://diggerhub.com/digger";
-        var dwdev = "http://localhost:8080/digger";
         var hdm = "loc";  //host data manager.  either loc or web
         var songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
                           "el", "al", "kws", "rv", "fq", "lp", "nt",
                           "dsId", "modified"];
+        function isLocalDev (url) {
+            return url &&
+                url.match(/https?:\/\/(localhost|127.0.0.1):80\d\d\/digger/); }
     return {
         getHostDataManager: function () { return hdm; },
         initialDataLoaded: function () {
@@ -509,7 +521,7 @@ app.svc = (function () {
             jt.err("Initial data load failed " + code + ": " + errtxt); },
         initialize: function () {
             var url = window.location.href.toLowerCase();
-            if(url.startsWith(dwurl) || url.startsWith(dwdev)) {
+            if(url.startsWith(dwurl) || isLocalDev(url)) {
                 hdm = "web"; }
             else {  //localhost or LAN
                 hdm = "loc"; }
@@ -548,7 +560,9 @@ app.svc = (function () {
                 authdat += "&" + jt.objdata(obj); }
             return authdat; },
         addFriend: function (mfem, contf, errf) {
-            mgrs[hdm].addFriend(mfem, contf, errf); }
+            mgrs[hdm].addFriend(mfem, contf, errf); },
+        createFriend: function (dat, contf, errf) {
+            mgrs[hdm].createFriend(dat, contf, errf); }
     };  //end mgrs.gen returned functions
     }());
 
