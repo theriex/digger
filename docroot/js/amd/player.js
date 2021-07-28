@@ -144,16 +144,23 @@ app.player = (function () {
             if(ms < 5000) { ms = 0; }  //close enough, restart from beginning
             prog.svco.seek(ms); },
         updatePosIndicator: function () {
-            var progw = 0;
+            //update progress bar
+            var prw = 0;
             if(prog.dur) {
-                progw = Math.round((prog.pos / prog.dur) * prog.w); }
-            jt.byId("pluiprogdiv").style.width = progw + "px";
-            const posdiv = jt.byId("pluiposdiv");
-            const posw = posdiv.getBoundingClientRect().width;
-            const left = (prog.left + progw) - Math.floor(posw / 2);
-            posdiv.style.left = left + "px";
+                prw = Math.round((prog.pos / prog.dur) * prog.w); }
+            jt.byId("pluiprogdiv").style.width = prw + "px";
+            //update time readout and position
             jt.out("pluitimeposdiv", mmss(prog.pos));
-            jt.out("pluitimedurdiv", mmss(prog.dur)); },
+            jt.out("pluitimedurdiv", mmss(prog.dur));
+            const posdiv = jt.byId("pluiposdiv");
+            posdiv.style.width =
+                (jt.byId("pluitimeposdiv").getBoundingClientRect().width +
+                 jt.byId("pluitimesepdiv").getBoundingClientRect().width +
+                 jt.byId("pluitimedurdiv").getBoundingClientRect().width +
+                 6) + "px";
+            const posw = posdiv.getBoundingClientRect().width;
+            const left = (prog.left + prw) - Math.floor(posw / 2);
+            posdiv.style.left = left + "px"; },
         initInterface: function () {
             if(!jt.byId("audiodiv")) {
                 return jt.log("mgrs.plui.initInterface has no audiodiv"); }
