@@ -242,6 +242,7 @@ app.svc = (function () {
                         loadproc.stat = info.status;
                         if(info.status === "reading") {  //work ongoing, monitor
                             jt.out(loadproc.divid, info.lastrpath);
+                            jt.out("decksongsdiv", "Importing music...");
                             setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete
                             //app.deck.updateDeck(); handled by dbread return
