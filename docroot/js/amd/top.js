@@ -57,9 +57,9 @@ app.top = (function () {
                 verstat.loc = curracct.diggerVersion;
                 if(!verstat.notice && verstat.hub !== verstat.loc) {
                     verstat.notice = true;
-                    jt.err("You are running " + verstat.loc + ". The hub is " +
-                           verstat.hub + ". You might want to download and " +
-                           "install the latest version."); } } }
+                    jt.err("You are running " + verstat.loc +
+                           ". DiggerHub.com has " + verstat.hub +
+                           ". Download and install the new app."); } } }
     };  //end mgrs.hcu returned functions
     }());
 
