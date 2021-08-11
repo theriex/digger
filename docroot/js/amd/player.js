@@ -245,6 +245,7 @@ app.player = (function () {
                 swpi.connect().then(function (result) {
                     if(result) {
                         pstat = "connected";
+                        mgrs.spa.updatePlayState("paused");  //reset playback
                         pmsg("Spotify Web Player Connected.");
                         //could still get an error if not premium or whatever
                         setTimeout(mgrs.spa.verifyPlaying, 500); }
@@ -252,7 +253,9 @@ app.player = (function () {
                         pstat = "connfail";
                         pmsg(["a", {href:"#Reconnect",
                                     onclick:mdfs("spa.verifyPlayer")},
-                              "Reconnect Spotify Web Player"]); } }); }
+                              "Reconnect Spotify Web Player"]); } })
+                    .catch(function (err) {
+                        jt.log("playerSetup swpi.connect catch: " + err); }); }
             return false; },
         getPlayerStatus: function () { return pstat; },
         verifyPlayer: function () {  //called after deck updated
@@ -325,7 +328,8 @@ app.player = (function () {
             pbi.song = song;
             if(pstat !== "connected" || !pdid) {
                 return; }  //playback starts after connection setup complete.
-            //no autoplay, updatePlayState from clicks or state change notice
+            //autoplay is generally blocked, but may happen if the state is
+            //refreshed after hitting the play button.
             pbi.spuri = "spotify:track:" + pbi.song.spid.slice(2);
             app.svc.dispatch("spc", "sjc", `me/player/play?device_id=${pdid}`,
                              "PUT", {uris:[pbi.spuri]}); }
