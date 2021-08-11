@@ -741,7 +741,7 @@ app.player = (function () {
              ["div", {id:"commentdiv"}],
              ["div", {id:"sleepdiv"}]]));
         mgrs.pan.makePanControls();
-        //toggle controls rebuilt after data loaded
+        //toggle controls are rebuilt after data loads, not needed yet
         makeRatingValueControl();
     }
 

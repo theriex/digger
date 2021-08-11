@@ -76,6 +76,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .formattr { font-size:small; text-align:right; }
 .cblab { font-size:small; }
 #hubaccttopdiv { font-size:small; padding-left:4px; }
+.fhselspan { color:#FFAB00; }
 .formvalspan { font-size:medium; color:#666; font-style:italic;
   margin-left:2px; }
 #hubacctseldiv { min-width:200px; }
@@ -93,6 +94,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #amfsdiv select { margin:0px 6px 0px 6px; }
 .mflinenospan { cursor:pointer; }
 .mflinenospandis { opacity:0.4; }
+.friendinfotogimg { max-height:16px; margin:0px 4px 2px 0px; }
 #mfsubstatdiv { padding:4px 0px 0px 0px; }
 #mfsubformdiv label { margin-right:4px; }
 #mfsubformdiv input { margin-right:4px; }

@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.7";
+        return "v0.8";
     }
 
 
@@ -68,20 +68,7 @@ module.exports = (function () {
                //songs are indexed by relative path off of musicPath e.g.
                //"artistFolder/albumFolder/disc#?/songFile"
                songs:{}};
-        //Each song entry:
-        //  fq: frequency. See waitcodedays values and comments
-        //  lp: last played. Local time ISO (easier to read, not critical)
-        //  rv: rating. 0 is unrated, then 1-10 (5 stars with halves)
-        //  al: approachability (Easy/Hard) 0-99 default 49
-        //  el: energy level (Chill/Amped) 0-99 default 49
-        //  kws: CSV of selected keywords (case normalized to declared vals)
-        //  nt: arbitrary comment text
-        //  ar: artist (from file metadata)
-        //  ab: album (from file metatdata)
-        //  ti: title (from file metatdata
-        //  segs: [] A segue is ar/ab/ti/prob where prob is an *independent*
-        //  percentage likelihood the segue will be used.  e.g. 0 is never,
-        //  100 is always, 50 is a coin toss.
+        //See diggerhub datadefs, aid and spid not saved locally.
         writeDatabaseObject();
         console.log("Created " + conf.dbPath);
         state = "ready";
@@ -89,7 +76,7 @@ module.exports = (function () {
 
 
     function normalizeIntegerValues (song) {
-        var fields = ["rv", "al", "el"];
+        var fields = ["rv", "al", "el", "pc"];
         fields.forEach(function (field) {
             if(typeof song[field] === "string") {
                 song[field] = parseInt(song[field], 10); } });
@@ -491,6 +478,9 @@ module.exports = (function () {
             song.ar = fields.ar || "";
             song.ab = fields.ab || "";
             song.ti = fields.ti || "";
+            song.pc = fields.pc;
+            song.srcid = fields.srcid || "";
+            song.srcrat = fields.srcrat || "";
             normalizeIntegerValues(song);
             require("./hub").verifyFriendRating(song);
             writeDatabaseObject();

@@ -59,6 +59,9 @@ module.exports = (function () {
     function isIgnoreDir (ws, dirname) {
         if(!ws.curracct) {
             ws.curracct = getCurrentAccount(); }
+        ws.curracct.igfolds = ws.curracct.igfolds || [];
+        if(!Array.isArray(ws.curracct.igfolds)) {
+            ws.curracct.igfolds = []; }
         const igfolds = ws.curracct.igfolds;
         if(igfolds.includes(dirname)) {
             return true; }
@@ -148,11 +151,8 @@ module.exports = (function () {
 
 
     function recountFilledByFriend (gid) {
-        var filled = 0;  //array.reduce is fugly with if
-        Object.values(db.dbo().songs).forEach(function (song) {
-            if(song.musfrated && song.musfrated.startsWith(gid)) {
-                filled += 1; } });
-        return filled;
+        return Object.values(db.dbo().songs).reduce((a, v) =>
+            a + ((v.srcid === gid)? 1 : 0)).length;
     }
 
 
@@ -359,7 +359,7 @@ module.exports = (function () {
         Object.values(gdat.songs).forEach(function (s) {
             if(s.modified > musf.lastrating) {
                 musf.lastrating = s.modified; } });
-        const params = {email:pu.query.email, at:pu.query.at, gid:pu.query.gid,
+        const params = {email:pu.query.email, at:pu.query.at, mfid:pu.query.gid,
                         since:musf.lastrating};
         return hubget("musfdat", params, res, function (hubret) {
             updateLocalFriendData(gdat, hubret, musf);
@@ -373,20 +373,21 @@ module.exports = (function () {
         fillSong: function (musf, musfsong, ddsong) {
             gdflds.forEach(function (cf) {
                 ddsong[cf] = musfsong[cf]; });
-            //tighter and no serialization confusion with a ';' sep value.
-            ddsong.musfrated = musf.dsId;
-            gdflds.forEach(function (cf) {
-                ddsong.musfrated += ":" + musfsong[cf]; });
+            ddsong.srcid = musf.dsId;
+            ddsong.srcrat = gdflds.map((n) => musfsong[n])
+                .join(";");  //avoid serialization confusion with url safe sep
             musf.filled += 1;
             musf.lastimport = new Date().toISOString(); },
         verifyFriendRating: function (song) {
-            if(!song.musfrated) { return; }
-            const gvals = song.musfrated.split(";").slice(1);
+            if(!song.srcid || !song.srcrat) { return; }  //no guide info
+            if(song.dsId) { return; }  //srcid preserved after hub save
+            const gvals = song.srcrat.split(";");
             const chg = gdflds.find((fld, idx) =>
                 String(song[fld]) !== gvals[idx]);
             if(chg) {
-                console.log("Removed musfrated due to changed " + chg);
-                delete song.musfrated; } }
+                console.log("Removed srcid/srcrat due to changed " + chg);
+                song.srcid = "";
+                song.srcrat = ""; } }
     };  //end returned gdutil functions
     }());
 
@@ -400,7 +401,7 @@ module.exports = (function () {
         const ces = [];  //Collab entries for filled in ratings
         const dbo = db.dbo();
         Object.entries(dbo.songs).forEach(function ([p, s]) {
-            if(isUnratedSong(s)) {
+            if(isUnratedSong(s) && !s.dsId) {
                 const key = songLookupKey(s, p);
                 if(key) {
                     if(gdat.songs[key] && !isUnratedSong(gdat.songs[key])) {
@@ -419,15 +420,18 @@ module.exports = (function () {
     }
 
 
+    //friend sourced ratings that have been saved to the hub are kept so
+    //they work the same as friend sourced songs in the streaming interface.
     function gdclear (pu, ignore /*req*/, res) {
         var gid = pu.query.gid;
         Object.values(db.dbo().songs).forEach(function (s) {
-            if(s.musfrated && s.musfrated.startsWith(gid)) {
+            if(!s.dsId && s.srcid === gid) {
                 s.el = 49;
                 s.al = 49;
                 s.rv = 5;
                 s.kws = "";
-                delete s.musfrated; } });
+                s.srcid = "";
+                s.srcrat = ""; } });
         db.writeDatabaseObject();  //record updated ratings
         res.writeHead(200, {"Content-Type": "application/json"});
         res.end(JSON.stringify(db.dbo()));

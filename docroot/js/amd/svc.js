@@ -7,7 +7,7 @@ app.svc = (function () {
 
     var mgrs = {};  //general container for managers
     function mdfs (mgrfname, ...args) {  //module dispatch function string
-        return app.dfs("top", mgrfname, args);
+        return app.dfs("svc", mgrfname, args);
     }
     function errstat (src, code, errtxt) {
         var msg = src + " " + code + ": " + errtxt;
@@ -246,7 +246,7 @@ app.svc = (function () {
                             setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete
                             //app.deck.updateDeck(); handled by dbread return
-                            jt.out(loadproc.divid, ""); } },
+                            mgrs.loc.cancelRead(); } },  //clear loadproc
                     function (code, errtxt) {
                         errstat("svc.loc.monitorReadTotal", code, errtxt); },
                     jt.semaphore("svc.loc.monitorReadTotal")); },
@@ -372,7 +372,7 @@ app.svc = (function () {
         addFriend: function (mfem, contf, errf) {
             jt.call("POST", "/addmusf", app.svc.authdata({mfaddr:mfem}),
                     function (accts) {
-                        const ca = mgrs.gen.getAccount();
+                        const ca = app.top.dispatch("locam", "getAccount");
                         app.top.dispatch("locam", "noteReturnedCurrAcct",
                                          accts[0], ca.token);
                         contf(accts); },
@@ -433,7 +433,7 @@ app.svc = (function () {
                     pool[sk] = song; } }); },
         fetchSongs: function (contf, errf) {  //retrieve more songs
             var fvsj = app.filter.summary();
-            fvsj.friendidcsv = app.top.dispatch("webam", "musicalFriendsIdCSV");
+            fvsj.friendidcsv = app.top.dispatch("mfnd", "musicalFriendsIdCSV");
             fvsj = JSON.stringify(fvsj);
             if(lastfvsj && lastfvsj === fvsj) {  //no change, return existing
                 setTimeout(function () {
@@ -478,6 +478,14 @@ app.svc = (function () {
                                                  digacc)); },
                     errf,
                     jt.semaphore("mgrs.web.createFriend")); },
+        friendContribCount: function (contf, errf) {
+            jt.call("POST", "/api/mfcontrib", app.svc.authdata(),
+                    function (results) {
+                        var digacc = app.refmgr.deserialize(results[0]);
+                        contf(app.login.dispatch("act", "noteUpdatedAccount",
+                                                 digacc)); },
+                    errf,
+                    jt.semaphore("mgrs.web.friendContribCount")); },
         getSongTotals: function (contf, errf) {
             jt.call("POST", "/api/songttls", app.svc.authdata(),
                     function (results) {

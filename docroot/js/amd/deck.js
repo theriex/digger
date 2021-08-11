@@ -271,6 +271,7 @@ app.deck = (function () {
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         markSongPlayed: function (song) {
             song.lp = new Date().toISOString();
+            song.pc = (song.pc || 0) + 1;
             if(song.fq === "N") { song.fq = "P"; }
             mgrs.hst.noteSongPlayed(song);
             app.svc.updateSong(song); },
