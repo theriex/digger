@@ -351,6 +351,12 @@ module.exports = (function () {
     }
 
 
+    function createmusf (req, res) {
+        return hubpost(req, res, "createmusf", function (hubret) {
+            noteUpdatedAccount(hubret); });
+    }
+
+
     function musfdat (pu, ignore /*req*/, res) {
         var musf; var gdat; [musf, gdat] = loadLocalFriendData(pu.query.gid);
         if(!musf) {
@@ -451,6 +457,7 @@ module.exports = (function () {
         mailpwr: function (pu, req, res) { return mailpwr(pu, req, res); },
         hubsync: function (req, res) { return hubsync(req, res); },
         addmusf: function (req, res) { return addmusf(req, res); },
+        createmusf: function (req, res) { return createmusf(req, res); },
         musfdat: function (pu, req, res) { return musfdat(pu, req, res); },
         ratimp: function (pu, req, res) { return ratimp(pu, req, res); },
         gdclear: function (pu, req, res) { return gdclear(pu, req, res); }

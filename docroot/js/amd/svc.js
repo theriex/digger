@@ -378,7 +378,13 @@ app.svc = (function () {
                         contf(accts); },
                     errf, jt.semaphore("svc.loc.addFriend")); },
         createFriend: function (dat, contf, errf) {
-            jt.err("createFriend not implemented yet"); },
+            jt.call("POST", "/createmusf", app.svc.authdata(dat),
+                    function (results) {
+                        const ca = app.top.dispatch("locam", "getAccount");
+                        app.top.dispatch("locam", "noteReturnedCurrAcct",
+                                         results[0], ca.token);
+                        contf(results); },
+                    errf, jt.semaphore("svc.loc.createFriend")); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {

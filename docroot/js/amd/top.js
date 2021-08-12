@@ -879,10 +879,10 @@ app.top = (function () {
             jt.byId("mfinvdoneb").disabled = false;
             jt.byId("mfinvdonebdiv").style.opacity = 1.0; },
         inviteSendHTML: function (dat) {
-            var me = app.login.getAuth();
+            var me = mgrs.gen.getAccount();
             var subj = "DiggerHub music friend invitation";
             var body = "Hi " + dat.firstname + ",\n\n" +
-"I just added you as a music friend on DiggerHub!  Looking forward to pulling the best from each other's music libraries when digging through the stacks.\n\n" +
+"I just added you as a music friend on DiggerHub!  Looking forward to pulling the best from each other's music libraries while digging through the stacks.\n\n" +
 "Happy listening,\n" + me.firstname + "\n\n" +
 "P.S. You should have already received an access link from support@diggerhub.com\n\n" + mgrs.mfnd.currentSongsText();
             var link = "mailto:" + dat.emaddr + "?subject=" +
@@ -901,7 +901,7 @@ app.top = (function () {
                        firstname:jt.byId("friendnamein").value};
             if(!dat.emaddr || !dat.firstname) { return; }
             jt.out("mfsubformbdiv", "Creating...");
-            app.svc.dispatch("web", "createFriend", dat,
+            app.svc.dispatch("gen", "createFriend", dat,
                 function () {
                     mgrs.mfnd.rebuildMusicFriendRefs();
                     jt.out("mfsubstatdiv", "");
