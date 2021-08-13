@@ -343,8 +343,9 @@ app.top = (function () {
     }());
 
 
-    function makeFetchMergeProcessor (mf) { return (function () {
+    function makeFetchMergeProcessor (mf, df) { return (function () {
         var musf = mf;
+        var donef = df;
         var logpre = "FMP " + musf.dsId + " ";
         var state = "stopped";
         var ca = mgrs.locam.getAccount();
@@ -403,9 +404,10 @@ app.top = (function () {
                             function () {
                                 ca = mgrs.locam.getAccount();
                                 if(musf.lastcheck > musf.lastrating) { //done
-                                    pfs.procupd();
                                     jt.log(logpre + "finished");
-                                    state = "stopped"; }
+                                    pfs.procupd();
+                                    state = "stopped";
+                                    if(donef) { donef(); } }
                                 else {
                                     pfs.fetch(); } },
                             errf); },
@@ -428,148 +430,6 @@ app.top = (function () {
                 errf); }
     };  //end makeFetchMergeProcessor returned functions
     }()); }
-
-
-
-    //The music friend input manager handles adding/removing friends and
-    //getting input from them for songs that have not been rated yet.
-    mgrs.mfin = (function () {
-        var gdesc = "Add a digger friend you know to help rate unrated songs in your library";
-        var cg = null;   //current musf being displayed
-        var gdmps = {};  //instantiated musf data merge processors
-    return {
-        getMusicalFriends: function (curracc) {
-            curracc = curracc || mgrs.gen.getAccount();
-            if(!Array.isArray(curracc.musfs)) {
-                curracc.musfs = []; }
-            return curracc.musfs; },
-        cleanMusicalFriends: function () {
-            var srcmfs = mgrs.mfin.getMusicalFriends();
-            var fixmfs = [];
-            var dlu = {};
-            srcmfs.forEach(function (mf) {
-                if(mf.actord) {
-                    delete mf.actord; }
-                if(!dlu[mf.dsId]) {
-                    dlu[mf.dsId] = mf;
-                    fixmfs.push(mf); } });
-            mgrs.gen.getAccount().musfs = fixmfs;
-            return fixmfs; },
-        accountFormDisplayValue: function () {
-            var ca = mgrs.gen.getAccount();
-            var html = [];
-            ca.musfs = mgrs.mfin.getMusicalFriends(ca);
-            ca.musfs.forEach(function (g, idx) {
-                html.push([["a", {href:"#digger" + g.dsId,
-                                  title:"View details for " + g.email,
-                                  onclick:mdfs("gin.showFriend", idx)},
-                            g.firstname],
-                           ["span", {cla:"sepcomspan"}, ","]]); });
-            html.push(["a", {href:"#addmusf", title:gdesc,
-                             onclick:mdfs("gin.addFriendDialog")},
-                       "add music friend"]);
-            return jt.tac2html(["span", {cla:"musflinksspan"}, html]); },
-        addFriendDialog: function () {
-            jt.out("topdlgdiv", jt.tac2html(
-                ["div", {id:"musfdlgdiv"},
-                 [["table",
-                   [["tr",
-                     ["td", {colspan:2}, "Get help with unrated songs"]],
-                    ["tr",
-                     [["td", {cla:"formattr"}, "email"],
-                      ["td", ["input", {type:"email", id:"emailin",
-                                        placeholder:"friend@example.com"}]]]]]],
-                  ["div", {id:"amgstatdiv"}],
-                  ["div", {id:"amgbuttonsdiv", cla:"dlgbuttonsdiv"},
-                   ["button", {type:"button", id:"addmusfb",
-                               onclick:mdfs("gin.processFriendAdd")},
-                    "Add Friend"]]]])); },
-        verifyFriendEmail: function (emaddr) {
-            var ca = mgrs.gen.getAccount();
-            var okgem = {email:emaddr, err:""};
-            if(!jt.isProbablyEmail(okgem.email)) {
-                okgem.err = "Digger email address required."; }
-            okgem.email = okgem.email.trim().toLowerCase();
-            if(okgem.email === ca.email) {
-                okgem.err = "A friend is someone other than you."; }
-            else if(mgrs.mfin.getMusicalFriends(ca)
-                    .find((g) => g.email === okgem.email)) {
-                okgem.err = okgem.email + " is already a friend."; }
-            return okgem; },
-        processFriendAdd: function () {
-            jt.out("amgstatdiv", "");
-            const okgem = mgrs.mfin.verifyFriendEmail(jt.byId("emailin").value);
-            if(okgem.err) {
-                return jt.out("amgstatdiv", okgem.err); }
-            jt.byId("addmusfb").disabled = true;
-            app.svc.dispatch("gen", "addFriend", okgem.email,
-                function (ignore /*accts*/) {
-                    mgrs.mfin.showFriend(0); },
-                function (code, errtxt) {
-                    jt.byId("addmusfb").disabled = false;
-                    jt.out("amgstatdiv", code + ": " + errtxt); }); },
-        showFriend: function (gidx) {
-            cg = mgrs.mfin.getMusicalFriends()[gidx];
-            jt.out("topdlgdiv", jt.tac2html(
-                ["div", {id:"musfdlgdiv"},
-                 [["div",
-                   [["span", {id:"musflabelspan"}, "Friend: "],
-                    ["span", {id:"musfinfonamespan"},
-                     ["a", {href:"mailto:" + jt.dquotenc(cg.email) +
-                            "?subject=" + jt.dquotenc("Digger music")},
-                      cg.firstname]]]],
-                  ["div", {id:"cgsongcheckdiv", cla:"cblab"}],
-                  ["div", {id:"cgfilleddiv", cla:"cblab"}],
-                  ["div", {id:"musfstatdiv"}],
-                  ["div", {id:"musfbuttonsdiv", cla:"dlgbuttonsdiv"},
-                   [["a", {href:"#remove", style:"margin:0px 10px 0px 0px",
-                           title:"Remove " + cg.firstname + " from friends.",
-                           onclick:mdfs("gin.removeFriend", gidx)},
-                     ["img", {cla:"rowbuttonimg",
-                              src:"img/trash.png"}]],
-                   ["button", {type:"button", id:"gratb",
-                               onclick:mdfs("gin.startFetchMerge", gidx)},
-                    "Check For Ratings"]]]]]));
-            mgrs.mfin.refreshFriendDisplay();
-            mgrs.mfin.startFetchMerge(); },
-        refreshFriendDisplay: function () {
-            var dispchecked = "never";
-            if(cg.lastcheck) {
-                dispchecked = jt.tz2human(cg.lastcheck); }
-            jt.out("cgsongcheckdiv", (cg.songcount || "No") +
-                   " ratings, checked " + dispchecked);
-            jt.out("cgfilleddiv", (cg.filled || "No") + 
-                   " default ratings in use.");
-            jt.byId("gratb").disabled = false;
-            jt.out("musfstatdiv", ""); },
-        startFetchMerge: function () {
-            if(!gdmps[cg.dsId]) {
-                gdmps[cg.dsId] = makeFetchMergeProcessor(cg); }
-            gdmps[cg.dsId].start(); },
-        fmpStatus: function (musf, msg) {
-            if(cg && cg.dsId === musf.dsId) {
-                cg = musf;
-                mgrs.mfin.refreshFriendDisplay();
-                jt.out("musfstatdiv", msg || ""); } },
-        showPlaylist: function (ident) {  //hashtag or id
-            //open a new window for https://diggerhub.com/playlist/ident
-            jt.err("playlist/" + ident + " not available at server yet"); },
-        removeFriend: function (gidx) {
-            var ca = mgrs.gen.getAccount();
-            var remg = mgrs.mfin.getMusicalFriends(ca)[gidx];
-            //makeFetchMergeProcessor already called when musf selected
-            gdmps[remg.dsId].removeFriendData(function () {
-                delete gdmps[remg.dsId];
-                jt.out("musfstatdiv", "Removing " + remg.firstname + "...");
-                ca.musfs.splice(gidx, 1);
-                mgrs.h2a.updateHubAccount(
-                    function () {
-                        mgrs.h2a.accountSettings(); },
-                    function (code, errtxt) {
-                        jt.out("musfstatdiv", "Remove failed " + code + ": " +
-                               errtxt); }); }); }
-    };  //end mgrs.mfin returned functions
-    }());
 
 
 
@@ -675,23 +535,31 @@ app.top = (function () {
                 tsf = "dhcheck"; }
             return mf[tsf] >= yts; }
     return {
+        afterContributionsUpdated: function () {
+            setTimeout(function () {
+                app.deck.dispatch("ws", "rebuildIfLow", "friendcontrib"); },
+                       200); },
         locContribInfo: function (mf) {
             if(checkedToday(mf) && mf.lastcheck > mf.lastrating) {  //up to date
+                mgrs.mfc.afterContributionsUpdated(mf);
                 return mf.filled + " filled."; }
             if(fmps[mf.dsId] && fmps[mf.dsId].getState() !== "stopped") {
                 return "Processing..."; }
-            fmps[mf.dsId] = makeFetchMergeProcessor(mf);
+            fmps[mf.dsId] = makeFetchMergeProcessor(
+                mf, mgrs.mfc.afterContributionsUpdated);
             fmps[mf.dsId].fetchMergeFriendData();
             return "Checking..."; },
         webContribInfo: function (mf) {
             if(checkedToday(mf)) {
+                mgrs.mfc.afterContributionsUpdated(mf);
                 return mf.dhcontrib + " contributed."; }
             app.svc.dispatch("web", "friendContribCount",
                 function () {  //rebuild with updated account
                     mgrs.mfnd.rebuildMusicFriendRefs();
                     mgrs.mfnd.friendsForm();
                     const idx = mgrs.mfnd.activeFriendIndex(mf.dsId);
-                    mgrs.mfnd.togFriendInfo(idx, "info"); },
+                    mgrs.mfnd.togFriendInfo(idx, "info");
+                    mgrs.mfc.afterContributionsUpdated(mf); },
                 function (code, errtxt) {
                     jt.out("mfcispan" + mf.dsId, code + ": " + errtxt); });
             return "Checking..."; },
@@ -721,6 +589,23 @@ app.top = (function () {
             return actmfs.filter((m) => m).map((m) => m.dsId).join(","); },
         activeFriendIndex: function (dsId) {
             return actmfs.findIndex((m) => m.dsId === dsId); },
+        getMusicalFriends: function (curracc) {
+            curracc = curracc || mgrs.gen.getAccount();
+            if(!Array.isArray(curracc.musfs)) {
+                curracc.musfs = []; }
+            return curracc.musfs; },
+        cleanMusicalFriends: function () {
+            var srcmfs = mgrs.mfnd.getMusicalFriends();
+            var fixmfs = [];
+            var dlu = {};
+            srcmfs.forEach(function (mf) {
+                if(mf.actord) {
+                    delete mf.actord; }
+                if(!dlu[mf.dsId]) {
+                    dlu[mf.dsId] = mf;
+                    fixmfs.push(mf); } });
+            mgrs.gen.getAccount().musfs = fixmfs;
+            return fixmfs; },
         removeFriend: function (idx) {
             var errf = function (code, errtxt) {
                 jt.out("mfstatdiv", "Remove " + code + ": " + errtxt); };
@@ -748,7 +633,7 @@ app.top = (function () {
                      "Remove"])); } },
         updateAccountMusicalFriends: function (contf, errf) {
             var ca = mgrs.gen.getAccount();
-            var amfs = mgrs.mfin.getMusicalFriends(ca);
+            var amfs = mgrs.mfnd.getMusicalFriends(ca);
             ca.musfs = [...actmfs.filter((m) => m !== null),
                         ...musfs.filter((m) => m.status === "Inactive"),
                         ...amfs.filter((m) => m.status === "Removed")];
@@ -857,7 +742,7 @@ app.top = (function () {
             actmfs = [...rebmfs, null, null, null, null];
             actmfs = actmfs.slice(0, 4); },
         rebuildMusicFriendRefs: function () {
-            musfs = mgrs.mfin.cleanMusicalFriends();
+            musfs = mgrs.mfnd.cleanMusicalFriends();
             const mfsvs = ["Active", "Inactive"];
             musfs = musfs.filter((m) => mfsvs.includes(m.status));
             mgrs.mfnd.rebuildActiveMusicalFriends();
@@ -933,6 +818,10 @@ app.top = (function () {
                                oninput:mdfs("mfnd.mfnameinput", "event")}],
                     ["div", {id:"mfsubformbdiv"}]]]]]));
             mgrs.mfnd.mfnameinput(); }, //display disabled button
+        afterFriendAdded: function () {
+            //added friend is at top. toggling info triggers an import fetch
+            //of their data for use on a local server.
+            mgrs.mfnd.togFriendInfo(0, "info"); },
         addFriend: function () {
             var emaddr = jt.byId("mfemin").value;
             if(!jt.isProbablyEmail(emaddr)) {
@@ -940,8 +829,7 @@ app.top = (function () {
             jt.out("mfbdiv", "Adding...");
             app.svc.dispatch("gen", "addFriend", emaddr,
                 function () {
-                    setTimeout(function () {
-                        mgrs.mfnd.togFriendInfo(0); }, 200);  //start import
+                    setTimeout(mgrs.mfnd.afterFriendAdded, 200);
                     musfs = null;
                     actmfs = null;
                     mgrs.mfnd.friendsForm(); },
@@ -1340,7 +1228,7 @@ app.top = (function () {
 
 
     //Web library actions manager handles lib level actions and data for
-    //streaming platforms.  Currently this isjust Spotify, where liking an
+    //streaming platforms.  Currently this is just Spotify, where liking an
     //album is separate from liking a track.  In both cases likes are ordered
     //by time, so it is sufficient to check from the last known offset.
     //developer.spotify.com/documentation/web-api/reference/#category-library
@@ -1354,8 +1242,10 @@ app.top = (function () {
              tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
         var spip = {  //spotify import processing
             mode:"done",        //"scheduled", "albums", "tracks"
+            sto: null,          //scheduling timeout
             maxconnretries:3};  //player connection wait count
         function impstat (txt) {
+            jt.log("impstat: " + txt);
             if(jt.byId("nomusicstatdiv")) {  //alternate status display area
                 jt.out("nomusicstatdiv", "Spotify library lookup " + txt); }
             else {  //replace button with import message, or log if unavailable.
@@ -1427,26 +1317,33 @@ app.top = (function () {
                     spip.mode = "done";
                     impstat("fetch failed " + code + ": " + msg); }); },
         scheduleImportProcess: function (context) {
-            spip.mode = "scheduled";
-            setTimeout(function () {
-                var spconn = app.player.dispatch("spa", "getPlayerStatus");
+            if(spip.sto) {
+                return impstat("scheduled..."); }
+            spip.sto = setTimeout(function () {
+                spip.sto = null;
+                const spconn = app.player.dispatch("spa", "getPlayerStatus");
                 if(spconn === "connected") {
                     if(context === "playstart") {  //yield to player startup
                         spip.mode = "done";
                         return mgrs.webla.spimpNeeded(); } }
                 else { //not connected, try waiting
                     spip.mode = "done";
-                    impstat("Waiting for connection...");
+                    impstat("Waiting for connection..." +
+                            (spip.maxconnretries || ""));
                     if(spip.maxconnretries > 0) {
                         spip.maxconnretries -= 1;
                         return mgrs.webla.spimpNeeded(); } }
                 //Try import. Player may never be ready if no songs.
+                impstat("importing...");
+                if(!spip.mode || spip.mode === "done") {
+                    spip.mode = "scheduled"; }
                 mgrs.webla.spimpProcess(); }, 2000); },
         spimpNeeded: function (context) {
-            var stat = getSpi();
-            context = context || "";
-            if(spip.mode !== "done") { return; }  //already scheduled or ongoing
+            var stat = getSpi(); context = context || "";
             jt.log("spimpNeeded " + context + " " + JSON.stringify(stat));
+            if(spip.mode && spip.mode !== "done") {
+                impstat("processing " + spip.mode + "...");
+                return; }
             impstat("fetching...");  //replace button if displayed
             if(context === "useraction" || !recentlyChecked(stat)) {
                 mgrs.webla.scheduleImportProcess(context); }

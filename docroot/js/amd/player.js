@@ -283,9 +283,12 @@ app.player = (function () {
                 playback_error:"Spotify Track playback failed"};
             var makeErrorFunction = function (err, txt) {
                 return function (msg) {
+                    var mtxt = msg.message || "No Spotify message text";
+                    if(mtxt.toLowerCase().includes("autoplay")) {
+                        return jt.log("Ignoring " + err + ": " + mtxt); }
                     pstat = err;
                     swpi.disconnect();  //returns a promise. Ignoring.
-                    pmsg([txt + ": " + msg.message + " ",
+                    pmsg([txt + ": " + mtxt + " ",
                           ["a", {href:"#Retry",
                                  onclick:mdfs("spa.verifyPlayer")},
                            "Retry"]]); }; };

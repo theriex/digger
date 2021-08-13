@@ -161,6 +161,11 @@ app.deck = (function () {
                      img:"skip.png", act:"skip", x:"hst"},
                     {id:"tiredskip", tt:"Note song as tired and skip",
                      img:"snooze.png", act:"snooze", x:"hst"}];
+        function amfLink (txt) {
+            return jt.tac2html(
+                ["a", {href:"#acctinfo",
+                       onclick:app.dfs("top", "gen.togtopdlg", ["am", "open"])},
+                 txt]); }
     return {
         togOptions: function  (mgrnm, idx) {
             var optdivid = "da" + mgrnm + idx;
@@ -195,24 +200,21 @@ app.deck = (function () {
                     msgs.push("Try turning off the filter panel using the button to the left of the search text, or clear the search"); }
                 else {
                     msgs.push("Try clearing search"); } }
-            else {
+            else {  //text search not active
+                //modify filtering
                 const filts = app.filter.filters("active");
                 if(filts.some((f) => f.actname && f.actname.match(/[+\-]/g))) {
                     msgs.push("Try turning off keywords"); }
                 else if(filts.some((f) =>
                         f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {
                     msgs.push("Try wider energy level and approachability"); }
-                const hdm = app.svc.dispatch("gen", "getHostDataManager");
-                if(hdm === "web") {
-                    //No songs might indicate library not imported yet.
+                //extend library and/or add a friend to help
+                if(app.svc.dispatch("gen", "getHostDataManager") === "web") {
                     app.top.dispatch("webla", "spimpNeeded", "nosongs");
-                    msgs.push(jt.tac2html(
-                        ["a", {href:"#acctinfo",
-                               onclick:app.dfs("top", "gen.togtopdlg",
-                                               ["am", "open"])},
-                         "Add a friend to find more music"])); }
-                else {  //"loc"
-                    msgs.push("Import more music"); } }
+                    msgs.push(amfLink("Add a friend to find more music")); }
+                else { //local player
+                    msgs.push("Import more music");
+                    msgs.push(amfLink("Add a friend to help rate music")); } }
             return jt.tac2html([msgs.join(". ") + ".",
                                 ["div", {id:"nomusicstatdiv"}]]); },
         displaySongs: function (mgrnm, divid, songs) {
