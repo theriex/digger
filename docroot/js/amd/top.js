@@ -343,96 +343,6 @@ app.top = (function () {
     }());
 
 
-    function makeFetchMergeProcessor (mf, df) { return (function () {
-        var musf = mf;
-        var donef = df;
-        var logpre = "FMP " + musf.dsId + " ";
-        var state = "stopped";
-        var ca = mgrs.locam.getAccount();
-        var params = jt.objdata({email:ca.email, at:ca.token,
-                                 aid:ca.dsId, gid:musf.dsId});
-        var pfs = {
-            procupd: function (msg) {
-                msg = msg || (musf.filled + " filled.");
-                jt.out("mfcispan" + mf.dsId, msg); },
-            noteUpdatedFriendInfo: function (updg) {
-                var gidx = ca.musfs.findIndex((g) => g.dsId === musf.dsId);
-                var ufs = ["lastrating", "lastcheck", "lastimport",
-                           "songcount", "filled"];
-                updg.filled = updg.filled || 0;
-                ufs.forEach(function (uf) {
-                    ca.musfs[gidx][uf] = updg[uf];
-                    musf[uf] = updg[uf]; });
-                pfs.procupd(); }, //reflect updated music friend info in display
-            fetch: function () {
-                musf.filled = musf.filled || 0;
-                pfs.procupd(musf.filled + " fetching...");  //hub musfdat
-                app.svc.dispatch("loc", "fetchFriendData", musf.dsId, params,
-                    function (updg) {  //updg has updated lastrating/lastcheck
-                        pfs.noteUpdatedFriendInfo(updg);
-                        pfs.merge(); },
-                    function (code, errtxt) {
-                        var msg = "musfdat failed " + code + ": " + errtxt;
-                        jt.log(logpre + msg);
-                        pfs.procupd(msg);
-                        state = "stopped"; }); },
-            merge: function () {
-                pfs.procupd(musf.filled + " importing...");  //hub ratimp
-                app.svc.dispatch("loc", "mergeFriendData", musf.dsId, params,
-                    function ([updg, dbo]) {
-                        pfs.noteUpdatedFriendInfo(updg);
-                        app.svc.dispatch("loc", "rebuildSongData", dbo);
-                        pfs.checkpoint(); },
-                    function (code, errtxt) {
-                        var msg = "ratimp failed " + code + ": " + errtxt;
-                        jt.log(logpre + msg);
-                        pfs.procupd(msg);
-                        state = "stopped"; }); },
-            checkpoint: function () {
-                var data = jt.objdata({an:ca.email, at:ca.token,
-                                       musfs:JSON.stringify(ca.musfs)});
-                var errf = function (code, errtxt) {
-                    var msg = "checkpoint failed " + code + ": " + errtxt;
-                    jt.log(logpre + msg);
-                    pfs.procupd(msg);
-                    state = "stopped"; };
-                pfs.procupd(musf.filled + " saving...");
-                app.svc.dispatch(
-                    "loc", "updateHubAccount", data,
-                    function (accntok) {
-                        mgrs.h2a.writeUpdAcctToAccounts(accntok,
-                            function () {
-                                ca = mgrs.locam.getAccount();
-                                if(musf.lastcheck > musf.lastrating) { //done
-                                    jt.log(logpre + "finished");
-                                    pfs.procupd();
-                                    state = "stopped";
-                                    if(donef) { donef(); } }
-                                else {
-                                    pfs.fetch(); } },
-                            errf); },
-                    errf); } };
-    return {
-        getState: function () { return state; },
-        fetchMergeFriendData: function () {
-            if(state !== "running") {
-                jt.log(logpre + "fetchMergeFriendData starting");
-                state = "running";
-                setTimeout(pfs.fetch, 200); } },
-        removeFriendData: function (contf, errf) {
-            state = "stopped";
-            pfs.procupd("Clearing default ratings...");
-            app.svc.dispatch("loc", "removeFriendRatings", musf.dsId, params,
-                function (dbo) {
-                    app.svc.dispatch("loc", "rebuildSongData", dbo);
-                    pfs.procupd();
-                    contf(); },
-                errf); }
-    };  //end makeFetchMergeProcessor returned functions
-    }()); }
-
-
-
     //Local Account manager handles hub account info from local server.
     mgrs.locam = (function () {
         var hai = null;  //hub accounts info (verified server side)
@@ -526,54 +436,52 @@ app.top = (function () {
 
     //Music friend contribution manager handles contribution info display
     mgrs.mfc = (function () {
-        var fmps = {};
+        var updstat = {inprog:false, pass:0, total:0};
+        function activeFriends () {
+            return mgrs.mfnd.getMusicalFriends()
+                .filter((m) => m.status === "Active"); }
         function checkedToday (mf) {
             var dayms = 24 * 60 * 60 * 1000;
-            var yts = new Date(Date.now() - dayms).toISOString();
-            var tsf = "lastcheck";
-            if(app.svc.hostDataManager() === "web") {
-                tsf = "dhcheck"; }
-            return mf[tsf] >= yts; }
+            var todaystart = new Date(Date.now() - dayms).toISOString();
+            return mf.checksince >= todaystart; }
+        function upToDate () {
+            return activeFriends().every((m) => checkedToday(m)); }
     return {
         afterContributionsUpdated: function () {
             setTimeout(function () {
                 app.deck.dispatch("ws", "rebuildIfLow", "friendcontrib"); },
                        200); },
-        locContribInfo: function (mf) {
-            if(checkedToday(mf) && mf.lastcheck > mf.lastrating) {  //up to date
-                mgrs.mfc.afterContributionsUpdated(mf);
-                return mf.filled + " filled."; }
-            if(fmps[mf.dsId] && fmps[mf.dsId].getState() !== "stopped") {
-                return "Processing..."; }
-            fmps[mf.dsId] = makeFetchMergeProcessor(
-                mf, mgrs.mfc.afterContributionsUpdated);
-            fmps[mf.dsId].fetchMergeFriendData();
-            return "Checking..."; },
-        webContribInfo: function (mf) {
-            if(checkedToday(mf)) {
-                mgrs.mfc.afterContributionsUpdated(mf);
-                return mf.dhcontrib + " contributed."; }
-            app.svc.dispatch("web", "friendContribCount",
-                function () {  //rebuild with updated account
+        updateMFContribs: function () {
+            if(updstat.inprog) { return; }
+            updstat.inprog = true;
+            updstat.pass += 1;
+            app.svc.dispatch("gen", "friendContributions",
+                function (retcount) {
+                    updstat.inprog = false;
+                    updstat.total += retcount;
                     mgrs.mfnd.rebuildMusicFriendRefs();
                     mgrs.mfnd.friendsForm();
-                    const idx = mgrs.mfnd.activeFriendIndex(mf.dsId);
-                    mgrs.mfnd.togFriendInfo(idx, "info");
-                    mgrs.mfc.afterContributionsUpdated(mf); },
+                    //update the displays and trigger refetch as needed
+                    activeFriends().forEach(function (ignore /*mf*/, idx) {
+                        mgrs.mfnd.togFriendInfo(idx, "info"); });
+                    mgrs.mfc.afterContributionsUpdated(); },
                 function (code, errtxt) {
-                    jt.out("mfcispan" + mf.dsId, code + ": " + errtxt); });
-            return "Checking..."; },
+                    updstat.inprog = false;
+                    jt.log("updateMFContribs " + code + ": " + errtxt);
+                    jt.out("mfcispan" + activeFriends()[0].dsId,
+                           code + ": " + errtxt); }); },
         contribInfo: function (mf) {
+            var msg = "";
+            mf.dhcontrib = mf.dhcontrib || 0;
+            msg = mf.dhcontrib + " contributed.";
+            if(!upToDate()) {
+                msg = mf.dhcontrib + " hub: " + updstat.total;
+                if(!updstat.inprog) {
+                    mgrs.mfc.updateMFContribs(); } }
             return jt.tac2html(
-                ["span", {cla:"mfcispan", id:"mfcispan" + mf.dsId},
-                 mgrs.mfc[app.svc.hostDataManager() + "ContribInfo"](mf)]); },
-        removeContributions: function (mf, contf, errf) {
-            var hm = app.svc.hostDataManager();
-            if(hm === "web") { return contf(); }  //nothing to do
-            if(fmps[mf.dsId] && fmps[mf.dsId].getState() !== "stopped") {
-                return errf("unavailable", "Still processing..."); }
-            fmps[mf.dsId] = makeFetchMergeProcessor(mf);
-            fmps[mf.dsId].removeFriendData(contf, errf); }
+                ["span", {cla:"mfcispan", id:"mfcispan" + mf.dsId}, msg]); },
+        removeContributions: function (mf, ignore /*contf*/, errf) {
+            errf("Unavailable", "remove mf " + mf.dsId + " not available."); }
     };  //end mgrs.mfc returned functions
     }());
 
@@ -829,6 +737,7 @@ app.top = (function () {
             jt.out("mfbdiv", "Adding...");
             app.svc.dispatch("gen", "addFriend", emaddr,
                 function () {
+                    jt.log("Added friend " + emaddr);
                     setTimeout(mgrs.mfnd.afterFriendAdded, 200);
                     musfs = null;
                     actmfs = null;

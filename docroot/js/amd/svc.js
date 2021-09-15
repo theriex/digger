@@ -385,6 +385,16 @@ app.svc = (function () {
                                          results[0], ca.token);
                         contf(results); },
                     errf, jt.semaphore("svc.loc.createFriend")); },
+        friendContributions: function (contf, errf) {
+            jt.call("POST", "/mfcontrib", app.svc.authdata(),
+                    function (results) {
+                        const ca = app.top.dispatch("locam", "getAccount");
+                        app.top.dispatch("locam", "noteReturnedCurrAcct",
+                                         results[0], ca.token);
+                        results.slice(1).forEach(function (song) {
+                            mgrs.loc.noteUpdatedSongData(song); });
+                        contf(results.length - 1); },
+                    errf, jt.semaphore("svc.loc.friendContributions")); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {
@@ -484,12 +494,14 @@ app.svc = (function () {
                                                  digacc)); },
                     errf,
                     jt.semaphore("mgrs.web.createFriend")); },
-        friendContribCount: function (contf, errf) {
+        friendContributions: function (contf, errf) {
             jt.call("POST", "/api/mfcontrib", app.svc.authdata(),
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);
-                        contf(app.login.dispatch("act", "noteUpdatedAccount",
-                                                 digacc)); },
+                        digacc = app.login.dispatch("act", "noteUpdatedAccount",
+                                                    digacc);
+                        mgrs.web.addSongsToPool(results.slice(1));
+                        contf(); },
                     errf,
                     jt.semaphore("mgrs.web.friendContribCount")); },
         getSongTotals: function (contf, errf) {
@@ -577,7 +589,9 @@ app.svc = (function () {
         addFriend: function (mfem, contf, errf) {
             mgrs[hdm].addFriend(mfem, contf, errf); },
         createFriend: function (dat, contf, errf) {
-            mgrs[hdm].createFriend(dat, contf, errf); }
+            mgrs[hdm].createFriend(dat, contf, errf); },
+        friendContributions: function (contf, errf) {
+            mgrs[hdm].friendContributions(contf, errf); }
     };  //end mgrs.gen returned functions
     }());
 

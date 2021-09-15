@@ -60,6 +60,7 @@ db.init(function (conf) {
             case "/hubsync": hub.hubsync(req, rsp); break;
             case "/addmusf": hub.addmusf(req, rsp); break;
             case "/createmusf": hub.createmusf(req, rsp); break;
+            case "/mfcontrib": hub.mfcontrib(req, rsp); break;
             default: //handle after request is fully stabilized
                 req.addListener("end", function () {
                     //GET requests:

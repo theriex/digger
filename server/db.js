@@ -220,8 +220,9 @@ module.exports = (function () {
             //console.log(dbo.songcount + " creating " + rpath);
             rec = {fq:"N", al:49, el:49, kws:"", rv:5};
             dbo.songs[rpath] = rec; }
-        if(!tagdata) {  //tags could not be read, mark as unreadable
-            if(!rec.fq.startsWith("U")) {
+        if(!tagdata || !tagdata.tags.title || !tagdata.tags.artist) {
+            console.log("addSongToDb missing metadata " + rpath);
+            if(!rec.fq.startsWith("U")) {  //mark as unreadable
                 rec.fq = "U" + rec.fq; } }
         else { 
             rec.ar = tagdata.tags.artist;
@@ -249,7 +250,7 @@ module.exports = (function () {
                 walkFiles(ws); }); }
         else if(isMusicFile(fn)) {
             new mt.Reader(fn)
-                .setTagsToRead(["artist", "album", "title"])
+                .setTagsToRead(["title", "artist", "album"])
                 .read({
                     onSuccess: function (tags) {
                         addSongToDb(fn, tags);

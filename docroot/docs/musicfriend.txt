@@ -1,0 +1,32 @@
+A music friend is someone who helps you with unrated songs, and/or suggests
+new music matching what you want to hear.  Together, these functions are
+called "collaboration".  You add music friends by email address, with up to
+4 music friends active at a time.
+
+When friends fill out default rating information, Digger fetches music using
+those ratings.  If you adjust the ratings while a song is playing, then your
+friend's default ratings are discarded.  If you deactivate a friend, ratings
+they have contributed stick around.  If you remove a friend, then their
+default ratings are removed.
+
+When you update your active music friends, or click the info button next to
+an active music friend.  Digger calls /api/mfcollab on the hub.  If you are
+running music locally, any songs not on the hub yet are first uploaded so
+they will be available for collaboration.  If this is your first time
+collaborating, and you have a lot of local music, the initial upload might
+take a few minutes.  After that, only new songs you add need to be uploaded.
+Uploading new music resets the checksince time for all of your music friends
+which restarts the collaboration process.
+
+DiggerHub collaboration walks through your active music friends in order,
+checking each friend to see if they can contribute default ratings for songs
+you haven't rated yet.  Up to 200 rated songs are returned per call.  The
+checksince attribute for each music friend is updated with either the
+creation time of the last song rating contributed, or the current time if
+the friend has no more song ratings left to contribute.  Friend ratings are
+checked at most once a day.
+
+If you are using a streaming service like Spotify where you have access to
+music that you have not previously played, songs on deck may include
+suggestions from active music friends.
+

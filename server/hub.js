@@ -257,6 +257,7 @@ module.exports = (function () {
                 res.writeHead(200, {"Content-Type": "application/json"});
                 res.end(ctx.restext); })
             .catch(function (err) {
+                console.log(err.stack);
                 if(ctx.restext) {
                     console.log("ctx.restext: " + ctx.restext); }
                 if(ctx.code === 200) {
@@ -354,6 +355,31 @@ module.exports = (function () {
     function createmusf (req, res) {
         return hubpost(req, res, "createmusf", function (hubret) {
             noteUpdatedAccount(hubret); });
+    }
+
+
+    function mfcontrib (req, res) {
+        var fif = new formidable.IncomingForm();
+        fif.parse(req, function (err, fields) {
+            var uplds = [];
+            if(err) {
+                return resError(res, "mfcontrib form error: " + err); }
+            Object.entries(db.dbo().songs).forEach(function ([p, s]) {
+                if(uplds.length < 200 && !s.dsId && isUnratedSong(s) &&
+                   s.ti && s.ar && (!s.fq || !(s.fq.startsWith("D") ||
+                                               s.fq.startsWith("U")))) {
+                    s.path = p;
+                    uplds.push(s); } });
+            if(uplds.length > 0) {
+                fields.uplds = JSON.stringify(uplds); }
+            return hubPostFields(res, "mfcontrib", function (hubret) {
+                    var dbo = db.dbo();
+                    noteUpdatedAccount(hubret);
+                    console.log("mfcontrib updated account");
+                    JSON.parse(hubret).slice(1).forEach(function (s) {
+                        updateLocalSong(dbo, s); });
+                    db.writeDatabaseObject(); },
+                                 fields); });
     }
 
 
@@ -458,6 +484,7 @@ module.exports = (function () {
         hubsync: function (req, res) { return hubsync(req, res); },
         addmusf: function (req, res) { return addmusf(req, res); },
         createmusf: function (req, res) { return createmusf(req, res); },
+        mfcontrib: function (req, res) { return mfcontrib(req, res); },
         musfdat: function (pu, req, res) { return musfdat(pu, req, res); },
         ratimp: function (pu, req, res) { return ratimp(pu, req, res); },
         gdclear: function (pu, req, res) { return gdclear(pu, req, res); }
