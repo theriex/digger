@@ -1,0 +1,70 @@
+Presentation Classifications:
+----------------------------
+
+Social: Music you might choose to play when you have company.  Since your
+music is part of who you are, this is probably most songs in your
+collection, but there's probably a few you might not choose to spin.  Very
+useful keyword to have.
+
+Personal: Music that is meaningful to you even if you might not choose to
+play it for other people.  Examples might be songs from your past that are
+not your current focus, tracks with great grooves but objectionable lyrics,
+and anything else you don't want to represent yourself with.
+
+Office: Music that you can listen to while you work.
+
+Dance: Music you would dance to.
+
+
+Caegorical Filtering
+--------------------
+
+Jazz: There are times when I like to explore just the jazz section of my
+collection.
+
+Classical: Usually I will mix classical music in with other music when I'm
+generally listening, but sometimes it can be a tough flow in some social
+situations so I flag it to be able to include it or not.
+
+Ambient: For me this is a very specific definition referring to music that
+can be listented to from zero to near full attention, while also being able
+to transition to and from silence.
+
+Talk: Spoken word is ok in some social situations but not others.
+
+
+Special occasion flags:
+----------------------
+
+Solstice: There are certain songs I associate with this time of the year and
+it is worth having a keyword to be able to grab them when the time comes.
+
+
+Obviated or conflated:
+---------------------
+
+Morning: For me this turned out to be pretty much the same as "office" but
+with a slightly lower energy level.
+
+Brunch: "Ssocial" with low to moderate energy level.
+
+Party:  "Social" witha moderate to high energy level.  Maybe "Dance"
+
+Workout: Basically this is just high energy level.
+
+
+Not worth it:
+------------
+
+40s, 50s, 60s etc: Seem like useful classification info, but it is pretty
+much useless unless researching an era.  Bad data and crossover songs make
+this totally not worth tracking.
+
+World: May as well call this "foreign" for all the meaning it actually
+provides.  Sometimes people ask me for cool international music, and I wish
+I had marked my songs somehow, but I it doesn't occur to me while listening.
+Not something I would use myself.
+
+Compnote: For a while I was flagging songs that were particularly
+inspirational compositionally.  Except later it didn't help much to have
+things tagged.  Better to keep notes in a music composition diary.
