@@ -395,6 +395,13 @@ app.svc = (function () {
                             mgrs.loc.noteUpdatedSongData(song); });
                         contf(results.length - 1); },
                     errf, jt.semaphore("svc.loc.friendContributions")); },
+        clearFriendRatings: function (friendid, contf, errf) {
+            jt.call("POST", "/mfclear", app.svc.authdata({mfid:friendid}),
+                    function (results) {
+                        results.forEach(function (song) {
+                            mgrs.loc.noteUpdatedSongData(song); });
+                        contf(results.length); },
+                    errf, jt.semaphore("svc.loc.clearFriendRatings")); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {
@@ -447,6 +454,10 @@ app.svc = (function () {
                     mgrs.gen.copyUpdatedSongData(pool[sk], song); }
                 else {
                     pool[sk] = song; } }); },
+        reflectUpdatedSongIfInPool: function (song) {
+            var sk = mgrs.web.key(song);
+            if(pool[sk]) {
+                mgrs.gen.copyUpdatedSongData(pool[sk], song); } },
         fetchSongs: function (contf, errf) {  //retrieve more songs
             var fvsj = app.filter.summary();
             fvsj.friendidcsv = app.top.dispatch("mfnd", "musicalFriendsIdCSV");
@@ -502,8 +513,14 @@ app.svc = (function () {
                                                     digacc);
                         mgrs.web.addSongsToPool(results.slice(1));
                         contf(); },
-                    errf,
-                    jt.semaphore("mgrs.web.friendContribCount")); },
+                    errf, jt.semaphore("mgrs.web.friendContributions")); },
+        clearFriendRatings: function (friendid, contf, errf) {
+            jt.call("POST", "/api/mfclear", app.svc.authdata({mfid:friendid}),
+                    function (results) {
+                        results.forEach(function (song) {
+                            mgrs.web.reflectUpdatedSongIfInPool(song); });
+                        contf(); },
+                    errf, jt.semaphore("mgrs.web.clearFriendRatings")); },
         getSongTotals: function (contf, errf) {
             jt.call("POST", "/api/songttls", app.svc.authdata(),
                     function (results) {
@@ -578,7 +595,7 @@ app.svc = (function () {
             mgrs[hdm].updateMultipleSongs(songs, contf, errf); },
         copyUpdatedSongData: function (song, updsong) {
             songfields.forEach(function (fld) {
-                if(updsong[fld]) {  //don't copy undefined values
+                if(updsong.hasOwnProperty(fld)) {  //don't copy undefined values
                     song[fld] = updsong[fld]; } }); },
         authdata: function (obj) { //return obj post data, with an/at added
             var digacc = app.top.dispatch("gen", "getAccount");
@@ -591,7 +608,9 @@ app.svc = (function () {
         createFriend: function (dat, contf, errf) {
             mgrs[hdm].createFriend(dat, contf, errf); },
         friendContributions: function (contf, errf) {
-            mgrs[hdm].friendContributions(contf, errf); }
+            mgrs[hdm].friendContributions(contf, errf); },
+        clearFriendRatings: function (mfid, contf, errf) {
+            mgrs[hdm].clearFriendRatings(mfid, contf, errf); }
     };  //end mgrs.gen returned functions
     }());
 

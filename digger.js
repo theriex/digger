@@ -61,6 +61,7 @@ db.init(function (conf) {
             case "/addmusf": hub.addmusf(req, rsp); break;
             case "/createmusf": hub.createmusf(req, rsp); break;
             case "/mfcontrib": hub.mfcontrib(req, rsp); break;
+            case "/mfclear": hub.mfclear(req, rsp); break;
             default: //handle after request is fully stabilized
                 req.addListener("end", function () {
                     //GET requests:

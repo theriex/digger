@@ -480,8 +480,37 @@ app.top = (function () {
                     mgrs.mfc.updateMFContribs(); } }
             return jt.tac2html(
                 ["span", {cla:"mfcispan", id:"mfcispan" + mf.dsId}, msg]); },
-        removeContributions: function (mf, ignore /*contf*/, errf) {
-            errf("Unavailable", "remove mf " + mf.dsId + " not available."); }
+        removeDefaultRatings: function () {
+            if(updstat.inprog) { return; }
+            updstat.inprog = true;
+            updstat.rmpass += 1;
+            app.svc.dispatch("gen", "clearFriendRatings", updstat.rmf.dsId,
+                function (retcount) {
+                    updstat.inprog = false;
+                    if(!retcount) { //no more default ratings to remove
+                        updstat.rmf.dhcontrib = 0;
+                        updstat.rmf.checksince = "";
+                        updstat.rmf.status = "Removed";
+                        return updstat.rmcontf(); }
+                    updstat.rmf.dhcontrib = Math.max(
+                        updstat.rmf.dhcontrib - retcount, 0);
+                    const span = jt.byId("mfselispan" + updstat.rmi);
+                    span.innerHTML = jt.tac2html(
+                        ["span", {cla:"mfcispan",
+                                  id:"mfcispan" + updstat.rmf.dsId},
+                         updstat.rmf.dhcontrib + " contributed."]);
+                    span.dataset.mode = "info";
+                    mgrs.mfc.removeDefaultRatings(); },
+                updstat.rmerrf); },
+        removeContributions: function (mf, idx, contf, errf) {
+            if(updstat.inprog) {
+                return jt.log("removeContributions already in progress."); }
+            updstat.rmpass = 0;
+            updstat.rmf = mf;
+            updstat.rmi = idx;
+            updstat.rmcontf = contf;
+            updstat.rmerrf = errf;
+            mgrs.mfc.removeDefaultRatings(); }
     };  //end mgrs.mfc returned functions
     }());
 
@@ -518,11 +547,8 @@ app.top = (function () {
             var errf = function (code, errtxt) {
                 jt.out("mfstatdiv", "Remove " + code + ": " + errtxt); };
             jt.out("mfbdiv", "Removing...");  //disable button
-            mgrs.mfnd.togFriendInfo(idx, "info");  //show status display
-            mgrs.mfc.removeContributions(
-                actmfs[idx],
+            mgrs.mfc.removeContributions(actmfs[idx], idx,
                 function () {
-                    actmfs[idx].status = "Removed";
                     mgrs.mfnd.updateAccountMusicalFriends(
                         function () {
                             mgrs.mfnd.rebuildMusicFriendRefs();

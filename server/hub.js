@@ -377,6 +377,20 @@ module.exports = (function () {
     }
 
 
+    function mfclear (req, res) {
+        var fif = new formidable.IncomingForm();
+        fif.parse(req, function (err, fields) {
+            if(err) {
+                return resError(res, "mfclear form error: " + err); }
+            return hubPostFields(res, "mfclear", function (hubret) {
+                var dbo = db.dbo();
+                JSON.parse(hubret).forEach(function (s) {
+                    updateLocalSong(dbo, s); });
+                db.writeDatabaseObject(); },
+                                 fields); });
+    }
+
+
     function musfdat (pu, ignore /*req*/, res) {
         var musf; var gdat; [musf, gdat] = loadLocalFriendData(pu.query.gid);
         if(!musf) {
@@ -479,6 +493,7 @@ module.exports = (function () {
         addmusf: function (req, res) { return addmusf(req, res); },
         createmusf: function (req, res) { return createmusf(req, res); },
         mfcontrib: function (req, res) { return mfcontrib(req, res); },
+        mfclear: function (req, res) { return mfclear(req, res); },
         musfdat: function (pu, req, res) { return musfdat(pu, req, res); },
         ratimp: function (pu, req, res) { return ratimp(pu, req, res); },
         gdclear: function (pu, req, res) { return gdclear(pu, req, res); }
