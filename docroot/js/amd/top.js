@@ -438,7 +438,7 @@ app.top = (function () {
     mgrs.mfc = (function () {
         var updstat = {inprog:false, pass:0, total:0};
         function activeFriends () {
-            return mgrs.mfnd.getMusicalFriends()
+            return mgrs.mfnd.getMusicFriends()
                 .filter((m) => m.status === "Active"); }
         function checkedToday (mf) {
             var dayms = 24 * 60 * 60 * 1000;
@@ -520,19 +520,19 @@ app.top = (function () {
         var musfs = null;    //Active and Inactive friends by firstname, email.
         var actmfs = null;   //Active friends in priority order
     return {
-        musicalFriendsIdCSV: function () {  //util for svc.mgrs.web.fetchSongs
+        musicFriendsIdCSV: function () {  //util for svc.mgrs.web.fetchSongs
             if(!actmfs) {
                 mgrs.mfnd.rebuildMusicFriendRefs(); }
             return actmfs.filter((m) => m).map((m) => m.dsId).join(","); },
         activeFriendIndex: function (dsId) {
             return actmfs.findIndex((m) => m.dsId === dsId); },
-        getMusicalFriends: function (curracc) {
+        getMusicFriends: function (curracc) {
             curracc = curracc || mgrs.gen.getAccount();
             if(!Array.isArray(curracc.musfs)) {
                 curracc.musfs = []; }
             return curracc.musfs; },
-        cleanMusicalFriends: function () {
-            var srcmfs = mgrs.mfnd.getMusicalFriends();
+        cleanMusicFriends: function () {
+            var srcmfs = mgrs.mfnd.getMusicFriends();
             var fixmfs = [];
             var dlu = {};
             srcmfs.forEach(function (mf) {
@@ -549,10 +549,12 @@ app.top = (function () {
             jt.out("mfbdiv", "Removing...");  //disable button
             mgrs.mfc.removeContributions(actmfs[idx], idx,
                 function () {
-                    mgrs.mfnd.updateAccountMusicalFriends(
+                    mgrs.mfnd.updateAccountMusicFriends(
                         function () {
                             mgrs.mfnd.rebuildMusicFriendRefs();
-                            mgrs.mfnd.friendsForm(); },
+                            mgrs.mfnd.friendsForm();
+                            app.deck.dispatch("ws", "rebuild",
+                                              "removeFriend"); },
                         errf); },
                 errf); },
         togRemoveFriend: function (idx) {
@@ -565,16 +567,16 @@ app.top = (function () {
                     ["button", {type:"button",
                                 onclick:mdfs("mfnd.removeFriend", idx)},
                      "Remove"])); } },
-        updateAccountMusicalFriends: function (contf, errf) {
+        updateAccountMusicFriends: function (contf, errf) {
             var ca = mgrs.gen.getAccount();
-            var amfs = mgrs.mfnd.getMusicalFriends(ca);
+            var amfs = mgrs.mfnd.getMusicFriends(ca);
             ca.musfs = [...actmfs.filter((m) => m !== null),
                         ...musfs.filter((m) => m.status === "Inactive"),
                         ...amfs.filter((m) => m.status === "Removed")];
             contf = contf || function () {
-                jt.log("updateAccountMusicalFriends saved."); };
+                jt.log("updateAccountMusicFriends saved."); };
             errf = errf || function (code, errtxt) {
-                jt.out("mfstatdiv", "updateAccountMusicalFriends failed " +
+                jt.out("mfstatdiv", "updateAccountMusicFriends failed " +
                        code + ": " + errtxt); };
             mgrs.gen.updateAccount(contf, errf); },
         swapActive: function (idx) {
@@ -590,7 +592,7 @@ app.top = (function () {
                 if(pmf) {  //previous may also have been empty select option
                     jt.log("deactivating " + pmf.firstname);
                     pmf.status = "Inactive"; }
-                mgrs.mfnd.rebuildActiveMusicalFriends(); }
+                mgrs.mfnd.rebuildActiveMusicFriends(); }
             else if(smf && !pmf) {  //activating (previously blank slot)
                 if(saidx >= 0) {  //already in active, attempting to add dupe
                     sel.value = "";
@@ -609,8 +611,11 @@ app.top = (function () {
                     if(actmfs.length > 4 && actmfs[4]) {  //last falls off
                         actmfs[4].status = "Inactive"; }
                     actmfs = actmfs.slice(0, 4); } }
-            mgrs.mfnd.updateAccountMusicalFriends();  //background db write
-            mgrs.mfnd.friendsForm(); },  //display changed values immediately
+            mgrs.mfnd.updateAccountMusicFriends();  //background db write
+            mgrs.mfnd.friendsForm();  //display changed values immediately
+            if((pmf && pmf.status === "Inactive")||
+               (smf && smf.status === "Active")) {
+                app.deck.dispatch("ws", "rebuild", "friendActivation"); } },
         togFriendInfo: function (idx, mode) {
             var span = jt.byId("mfselispan" + idx);
             if(span.dataset.mode === "info" && mode !== "info") {
@@ -666,7 +671,7 @@ app.top = (function () {
                              mgrs.mfnd.mfInfoToggle(mf, idx),
                              ["span", {cla:"mfselispan", id:"mfselispan" + idx},
                               mgrs.mfnd.mfMailLink(mf)]]]; }))); },
-        rebuildActiveMusicalFriends: function () {
+        rebuildActiveMusicFriends: function () {
             var rebmfs = musfs.filter((m) => m.status === "Active");
             actmfs = actmfs || [];
             rebmfs.sort(function (a, b) {
@@ -676,10 +681,10 @@ app.top = (function () {
             actmfs = [...rebmfs, null, null, null, null];
             actmfs = actmfs.slice(0, 4); },
         rebuildMusicFriendRefs: function () {
-            musfs = mgrs.mfnd.cleanMusicalFriends();
+            musfs = mgrs.mfnd.cleanMusicFriends();
             const mfsvs = ["Active", "Inactive"];
             musfs = musfs.filter((m) => mfsvs.includes(m.status));
-            mgrs.mfnd.rebuildActiveMusicalFriends();
+            mgrs.mfnd.rebuildActiveMusicFriends();
             musfs.sort(function (a, b) {
                 return (a.firstname.localeCompare(b.firstname) ||
                         a.email.localeCompare(b.email)); }); },
@@ -1179,15 +1184,6 @@ app.top = (function () {
             mode:"done",        //"scheduled", "albums", "tracks"
             sto: null,          //scheduling timeout
             maxconnretries:3};  //player connection wait count
-        function impstat (txt) {
-            jt.log("impstat: " + txt);
-            if(jt.byId("nomusicstatdiv")) {  //alternate status display area
-                jt.out("nomusicstatdiv", "Spotify library lookup " + txt); }
-            else {  //replace button with import message, or log if unavailable.
-                jt.out("spimpbspan", txt); } }
-        function recentlyChecked (stat) {
-            return (stat && stat.lastcheck &&
-                    jt.timewithin(stat.lastcheck, "days", 1)); }
         function getSpi () {
             var spi = app.login.getAuth().settings.spimport;
             if(!spi || (spi.lastcheck > "2020" &&
@@ -1196,6 +1192,22 @@ app.top = (function () {
                        offsets:{albums:0, tracks:0},
                        imported:0, existing:0}; }
             return spi; }
+        function impstat (txt) {
+            jt.log("impstat: " + txt);
+            if(jt.byId("nomusicstatdiv")) {  //alternate status display area
+                const stat = getSpi();
+                jt.out("nomusicstatdiv", jt.tac2html(
+                    ["Spotify library lookup ",
+                     ["span", {id:"spalbcountspan"}, stat.offsets.albums],
+                     " Albums, ",
+                     ["span", {id:"sptrkcountspan"}, stat.offsets.tracks],
+                     " Tracks, ",
+                     txt])); }
+            else {  //replace button with import message, or log if unavailable.
+                jt.out("spimpbspan", txt); } }
+        function recentlyChecked (stat) {
+            return (stat && stat.lastcheck &&
+                    jt.timewithin(stat.lastcheck, "days", 1)); }
     return {
         songCount: function () {
             var scs = app.login.getAuth().settings.songcounts;

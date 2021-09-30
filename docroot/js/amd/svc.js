@@ -458,13 +458,24 @@ app.svc = (function () {
             var sk = mgrs.web.key(song);
             if(pool[sk]) {
                 mgrs.gen.copyUpdatedSongData(pool[sk], song); } },
+        poolAvailable: function () {
+            var startOfDay = Date.now() - (24 * 60 * 60 * 1000);
+            startOfDay = new Date(startOfDay).toISOString();
+            const pa = Object.values(pool).filter((s) => s.lp < startOfDay);
+            return pa.length; },
         fetchSongs: function (contf, errf) {  //retrieve more songs
             var fvsj = app.filter.summary();
-            fvsj.friendidcsv = app.top.dispatch("mfnd", "musicalFriendsIdCSV");
+            var mfids = app.top.dispatch("mfnd", "musicFriendsIdCSV");
+            if(mfids !== fvsj.friendidcsv) {  //clear friend suggested songs
+                Object.entries(pool).forEach(function ([sk, song]) {
+                    if(song.dsId.startsWith("fr")) {
+                        delete pool[sk]; } }); }
+            fvsj.friendidcsv = mfids;  //include friend suggestions in fetch
             fvsj = JSON.stringify(fvsj);
-            if(lastfvsj && lastfvsj === fvsj) {  //no change, return existing
-                setTimeout(function () {
-                    contf(pool); }, 200); }
+            if(lastfvsj && lastfvsj === fvsj &&   //if no change in search, and
+               mgrs.web.poolAvailable() > 100) {  //enough songs available,
+                setTimeout(function () {          //return the existing pool
+                    contf(pool); }, 200); }       //to save server calls.
             else {
                 lastfvsj = fvsj;
                 const ps = app.svc.authdata({fvs:fvsj});
@@ -512,7 +523,7 @@ app.svc = (function () {
                         digacc = app.login.dispatch("act", "noteUpdatedAccount",
                                                     digacc);
                         mgrs.web.addSongsToPool(results.slice(1));
-                        contf(); },
+                        contf(results.length - 1); },
                     errf, jt.semaphore("mgrs.web.friendContributions")); },
         clearFriendRatings: function (friendid, contf, errf) {
             jt.call("POST", "/api/mfclear", app.svc.authdata({mfid:friendid}),
