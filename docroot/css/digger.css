@@ -48,7 +48,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .statdiv { font-size:medium; }
 
 .pathdiv { font-size:small; }
-.pathlabelspan { font-size:x-small; font-style:italic; }
+.pathlabelspan, .pathlabelgreyspan { font-size:x-small; font-style:italic; }
+.pathlabelgreyspan { color:#666; }
+.pathspan {}
+.infospan { font-size:x-small; margin:0px 2px; }
 .expoptdiv { font-size:medium; padding:5px 0px 5px 8px; }
 #exportfileindiv { margin-left:20px; }
 
@@ -114,6 +117,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   padding-top:4px; }
 #playtitlebuttonsdiv { float:right; min-height:18px; margin-top:-4px; }
 #modindspan { color:#ffab00; padding-right:5px; }
+.indicatorlightcolor { color:#ffab00; }
 .ptico { vertical-align:middle; height:18px; max-height:18px; cursor:pointer;
   background:#333; border-radius:2px; padding:1px; }
 #tuneopta { margin-right:10px; }

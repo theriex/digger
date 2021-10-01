@@ -68,9 +68,11 @@ app.top = (function () {
     //the change first needs to be reflected locally, then secondarily
     //updated at DiggerHub (if a DiggerHub account has been set up).
     mgrs.a2h = (function () {
-        var syt = {tmo:null, stat:"", resched:false};  //sync task info
+        var syt = null;
         var upldsongs = null;
     return {
+        initialSyncTask: function () {
+            return {tmo:null, stat:"", resched:false, up:0, down:0}; },
         handleSyncError: function (code, errtxt) {
             upldsongs = null;
             if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
@@ -83,6 +85,8 @@ app.top = (function () {
             var curracct = mgrs.locam.getAccount();
             if(!curracct || curracct.dsId === "101" || !curracct.token) {
                 return; }  //invalid account or not set up yet
+            syt = syt || mgrs.a2h.initialSyncTask();
+            mgrs.a2h.hubStatInfo("scheduled.");
             if(syt.tmo) {  //already scheduled
                 if(syt.stat) {  //currently running
                     syt.resched = true;  //reschedule when finished
@@ -94,7 +98,12 @@ app.top = (function () {
             if(curracct.dsId === "101") {
                 return jt.log("hubSyncStart aborted since not signed in"); }
             syt.stat = "executing";
-            jt.out("modindspan", "hub");  //turn on work indicator
+            mgrs.a2h.hubStatInfo("processing...");
+            jt.out("modindspan", jt.tac2html(
+                ["a", {href:"#hubstatdetails", title:"Show hub work details",
+                       onclick:mdfs("gen.togtopdlg", "la", "open")},
+                 ["span", {cla:"indicatorlightcolor"},
+                  "hub"]]));  //turn on work indicator
             app.svc.dispatch("loc", "hubSyncDat", mgrs.a2h.makeSendSyncData(),
                 function (updates) {
                     mgrs.a2h.processReceivedSyncData(updates);
@@ -103,9 +112,12 @@ app.top = (function () {
                     mgrs.a2h.handleSyncError(code, errtxt);
                     mgrs.a2h.hubSyncFinished(); }); },
         hubSyncFinished: function () {
-            jt.out("modindspan", "");  //turn off work indicator
+            if(!syt.resched) {
+                jt.out("modindspan", ""); }  //turn off work indicator
             syt.tmo = null;
+            syt.pcts = new Date().toISOString();
             syt.stat = "";
+            mgrs.a2h.hubStatInfo("");
             if(syt.resched) {
                 syt.resched = false;
                 mgrs.a2h.syncToHub(); } },
@@ -119,6 +131,7 @@ app.top = (function () {
                 upldsongs = Object.values(app.svc.dispatch("loc", "songs"))
                     .filter((s) => s.lp > (s.modified || ""));
                 upldsongs = upldsongs.slice(0, 199); }
+            syt.up += upldsongs.length;
             mgrs.hcu.serializeAccount(curracct);
             const obj = {email:curracct.email, token:curracct.token,
                          syncdata: JSON.stringify([curracct, ...upldsongs])};
@@ -134,12 +147,41 @@ app.top = (function () {
             if(changed) { //need to rebuild display with updated info
                 mgrs.locam.notifyAccountChanged(); }
             const songs = updates.slice(1);
+            syt.down += songs.length;
             jt.log("processReceivedSyncData " + songs.length + " songs.");
             songs.forEach(function (s) {
                 app.svc.dispatch("loc", "noteUpdatedSongData", s); });
-            jt.out("modindspan", "");
             if(curracct.syncsince && curracct.syncsince < curracct.modified) {
-                mgrs.a2h.syncToHub(); } }
+                mgrs.a2h.syncToHub(); } },
+        makeStatusDisplay: function () {
+            if(!jt.byId("hubSyncInfoDiv")) { return; }
+            jt.out("hubSyncInfoDiv", jt.tac2html(
+                [["span", {id:"hsilabspan", cla:"pathlabelgreyspan"},
+                  "Hub Sync:"],
+                 ["span", {id:"hsitsspan", cla:"infospan"}],
+                 ["span", {id:"hsiudspan", cla:"infospan"}],
+                 ["span", {id:"hsistatspan", cla:"infospan"}]]));
+            mgrs.a2h.hubStatInfo("init");
+            if(syt.pcts) {
+                const prevt = jt.isoString2Time(syt.pcts).getTime();
+                if((Date.now() - prevt) > (60 * 1000)) {
+                    jt.out("hsistatspan", jt.tac2html(
+                        ["a", {href:"#reset", onclick:mdfs("a2h.manualReset"),
+                               title:"Restart hub synchronization"},
+                         "Reset"])); } } },
+        hubStatInfo: function (value) {
+            if(!jt.byId("hsistatspan")) { return; }
+            if(value === "init") {
+                if(syt.stat) { value = "processing..."; }
+                else if(syt.tmo) { value = "scheduled."; } }
+            jt.out("hsistatspan", value);
+            if(syt.pcts) {
+                jt.out("hsitsspan",
+                       jt.isoString2Time(syt.pcts).toLocaleTimeString()); }
+            jt.out("hsiudspan", "&#8593;" + syt.up + ", &#8595;" + syt.down); },
+        manualReset: function () {
+            syt = null;
+            mgrs.a2h.syncToHub(); }
     };  //end mgrs.a2h returned functions
     }());
 
@@ -1141,6 +1183,7 @@ app.top = (function () {
             {ty:"cfgp", oc:mdfs("cfg.confirmStart"),
              tt:"Configure music and data file locations",
              p:"dbPath", n:"Digger Data"},
+            {ty:"info", htmlfs:"hubSyncInfoHTML"},
             {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
              tt:"Read all files in the music folder", n:"Read Files"},
             {ty:"btn", oc:mdfs("igf.igMusicFolders"),
@@ -1158,11 +1201,19 @@ app.top = (function () {
                        [["a", {href:"#configure", onclick:a.oc, title:a.tt},
                          ["span", {cla:"pathlabelspan"}, a.n + ": "]],
                         ["span", {cla:"pathspan"}, config[a.p]]]])],
+                 ["div", {cla:"dlgpathsdiv"},
+                  acts.filter((a) => a.ty === "info")
+                  .map((a) =>
+                      ["div", {cla:"pathdiv"}, mgrs.locla[a.htmlfs]()])],
                  ["div", {cla:"dlgbuttonsdiv"},
                   acts.filter((a) => a.ty === "btn")
                   .map((a) =>
                       ["button", {type:"button", title:a.tt, onclick:a.oc},
-                       a.n])]])); }
+                       a.n])]])); },
+        hubSyncInfoHTML: function () {
+            if(mgrs.locam.getAccount().dsId === "101") { return ""; }
+            setTimeout(mgrs.a2h.makeStatusDisplay, 100);
+            return jt.tac2html(["div", {id:"hubSyncInfoDiv"}]); }
     };  //end mgrs.locla returned functions
     }());
 
