@@ -181,7 +181,9 @@ app.top = (function () {
             jt.out("hsiudspan", "&#8593;" + syt.up + ", &#8595;" + syt.down); },
         manualReset: function () {
             syt = null;
-            mgrs.a2h.syncToHub(); }
+            mgrs.a2h.syncToHub(); },
+        hubSyncStable: function () {  //ran once and not currently scheduled
+            return (syt && syt.pcts && !syt.tmo && !syt.resched); }
     };  //end mgrs.a2h returned functions
     }());
 
@@ -517,9 +519,13 @@ app.top = (function () {
             mf.dhcontrib = mf.dhcontrib || 0;
             msg = mf.dhcontrib + " contributed.";
             if(!upToDate()) {
-                msg = mf.dhcontrib + " hub: " + updstat.total;
-                if(!updstat.inprog) {
-                    mgrs.mfc.updateMFContribs(); } }
+                if(app.svc.hostDataManager() === "loc" &&
+                   !mgrs.a2h.hubSyncStable()) {
+                    msg += " Waiting for hub sync..."; }
+                else {
+                    msg = mf.dhcontrib + " hub: " + updstat.total;
+                    if(!updstat.inprog) {
+                        mgrs.mfc.updateMFContribs(); } } }
             return jt.tac2html(
                 ["span", {cla:"mfcispan", id:"mfcispan" + mf.dsId}, msg]); },
         removeDefaultRatings: function () {
