@@ -244,6 +244,8 @@ module.exports = (function () {
                 return hubr.text(); })
             .then(function (btxt) {
                 if(ctx.code !== 200) {
+                    console.log("Failed command interactive equivalent:");
+                    console.log("curl -X POST -d \"" + ctx.rqs.body + "\"");
                     return resError(res, btxt, ctx.code); }
                 ctx.restext = btxt;
                 if(procf) {  //local server side effects like writing data
@@ -352,14 +354,23 @@ module.exports = (function () {
     }
 
 
+    //The application wants all the local data uploaded to the hub as fast
+    //as possible, but the hub does substantial work to look up each song
+    //and then write it to the db if not found.  Sending 200 songs made for
+    //encoded data that was suspicious looking enough to trigger a web
+    //security lockout 01oct21.  100 songs still seems heavy and risky in
+    //terms of tripping something.  50 is probably ok, but really emphasizes
+    //how many round trips it will take for the upload to complete.  And
+    //it's still somewhat heavy interms of server time.
     function mfcontrib (req, res) {
+        var maxupld = 32;   //see comment
         var fif = new formidable.IncomingForm();
         fif.parse(req, function (err, fields) {
             var uplds = [];
             if(err) {
                 return resError(res, "mfcontrib form error: " + err); }
             Object.entries(db.dbo().songs).forEach(function ([p, s]) {
-                if(uplds.length < 200 && !s.dsId && isUnratedSong(s) &&
+                if(uplds.length < maxupld && !s.dsId &&
                    s.ti && s.ar && (!s.fq || !(s.fq.startsWith("D") ||
                                                s.fq.startsWith("U")))) {
                     s.path = p;

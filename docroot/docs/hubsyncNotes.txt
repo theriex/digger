@@ -1,9 +1,9 @@
 Hub songs are organized by user/title/artist/album.  Local songs are
 organized by file path.  It is possible to have more than one local song map
-to the same hub instance (multiple copies of equivalent songs locally).  It
-is also possible to have a local instance map to a different hub instance
-(more than one account using the same local data, or changed
-title/artist/album metadata).
+to the same hub song (multiple copies of equivalent songs locally).  It is
+also possible to have a local song map to a different hub song than it's
+previous mapping (changed title/artist/album metadata, or more than one
+account using the same local data).
 
 Within the context of a single hubsync call, "path" is preserved in the
 returned data so the local server can update it's local data from the

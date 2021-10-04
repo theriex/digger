@@ -70,6 +70,7 @@ app.top = (function () {
     mgrs.a2h = (function () {
         var syt = null;
         var upldsongs = null;
+        var contexts = {signin:1800, unposted:4000, standard:20 * 1000};
     return {
         initialSyncTask: function () {
             return {tmo:null, stat:"", resched:false, up:0, down:0}; },
@@ -81,7 +82,7 @@ app.top = (function () {
                 //need to sign in again.  Sign them out to start the process.
                 mgrs.h2a.signOut(); }
             jt.log("syncToHub " + code + ": " + errtxt); },
-        syncToHub: function () {
+        syncToHub: function (context) {
             var curracct = mgrs.locam.getAccount();
             if(!curracct || curracct.dsId === "101" || !curracct.token) {
                 return; }  //invalid account or not set up yet
@@ -92,7 +93,9 @@ app.top = (function () {
                     syt.resched = true;  //reschedule when finished
                     return; }
                 clearTimeout(syt.tmo); }  //not running. reschedule now
-            syt.tmo = setTimeout(mgrs.a2h.hubSyncStart, 20 * 1000); },
+            syt.resched = false;
+            syt.tmo = setTimeout(mgrs.a2h.hubSyncStart,
+                                 contexts[context] || contexts.standard); },
         hubSyncStart: function () { //see ../../docs/hubsyncNotes.txt
             var curracct = mgrs.locam.getAccount();
             if(curracct.dsId === "101") {
@@ -112,15 +115,19 @@ app.top = (function () {
                     mgrs.a2h.handleSyncError(code, errtxt);
                     mgrs.a2h.hubSyncFinished(); }); },
         hubSyncFinished: function () {
-            if(!syt.resched) {
-                jt.out("modindspan", ""); }  //turn off work indicator
-            syt.tmo = null;
             syt.pcts = new Date().toISOString();
             syt.stat = "";
             mgrs.a2h.hubStatInfo("");
+            syt.tmo = null;
             if(syt.resched) {
                 syt.resched = false;
-                mgrs.a2h.syncToHub(); } },
+                mgrs.a2h.syncToHub(); }
+            else if(mgrs.a2h.haveUnpostedNewSongs()) {
+                syt.resched = true;  //prevent interim friend suggestions.
+                mgrs.a2h.postNewSongsToHub(); }
+            else {  //hub sync done
+                setTimeout(mgrs.mfc.restartIfWaiting, 100);
+                jt.out("modindspan", ""); } }, //turn off comms indicator
         makeSendSyncData: function () {
             //send the current account + any songs that need sync.  If just
             //signed in, then don't send the current song or anything else
@@ -152,7 +159,23 @@ app.top = (function () {
             songs.forEach(function (s) {
                 app.svc.dispatch("loc", "noteUpdatedSongData", s); });
             if(curracct.syncsince && curracct.syncsince < curracct.modified) {
-                mgrs.a2h.syncToHub(); } },
+                mgrs.a2h.syncToHub(); } },  //more to download...
+        haveUnpostedNewSongs: function () {  //same test as hub.js mfcontrib
+            var newsongs = Object.values(app.svc.dispatch("loc", "songs"))
+                .filter((s) => (!s.dsId && s.ti && s.ar &&
+                                (!s.fq || !(s.fq.startsWith("D") ||
+                                            s.fq.startsWith("U")))));
+            return newsongs.length; },
+        postNewSongsToHub: function () {
+            mgrs.a2h.hubStatInfo("uploading...");
+            app.svc.dispatch("gen", "friendContributions",
+                function (retcount) {
+                    syt.up += retcount;
+                    jt.log("postNewSongsToHub " + retcount + " songs.");
+                    mgrs.a2h.hubStatInfo("");
+                    mgrs.a2h.syncToHub("unposted"); },  //check if more
+                function (code, errtxt) {  //do not retry on failure (loop)
+                    jt.log("postNewSongsToHub " + code + ": " + errtxt); }); },
         makeStatusDisplay: function () {
             if(!jt.byId("hubSyncInfoDiv")) { return; }
             jt.out("hubSyncInfoDiv", jt.tac2html(
@@ -178,7 +201,9 @@ app.top = (function () {
             if(syt.pcts) {
                 jt.out("hsitsspan",
                        jt.isoString2Time(syt.pcts).toLocaleTimeString()); }
-            jt.out("hsiudspan", "&#8593;" + syt.up + ", &#8595;" + syt.down); },
+            //not all unicode arrows are supported on all browsers.
+            jt.out("hsiudspan", "<b>&#8593;</b>" + syt.up +
+                   ", <b>&#8595;</b>" + syt.down); },
         manualReset: function () {
             syt = null;
             mgrs.a2h.syncToHub(); },
@@ -270,7 +295,7 @@ app.top = (function () {
                     accntok[0].syncsince = accntok[0].created + ";1";
                     mgrs.h2a.writeUpdAcctToAccounts(accntok,
                         function () {
-                            mgrs.a2h.syncToHub();
+                            mgrs.a2h.syncToHub("signin");
                             mgrs.gen.togtopdlg(null, "close"); },
                         de.errf); },
                 de.errf); },
@@ -481,6 +506,7 @@ app.top = (function () {
     //Music friend contribution manager handles contribution info display
     mgrs.mfc = (function () {
         var updstat = {inprog:false, pass:0, total:0};
+        var hswtxt = "Waiting for hub sync...";
         function activeFriends () {
             return mgrs.mfnd.getMusicFriends()
                 .filter((m) => m.status === "Active"); }
@@ -521,13 +547,19 @@ app.top = (function () {
             if(!upToDate()) {
                 if(app.svc.hostDataManager() === "loc" &&
                    !mgrs.a2h.hubSyncStable()) {
-                    msg += " Waiting for hub sync..."; }
+                    msg += " " + hswtxt; }
                 else {
-                    msg = mf.dhcontrib + " hub: " + updstat.total;
+                    msg = mf.dhcontrib + " checking...";
                     if(!updstat.inprog) {
-                        mgrs.mfc.updateMFContribs(); } } }
+                        //server can cut off access if calls are too tight
+                        setTimeout(mgrs.mfc.updateMFContribs, 4 * 1000); } } }
             return jt.tac2html(
                 ["span", {cla:"mfcispan", id:"mfcispan" + mf.dsId}, msg]); },
+        restartIfWaiting: function () {
+            activeFriends().forEach(function (ignore /*mf*/, idx) {
+                var infospan = jt.byId("mfselispan" + idx);
+                if(infospan && infospan.innerHTML.indexOf(hswtxt) >= 0) {
+                    mgrs.mfnd.togFriendInfo(idx, "info"); } }); },
         removeDefaultRatings: function () {
             if(updstat.inprog) { return; }
             updstat.inprog = true;
