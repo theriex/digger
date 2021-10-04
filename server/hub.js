@@ -402,22 +402,6 @@ module.exports = (function () {
     }
 
 
-    function musfdat (pu, ignore /*req*/, res) {
-        var musf; var gdat; [musf, gdat] = loadLocalFriendData(pu.query.gid);
-        if(!musf) {
-            return resError(res, "Friend " + pu.query.gid + " not found."); }
-        musf.lastrating = "";
-        Object.values(gdat.songs).forEach(function (s) {
-            if(s.modified > musf.lastrating) {
-                musf.lastrating = s.modified; } });
-        const params = {email:pu.query.email, at:pu.query.at, mfid:pu.query.gid,
-                        since:musf.lastrating};
-        return hubget("musfdat", params, res, function (hubret) {
-            updateLocalFriendData(gdat, hubret, musf);
-            return JSON.stringify(musf); });
-    }
-
-
     const gdutil = (function () {
         var gdflds = ["el", "al", "rv", "kws"];
     return {
@@ -443,52 +427,6 @@ module.exports = (function () {
     }());
 
 
-    function ratimp (pu, ignore /*req*/, res) {
-        var musf; var gdat; [musf, gdat] = loadLocalFriendData(pu.query.gid);
-        if(!musf) {
-            return resError(res, "Friend " + pu.query.gid + " not found."); }
-        musf.songcount = gdat.songcount || 0;  //verify value filled in
-        musf.filled = musf.filled || 0;
-        const ces = [];  //Collab entries for filled in ratings
-        const dbo = db.dbo();
-        Object.entries(dbo.songs).forEach(function ([p, s]) {
-            if(isUnratedSong(s) && !s.dsId) {
-                const key = songLookupKey(s, p);
-                if(key) {
-                    if(gdat.songs[key] && !isUnratedSong(gdat.songs[key])) {
-                        console.log("ratimp " + key);
-                        gdutil.fillSong(musf, gdat.songs[key], s);
-                        ces.push({ctype:"inrat", rec:pu.query.aid,
-                                  src:musf.dsId,
-                                  ssid:gdat.songs[key].dsId}); } } } });
-        const fldsobj = {email:pu.query.email, at:pu.query.at,
-                         cacts:JSON.stringify(ces)};
-        return hubPostFields(res, "collabs", function () {
-            db.writeDatabaseObject();  //record updated ratings
-            db.writeConfigurationFile();  //save updated musf info
-            return JSON.stringify([musf, dbo]); },
-                             fldsobj);
-    }
-
-
-    //friend sourced ratings that have been saved to the hub are kept so
-    //they work the same as friend sourced songs in the streaming interface.
-    function gdclear (pu, ignore /*req*/, res) {
-        var gid = pu.query.gid;
-        Object.values(db.dbo().songs).forEach(function (s) {
-            if(!s.dsId && s.srcid === gid) {
-                s.el = 49;
-                s.al = 49;
-                s.rv = 5;
-                s.kws = "";
-                s.srcid = "";
-                s.srcrat = ""; } });
-        db.writeDatabaseObject();  //record updated ratings
-        res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify(db.dbo()));
-    }
-
-
     return {
         //server utilities
         verifyDefaultAccount: function (conf) { verifyDefaultAccount(conf); },
@@ -504,9 +442,6 @@ module.exports = (function () {
         addmusf: function (req, res) { return addmusf(req, res); },
         createmusf: function (req, res) { return createmusf(req, res); },
         mfcontrib: function (req, res) { return mfcontrib(req, res); },
-        mfclear: function (req, res) { return mfclear(req, res); },
-        musfdat: function (pu, req, res) { return musfdat(pu, req, res); },
-        ratimp: function (pu, req, res) { return ratimp(pu, req, res); },
-        gdclear: function (pu, req, res) { return gdclear(pu, req, res); }
+        mfclear: function (req, res) { return mfclear(req, res); }
     };
 }());

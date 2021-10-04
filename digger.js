@@ -74,9 +74,6 @@ db.init(function (conf) {
                         case "/songscount": db.songscount(req, rsp); break;
                         case "/mergestat": db.mergestat(req, rsp); break;
                         case "/mailpwr": hub.mailpwr(pu, req, rsp); break;
-                        case "/musfdat": hub.musfdat(pu, req, rsp); break;
-                        case "/ratimp": hub.ratimp(pu, req, rsp); break;
-                        case "/gdclear": hub.gdclear(pu, req, rsp); break;
                         case "/audio": db.audio(pu, req, rsp); break;
                         default:
                             fileserver.serve(req, rsp); }

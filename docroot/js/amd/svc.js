@@ -360,15 +360,6 @@ app.svc = (function () {
             //endpoint is either /newacct or /acctok
             jt.call("POST", "/" + endpoint, data, contf, errf,
                     jt.semaphore("svc.loc.signInOrJoin")); },
-        fetchFriendData: function (gid, params, contf, errf) {
-            jt.call("GET", app.cb("/musfdat", params), null, contf, errf,
-                    jt.semaphore("svc.loc.fetchFriendData" + gid)); },
-        mergeFriendData: function (gid, params, contf, errf) {
-            jt.call("GET", app.cb("/ratimp", params), null, contf, errf,
-                    jt.semaphore("svc.loc.mergeFriendData" + gid)); },
-        removeFriendRatings: function (gid, params, contf, errf) {
-            jt.call("GET", app.cb("/gdclear", params), null, contf, errf,
-                    jt.semaphore("svc.loc.removeFriendRatings" + gid)); },
         addFriend: function (mfem, contf, errf) {
             jt.call("POST", "/addmusf", app.svc.authdata({mfaddr:mfem}),
                     function (accts) {
