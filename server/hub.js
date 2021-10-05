@@ -7,6 +7,7 @@ module.exports = (function () {
     var formidable = require("formidable");
     var path = require("path");
     const fetch = require("node-fetch");
+    var eec = {};  //endpoint error contexts
     var hs = "https://diggerhub.com";
     //var hs = "http://localhost:8080";
 
@@ -243,10 +244,15 @@ module.exports = (function () {
                 ctx.code = hubr.status;
                 return hubr.text(); })
             .then(function (btxt) {
+                eec[apiname] = eec[apiname] || {};
                 if(ctx.code !== 200) {
                     console.log("Failed command interactive equivalent:");
                     console.log("curl -X POST -d \"" + ctx.rqs.body + "\"");
+                    eec[apiname].errcode = ctx.code;
+                    eec[apiname].errtxt = btxt;
                     return resError(res, btxt, ctx.code); }
+                eec[apiname].errcode = 0;
+                eec[apiname].errtxt = "";
                 ctx.restext = btxt;
                 if(procf) {  //local server side effects like writing data
                     ctx.restext = procf(btxt, ctx.reqflds) || ctx.restext; }
@@ -356,19 +362,29 @@ module.exports = (function () {
 
     //The application wants all the local data uploaded to the hub as fast
     //as possible, but the hub does substantial work to look up each song
-    //and then write it to the db if not found.  Sending 200 songs made for
-    //encoded data that was suspicious looking enough to trigger a web
-    //security lockout 01oct21.  100 songs still seems heavy and risky in
-    //terms of tripping something.  50 is probably ok, but really emphasizes
-    //how many round trips it will take for the upload to complete.  And
-    //it's still somewhat heavy interms of server time.
+    //and then write it to the db if not found.  The array of songs being
+    //passed as an encoded parameter also has a tendency to trigger web
+    //server security rules looking for malicious penetration testing.
+    //Sending 200 songs made triggering a server rejection a near certainty
+    //01oct21.  100 is still heavy and relatively risky.  50 just emphasizes
+    //how long the uploads are taking.  Even 32 songs at a time is not
+    //enough to avoid trigggering a security rule regex match.  Once a rule
+    //has been tripped, sending the same data again is instantly rejected.
+    //The best approach seems to be to start with just a single song, then
+    //scale up to a reasonable max on continued success.
     function mfcontrib (req, res) {
-        var maxupld = 32;   //see comment
         var fif = new formidable.IncomingForm();
+        eec.mfcontrib = eec.mfcontrib || {};
+        if(eec.mfcontrib.errcode) { eec.mfcontrib.cleared = 0; }
+        if(!eec.mfcontrib.cleared) { eec.mfcontrib.cleared = 0; }
+        if(!eec.mfcontrib.maxupld) { eec.mfcontrib.maxupld = 32; }
         fif.parse(req, function (err, fields) {
-            var uplds = [];
+            var uplds = []; var ctx = eec.mfcontrib;
+            var maxupld = Math.min(((ctx.cleared * ctx.cleared) + 1),
+                                   ctx.maxupld);
             if(err) {
                 return resError(res, "mfcontrib form error: " + err); }
+            ctx.cleared += 1;
             Object.entries(db.dbo().songs).forEach(function ([p, s]) {
                 if(uplds.length < maxupld && !s.dsId &&
                    s.ti && s.ar && (!s.fq || !(s.fq.startsWith("D") ||

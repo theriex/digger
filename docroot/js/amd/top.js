@@ -70,7 +70,8 @@ app.top = (function () {
     mgrs.a2h = (function () {
         var syt = null;
         var upldsongs = null;
-        var contexts = {signin:1800, unposted:4000, standard:20 * 1000};
+        var contexts = {signin:1800, unposted:4000, reset:1200,
+                        standard:20 * 1000};
     return {
         initialSyncTask: function () {
             return {tmo:null, stat:"", resched:false, up:0, down:0}; },
@@ -168,6 +169,7 @@ app.top = (function () {
             return newsongs.length; },
         postNewSongsToHub: function () {
             mgrs.a2h.hubStatInfo("uploading...");
+            syt.err = "";
             app.svc.dispatch("gen", "friendContributions",
                 function (retcount) {
                     syt.up += retcount;
@@ -175,8 +177,11 @@ app.top = (function () {
                     mgrs.a2h.hubStatInfo("");
                     mgrs.a2h.syncToHub("unposted"); },  //check if more
                 function (code, errtxt) {  //do not retry on failure (loop)
+                    syt.err = "Error " + code + ": " + app.pt(errtxt);
+                    mgrs.a2h.hubStatInfo(syt.err, true);
                     jt.log("postNewSongsToHub " + code + ": " + errtxt); }); },
         makeStatusDisplay: function () {
+            var reset = false;
             if(!jt.byId("hubSyncInfoDiv")) { return; }
             jt.out("hubSyncInfoDiv", jt.tac2html(
                 [["span", {id:"hsilabspan", cla:"pathlabelgreyspan"},
@@ -184,19 +189,21 @@ app.top = (function () {
                  ["span", {id:"hsitsspan", cla:"infospan"}],
                  ["span", {id:"hsiudspan", cla:"infospan"}],
                  ["span", {id:"hsistatspan", cla:"infospan"}]]));
-            mgrs.a2h.hubStatInfo("init");
             if(syt.pcts) {
                 const prevt = jt.isoString2Time(syt.pcts).getTime();
-                if((Date.now() - prevt) > (60 * 1000)) {
-                    jt.out("hsistatspan", jt.tac2html(
-                        ["a", {href:"#reset", onclick:mdfs("a2h.manualReset"),
-                               title:"Restart hub synchronization"},
-                         "Reset"])); } } },
-        hubStatInfo: function (value) {
+                if(syt.err || (Date.now() - prevt) > (60 * 1000)) {
+                    reset = true; } }
+            mgrs.a2h.hubStatInfo(syt.err || "init", reset); },
+        hubStatInfo: function (value, reset) {
             if(!jt.byId("hsistatspan")) { return; }
             if(value === "init") {
                 if(syt.stat) { value = "processing..."; }
                 else if(syt.tmo) { value = "scheduled."; } }
+            if(reset) {
+                value += " " + jt.tac2html(
+                    ["a", {href:"#reset", onclick:mdfs("a2h.manualReset"),
+                           title:"Restart hub synchronization"},
+                     "Reset"]); }
             jt.out("hsistatspan", value);
             if(syt.pcts) {
                 jt.out("hsitsspan",
@@ -206,7 +213,7 @@ app.top = (function () {
                    ", <b>&#8595;</b>" + syt.down); },
         manualReset: function () {
             syt = null;
-            mgrs.a2h.syncToHub(); },
+            mgrs.a2h.syncToHub("reset"); },
         hubSyncStable: function () {  //ran once and not currently scheduled
             return (syt && syt.pcts && !syt.tmo && !syt.resched); }
     };  //end mgrs.a2h returned functions

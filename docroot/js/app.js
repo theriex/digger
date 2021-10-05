@@ -55,12 +55,12 @@ app = {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=210929");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=211005");
     },
 
 
     fileVersion: function () {
-        return "v=210929";  //updated as part of release process
+        return "v=211005";  //updated as part of release process
     },
 
 
@@ -150,6 +150,27 @@ app = {
         if(relpath.startsWith("/")) {
             relpath = relpath.slice(1); }
         return app.docroot + relpath;
+    },
+
+
+    //Extract plain text from errmsg.  Controlled server errors return
+    //reasonable text errors, but server crashes and anything handled by the
+    //container may return full html pages which take up huge space in the 
+    //UI when rendered.  This logs the original and returns best guess text.
+    pt: function (errmsg) {
+        errmsg = errmsg || "";
+        const lcmsg = errmsg.toLowerCase();
+        if(lcmsg.indexOf("<html") >= 0) {
+            jt.log("app.pt original html errmsg: " + errmsg);
+            const hidx = lcmsg.indexOf("<h1>");
+            if(hidx >= 0) {
+                errmsg = errmsg.slice(hidx + 4);
+                const ci = errmsg.indexOf("</");
+                if(ci >= 0) {
+                    errmsg = errmsg.slice(0, ci); } }
+            jt.log("app.pt returning: " + errmsg); }
+        return errmsg;
     }
+
 };
 }());
