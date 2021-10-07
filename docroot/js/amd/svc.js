@@ -324,9 +324,15 @@ app.svc = (function () {
             setTimeout(function () {
                 contf(dbo.songs); }, 200); },
         fetchAlbum: function (song, contf) {
-            var abs = Object.values(dbo.songs)
-                .filter((s) => s.ar === song.ar && s.ab === song.ab)
-                .sort(function (a, b) {
+            var lsi = song.path.lastIndexOf("/");  //last separator index
+            if(lsi < 0) {
+                lsi = song.path.lastIndexOf("\\"); }
+            const pp = song.path.slice(0, lsi + 1);  //path prefix
+            const abs = Object.values(dbo.songs)  //album songs
+            //simple ab match won't work (e.g. "Greatest Hits").  ab + ar fails
+            //if the artist name varies (e.g. "main artist featuring whoever".
+                .filter((s) => s.path.startsWith(pp))
+                .sort(function (a, b) {  //assuming filename start with track#
                     return a.path.localeCompare(b.path); });
             contf(song, abs); },
         updateSong: function (song, contf) {

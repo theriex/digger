@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.8.2";
+        return "v0.8.3";
     }
 
 
@@ -168,7 +168,8 @@ module.exports = (function () {
                 throw err; }
             dbo = JSON.parse(data);
             if(dbo.songs) {
-                Object.values(dbo.songs).forEach(function (song) {
+                Object.entries(dbo.songs).forEach(function ([path, song]) {
+                    song.path = path;  //for ease of reference and sorting
                     normalizeIntegerValues(song); }); }
             console.log("readDatabaseFile success: " + conf.dbPath);
             if(contf) {
