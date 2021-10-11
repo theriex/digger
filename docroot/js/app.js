@@ -1,11 +1,19 @@
 /*global jtminjsDecorateWithUtilities, window, diggerapp */
 /*jslint browser, white, unordered */
 
-var app = {};
 var jt = {};
-
-(function () {
+var app = (function () {
     "use strict";
+
+    function globkey (e) {
+        //jt.log("globkey charCode: " + e.charCode + ", keyCode: " + e.keyCode);
+        if(e && (e.charCode === 32 || e.keyCode === 32)) {  //space bar
+            const edtags = ["textarea", "input"];
+            const tname = e.target.tagName;
+            if(tname && edtags.indexOf(tname.toLowerCase()) < 0) {
+                if(app.spacebarhookfunc) {
+                    app.spacebarhookfunc(); } } }
+    }
 
 
     function initDiggerModules () {
@@ -18,6 +26,7 @@ var jt = {};
     function init2 () {
         app.amdtimer.load.end = new Date();
         jt.log("window.innerWidth: " + window.innerWidth);
+        jt.on(document, "keydown", globkey);
         app.startParams = jt.parseParams("String");
         app.startPath = window.location.pathname.toLowerCase();
         if(diggerapp.context === "local" || app.startPath === "/digger") {
@@ -38,9 +47,7 @@ var jt = {};
             app.login.init(); }
     }
 
-
-app = {
-
+return {
     init: function () {
         var ox = window.location.href;
         if(!diggerapp.context === "web") {
@@ -171,6 +178,5 @@ app = {
             jt.log("app.pt returning: " + errmsg); }
         return errmsg;
     }
-
-};
+};  //end returned functions
 }());

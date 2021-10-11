@@ -181,6 +181,7 @@ app.player = (function () {
                              onclick:mdfs("plui.seek", "event")}]]]]]));
             prog.divs.forEach(function (divid) {
                 jt.byId(divid).style.width = prog.w + "px"; });
+            app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             mgrs.plui.updatePosIndicator(); },
         updateDisplay: function (svco, pbstate, position, duration) {
             prog.svco = svco;
