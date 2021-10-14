@@ -56,11 +56,38 @@ app.filter = (function () {
     }
 
 
-    function touchEventToOffsetCoords (event) {
+    function touchToOffset (event) {
         var rect = event.target.getBoundingClientRect();
-        var coords = {x:event.targetTouches[0].pageX - rect.left,
-                      y:event.targetTouches[0].pageY - rect.top};
+        var coords = {
+            offsetX:event.targetTouches[0].pageX - rect.left,
+            offsetY:event.targetTouches[0].pageY - rect.top};
         return coords;
+    }
+
+
+    function updateCoords (stat, posf, event) {
+        if(!ctrls.filtersReady) { return; }  //still setting up
+        if(event) {
+            stat.lastX = event.offsetX;
+            stat.lastY = event.offsetY;
+            stat.roundx = Math.round(((stat.roundpcnt || 0) / 100) *
+                                     (stat.maxxlim || 0));
+            stat.roundy = Math.round(((stat.roundpcnt || 0) / 100) *
+                                     (stat.maxylim || 0));
+            // jt.log("x:" + stat.lastX + ", y:" + stat.lastY + 
+            //        ", roundx:" + stat.roundx + ", roundy:" + stat.roundy);
+            if(stat.maxxlim) {
+                if(stat.lastX + stat.roundx >= stat.maxxlim) {
+                    stat.lastX = stat.maxxlim; }
+                if(stat.lastX - stat.roundx <= 0) {
+                    stat.lastX = 0; } }
+            if(stat.maxylim) {
+                if(stat.lastY + stat.roundy >= stat.maxylim) {
+                    stat.lastY = stat.maxylim; }
+                if(stat.lastY - stat.roundy <= 0) {
+                    stat.lastY = 0; } } }
+        if(Number.isFinite(stat.lastX) && Number.isFinite(stat.lastY)) {
+            posf(stat.lastX, stat.lastY); }
     }
 
 
@@ -68,34 +95,33 @@ app.filter = (function () {
         var div = jt.byId(divid);
         jt.on(div, "mousedown", function (event) {
             stat.pointingActive = true;
-            posf(event.offsetX, event.offsetY); });
+            updateCoords(stat, posf, event); });
         jt.on(div, "mouseup", function (ignore /*event*/) {
-            stat.pointingActive = false; });
-        //Not tracking mouseout to stop pointing, since it is easy to drag
-        //past the bounding tracking div while trying to adjust.  Rather err
-        //on the side of live than dead for dragging.  Right approach is to
-        //capture mouseup at the panel level and stop all pointing.
-        // jt.on(div, "mouseout", function (event) {
-        //     stat.pointingActive = false; });
+            stat.pointingActive = false;
+            updateCoords(stat, posf); });
+        jt.on(div, "mouseout", function (ignore /*event*/) {
+            stat.pointingActive = false;
+            updateCoords(stat, posf); });
         jt.on(div, "mousemove", function (event) {
             if(stat.pointingActive) {
-                posf(event.offsetX, event.offsetY); } });
+                updateCoords(stat, posf, event); } });
         jt.on(div, "click", function (event) {
             stat.pointingActive = false;
-            posf(event.offsetX, event.offsetY); });
+            updateCoords(stat, posf, event); });
         //Touch interfaces are essentially the same as the mouse actions.
         //They may be intermixed on devices that support both interfaces.
         jt.on(div, "touchstart", function (event) {
             stat.pointingActive = true;
-            const coords = touchEventToOffsetCoords(event);
-            posf(coords.x, coords.y); });
+            updateCoords(stat, posf, touchToOffset(event)); });
         jt.on(div, "touchend", function (ignore /*event*/) {
-            stat.pointingActive = false; });
+            stat.pointingActive = false;
+            updateCoords(stat, posf); });
         jt.on(div, "touchcancel", function (ignore /*event*/) {
-            stat.pointingActive = false; });
+            stat.pointingActive = false;
+            updateCoords(stat, posf); });
         jt.on(div, "touchmove", function (event) {
             if(stat.pointingActive) {
-                posf(event.offsetX, event.offsetY); } });
+                updateCoords(stat, posf, touchToOffset(event)); } });
     }
 
 
@@ -133,7 +159,8 @@ app.filter = (function () {
     function attachRangeCtrlMovement (cid) {
         var rcr = ctrls[cid];
         //vertical
-        rcr.vstat = {pointingActive:false};
+        rcr.vstat = {pointingActive:false, roundpcnt:5,
+                     maxylim:ranger.vnob.maxy - ranger.vnob.y};
         ctrls.movestats.push(rcr.vstat);
         rcr.vpos = function (ignore /*x*/, y) {
             rcr.cy = y;  //base vertical offset is zero
@@ -142,7 +169,8 @@ app.filter = (function () {
         attachMovementListeners(cid + "vmad", rcr.vstat, rcr.vpos);
         rcr.vpos(0, Math.floor(ranger.vnob.maxy / 2));
         //horizontal
-        rcr.hstat = {pointingActive:false};
+        rcr.hstat = {pointingActive:false, roundpcnt:5,
+                     maxxlim:ranger.hnob.maxx - ranger.hnob.x};
         ctrls.movestats.push(rcr.hstat);
         rcr.hpos = function (x, ignore /*y*/) {
             rcr.cx = x + ranger.hnob.x;
@@ -354,14 +382,15 @@ app.filter = (function () {
                    [["div", {cla:"ratstarbgdiv"},
                      ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
                     ["div", {cla:"ratstarseldiv", id:"filterstarseldiv"},
-                     ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]],
+                     ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]],
+                    ["div", {id:"filtstardragdiv"}]]]],
                  ["button", {type:"button", id:"incluntb",
                              style:"color:" + ctrls.activecolor,
                              onclick:mdfs("mruc.toggleTagFiltering")},
                   ctrls.rat.tagf.labels[0]],
                  ["div", {id:"fqftogdiv"}]])); },
         makeControls: function () {
-            ctrls.rat.stat = {pointingActive:false};
+            ctrls.rat.stat = {pointingActive:false, maxxlim:85, roundpcnt:5};
             ctrls.movestats.push(ctrls.rat.stat);
             ctrls.rat.posf = function (x, ignore /*y*/) {
                 ctrls.rat.stat.minrat = Math.max(Math.round((x / 17) * 2), 1);
@@ -370,7 +399,7 @@ app.filter = (function () {
                     ctrls.rat.stat.minrat + " or higher.";
                 mgrs.stg.filterValueChanged();  //save updated minrat value
                 app.deck.update("star filter"); };
-            attachMovementListeners("filterstarsanchordiv", ctrls.rat.stat,
+            attachMovementListeners("filtstardragdiv", ctrls.rat.stat,
                                     ctrls.rat.posf); },
         makeFilter: function () {
             ctrls.rat.settings = function () {
@@ -615,4 +644,3 @@ return {
 
 };  //end of returned functions
 }());
-

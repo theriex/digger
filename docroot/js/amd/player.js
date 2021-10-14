@@ -37,15 +37,16 @@ app.player = (function () {
               [["div", {cla:"ratstarbgdiv"},
                 ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
                ["div", {cla:"ratstarseldiv", id:"playerstarseldiv"},
-                ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]]]]]));
-        ctrls.rat = {stat:{pointingActive:false},
+                ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]],
+               ["div", {id:"ratstardragdiv"}]]]]));
+        ctrls.rat = {stat:{pointingActive:false, maxxlim:85, roundpcnt:5},
                      posf:function (x, ignore /*y*/) {
                          //jt.log("ctrls.rat.posf x: " + x);
                          jt.byId("playerstarseldiv").style.width = x + "px";
                          if(stat.song) {
                              stat.song.rv = Math.round((x / 17) * 2);
                              noteSongModified(); } } };
-        app.filter.movelisten("playerstarsanchordiv", ctrls.rat.stat,
+        app.filter.movelisten("ratstardragdiv", ctrls.rat.stat,
                               ctrls.rat.posf);
         ctrls.rat.posf(0);  //no stars until set or changed.
     }
@@ -484,20 +485,7 @@ app.player = (function () {
 
     //handle the pan controls for energy and accessability
     mgrs.pan = {
-        createControl: function (id, det) {
-            var pc = {fld:det.fld, pn:det.pn, low:det.low, high:det.high,
-                      pointingActive:false};
-            ctrls[id] = pc;
-            jt.out(id + "pandiv", jt.tac2html(
-              ["div", {cla:"pancontdiv", id:pc.fld + "pancontdiv"},
-               [["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
-                ["div", {cla:"panrightlabdiv", id:pc.fld + "panrld"}, pc.high],
-                ["div", {cla:"panfacediv", id:pc.fld + "panfacediv"},
-                 ["img", {cla:"panfaceimg", src:"img/panface.png"}]],
-                ["div", {cla:"panbgdiv", id:pc.fld + "panbgdiv"},
-                 ["img", {cla:"panbackimg", src:"img/panback.png"}]],
-                ["div", {cla:"pandragdiv", id:pc.fld + "pandragdiv"}]]]));
-            //pack the control widthwise
+        packControlWidthwise: function (id) {
             const pk = {leftlab:{elem:jt.byId(id + "panlld")},
                         rightlab:{elem:jt.byId(id + "panrld")},
                         panbg:{elem:jt.byId(id + "panbgdiv")},
@@ -512,13 +500,43 @@ app.player = (function () {
                          jt.byId(id + "pandragdiv")];
             pds.forEach(function (panel) {
                 panel.style.width = ctrls[id].width + "px";
-                panel.style.height = "40px"; });
-            //activate the control
+                panel.style.height = "40px"; }); },
+        expandDragArea: function (id) {
+            const pc = ctrls[id];
+            const drgdiv = jt.byId(id + "pandragdiv");
+            if(pc.pointingActive && !pc.expanded) {
+                ctrls[id].maxxlim = ctrls[id].width;
+                drgdiv.style.backgroundColor = "#ffab00";
+                drgdiv.style.opacity = 0.1;
+                pc.expanded = true; }
+            if(!pc.pointingActive && pc.expanded) {
+                drgdiv.style.backgroundColor = "";
+                drgdiv.style.opacity = 1.0;
+                pc.expanded = false; } },
+        activateControl: function (id) {
             ctrls[id].posf = function (x, ignore /*y*/) {
-                ctrls[id].val = Math.round((x * 99) / ctrls[id].width);
-                mgrs.pan.updateControl(ctrls[id].fld, ctrls[id].val); };
+                mgrs.pan.expandDragArea(id);
+                const pc = ctrls[id];
+                if(pc.pointingActive) {
+                    pc.val = Math.round((x * 99) / pc.width);
+                    mgrs.pan.updateControl(pc.fld, pc.val); } };
             app.filter.movelisten(id + "pandragdiv",
                                   ctrls[id], ctrls[id].posf); },
+        createControl: function (id, det) {
+            var pc = {fld:det.fld, pn:det.pn, low:det.low, high:det.high,
+                      pointingActive:false, roundpcnt:3};  //maxxlim set in pack
+            ctrls[id] = pc;
+            jt.out(id + "pandiv", jt.tac2html(
+              ["div", {cla:"pancontdiv", id:pc.fld + "pancontdiv"},
+               [["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
+                ["div", {cla:"panrightlabdiv", id:pc.fld + "panrld"}, pc.high],
+                ["div", {cla:"panfacediv", id:pc.fld + "panfacediv"},
+                 ["img", {cla:"panfaceimg", src:"img/panface.png"}]],
+                ["div", {cla:"panbgdiv", id:pc.fld + "panbgdiv"},
+                 ["img", {cla:"panbackimg", src:"img/panback.png"}]],
+                ["div", {cla:"pandragdiv", id:pc.fld + "pandragdiv"}]]]));
+            mgrs.pan.packControlWidthwise(id);
+            mgrs.pan.activateControl(id); },
         makePanControls: function () {
             var filters = app.filter.filters();
             mgrs.pan.createControl("el", filters[0]);
@@ -794,4 +812,3 @@ return {
 
 };  //end of returned functions
 }());
-

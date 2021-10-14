@@ -218,6 +218,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .ratstarsanchordiv { position:relative; cursor:pointer; }
 .ratstarbgdiv { position:absolute; top:0px; left:0px; }
 .ratstarseldiv { position:absolute; top:0px; left:0px; overflow:hidden; }
+#ratstardragdiv, #filtstardragdiv { position:absolute; top:0px; left:0px;
+  width:85px; height:15px; }
 #incluntb { background:#333; font-size:12px; width:120px;
   padding:2px 6px; margin-left:10px; border:0px; border-radius:0px;
   box-shadow:1px 1px 1px #666; }
