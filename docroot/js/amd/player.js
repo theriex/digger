@@ -500,26 +500,75 @@ app.player = (function () {
                          jt.byId(id + "pandragdiv")];
             pds.forEach(function (panel) {
                 panel.style.width = ctrls[id].width + "px";
-                panel.style.height = "40px"; }); },
+                panel.style.height = "40px"; });
+            ctrls[id].di = {ox:pk.panbg.elem.offsetLeft + 22,
+                            oy:Math.round(ctrls[id].width / 2)}; }, //expanded
+        positionDragOverlay: function (id) {
+            const pk = {pan:jt.byId(id + "pandiv"),
+                        drag:jt.byId(id + "pandragdiv")};
+            ctrls[id].dragdims = {top:0,  //relative to impressiondiv
+                                  left:pk.pan.offsetLeft,
+                                  width:pk.pan.offsetWidth,
+                                  height:pk.pan.offsetHeight};
+            Object.entries(ctrls[id].dragdims).forEach(function ([k, v]) {
+                pk.drag.style[k] = v + "px"; }); },
         expandDragArea: function (id) {
             const pc = ctrls[id];
             const drgdiv = jt.byId(id + "pandragdiv");
             if(pc.pointingActive && !pc.expanded) {
-                ctrls[id].maxxlim = ctrls[id].width;
-                drgdiv.style.backgroundColor = "#ffab00";
-                drgdiv.style.opacity = 0.1;
+                pc.di.yreliable = false;
+                pc.maxxlim = pc.width;
+                pc.maxylim = pc.width;  //make square
+                pc.toplift = Math.round((pc.maxylim - 40) / -2);
+                drgdiv.style.height = pc.maxylim + "px";
+                drgdiv.style.top = pc.toplift + "px";
+                //drgdiv.style.backgroundColor = "#ffab00";
+                drgdiv.style.opacity = 0.3;
                 pc.expanded = true; }
             if(!pc.pointingActive && pc.expanded) {
-                drgdiv.style.backgroundColor = "";
+                drgdiv.style.height = "40px";
+                drgdiv.style.top = "0px";
+                //drgdiv.style.backgroundColor = "";
                 drgdiv.style.opacity = 1.0;
                 pc.expanded = false; } },
+        calcResultValue: function (id, x, y) {
+            var pc = ctrls[id];
+            if(!pc.di.yreliable) {        //y was from unexpanded dragdiv.
+                pc.di.yreliable = true;   //should be ok after this
+                y = pc.di.oy; }           //treat as if centered
+            pc.di.dx = x - pc.di.ox;  //delta x from origin
+            pc.di.dy = y - pc.di.oy;  //delta y from origin
+            const apd = 40;  //value calculation acceleration padding
+            pc.di.vx = 49 + Math.round((pc.di.dx * 100) / (pc.maxxlim - apd));
+            pc.di.vy = 49 - Math.round((pc.di.dy * 100) / (pc.maxylim - apd));
+            pc.di.vx = Math.max(pc.di.vx, 0);
+            pc.di.vx = Math.min(pc.di.vx, 99);
+            pc.di.vy = Math.max(pc.di.vy, 0);
+            pc.di.vy = Math.min(pc.di.vy, 99);
+            // jt.out("commentdiv", "x:" + x + ", y:" + y +
+            //        ", ox:" + pc.di.ox + ", oy:" + pc.di.oy +
+            //        ", x:" + x + ", y:" + y +
+            //        ", dx:" + pc.di.dx + ", dy:" + pc.di.dy +
+            //        ", vx:" + pc.di.vx + ", vy:" + pc.di.vy);
+            pc.di.type = "xval";
+            if(Math.abs(pc.di.dy) > Math.abs(pc.di.dx)) {
+                pc.di.type = "yval"; }
+            switch(pc.di.type) {
+            case "xval": pc.val = pc.di.vx; break;
+            case "yval": pc.val = pc.di.vy; break;
+            default:
+                jt.log("calcResultValue indeterminate type: " + pc.di.type);
+                pc.val = pc.di.vx; }
+            // jt.log("calcResultValue type:" + pc.di.type +
+            //        ", vx:" + pc.di.vx + ", vy:" + pc.di.vy +
+            //        ", dx:" + pc.di.dx + ", dy:" + pc.di.dy);
+            return pc.val; },
         activateControl: function (id) {
-            ctrls[id].posf = function (x, ignore /*y*/) {
+            ctrls[id].posf = function (x, y) {
                 mgrs.pan.expandDragArea(id);
-                const pc = ctrls[id];
-                if(pc.pointingActive) {
-                    pc.val = Math.round((x * 99) / pc.width);
-                    mgrs.pan.updateControl(pc.fld, pc.val); } };
+                if(ctrls[id].pointingActive) {
+                    mgrs.pan.updateControl(ctrls[id].fld,
+                        mgrs.pan.calcResultValue(id, x, y)); } };
             app.filter.movelisten(id + "pandragdiv",
                                   ctrls[id], ctrls[id].posf); },
         createControl: function (id, det) {
@@ -533,9 +582,9 @@ app.player = (function () {
                 ["div", {cla:"panfacediv", id:pc.fld + "panfacediv"},
                  ["img", {cla:"panfaceimg", src:"img/panface.png"}]],
                 ["div", {cla:"panbgdiv", id:pc.fld + "panbgdiv"},
-                 ["img", {cla:"panbackimg", src:"img/panback.png"}]],
-                ["div", {cla:"pandragdiv", id:pc.fld + "pandragdiv"}]]]));
+                 ["img", {cla:"panbackimg", src:"img/panback.png"}]]]]));
             mgrs.pan.packControlWidthwise(id);
+            mgrs.pan.positionDragOverlay(id);
             mgrs.pan.activateControl(id); },
         makePanControls: function () {
             var filters = app.filter.filters();
@@ -752,18 +801,21 @@ app.player = (function () {
               [["div", {cla:"paneltitlediv", id:"playpantitlediv"}, "PLAYER"],
                ["div", {id:"mediadiv"}, "No songs on deck yet"],
                ["div", {id:"mediaoverlaydiv", style:"display:none"}],
-               ["div", {id:"panpotsdiv"},
-                [["div", {cla:"pandiv", id:"elpandiv"}],
-                 ["div", {cla:"pandiv", id:"alpandiv"}]]],
-               ["div", {id:"keysratdiv"},
-                [["div", {id:"kwdsdiv"}],
-                 ["div", {id:"rvdiv"}],
-                 ["a", {id:"togcommentlink", href:"#togglecomment",
-                        title:"", onclick:mdfs("cmt.toggleCommentDisplay")},
-                  ["img", {id:"togcommentimg", src:"img/comment.png"}]],
-                 ["a", {id:"togsleeplink", href:"#sleepafter",
-                        title:"", onclick:mdfs("slp.toggleSleepDisplay")},
-                  ["img", {id:"togsleepimg", src:"img/sleep.png"}]]]]]],
+               ["div", {id:"impressiondiv"},
+                [["div", {id:"panpotsdiv"},
+                  [["div", {cla:"pandiv", id:"elpandiv"}],
+                   ["div", {cla:"pandiv", id:"alpandiv"}]]],
+                 ["div", {id:"keysratdiv"},
+                  [["div", {id:"kwdsdiv"}],
+                   ["div", {id:"rvdiv"}],
+                   ["a", {id:"togcommentlink", href:"#togglecomment",
+                          title:"", onclick:mdfs("cmt.toggleCommentDisplay")},
+                    ["img", {id:"togcommentimg", src:"img/comment.png"}]],
+                   ["a", {id:"togsleeplink", href:"#sleepafter",
+                          title:"", onclick:mdfs("slp.toggleSleepDisplay")},
+                    ["img", {id:"togsleepimg", src:"img/sleep.png"}]]]],
+                 ["div", {id:"elpandragdiv", cla:"pandragdiv"}],
+                 ["div", {id:"alpandragdiv", cla:"pandragdiv"}]]]]],
              ["div", {id:"commentdiv"}],
              ["div", {id:"sleepdiv"}]]));
         mgrs.pan.makePanControls();

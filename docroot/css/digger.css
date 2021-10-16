@@ -127,6 +127,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .tuneoptdetval { text-align:left; font-size:small; }
 #pmsgdiv { font-size:small; font-weight:bold; }
 
+#impressiondiv { position:relative; }
 .pandiv { display:inline-block; position:relative; }
 #elpandiv { margin-right:7px; }
 .pancontdiv { width:140px; height:40px; cursor:pointer;
