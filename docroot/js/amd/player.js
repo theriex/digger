@@ -778,13 +778,14 @@ app.player = (function () {
                 return jt.out("sleepdiv", ""); }  //toggle off
             jt.out("sleepdiv", jt.tac2html(
                 [["input", {type:"checkbox", id:"sleepactivecb",
-                            checked:jt.toru(sc.active, "checked"),
+                            checked:"checked",  //switch on when opening
                             onclick:mdfs("slp.togsleepcb", "event")}],
                  " Pause after ",
                  ["input", {type:"number", id:"sleepcountin", size:2,
                             onchange:mdfs("slp.updateSleepCount", "event"),
                             value:0, min:0, max:8, step:1}],
-                 " more"])); },
+                 " more"]));
+            mgrs.slp.togsleepcb(); },  //reflect checkbox checked image
         togsleepcb: function () {
             sc.active = jt.byId("sleepactivecb").checked;
             if(sc.active) {
