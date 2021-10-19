@@ -182,7 +182,6 @@ app.player = (function () {
                              onclick:mdfs("plui.seek", "event")}]]]]]));
             prog.divs.forEach(function (divid) {
                 jt.byId(divid).style.width = prog.w + "px"; });
-            app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             mgrs.plui.updatePosIndicator(); },
         updateDisplay: function (svco, pbstate, position, duration) {
             prog.svco = svco;
@@ -190,6 +189,7 @@ app.player = (function () {
             prog.dur = duration;
             if(!jt.byId("pluidiv")) { //interface not set up yet
                 mgrs.plui.initInterface(); }
+            app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             if(state !== pbstate) {
                 state = pbstate;
                 mgrs.plui.reflectPlaybackState(); }
@@ -817,6 +817,7 @@ app.player = (function () {
                  ["a", {href:"#playnext", onclick:mdfs("slp.resume")},
                   "Resume playback"],
                  " &nbsp; &nbsp; "]);
+            app.spacebarhookfunc = mgrs.slp.resume;
             return true; },
         resume: function () {
             jt.out("mediaoverlaydiv", "");
