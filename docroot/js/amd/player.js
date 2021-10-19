@@ -625,7 +625,7 @@ app.player = (function () {
             mgrs.pan.createControl("al", filters[1]);
             mgrs.pan.updateControl("el");
             mgrs.pan.updateControl("al");
-            jt.on("panplaymousingdiv", "mousedown", function (event) {
+            jt.on("impressiondiv", "mousedown", function (event) {
                 var okinids = ["kwdin", "commentta"];
                 if(!event.target || okinids.indexOf(event.target.id) < 0) {
                     jt.evtend(event); } });  //ignore to avoid selecting ctrls
