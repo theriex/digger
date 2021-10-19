@@ -484,7 +484,9 @@ app.player = (function () {
 
 
     //handle the pan controls for energy and accessability
-    mgrs.pan = {
+    mgrs.pan = (function () {
+        const anglemax = 145;  //max knob rotation
+    return {
         packControlWidthwise: function (id) {
             const pk = {leftlab:{elem:jt.byId(id + "panlld")},
                         rightlab:{elem:jt.byId(id + "panrld")},
@@ -531,38 +533,69 @@ app.player = (function () {
                 //drgdiv.style.backgroundColor = "";
                 drgdiv.style.opacity = 1.0;
                 pc.expanded = false; } },
-        calcResultValue: function (id, x, y) {
-            var pc = ctrls[id];
-            if(!pc.di.yreliable) {        //y was from unexpanded dragdiv.
-                pc.di.yreliable = true;   //should be ok after this
-                y = pc.di.oy; }           //treat as if centered
+        resetDragChannels: function (pc) {
+            const flds = ["xl", "xr", "xw", "yt", "yb", "yh"];
+            flds.forEach(function (fld) { delete pc.di[fld]; }); },
+        calcDragChannels: function (pc, x, y) {
+            pc.di.xl = Math.min((pc.di.xl || x), x);
+            pc.di.xr = Math.max((pc.di.xr || x), x);
+            pc.di.xw = pc.di.xr - pc.di.xl;  //width of x drag range
+            pc.di.yt = Math.min((pc.di.yt || y), y);
+            pc.di.yb = Math.max((pc.di.yb || y), y);
+            pc.di.yh = pc.di.yb - pc.di.yt; },
+        vmaxvals: function (ob, flds) {
+            flds.forEach(function (fld) {
+                ob[fld] = Math.max(ob[fld], 0);
+                ob[fld] = Math.min(ob[fld], 99); }); },
+        calcDelta: function (pc, x, y) {
             pc.di.dx = x - pc.di.ox;  //delta x from origin
             pc.di.dy = y - pc.di.oy;  //delta y from origin
             const apd = 40;  //value calculation acceleration padding
             pc.di.vx = 49 + Math.round((pc.di.dx * 100) / (pc.maxxlim - apd));
             pc.di.vy = 49 - Math.round((pc.di.dy * 100) / (pc.maxylim - apd));
-            pc.di.vx = Math.max(pc.di.vx, 0);
-            pc.di.vx = Math.min(pc.di.vx, 99);
-            pc.di.vy = Math.max(pc.di.vy, 0);
-            pc.di.vy = Math.min(pc.di.vy, 99);
+            mgrs.pan.vmaxvals(pc.di, ["vx", "vy"]);
             // jt.out("commentdiv", "x:" + x + ", y:" + y +
             //        ", ox:" + pc.di.ox + ", oy:" + pc.di.oy +
             //        ", x:" + x + ", y:" + y +
             //        ", dx:" + pc.di.dx + ", dy:" + pc.di.dy +
             //        ", vx:" + pc.di.vx + ", vy:" + pc.di.vy);
-            pc.di.type = "xval";
+            pc.di.valfield = "vx";
             if(Math.abs(pc.di.dy) > Math.abs(pc.di.dx)) {
-                pc.di.type = "yval"; }
-            switch(pc.di.type) {
-            case "xval": pc.val = pc.di.vx; break;
-            case "yval": pc.val = pc.di.vy; break;
-            default:
-                jt.log("calcResultValue indeterminate type: " + pc.di.type);
-                pc.val = pc.di.vx; }
-            // jt.log("calcResultValue type:" + pc.di.type +
-            //        ", vx:" + pc.di.vx + ", vy:" + pc.di.vy +
-            //        ", dx:" + pc.di.dx + ", dy:" + pc.di.dy);
-            return pc.val; },
+                pc.di.valfield = "vy"; } },
+        calcPolar: function (pc, x, y) {
+            pc.di.r = Math.sqrt((x * x) + (y * y));  //radius by pythagorean
+            pc.di.th = Math.atan2(x, y) ;  //angle off top mid (invert axes)
+            pc.di.dg = Math.round(pc.di.th * 180 / Math.PI);  //angle in degrees
+            if(pc.di.dg > 0) {  //find circle degree (0-360)
+                pc.di.cd = 180 + 180 - pc.di.dg;
+                if(pc.di.cd >= 335) { pc.di.cd = 360; } }
+            else if(pc.di.dg < 0) {
+                pc.di.cd = Math.abs(pc.di.dg);
+                if(pc.di.cd <= 25) { pc.di.cd = 0; } }
+            else {  //at zero
+                pc.di.cd = 180; }
+            const knobrange = 2 * anglemax;
+            pc.di.kr = Math.round(pc.di.cd * knobrange / 360);
+            pc.di.vp = Math.round(pc.di.kr * 100 / knobrange);
+            mgrs.pan.vmaxvals(pc.di, ["vp"]);
+            // jt.out("commentdiv", "x:" + x + ", y:" + y +
+            //        ", r:" + pc.di.r.toFixed(2) + 
+            //        ", &theta;:" + pc.di.th.toFixed(2) +
+            //        " (" + pc.di.dg + "&deg;) " + ", cd:" + pc.di.cd +
+            //        ", kr:" + pc.di.kr + ", vp:" + pc.di.vp +
+            //        ", xw:" + pc.di.xw + ", yh:" + pc.di.yh);
+            if(pc.di.r < 26 && pc.di.xw > 9 && pc.di.yh > 9) {
+                pc.di.valfield = "vp"; } },
+        calcResultValue: function (id, x, y) {
+            var pc = ctrls[id];
+            if(!pc.di.yreliable) {        //y was from unexpanded dragdiv.
+                pc.di.yreliable = true;   //should be ok after this
+                mgrs.pan.resetDragChannels(pc);
+                y = pc.di.oy; }           //treat as if centered
+            mgrs.pan.calcDragChannels(pc, x, y);
+            mgrs.pan.calcDelta(pc, x, y);
+            mgrs.pan.calcPolar(pc, pc.di.dx, pc.di.dy);
+            return pc.di[pc.di.valfield]; },
         activateControl: function (id) {
             ctrls[id].posf = function (x, y) {
                 mgrs.pan.expandDragArea(id);
@@ -635,10 +668,10 @@ app.player = (function () {
             pfd.style.backgroundColor = "rgb(" + 
                 res.r + ", " + res.g + ", " + res.b + ")";
             //rotate knob to value
-            const anglemax = 145;
             const rot = Math.round(2 * anglemax * pct) - anglemax;
             pfd.style.transform = "rotate(" + rot + "deg)"; }
-    };  //end mgrs.pan
+    };  //end mgrs.pan returned functions
+    }());
 
 
     //handle the selected keywords display and entry
