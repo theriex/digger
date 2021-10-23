@@ -301,11 +301,32 @@ app.player = (function () {
                 jt.log("Spotify " + e + " listener: " + added); }); },
         noteWebPlaybackState: function (wpso) {
             if(!wpso) { return; }  //ignore if seek crashes
-            pbi.wpso = wpso;
+            if(pbi.spid && wpso.track_window.current_track.id !== pbi.spid) {
+                mgrs.spa.switchToSpotifyTrack(wpso); }
+            pbi.wpso = wpso;  //object may be live, but helpful for debug
             pbi.state = (pbi.wpso.paused ? "paused" : "playing");
             pbi.pos = pbi.wpso.position;
             pbi.dur = pbi.wpso.duration;
+            pbi.spid = pbi.wpso.track_window.current_track.id;
             mgrs.spa.updatePlayState(pbi.state); },
+        switchToSpotifyTrack: function (wpso) {
+            mgrs.tun.toggleTuningOpts("off");
+            mgrs.cmt.toggleCommentDisplay("off");
+            const st = wpso.track_window.current_track;
+            const tid = "z:" + st.id;
+            stat.song = {dsId:"spotify" + tid, ti:st.name,
+                         ar:st.artists[0].name, ab:st.album.name,
+                         spdn:(st.disc_number || 1),
+                         sptn:(st.track_number || 1), spid:tid,
+                         srcid:1, //reserved value for Spotify sourced Songs
+                         el:49, al:49, kws:"", rv:5, fq:"N", nt:"", pc:1,
+                         lp:new Date().toISOString()};
+            app.svc.updateSong(stat.song, function (updsong) {
+                app.svc.dispatch("web", "addSongsToPool", [updsong]);
+                app.deck.dispatch("hst", "noteSongPlayed", updsong);
+                mgrs.aud.updateSongDisplay();
+                app.deck.dispatch("gen", "redisplayCurrentSection"); });
+            mgrs.aud.reflectPlaying(); },
         refreshPlayState: function () {
             swpi.getCurrentState().then(function (wpso) {
                 if(!wpso) {
@@ -402,6 +423,11 @@ app.player = (function () {
             mgrs.pan.updateControl("el", stat.song.el);
             stat.song.rv = stat.song.rv || 0;  //verify numeric value
             ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2)); },
+        reflectPlaying: function () {
+            stat.status = "playing";
+            jt.log(JSON.stringify(stat.song));
+            mgrs.aud.updateSongDisplay();
+            app.deck.dispatch("gen", "redisplayCurrentSection"); },
         playAudio: function () {
             stat.status = "playing";
             jt.log(JSON.stringify(stat.song));

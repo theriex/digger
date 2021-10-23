@@ -337,7 +337,8 @@ app.svc = (function () {
             contf(song, abs); },
         updateSong: function (song, contf) {
             jt.call("POST", "/songupd", jt.objdata(song),
-                    function (updsong)  {
+                    function (res)  {
+                        var updsong = res[0];
                         mgrs.gen.copyUpdatedSongData(song, updsong);
                         app.top.dispatch("a2h", "syncToHub");  //sched sync
                         if(contf) {
@@ -486,7 +487,8 @@ app.svc = (function () {
             mgrs.spab.fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {
             jt.call("POST", "/api/songupd", app.svc.authdata(song),
-                    function (updsong) {
+                    function (res) {
+                        var updsong = res[0];
                         mgrs.gen.copyUpdatedSongData(song, updsong);
                         if(contf) {
                             contf(updsong); } },

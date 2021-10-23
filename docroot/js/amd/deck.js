@@ -335,6 +335,8 @@ app.deck = (function () {
                                           mgrs.alb.albumFetchFailure); }
             if(!aid[cak].songs || !aid[cak].songs.length) {
                 return jt.out("deckalbumdiv", "No album info for song"); }
+            //currently playing song may have changed via external action
+            aid[cak].ci = mgrs.ws.findSongIndex(np, aid[cak].songs);
             mgrs.alb.displayAlbum(np); },
         makeAlbumSongDiv: function (song, idx) {
             if(idx === aid[cak].ci) {
@@ -438,6 +440,9 @@ app.deck = (function () {
             switch(deckstat.disp) {
             case "album": mgrs.alb.updateDisplayContent(); break;
             case "history": mgrs.hst.verifyDisplayContent(); break; } },
+        redisplayCurrentSection: function () {
+            deckstat.disp = deckstat.disp || "songs";
+            mgrs.gen.showSection(deckstat.disp); },
         makeToggle: function (spec) {
             var div = jt.byId(spec.id);
             div.style.display = "inline-block";
