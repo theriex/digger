@@ -358,7 +358,13 @@ app.player = (function () {
             //refreshed after hitting the play button.
             pbi.spuri = "spotify:track:" + pbi.song.spid.slice(2);
             app.svc.dispatch("spc", "sjc", `me/player/play?device_id=${pdid}`,
-                             "PUT", {uris:[pbi.spuri]}); }
+                             "PUT", {uris:[pbi.spuri]},
+                             function () {
+                                 jt.log("Playing " + pbi.spuri); },
+                             function (stat, msg) {
+                                 app.svc.dispatch("spc", "playerMessage",
+                                                  "Playback failed " + stat +
+                                                  ": " + msg); }); }
     };  //end mgrs.spa returned functions
     }());
 
