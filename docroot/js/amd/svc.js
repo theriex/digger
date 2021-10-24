@@ -423,9 +423,10 @@ app.svc = (function () {
         var lastfvsj = null;  //most recent fetch values json
     return {
         key: function (song) {
-            var key = song.ti + (song.ar || "") + (song.ab || "");
-            key = key.replace(/[\s'"]/g, "");
-            return key; },
+            if(!song.path) {  //history filters by path, verify value exists
+                song.path = song.ti + (song.ar || "") + (song.ab || "");
+                song.path = song.path.replace(/[\s'"]/g, ""); }
+            return song.path; },
         songs: function () { return pool; },
         makeStartData: function (auth) {
             //account has added hubVersion, diggerVersion fields
