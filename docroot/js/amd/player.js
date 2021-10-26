@@ -234,7 +234,7 @@ app.player = (function () {
                     document.body.appendChild(script); },
                            50); }
             return false; },
-        playerSetup: function () {
+        swpconn: function () {
             if(swpi && pstat === "connected") { return true; }
             if(!swpi) {
                 pmsg("Creating Spotify Web Player...");
@@ -245,9 +245,9 @@ app.player = (function () {
                 pmsg("Connecting to Spotify Web Player...");
                 pstat = "connecting";
                 swpi.connect().then(function (result) {
-                    if(result) {
+                    if(result) {  //result === true
                         pstat = "connected";
-                        mgrs.spa.updatePlayState("paused");  //reset playback
+                        mgrs.spa.updatePlayState("paused");  //reset display
                         pmsg("Spotify Web Player Connected.");
                         //could still get an error if not premium or whatever
                         setTimeout(mgrs.spa.verifyPlaying, 500); }
@@ -257,16 +257,16 @@ app.player = (function () {
                                     onclick:mdfs("spa.verifyPlayer")},
                               "Reconnect Spotify Web Player"]); } })
                     .catch(function (err) {
-                        jt.log("playerSetup swpi.connect catch: " + err); }); }
+                        jt.log("swpconn swpi.connect catch: " + err); }); }
             return false; },
         getPlayerStatus: function () { return pstat; },
         verifyPlayer: function () {  //called after deck updated
             if(pstat !== "connected") {
-                const steps = ["token", "sdkload", "playerSetup"];
+                const steps = ["token", "sdkload", "swpconn"];
                 steps.every((step) => mgrs.spa[step]()); } },
         addPlayerListeners: function () {
             var listeners = {
-                "ready":function (obj) {
+                "ready":function (obj) {  //obj has only the device_id in it
                     pdid = obj.device_id;
                     mgrs.spa.verifyPlaying(); },
                 "not_ready":function (obj) {
@@ -329,7 +329,12 @@ app.player = (function () {
             mgrs.aud.reflectPlaying(); },
         refreshPlayState: function () {
             swpi.getCurrentState().then(function (wpso) {
-                if(!wpso) {
+                if(!wpso) {  //might be dead, might be still setting up
+                    pbi.rpsfails = (pbi.rpsfails || 0) + 1;
+                    if(pbi.rpsfails < 3) {
+                        jt.log("rpsfail " + pbi.rpsfails + " retrying...");
+                        return setTimeout(mgrs.spa.refreshPlayState, 500); }
+                    jt.log("rpsfail assuming token expired");
                     pmsg("Spotify Web Player disconnected. Reconnecting...");
                     return mgrs.spa.verifyPlayer(); }
                 mgrs.spa.noteWebPlaybackState(wpso); }); },
@@ -349,7 +354,9 @@ app.player = (function () {
         verifyPlaying: function () {
             app.top.dispatch("webla", "spimpNeeded", "playstart");
             if(pbi.state !== "playing") {
-                mgrs.spa.playSong(pbi.song); } },
+                if(pbi.song) {
+                    return mgrs.spa.playSong(pbi.song); }
+                app.player.next(); } },
         playSong: function (song) {
             pbi.song = song;
             if(pstat !== "connected" || !pdid) {
@@ -371,28 +378,13 @@ app.player = (function () {
 
     //general interface for whatever audio player is being used.
     mgrs.aud = (function () {
-        var ctx = "loc";  //local reference of svc.mgrs.gen.hdm
         var cap = "loa";  //current audio player
     return {
         init: function () {
-            ctx = app.svc.dispatch("gen", "getHostDataManager");
+            var ctx = app.svc.dispatch("gen", "getHostDataManager");
             if(ctx === "web") {  //deal with Spotify redirect if needed
+                cap = "spa";
                 mgrs.spa.token(); } },
-        playerForSong: function (song) {
-            if(ctx === "loc") {
-                return "loa"; }
-            else {  //"web"
-                if(!song.spid || !song.spid.startsWith("z:")) {
-                    jt.log("Song " + song.dsId + " bad spid: " + song.spid); }
-                return "spa"; } },
-        verifyPlayerControls: function () {  //called when deck updated
-            if(!jt.byId("playerdiv")) {
-                jt.out("mediadiv", jt.tac2html(
-                    ["div", {id:"playerdiv"},
-                     [["div", {id:"playertitle"}, "Starting"],
-                      ["div", {id:"playertuningdiv"}],
-                      ["div", {id:"audiodiv"}]]])); }
-            mgrs[cap].verifyPlayer(); },
         handlePlayerError: function (errval) {
             //On Firefox, errval is a DOMException
             var errmsg = String(errval);  //error name and detail text
@@ -437,10 +429,17 @@ app.player = (function () {
         playAudio: function () {
             stat.status = "playing";
             jt.log(JSON.stringify(stat.song));
-            cap = mgrs.aud.playerForSong(stat.song);
-            mgrs.aud.verifyPlayerControls();
+            mgrs.aud.verifyPlayer();
             mgrs.aud.updateSongDisplay();
-            mgrs[cap].playSong(stat.song); }
+            mgrs[cap].playSong(stat.song); },
+        verifyPlayer: function () {
+            if(!jt.byId("playerdiv")) {
+                jt.out("mediadiv", jt.tac2html(
+                    ["div", {id:"playerdiv"},
+                     [["div", {id:"playertitle"}, "Starting"],
+                      ["div", {id:"playertuningdiv"}],
+                      ["div", {id:"audiodiv"}]]])); }
+            mgrs[cap].verifyPlayer(); }
     };  //end mgrs.aud returned functions
     }());
 
@@ -911,16 +910,10 @@ app.player = (function () {
     }
 
 
-    function deckUpdated () {
-        if(!stat.status) {  //not playing anything yet, start the first song
-            next(); }
-    }
-
-
 return {
 
     init: function () { initializeDisplay(); },
-    deckUpdated: function () { deckUpdated(); },
+    deckUpdated: function () { mgrs.aud.verifyPlayer(); },
     next: function () { next(); },
     skip: function () { skip(); },
     song: function () { return stat.song; },
