@@ -74,8 +74,8 @@ app.deck = (function () {
                 if(!ba[artist]) { ba[artist] = []; }
                 ba[artist].push(s); });
             Object.values(ba).forEach(function (songs) {
-                first.push(songs.shift());
-                rest = rest.concat(songs); });
+                first.push(songs.shift());      //oldest song from each artist
+                rest = rest.concat(songs); });  //rest of songs from artist
             //leave [0] (2nd oldest song), Fisher-Yates shuffle rest
             for(i = rest.length - 1; i > 0; i -= 1) {
                 j = Math.floor(Math.random() * i);
