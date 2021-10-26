@@ -67,7 +67,8 @@ app.player = (function () {
                     ["audio", {id:"playeraudio", controls:"controls",
                                autoplay:"autoplay"},  //may or may not happen
                      "WTF? Your browser doesn't support audio.."]));
-                jt.on("playeraudio", "ended", app.player.next); }
+                jt.on("playeraudio", "ended", app.player.next);
+                app.player.next(); }
             mgrs.loa.bumpPlayerLeftIfOverhang(); },
         bumpPlayerLeftIfOverhang: function  () {
             var player = jt.byId("playeraudio");
@@ -895,11 +896,12 @@ app.player = (function () {
         mgrs.tun.toggleTuningOpts("off");
         mgrs.cmt.toggleCommentDisplay("off");
         stat.status = "";
-        stat.song = app.deck.getNextSong();
+        const ns = app.deck.getNextSong();
+        if(!ns) { //just stop, might be playing an album, deck shows status
+            return; }
+        stat.song = ns;
         mgrs.cmt.updateCommentIndicator();
-        if(!stat.song) {
-            jt.out("mediadiv", "No songs to play."); }
-        else if(!mgrs.slp.sleepNow()) {
+        if(!mgrs.slp.sleepNow()) {
             mgrs.aud.playAudio(); }
     }
 

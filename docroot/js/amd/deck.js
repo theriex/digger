@@ -326,7 +326,7 @@ app.deck = (function () {
             var np = app.player.song();
             if(!np) {
                 return jt.out("deckalbumdiv", "No song currently playing"); }
-            cak = mgrs.alb.makeAlbumKey(app.player.song());
+            cak = mgrs.alb.makeAlbumKey(np);
             if(!cak) {
                 return jt.out("deckalbumdiv", "Album info not available"); }
             if(!aid[cak]) {
