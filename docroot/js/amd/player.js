@@ -616,7 +616,8 @@ app.player = (function () {
             //        " (" + pc.di.dg + "&deg;) " + ", cd:" + pc.di.cd +
             //        ", kr:" + pc.di.kr + ", vp:" + pc.di.vp +
             //        ", xw:" + pc.di.xw + ", yh:" + pc.di.yh);
-            if(pc.di.r < 26 && pc.di.xw > 9 && pc.di.yh > 9) {
+            if(pc.di.r < 26 && ((pc.di.xw > 9 && pc.di.yh > 9) ||
+                                (pc.di.xw < 6 && pc.di.yh < 6))) {
                 pc.di.valfield = "vp"; } },
         calcResultValue: function (id, x, y) {
             var pc = ctrls[id];
@@ -627,6 +628,13 @@ app.player = (function () {
             mgrs.pan.calcDragChannels(pc, x, y);
             mgrs.pan.calcDelta(pc, x, y);
             mgrs.pan.calcPolar(pc, pc.di.dx, pc.di.dy);
+            // jt.out("commentdiv", ["vx", "vy", "vp"].map(function (fld) {
+            //     var txt = fld + ":" + pc.di[fld] + " ";
+            //     if(fld === pc.di.valfield) {
+            //         txt = "<b>" + txt + "</b>"; }
+            //     else {
+            //         txt = "<i>" + txt + "</i>"; }
+            //     return txt; }));
             return pc.di[pc.di.valfield]; },
         activateControl: function (id) {
             ctrls[id].posf = function (x, y) {
