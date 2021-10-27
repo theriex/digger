@@ -560,6 +560,7 @@ app.filter = (function () {
         rebuildAllControls: function (ready) {
             var ca = app.top.dispatch("gen", "getAccount");
             if(ca && ca.settings) { settings = ca.settings; }
+            ctrls.filtersReady = false;  //turn off to avoid spurious events
             rcids.forEach(function (cid) {
                 if(!jt.byId(cid + "vnd")) {  //no knob displayed yet
                     createRangeControl(cid); }
@@ -567,7 +568,8 @@ app.filter = (function () {
                     initRangeSetting(cid); } });
             mgrs.btc.rebuildControls();
             mgrs.mruc.init("ratdiv");
-            ctrls.filtersReady = ready; }
+            ctrls.filtersReady = ready;
+            app.deck.update("filters rebuilt"); }
     };  //end of mgrs.stg returned functions
     }());
 

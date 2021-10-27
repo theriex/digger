@@ -468,7 +468,7 @@ app.top = (function () {
             if(!context || context === "igfolders") {
                 mgrs.igf.redrawIgnoreFolders(); }
             if(!context || context === "settings") {
-                app.filter.dispatch("stg", "rebuildAllControls"); } },
+                app.filter.dispatch("stg", "rebuildAllControls", true); } },
         initialDataLoaded: function () {
             var config = app.svc.dispatch("loc", "getConfig");
             mgrs.locam.noteUpdatedAccountsInfo(config.acctsinfo);
