@@ -487,6 +487,8 @@ app.svc = (function () {
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {
+            song = JSON.parse(JSON.stringify(song));
+            song.path = "";  //path value can trigger modsec 29oct21
             jt.call("POST", "/api/songupd", app.svc.authdata(song),
                     function (res) {
                         var updsong = res[0];
