@@ -480,11 +480,16 @@ app.player = (function () {
                 stat.song.fq = rbv;
                 noteSongModified(); } },
         toggleTuningOpts: function (togstate) {
+            var ptitle = jt.byId("playertitle");
             var tdiv = jt.byId("playertuningdiv");
             if(!tdiv) { return; }  //nothing to do
             if(tdiv.innerHTML || !stat.song || togstate === "off") {
                 tdiv.innerHTML = "";
+                ptitle.style.overflow = "hidden";
+                ptitle.style.maxHeight = "18px";
                 return; }
+            ptitle.style.overflow = "visible";
+            ptitle.style.maxHeight = "none";
             tdiv.innerHTML = jt.tac2html(
                 [["div", {id:"frequencyoptionsdiv"}, mgrs.tun.fqOptsHTML()],
                  ["div", {id:"tuningdetdiv"}, mgrs.tun.optDetailsHTML()]]); },
