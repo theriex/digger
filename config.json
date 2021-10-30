@@ -5,15 +5,20 @@
   "exPath": "~/diggerexport",
   "cachePath": "~/diggercache",
   "spawn": {
-    "comment": "Optional platform command to run after server starts",
+    "comment": "Optional platform command to run after the Digger server starts. Most useful is to open the Digger URL in the default browser. In the args, DIGGERHURL is replaced with http://localhost:6980 or whatever the port is set to.",
     "darwin": {
-      "comment": "MacOS supports opening a URL with the default browser",
+      "comment": "MacOS supports opening a URL via open.",
       "command": "open",
-      "args": ["http://localhost:6980"],
+      "args": ["DIGGERURL"],
       "options": {"stdio": "ignore"} },
     "win32": {
-      "comment": "Theoretically, this should work.",
+      "comment": "Windows supports opening a URL via start.",
       "command": "start",
-      "args": ["http://localhost:6980"],
-      "options": {"shell": "true"} } }
+      "args": ["DIGGERURL"],
+      "options": {"shell": "true"} },
+    "linux": {
+      "comment": "Linux supports opening a URL via xdg-open.",
+      "command": "xdg-open",
+      "args": ["DIGGERURL"],
+      "options": {"stdio": "ignore"} } }
 }

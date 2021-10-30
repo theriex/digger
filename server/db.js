@@ -131,6 +131,9 @@ module.exports = (function () {
     }
 
 
+    //The config file read expected to always succeed. The user's home
+    //directory is supposed to be used for this sort of thing, and the
+    //default config is copied in as needed.
     function readConfigurationFile (contf) {
         var cfp = getConfigFileName();
         fs.readFile(cfp, "utf8", function (err, data) {
@@ -152,6 +155,8 @@ module.exports = (function () {
     }
 
 
+    //By default, the database file is placed in the user's home directory
+    //which should work.  Where to find the actual music files might vary.
     //On MacOS, if you put digdat.json somewhere like ~/Documents and the
     //node process hasn't been granted access, then the read will fail.  If
     //server processing continues, and write access is subsequently granted,
@@ -232,6 +237,7 @@ module.exports = (function () {
     }
 
 
+    //Walk the file tree, starting at the root.
     function walkFiles (ws) {
         if(!ws.files.length) {
             dbo.scanned = new Date().toISOString();  //note completion time.
@@ -266,9 +272,9 @@ module.exports = (function () {
 
 
     function readFiles (req, res) {
-        var root;
+        var root; var msg;
         if(state === "reading") {
-            const msg = "readFiles already in progress";
+            msg = "readFiles already in progress";
             res.statusCode = 409;
             res.statusMessage = msg;
             res.end();
@@ -282,8 +288,15 @@ module.exports = (function () {
             if(!fq.startsWith("D")) {  //already marked as deleted
                 dbo.songs[key].fq = "D" + fq; } });
         root = conf.musicPath;
-        if(root.endsWith("/")) {
+        if(root.endsWith("/") || root.endsWith("\\")) {
             root = root.slice(0, -1); }
+        if(!jslf(fs, "existsSync", root)) {
+            msg = "readFiles " + root + " does not exist";
+            state = "badMusicPath";
+            res.statusCode = 404;
+            res.statusMessage = msg;
+            res.end();
+            return console.log(msg); }
         walkFiles({request:req, response:res, files:[root]});
     }
 

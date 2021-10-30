@@ -1,13 +1,15 @@
-/*jslint node, white, unordered */
+/*jslint node, white, unordered, long */
 
 var path = require("path");
 var hub = require("./server/hub");
 var db = require("./server/db");
+try {
 db.init(function (conf) {
     var nodestatic = require("node-static");
     //Not specifying any header options here, default caching is one hour.
     var fileserver = new nodestatic.Server(path.join(db.appdir(), "docroot"));
-    var sd = conf.spawn && conf.spawn[require("os").platform()];
+    var plat = require("os").platform();
+    var sd = conf.spawn && conf.spawn[plat];
 
     function params2Obj (str) {
         var po = {};
@@ -85,13 +87,29 @@ db.init(function (conf) {
     }).listen(conf.port);
 
     console.log("Digger running at http://localhost:" + conf.port);
-
+    console.log("platform: " + plat);
     if(sd) {
-        console.log(sd.command + " " + sd.args.join(" "));
         //Launching Safari results in an options.env field being added, so
         //make a copy of sd to avoid writeback into .digger_config.json
         sd = JSON.parse(JSON.stringify(sd));
+        sd.args = sd.args.map((arg) =>
+            arg.replace(/DIGGERURL/g, "http://localhost:" + conf.port));
+        console.log(sd.command + " " + sd.args.join(" "));
         setTimeout(function () {
             const { spawn } = require("child_process");
             spawn(sd.command, sd.args, sd.options); }, 800); }
 });
+} catch(crash) {
+    console.log("--------");
+    console.log("Digger crashed. " + crash);
+    console.log(crash.stack);  //defined for Error object exceptions
+    console.log("--------");
+    console.log("It would be greatly appreciated if you would copy the above info and mail it to support@diggerhub.com");
+    //the console window immediately disappears on windows.  Prompt to
+    //hold it open so the user has a chance to read and email the err.
+    const readline = require("readline");
+    const rl = readline.createInterface({input: process.stdin,
+                                         output: process.stdout});
+    rl.question("\n", function (ignore) {
+        process.exit(1); });
+}

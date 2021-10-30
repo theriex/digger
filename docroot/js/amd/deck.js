@@ -428,14 +428,16 @@ app.deck = (function () {
             const buttons = ["", "toginfob", "togalb", "toghistb"];
             sections.forEach(function (section, idx) {
                 var togbf = deckstat.toggles[buttons[idx]];
-                if(section === showing) {  //button is already toggled on
-                    jt.byId("deck" + section + "div").style.display = "block";
-                    if(togbf) {
-                        togbf("activate", "reflectonly"); } }
-                else {
-                    jt.byId("deck" + section + "div").style.display = "none";
-                    if(togbf) {
-                        togbf("", "reflectonly"); } } });
+                var secdiv = jt.byId("deck" + section + "div");
+                if(secdiv) {
+                    if(section === showing) {  //button is already toggled on
+                        secdiv.style.display = "block";
+                        if(togbf) {
+                            togbf("activate", "reflectonly"); } }
+                    else {
+                        secdiv.style.display = "none";
+                        if(togbf) {
+                            togbf("", "reflectonly"); } } } });
             deckstat.disp = showing;
             switch(deckstat.disp) {
             case "album": mgrs.alb.updateDisplayContent(); break;

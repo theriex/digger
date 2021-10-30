@@ -66,6 +66,9 @@ return {
     },
 
 
+    restart: init2,
+
+
     fileVersion: function () {
         return "v=211029";  //updated as part of release process
     },

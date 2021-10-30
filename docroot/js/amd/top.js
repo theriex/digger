@@ -907,11 +907,11 @@ app.top = (function () {
     return {
         restart: function () {
             cdat = null;
-            app.init2(); },
+            app.restart(); },
         updateConfig: function () {
             cdat.musicPath = jt.byId("mlibin").value;
             cdat.dbPath = jt.byId("dbfin").value;
-            app.svc.dispatch("loc.writeConfig",
+            app.svc.dispatch("loc", "writeConfig", cdat,
                 function () { mgrs.cfg.restart(); },
                 function (code, errtxt) {
                     jt.out("configstatdiv", "Config update failed " +

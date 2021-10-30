@@ -246,10 +246,15 @@ app.svc = (function () {
                             setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete
                             //app.deck.updateDeck(); handled by dbread return
-                            mgrs.loc.cancelRead(); } },  //clear loadproc
+                            mgrs.loc.cancelRead();  //clear loadproc
+                            mgrs.loc.checkForReadErrors(info); } },
                     function (code, errtxt) {
                         errstat("svc.loc.monitorReadTotal", code, errtxt); },
                     jt.semaphore("svc.loc.monitorReadTotal")); },
+        checkForReadErrors: function (info) {
+            if(info.status === "badMusicPath") {
+                jt.err("bad musicPath " + info.musicpath);
+                app.top.dispatch("cfg", "launch"); } },
         rebuildSongData: function (databaseobj) {
             dbo = databaseobj;
             jt.out("countspan", String(dbo.songcount) + " songs");
