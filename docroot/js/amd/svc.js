@@ -492,9 +492,8 @@ app.svc = (function () {
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {
-            song = JSON.parse(JSON.stringify(song));
-            song.path = "";  //path value can trigger modsec 29oct21
-            jt.call("POST", "/api/songupd", app.svc.authdata(song),
+            var dat = {songdat:JSON.stringify(song)};
+            jt.call("POST", "/api/songupd", app.svc.authdata(dat),
                     function (res) {
                         var updsong = res[0];
                         mgrs.gen.copyUpdatedSongData(song, updsong);
@@ -607,7 +606,7 @@ app.svc = (function () {
         fetchAlbum: function (song, contf, errf) {
             mgrs[hdm].fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {
-            jt.log("updateSong " + song.ti);
+            jt.log("updateSong " + song.dsId + " " + song.ti);
             mgrs[hdm].updateSong(song, contf); },
         updateMultipleSongs: function (songs, contf, errf) {
             mgrs[hdm].updateMultipleSongs(songs, contf, errf); },

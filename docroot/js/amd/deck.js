@@ -186,12 +186,15 @@ app.deck = (function () {
             mgrs.sop.togOptions(mgrnm, idx);  //remove actions overlay
             mgrs.dk[action](mgrnm, idx); },   //do clicked action
         songIdentHTML: function (song) {
-            var idh = [["span", {cla:"dstispan"}, song.ti],
+            var idh = [["span", {cla:"dstispan", "data-dsId":song.dsId},
+                        song.ti],
                        " - ",
                        ["span", {cla:"dsarspan"}, song.ar || "???"]];
             if(song.ab) {
                 idh.push(" - ");
                 idh.push(["span", {cla:"dsabspan"}, song.ab || ""]); }
+            if(song.dsId && song.dsId.startsWith("fr")) {
+                idh[0][2] = "+" + idh[0][2]; }
             return jt.tac2html(idh); },
         noMatchingSongsHelp: function () {
             var msgs = ["No matching songs found"];
