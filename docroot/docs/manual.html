@@ -1,0 +1,262 @@
+<!doctype html>
+<html itemscope="itemscope" itemtype="https://schema.org/WebPage"
+      xmlns="https://www.w3.org/1999/xhtml" dir="ltr" lang="en-US">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="robots" content="noodp" />
+  <meta name="description" content="What Digger is an how to use it." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digger Manual</title>
+<style type="text/css">
+body { background:AntiqueWhite; padding:0px 10px; font-size:large; }
+h1 { text-align:center; }
+h2 { padding:10px 0px 0px 0px; }
+</style>
+</head>
+<body>
+
+<h1>The Digger Manual</h1>
+
+<p>Digger is a music library tool optimized for retrieval and collaboration.
+Its name references DJs digging through the record library stacks pulling
+albums to play.  Its interface borrows from vintage recording hardware to
+provide intuitive control.  It works like a mixer for your music
+collection.</p>
+
+<p>The primary purpose of Digger is to get noise in the room without having
+to think too much.  Tune the filter controls for what you want to hear.
+Adjust the player controls to reflect what you feel.</p>
+
+
+<h2>Getting started</h2>
+
+<p>When you first start Digger, it reads your library to start playing.  If
+you are on the web it pulls from your music service.  If you are running
+locally, it scans your Music folder.  If you don't have a Music folder, or
+you keep your music in a different location, you can configure that in the
+Library Actions section of the <a href="#toppanel">top panel</a>.</p>
+
+<p>Whether you run Digger locally or on the web (or both), it's the same
+interface.  The local server syncs to the web when you sign in.  By
+default your local server runs
+at <a href="http://localhost:6980">http://localhost:6980</a>.  If you need to change that see <a href="#digcfg">local files configuration</a>.</p>
+
+
+<h2>The Player Panel</h2>
+
+<p>The player panel is where you control music playback, and record what you
+feel.  The main controls are the energy level and approachability pan knobs
+just under the transport.  These are impression controls you use based on
+what they mean to you.  Whether you think of "Amped" as
+heads-down-amps-on-10, high BPM, massive technical prowess, fireworks and/or
+whatever else, that's how you think of it.  Likewise whether "Chill" means
+sleep, relaxation, meditation and/or whatever else, that's what you think of
+it.  Approachability is similarly up to you.  "Hard" might typically be
+characterized by dissonance, difficult sounds, tough lyrics or other aspects
+you consider challenging.  "Easy" might typically tend more towards
+consonant, nice, generally approachable stuff.  Your call.</p>
+
+<p>Energy level and approachability have nothing to do with whether a song
+is good or not.  That's what the rating stars are for.  Obviously everything
+in your collection is already above average or you wouldn't have bothered
+collecting it, so 3 stars is kind of the default.  That gives you some
+leeway for noting if a song is among your best, or maybe not as much.</p>
+
+<p>Keyword toggles let you mark the song for retrieval, either by situation or
+category.  Keywords combine with energy level and approachability when
+digging for music to play.  For example you might select "Social" for songs
+you are comfortable playing when having people over, then adjust energy
+level and approachability as appropriate for the situation.  Click the '+'
+button to the left to expand all keywords and/or add more.  See the 
+<a href="#kwddesc">default keyword descriptions</a> for more info.</p>
+
+<p>Use the comment button if you need to make a statement about the song.
+The snooze button will pause playback after the song finishes.</p>
+
+<p>The skip button in the upper right skips to the next song.  The tuning
+fork to the left of that brings up additional song details and playback
+options.  Generally a song is eligible to play once every 24hrs.  If you
+find a song is being suggested too often, select "Tired" under the tuning
+options to reduce the eligibility to once every 3 months.  If you click skip
+again after that it moves to every 6 months.  Skip it again and it's once a
+year.  By design, Digger always grabs the oldest stuff first so you might
+not need this, but it's good to have when you do.</p>
+
+
+<h2>The Filters Panel</h2>
+
+<p>The filters panel controls how Digger pulls from your library.  The
+Energy Level and Approachability range controls each have a slider on the
+left to change the width of the retrieval range, and a slider at the bottom
+to adjust the position of the retrieval range.  The dots in the middle of
+each range control corresponds to the center knob positions in the
+player.</p>
+
+<p>The keyword bowtie toggles allow you to specify whether songs being
+retrieved should, or should not, include the given keyword.  The middle
+position is neutral.  Four selection keywords are active at any time.  You
+can select which ones in the top panel library actions.</p>
+
+<p>The rating stars represent the minimum rating required.</p>
+
+<p>The default "Include Untagged" keyword filtering should work for most
+situations.  Change this if you want to explicitely look for songs without
+any associated keywords, or for songs with at least one associated
+keyword.</p>
+
+<p>By default, frequency filtering "Fq" is on.  If you want to retrieve
+things regardless of when they were last played, you can switch this off.
+Be aware songs could repeat weirdly.  You can also turn off all filtering
+completely in the deck panel if you are having trouble searching.</p>
+
+
+<h2>The Deck Panel</h2>
+
+<p>The deck panel shows matching songs that are set to play next.  If you
+change filter settings, what's on deck gets rebuilt.  The filtering bypass
+toggle on the left allows you to completely turn off all filtering, which is
+handy if you are just trying to search for something specific in your
+collection.</p>
+
+<p>The search box will match text anywhere in the song, even your comments.
+Remember to turn off the filtering if you are searching for something you
+might have played recently or if you are unsure of the rating values.</p>
+
+<p>To the right of search are three toggles for alternate displays.  The
+info button gives details on how songs are being filtered.  The album view
+switches to showing all songs on the album, regardless of filtering.  In
+album view, songs play from one track to the next.  The history view shows
+you what you've played so far in case you want to play something again.</p>
+
+<p>Clicking a song in the deck display brings up deck transport controls for
+that song.  These allow you to play the song immediately, move it to the top
+of the deck, skip it, or snooze it (mark as tired and skip).  Click the link
+again to dismiss the deck transport controls.</p>
+
+
+<h2 id="toppanel">The Top Panel</h2>
+
+<p>The top panel has your account actions link on the left, library actions
+and export icons on the right.</p>
+
+<h3>Account Actions</h3>
+
+<p>If you are running locally, the account actions link will say "Digger"
+until you have signed in.  It is not required to connect the local server to
+DiggerHub, but connecting will sync your data and allow for collaborating
+with music friends.</p>
+
+<p>Music friends are helpful.  If a friend has player information for songs
+you haven't rated yet, they contribute their ratings to help you get
+started.  If you are using a streaming web music service, friends suggest
+songs from their library matching your filters.  You add friends by their
+email address.  You can have up to four friends actively collaborating with
+you at any time.</p>
+
+
+<h3>Library Actions</h3>
+
+<p>The library actions display shows general info about your music library,
+which varies depending on if you are using Digger on the web or with local
+files.  The "Choose Keywords" button lets you select which four keywords to
+use for filtering and in what order they should be displayed.  You can remove
+keywords you don't want to use anymore.</p>
+
+<p>With Digger on the web, the information display shows when your streaming
+service was last checked for song import.  If it's been a while, you can
+click that link to check the service again.  With Digger on local files,
+click the "Read Files" button to re-read everything.  To ignore non-music
+subfolders while reading, add them to your "Ignore Folders".</p>
+
+<p>For more information on configuring Digger with local files,
+see <a href="#digconf">local files configuration</a> below.</p>
+
+
+<h3>Export</h3>
+
+<p>The export screen lets you make a playlist out of the songs you currently
+have on deck.  So you can leverage Digger's retrieval capabilities and deck
+transport adjustments to make selections of songs available to other people.
+On the web, the playlist is written to your music service.  For local files,
+Digger creates an m3u file and optionally copies associated music files to
+your export folder.</p>
+
+
+<h2 id="kwddesc">Default Keyword Descriptions</h2>
+
+<p>The default keywords have been chosen and tested over a period of years
+to provide positive and negative selection power in a wide variety of
+situations.  The goal is to minimize the number of keywords in play while
+covering most common music playing situations.</p>
+
+<ul>
+<li><em>Social</em>: Music I might select to play when other people are listening.
+<li><em>Personal</em>: Music I might select to play when it's just me listening.
+<li><em>Office</em>: Music that you can listen to while you work.
+<li><em>Dance</em>: Music you would dance to.
+<li><em>Ambient</em>: Music that can be listened to from zero to full attention, transitioning from and to silence.
+<li><em>Jazz</em>: However you define it for your collection.
+<li><em>Classical</em>: However you define it for your collection.
+<li><em>Talk</em>: Spoken word.
+<li><em>Solstice</em>: Holiday seasonal.
+</ul>
+
+
+<h2 id="digcfg">Digger Local Files Configuration</h2>
+
+<p>To change where Digger should read your music files from, open the
+Library Actions in the top panel, then click either the "Music Files" or
+"Digger Data" links to restart Digger in config mode.  In config mode, you
+can set where to find your music files, and/or put your Digger database file
+somewhere other than your home folder.  Since browsers are not generally
+allowed to access your local file system, you'll have to modify the paths
+directly as text.</p>
+
+<p>You can change other details of how Digger runs locally by modifying
+.digger_config.json in your home folder.  If you ever need to reset Digger
+to its default settings, delete this file and Digger will recreate it from
+its default setup.  The configuration settings are:</p>
+
+<ul>
+<li><em>port</em>: Which port the local server should run on.
+<li><em>musicPath</em>: The directory where your music files can be found.
+<li><em>dbPath</em>: The file to store your Digger data.
+<li><em>exPath</em>: The directory to write playlists to.
+<li><em>cachePath</em>: Where Digger should store temporary download info.
+</ul>
+
+<p>The "spawn" section contains contains information about the command to
+open a browser when Digger starts up.  The subsections are organized based
+on the platform key as returned by
+<code>node require("os").platform()</code> e.g. "darwin" for MacOS.  You can
+change the startup command that gets run if you understand the structure.
+So you can open a specific browser or run a script.</p>
+
+<p>The "acctsinfo" contains your account information after you have signed
+in to DiggerHub from local Digger.  It's best not to modify this part
+directly.  It also has your email address and access token, so don't share
+your .digger_config.json with others.</p>
+
+
+<h2>Local Files Digger Hub Sync</h2>
+
+<p>If you have signed in to DiggerHub, Digger synchronizes your local song
+data with data saved on the site.  This is handy as a backup, and great if
+you also run Digger from the web or from another computer.</p>
+
+<p>The initial synchronization process can sometimes take a while, depending
+on how much song data you have.  Once the initial sync is done, it's usually
+very quick.  You'll notice the "hub" indicator light displayed on the player
+panel while sync is ongoing.  Clicking the indicator link will open the
+library actions where the "Hub Sync" line shows how many songs have been
+uploaded and downloaded.  The status display shows "init", "processing",
+"scheduled", or (hopefully not) an error message.  The "Reset" link can be
+used to restart hubsync if you suspect it might have hung up due to network
+issues or whatever.</p>
+
+<p>For in-depth tech details on how hub sync works
+see <a href="hubsyncNotes.txt">hubnotes.txt</a>.</p>
+
+
+</body>
+</html>

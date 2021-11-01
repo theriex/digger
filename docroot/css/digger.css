@@ -31,8 +31,13 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   background-size: cover;
   background-repeat: no-repeat; }
 #titlediv { padding-bottom:5px; }
+#titleftdiv, #titcenterdiv, #titrightdiv { display:inline-block; }
+#titleftdiv { max-width:114px; vertical-align:middle; overflow:hidden; }
+#titcenterdiv { width:100px; vertical-align:middle; overflow:hidden; }
+#titrightdiv { width:84px; }
 .titlespan { font-size:x-large; font-weight:bold; }
 #countspan { font-size:medium; padding:0px 10px; }
+#rtfmdiv { text-align:center; font-size:x-small; }
 #statspan { font-size:small; padding-left:10px; }
 .paneldiv { border:5px solid #333; border-radius:0px;
   padding:5px 6px 10px 6px; }
