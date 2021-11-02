@@ -9,7 +9,6 @@ db.init(function (conf) {
     //Not specifying any header options here, default caching is one hour.
     var fileserver = new nodestatic.Server(path.join(db.appdir(), "docroot"));
     var plat = require("os").platform();
-    var sd = conf.spawn && conf.spawn[plat];
 
     function params2Obj (str) {
         var po = {};
@@ -31,6 +30,32 @@ db.init(function (conf) {
                 pu.hash = params2Obj(url[1]); } }
         return pu;
     }
+
+
+    function launchBrowser (conf, plat) {
+        var digurl = "http://localhost:" + conf.port;
+        var sd = conf.spawn && conf.spawn[plat];
+        if(!sd) {
+            console.log("No command to open a default browser on " + plat)
+            console.log("Open a browser and go to " + digurl);
+            return; }
+        //Launching Safari results in an options.env field being added, so
+        //make a copy of sd to avoid writeback into .digger_config.json
+        sd = JSON.parse(JSON.stringify(sd));
+        sd.args = sd.args.map((arg) =>
+            arg.replace(/DIGGERURL/g, "http://localhost:" + conf.port));
+        console.log(sd.command + " " + sd.args.join(" "));
+        //Yield a sec to give any higher prio setup a chance
+        setTimeout(function () {
+            const { spawn } = require("child_process");
+            const proc = spawn(sd.command, sd.args, sd.options);
+            proc.on("error", function (err) {
+                console.log("Opening a browser failed. " + err);
+                console.log("Open a browser and go to " + digurl +
+                            " to listen."); }); },
+                   800);
+    }
+
 
     //If a server is already running on a given port, the server throws.  If
     //you closed the browser, and then clicked the digger app to get the
@@ -86,18 +111,9 @@ db.init(function (conf) {
             console.error(posterr); }
     }).listen(conf.port);
 
-    console.log("Digger running at http://localhost:" + conf.port);
-    console.log("platform: " + plat);
-    if(sd) {
-        //Launching Safari results in an options.env field being added, so
-        //make a copy of sd to avoid writeback into .digger_config.json
-        sd = JSON.parse(JSON.stringify(sd));
-        sd.args = sd.args.map((arg) =>
-            arg.replace(/DIGGERURL/g, "http://localhost:" + conf.port));
-        console.log(sd.command + " " + sd.args.join(" "));
-        setTimeout(function () {
-            const { spawn } = require("child_process");
-            spawn(sd.command, sd.args, sd.options); }, 800); }
+    console.log("Digger " + db.diggerVersion() +
+                " running at http://localhost:" + conf.port);
+    launchBrowser(conf, plat);
 });
 } catch(crash) {
     console.log("--------");
