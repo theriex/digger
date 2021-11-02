@@ -20,6 +20,8 @@
       "./docroot/js/amd/player.js",
       "./docroot/js/amd/filter.js",
       "./docroot/js/amd/deck.js",
+      "./docroot/docs/manual.html",
+      "./docroot/docs/hubsyncNotes.txt",
       "./docroot/index.html"
     ]
   },
