@@ -5,7 +5,9 @@
 #   ./Digger/Digger.app/Contents/Info.plist CFBundleVersion (numeric, no 'v')
 #   ../../diggerhub/site/py/util.py version (string, preceding 'v')
 
-# Update the static resource cache bust flag
+# Update the static resource cache bust flag.  Server cachev modifies app.js
+# which local will then pick up so always latest.
+node ../../diggerhub/build/cachev.js
 node cachev.js
 
 # Create the default platform executables
