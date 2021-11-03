@@ -15,6 +15,7 @@ app.player = (function () {
             if(!ignoreupdate) {
                 //stat.song = updsong; song data copied, keep current reference
                 jt.out("modindspan", "");
+                app.player.dispatch("aud", "updateSongDisplay");
                 stat.songModified = false; }
             jt.log("song data updated " + JSON.stringify(updsong)); });
     }
@@ -647,6 +648,8 @@ app.player = (function () {
                 if(ctrls[id].pointingActive) {
                     mgrs.pan.updateControl(ctrls[id].fld,
                         mgrs.pan.calcResultValue(id, x, y)); } };
+            jt.on(jt.byId(id + "pandragdiv"), "dblclick", function (event) {
+                mgrs.pan.updateControl(ctrls[id].fld, 49); });
             app.filter.movelisten(id + "pandragdiv",
                                   ctrls[id], ctrls[id].posf); },
         createControl: function (id, det) {

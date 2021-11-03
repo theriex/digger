@@ -185,8 +185,13 @@ app.deck = (function () {
         dispatchOption: function (action, mgrnm, idx) {
             mgrs.sop.togOptions(mgrnm, idx);  //remove actions overlay
             mgrs.dk[action](mgrnm, idx); },   //do clicked action
+        tiRateStyle: function (song) {
+            if(song.kws || song.el !== 49 || song.al !== 49) {
+                return "font-weight:bold;"; }
+            return ""; },
         songIdentHTML: function (song) {
-            var idh = [["span", {cla:"dstispan", "data-dsId":song.dsId},
+            var idh = [["span", {cla:"dstispan", "data-dsId":song.dsId,
+                                 style:mgrs.sop.tiRateStyle(song)},
                         song.ti],
                        " - ",
                        ["span", {cla:"dsarspan"}, song.ar || "???"]];
