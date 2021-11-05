@@ -146,6 +146,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .panbackimg { max-height:44px; }
 .panfaceimg { max-height:40px; }
 .pandragdiv { position:absolute; left:0px; top:0px; }
+.pandrgbdiv { position:absolute; left:0px; top:0px; }
 
 #panplaymousingdiv { position:relative; }
 #mediaoverlaydiv { position:absolute; top:0px; left:2px; background:#ffab00;

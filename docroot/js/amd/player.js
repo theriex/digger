@@ -521,9 +521,12 @@ app.player = (function () {
     }());
 
 
-    //handle the pan controls for energy and accessability
+    //handle the pan controls for energy and approachability
     mgrs.pan = (function () {
         const anglemax = 145;  //max knob rotation
+        const drfo = 56;  //drag radius from origin (< drgdiv / 2: 57)
+        const ptbr = 44 + 28;  //polar tracking border radius (outer edge)
+        const ptir = 12;   //polar tracking inner border radius
     return {
         packControlWidthwise: function (id) {
             const pk = {leftlab:{elem:jt.byId(id + "panlld")},
@@ -541,114 +544,160 @@ app.player = (function () {
             pds.forEach(function (panel) {
                 panel.style.width = ctrls[id].width + "px";
                 panel.style.height = "40px"; });
-            ctrls[id].di = {ox:pk.panbg.elem.offsetLeft + 22,
-                            oy:Math.round(ctrls[id].width / 2)}; }, //expanded
+            //jt.log(id + "pandragdiv width: " + ctrls[id].width);
+            ctrls[id].knog = {x:pk.panbg.elem.offsetLeft + 21, //viz elem calc
+                              y:Math.floor(ctrls[id].width / 2) + 2}; },
         positionDragOverlay: function (id) {
             const pk = {pan:jt.byId(id + "pandiv"),
                         drag:jt.byId(id + "pandragdiv")};
-            ctrls[id].dragdims = {top:0,  //relative to impressiondiv
-                                  left:pk.pan.offsetLeft,
-                                  width:pk.pan.offsetWidth,
-                                  height:pk.pan.offsetHeight};
-            Object.entries(ctrls[id].dragdims).forEach(function ([k, v]) {
+            const dragdims = {top:0,  //relative to impressiondiv
+                              left:pk.pan.offsetLeft,
+                              width:pk.pan.offsetWidth,
+                              height:pk.pan.offsetHeight};
+            Object.entries(dragdims).forEach(function ([k, v]) {
                 pk.drag.style[k] = v + "px"; }); },
-        expandDragArea: function (id) {
-            const pc = ctrls[id];
-            const drgdiv = jt.byId(id + "pandragdiv");
-            if(pc.pointingActive && !pc.expanded) {
-                pc.di.yreliable = false;
-                pc.maxxlim = pc.width;
-                pc.maxylim = pc.width;  //make square
+        adjustBoundaries: function (di, expanded) {
+            if(expanded === "expanded") {
+                // di.drgdiv.style.backgroundColor = "#ffab00";
+                // di.drgdiv.style.opacity = 0.3;
+                // di.drgbo.style.backgroundColor = "#ff0000";
+                // di.drgbo.style.opacity = 0.8;
+                di.drgbo.style.top = (di.knoy + di.tlift - (ptbr / 2)) + "px";
+                di.drgbo.style.left = (di.knox - (ptbr / 2)) + "px";
+                di.drgbo.style.height = ptbr + "px";
+                di.drgbo.style.width = ptbr + "px";
+                // di.drgbi.style.backgroundColor = "#0000ff";
+                // di.drgbi.style.opacity = 0.8;
+                di.drgbi.style.top = (di.knoy + di.tlift - (ptir / 3)) + "px";
+                di.drgbi.style.left = (di.knox - (ptir / 2)) + "px";
+                di.drgbi.style.height = ptir + "px";
+                di.drgbi.style.width = ptir + "px"; }
+            else {  //"contracted"
+                // di.drgdiv.style.backgroundColor = "";
+                // di.drgbo.style.backgroundColor = "";
+                // di.drgbi.style.backgroundColor = "";
+                di.drgbo.style.top = "0px";
+                di.drgbo.style.height = "10px";
+                di.drgbi.style.top = "0px";
+                di.drgbi.style.height = "5px"; } },
+        logOffsets: function (div) {
+            jt.log(div.id + " t:" + div.offsetTop + ", l:" + div.offsetLeft +
+                   ", w:" + div.offsetWidth + ", h:" + div.offsetHeight); },
+        vertiExpandOk: function (id, x, y) {  //expand|contract vert drag div
+            var pc = ctrls[id];    //pan control
+            var drgdiv = jt.byId(id + "pandragdiv");
+            if(pc.pointingActive && !pc.vexp) {  //expand the div
+                pc.maxxlim = pc.width;  //width from packControlWidthwise
+                pc.maxylim = pc.width;  //make square, then adjust top offset
                 pc.toplift = Math.round((pc.maxylim - 40) / -2);
                 drgdiv.style.height = pc.maxylim + "px";
                 drgdiv.style.top = pc.toplift + "px";
-                //drgdiv.style.backgroundColor = "#ffab00";
-                drgdiv.style.opacity = 0.3;
-                pc.expanded = true; }
-            if(!pc.pointingActive && pc.expanded) {
-                drgdiv.style.height = "40px";
-                drgdiv.style.top = "0px";
-                //drgdiv.style.backgroundColor = "";
-                drgdiv.style.opacity = 1.0;
-                pc.expanded = false; } },
-        resetDragChannels: function (pc) {
-            const flds = ["xl", "xr", "xw", "yt", "yb", "yh"];
-            flds.forEach(function (fld) { delete pc.di[fld]; }); },
-        calcDragChannels: function (pc, x, y) {
-            pc.di.xl = Math.min((pc.di.xl || x), x);
-            pc.di.xr = Math.max((pc.di.xr || x), x);
-            pc.di.xw = pc.di.xr - pc.di.xl;  //width of x drag range
-            pc.di.yt = Math.min((pc.di.yt || y), y);
-            pc.di.yb = Math.max((pc.di.yb || y), y);
-            pc.di.yh = pc.di.yb - pc.di.yt; },
-        vmaxvals: function (ob, flds) {
-            flds.forEach(function (fld) {
-                ob[fld] = Math.max(ob[fld], 0);
-                ob[fld] = Math.min(ob[fld], 99); }); },
-        calcDelta: function (pc, x, y) {
-            pc.di.dx = x - pc.di.ox;  //delta x from origin
-            pc.di.dy = y - pc.di.oy;  //delta y from origin
-            const apd = 40;  //value calculation acceleration padding
-            pc.di.vx = 49 + Math.round((pc.di.dx * 100) / (pc.maxxlim - apd));
-            pc.di.vy = 49 - Math.round((pc.di.dy * 100) / (pc.maxylim - apd));
-            mgrs.pan.vmaxvals(pc.di, ["vx", "vy"]);
-            // jt.out("commentdiv", "x:" + x + ", y:" + y +
-            //        ", ox:" + pc.di.ox + ", oy:" + pc.di.oy +
-            //        ", x:" + x + ", y:" + y +
-            //        ", dx:" + pc.di.dx + ", dy:" + pc.di.dy +
-            //        ", vx:" + pc.di.vx + ", vy:" + pc.di.vy);
-            pc.di.valfield = "vx";
-            if(Math.abs(pc.di.dy) > Math.abs(pc.di.dx)) {
-                pc.di.valfield = "vy"; } },
-        calcPolar: function (pc, x, y) {
-            pc.di.r = Math.sqrt((x * x) + (y * y));  //radius by pythagorean
-            pc.di.th = Math.atan2(x, y) ;  //angle off top mid (invert axes)
-            pc.di.dg = Math.round(pc.di.th * 180 / Math.PI);  //angle in degrees
-            if(pc.di.dg > 0) {  //find circle degree (0-360)
-                pc.di.cd = 180 + 180 - pc.di.dg;
-                if(pc.di.cd >= 335) { pc.di.cd = 360; } }
-            else if(pc.di.dg < 0) {
-                pc.di.cd = Math.abs(pc.di.dg);
-                if(pc.di.cd <= 25) { pc.di.cd = 0; } }
+                pc.di = {  //drag info
+                    knox:pc.knog.x,  //knob origin from packControlWidthwise
+                    knoy:pc.knog.y,
+                    tlift:pc.toplift,
+                    ckox:x,  //click origin x.  Adjust y for height expansion
+                    ckoy:(-1 * pc.toplift) + y,  //click origin y
+                    ckv:stat.song[id],  //value at click origin
+                    vt:"polar",  //for smooth movement of notch from near top
+                    drgbo:jt.byId(id + "pandrgbodiv"),
+                    drgbi:jt.byId(id + "pandrgbidiv"),
+                    drgdiv:jt.byId(id + "pandragdiv")};
+                mgrs.pan.adjustBoundaries(pc.di, "expanded");
+                pc.vexp = true;
+                return false; }  //do not process original raw coordinates
+            if(!pc.pointingActive && pc.vexp) {  //contract the div
+                drgdiv.style.height = "40px";  //reset height
+                drgdiv.style.top = "0px";      //undo vertical offset
+                mgrs.pan.adjustBoundaries(pc.di, "contracted");
+                pc.vexp = false;
+                return false; }  //do not process coordinates post close
+            return pc.pointingActive; },
+        trackExtentCoords: function (di, x, y) {
+            di.elx = Math.min((di.elx || x), x);  //extent left x
+            di.erx = Math.max((di.erx || x), x);  //extent right x
+            di.emx = di.erx - di.elx;
+            di.ety = Math.min((di.ety || y), y);  //extent top y
+            di.eby = Math.max((di.eby || y), y);  //extent bottom y
+            di.emy = di.eby - di.ety;
+            const botop = Math.abs(di.drgdiv.offsetTop - di.drgbo.offsetTop);
+            if(x < di.drgbo.offsetLeft ||
+               x > di.drgbo.offsetLeft + di.drgbo.offsetWidth ||
+               y < botop ||
+               y > botop + di.drgbo.offsetHeight) {
+                di.ptdis = "ptbrExceeded"; }
+            const bitop = Math.abs(di.drgdiv.offsetTop - di.drgbi.offsetTop);
+            if(x > di.drgbi.offsetLeft &&
+               x < di.drgbi.offsetLeft + di.drgbi.offsetWidth &&
+               y > bitop &&
+               y < bitop + di.drgbi.offsetHeight) {
+                di.ptdis = "originCross"; } },
+        valueRangeConstrain: function (v) {
+            v = Math.max(v, 0);
+            v = Math.min(v, 99);
+            return v; },
+        calcDelta: function (di, x, y) {
+            di.dx = x - di.ckox;  //delta x from click origin
+            di.dy = di.ckoy - y;  //delta y from click origin
+            mgrs.pan.trackExtentCoords(di, x, y);
+            di.vx = di.ckv + Math.round(di.dx * 100 / drfo);  //new value by x
+            di.vx = mgrs.pan.valueRangeConstrain(di.vx);
+            di.vy = di.ckv + Math.round(di.dy * 100 / drfo);  //new value by y
+            di.vy = mgrs.pan.valueRangeConstrain(di.vy);
+            if(di.vt !== "polar" || di.ptdis) {  //not already tracking polar
+                di.vt = "vertical";  //default to up|down movement tracking
+                di.dv = di.vy;
+                if(di.emx > di.emy) {  //more x movement
+                    di.vt = "horizontal";
+                    di.dv = di.vx; } } //go with side-to-side movement tracking
+            //With y above knob origin, just use x/y tracking.  if y is
+            //below the knob origin, and x is inside the knob edges, then they
+            //are probably trying to actually turn the knob inwards.
+            if(!di.ptdis &&  //not disabled from origin cross or outer boundary
+               (di.vt === "polar" ||
+                (y > di.knoy && ((x < di.knox && x > di.knox - 22) ||
+                                 (x > di.knox && x < di.knox + 22))))) {
+                di.vt = "polar";
+                di.dv = mgrs.pan.calcPolar(di, x - di.knox, y - di.knoy); } },
+        calcPolar: function (di, x, y) {  //x and y are diffs from origin
+            di.r = Math.sqrt((x * x) + (y * y));  //radius by pythagorean
+            di.th = Math.atan2(x, y) ;  //angle off top mid (invert axes)
+            di.dg = Math.round(di.th * 180 / Math.PI);  //angle in degrees
+            if(di.dg > 0) {  //find circle degree (0-360)
+                di.cd = 180 + 180 - di.dg;
+                if(di.cd >= 180 + anglemax) { di.cd = 360; } }
+            else if(di.dg < 0) {
+                di.cd = Math.abs(di.dg);
+                if(di.cd <= 180 - anglemax) { di.cd = 0; } }
             else {  //at zero
-                pc.di.cd = 180; }
+                di.cd = 180; }
             const knobrange = 2 * anglemax;
-            pc.di.kr = Math.round(pc.di.cd * knobrange / 360);
-            pc.di.vp = Math.round(pc.di.kr * 100 / knobrange);
-            mgrs.pan.vmaxvals(pc.di, ["vp"]);
-            // jt.out("commentdiv", "x:" + x + ", y:" + y +
-            //        ", r:" + pc.di.r.toFixed(2) + 
-            //        ", &theta;:" + pc.di.th.toFixed(2) +
-            //        " (" + pc.di.dg + "&deg;) " + ", cd:" + pc.di.cd +
-            //        ", kr:" + pc.di.kr + ", vp:" + pc.di.vp +
-            //        ", xw:" + pc.di.xw + ", yh:" + pc.di.yh);
-            if(pc.di.r < 26 && ((pc.di.xw > 9 && pc.di.yh > 9) ||
-                                (pc.di.xw < 6 && pc.di.yh < 6))) {
-                pc.di.valfield = "vp"; } },
-        calcResultValue: function (id, x, y) {
-            var pc = ctrls[id];
-            if(!pc.di.yreliable) {        //y was from unexpanded dragdiv.
-                pc.di.yreliable = true;   //should be ok after this
-                mgrs.pan.resetDragChannels(pc);
-                y = pc.di.oy; }           //treat as if centered
-            mgrs.pan.calcDragChannels(pc, x, y);
-            mgrs.pan.calcDelta(pc, x, y);
-            mgrs.pan.calcPolar(pc, pc.di.dx, pc.di.dy);
-            // jt.out("commentdiv", ["vx", "vy", "vp"].map(function (fld) {
-            //     var txt = fld + ":" + pc.di[fld] + " ";
-            //     if(fld === pc.di.valfield) {
-            //         txt = "<b>" + txt + "</b>"; }
-            //     else {
-            //         txt = "<i>" + txt + "</i>"; }
-            //     return txt; }));
-            return pc.di[pc.di.valfield]; },
+            di.kr = Math.round(di.cd * knobrange / 360);
+            return Math.round(di.kr * 100 / knobrange); },
+        followClickDrag: function (id, x, y) {
+            var pc = ctrls[id];  //the pan control being dragged
+            pc.di = pc.di || {}; //drag info container for work vars
+            if(mgrs.pan.vertiExpandOk(id, x, y)) {  //inits di with ckox, ckoy
+                mgrs.pan.calcDelta(pc.di, x, y);
+                // jt.out("commentdiv",
+                //        //", ckox:" + pc.di.ckox + ", ckoy:" + pc.di.ckoy +
+                //        //", ckv:" + pc.di.ckv +
+                //        //", dx:" + pc.di.dx + ", dy:" + pc.di.dy +
+                //        //", vx:" + pc.di.vx + ", vy:" + pc.di.vy +
+                //        //", elx:" + pc.di.elx + ", erx:" + pc.di.erx +
+                //        //", ewx:" + pc.di.ewx + ", ety:" + pc.di.ety +
+                //        //", eby:" + pc.di.eby + ", ehy:" + pc.di.ehy +
+                //        //", knox:" + pc.di.knox + ", knoy:" + pc.di.knoy +
+                //        ", x:" + x + ", y:" + y +
+                //        //", r:" + pc.di.r + ", th:" + pc.di.th +
+                //        //", dg:" + pc.di.dg +
+                //        ", ptdis:" + pc.di.ptdis +
+                //        ", dv:" + pc.di.dv + ", " + pc.di.vt);
+                mgrs.pan.updateControl(ctrls[id].fld, pc.di.dv); } },
         activateControl: function (id) {
             ctrls[id].posf = function (x, y) {
-                mgrs.pan.expandDragArea(id);
-                if(ctrls[id].pointingActive) {
-                    mgrs.pan.updateControl(ctrls[id].fld,
-                        mgrs.pan.calcResultValue(id, x, y)); } };
-            jt.on(jt.byId(id + "pandragdiv"), "dblclick", function (event) {
+                mgrs.pan.followClickDrag(id, x, y); };
+            jt.on(jt.byId(id + "pandragdiv"), "dblclick", function (ignore) {
                 mgrs.pan.updateControl(ctrls[id].fld, 49); });
             app.filter.movelisten(id + "pandragdiv",
                                   ctrls[id], ctrls[id].posf); },
@@ -897,6 +946,10 @@ app.player = (function () {
                    ["a", {id:"togsleeplink", href:"#sleepafter",
                           title:"", onclick:mdfs("slp.toggleSleepDisplay")},
                     ["img", {id:"togsleepimg", src:"img/sleep.png"}]]]],
+                 ["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
+                 ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
+                 ["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
+                 ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
                  ["div", {id:"elpandragdiv", cla:"pandragdiv"}],
                  ["div", {id:"alpandragdiv", cla:"pandragdiv"}]]]]],
              ["div", {id:"commentdiv"}],
