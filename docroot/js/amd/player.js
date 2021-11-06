@@ -45,8 +45,10 @@ app.player = (function () {
                          //jt.log("ctrls.rat.posf x: " + x);
                          jt.byId("playerstarseldiv").style.width = x + "px";
                          if(stat.song) {
+                             const cv = stat.song.rv;
                              stat.song.rv = Math.round((x / 17) * 2);
-                             noteSongModified(); } } };
+                             if(cv !== stat.song.rv) {
+                                 noteSongModified(); } } } };
         app.filter.movelisten("ratstardragdiv", ctrls.rat.stat,
                               ctrls.rat.posf);
         ctrls.rat.posf(0);  //no stars until set or changed.
@@ -749,9 +751,10 @@ app.player = (function () {
             if(typeof val === "string") {
                 val = parseInt(val, 10); }
             if(stat.song) {
-                stat.song[id] = val;
-                mgrs.pan.updateTitle(id, stat.song.ti);
-                noteSongModified(); }
+                if(stat.song[id] !== val) {
+                    stat.song[id] = val;
+                    mgrs.pan.updateTitle(id, stat.song.ti);
+                    noteSongModified(); } }
             //set knob face color from gradient
             const gra = app.filter.gradient();
             const grd = {f:mgrs.pan.hex2RGB(gra.left),

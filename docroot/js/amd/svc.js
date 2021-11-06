@@ -345,6 +345,7 @@ app.svc = (function () {
                     function (res)  {
                         var updsong = res[0];
                         mgrs.gen.copyUpdatedSongData(song, updsong);
+                        jt.out("modindspan", "");  //turn off indicator light
                         app.top.dispatch("a2h", "syncToHub");  //sched sync
                         if(contf) {
                             contf(updsong); } },
