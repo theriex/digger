@@ -12,9 +12,9 @@ app.player = (function () {
     function saveSongDataIfModified (ignoreupdate) {
         if(!stat.songModified) { return; }
         app.svc.updateSong(stat.song, function (updsong) {
+            jt.out("modindspan", "");
             if(!ignoreupdate) {
                 //stat.song = updsong; song data copied, keep current reference
-                jt.out("modindspan", "");
                 app.player.dispatch("aud", "updateSongDisplay");
                 stat.songModified = false; }
             jt.log("song data updated " + JSON.stringify(updsong)); });
