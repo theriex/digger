@@ -202,6 +202,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .vnobdiv { position:absolute; top:0px; left:0px; }
 .hnobdiv { position:absolute; top:0px; left:0px; }
 .mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer; }
+.rngslidebg { position:absolute; top:0px; left:0px; }
 
 #bowtiesdiv { text-align:center; }
 .bowtiediv { display:inline-block; font-size:medium;

@@ -125,153 +125,143 @@ app.filter = (function () {
     }
 
 
-    function updateRangeControlFocus (cid, rcr) {
-        //set the width of the range focus using the percentage indicated by
-        //the position of the vertical slider
-        var invy = ranger.vnob.maxy - rcr.cy - ranger.vnob.y;
-        var rangemax = ranger.vnob.maxy - ranger.vnob.y;
-        var pcnt = invy / rangemax;
-        var focw = Math.round(pcnt * ranger.panel.inner.w);
-        //adjust the percentage so the midpoint of the focus is zero
-        var basex = rcr.cx - ranger.hnob.x;
-        rangemax = ranger.hnob.maxx - ranger.hnob.x;
-        pcnt = -1 * (0.5 - (basex / rangemax));
-        //update the left and right curtains to reflect the focus.
-        const curtw = Math.floor((ranger.panel.inner.w - focw) / 2);
-        const ladj = curtw + Math.round(2 * pcnt * curtw);
-        const radj = curtw - Math.round(2 * pcnt * curtw);
-        jt.byId(cid + "lcdiv").style.width = ladj + "px";
-        jt.byId(cid + "rcdiv").style.width = radj + "px";
-        //update the current range focus min/max search values
-        rcr.rgfoc.min = Math.round((ladj / rangemax) * 100);
-        rcr.rgfoc.max = 99 - Math.round((radj / rangemax) * 100);
-        if(rcr.rgfoc.min <= 25 && rcr.rgfoc.max <= 60) {
-            rcr.actname = "+" + rcr.low; }
-        else if(rcr.rgfoc.min > 25 && rcr.rgfoc.max > 60) {
-            rcr.actname = "+" + rcr.high; }
-        else {
-            rcr.actname = ""; }
-        //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
-        mgrs.stg.filterValueChanged();
-    }
-
-
-    function attachRangeCtrlMovement (cid) {
-        var rcr = ctrls[cid];
-        //vertical
-        rcr.vstat = {pointingActive:false, roundpcnt:5,
-                     maxylim:ranger.vnob.maxy - ranger.vnob.y};
-        ctrls.movestats.push(rcr.vstat);
-        rcr.vpos = function (ignore /*x*/, y) {
-            rcr.cy = y;  //base vertical offset is zero
-            jt.byId(cid + "vnd").style.top = rcr.cy + "px";
-            updateRangeControlFocus(cid, rcr); };
-        attachMovementListeners(cid + "vmad", rcr.vstat, rcr.vpos);
-        rcr.vpos(0, Math.floor(ranger.vnob.maxy / 2));
-        //horizontal
-        rcr.hstat = {pointingActive:false, roundpcnt:5,
-                     maxxlim:ranger.hnob.maxx - ranger.hnob.x};
-        ctrls.movestats.push(rcr.hstat);
-        rcr.hpos = function (x, ignore /*y*/) {
-            rcr.cx = x + ranger.hnob.x;
-            jt.byId(cid + "hnd").style.left = rcr.cx + "px";
-            updateRangeControlFocus(cid, rcr); };
-        attachMovementListeners(cid + "hmad", rcr.hstat, rcr.hpos);
-        rcr.hpos(Math.floor((ranger.hnob.maxx - ranger.hnob.x) / 2), 0);
-    }
-
-
-    function addRangeSettingsFunc (cid) {
-        ctrls[cid].settings = function () {
-            return {tp:"range", c:cid,
-                    v:ctrls[cid].cy,
-                    h:ctrls[cid].cx - ranger.hnob.x}; };
-    }
-
-
-    function initRangeSetting (cid) {
-        var dfltset = {v:18, h:117};
-        var settings = findSetting({tp:"range", c:cid}) || dfltset;
-        if(settings.v !== 0) {  //zero is valid value, check for invalid.
-            settings.v = settings.v || dfltset.v;  //verify value defined
-            if(!Number.isInteger(settings.v)) {    //if not int, use default
-                settings.v = dfltset.v; }
-            settings.v = Math.floor(settings.v); } //verify true integer
-        if(settings.h !== 0) {  //zero is valid, value, check for invalid
-            if(!Number.isInteger(settings.h)) {    //if not int, use default
-                settings.h = dfltset.h; }
-            settings.h = Math.floor(settings.h); } //verify true integer
-        ctrls[cid].vpos(0, settings.v);
-        ctrls[cid].hpos(settings.h, 0);
-    }
-
-
-    function addRangeSongMatchFunc (cid) {
-        //Every song should have a numeric value set.
-        ctrls[cid].match = function (song) {
-            if(song[cid] >= ctrls[cid].rgfoc.min && 
-               song[cid] <= ctrls[cid].rgfoc.max) {
+    //Range manager handles selection range window controls
+    mgrs.rng = (function () {
+        var rcids = ["el", "al"];  //energy level, approachability level
+        function pointInsideBox (x, y, box) {
+            box = jt.byId(box);
+            if(x >= box.offsetLeft && x <= box.offsetLeft + box.offsetWidth &&
+               y >= box.offsetTop && y <= box.offsetTop + box.offsetHeight) {
                 return true; }
-            return false; };
-    }
-
-
-    function createRangeControl (cid) {
-        jt.out(cid + "div", jt.tac2html(
-            [["img", {src:"img/ranger.png"}],
-             ["div", {cla:"rangetitlediv", id:cid + "tit"}, ctrls[cid].pn],
-             ["div", {cla:"rangelowlabeldiv"}, ctrls[cid].low],
-             ["div", {cla:"rangehighlabeldiv"}, ctrls[cid].high],
-             ["div", {cla:"rangeleftcurtdiv", id:cid + "lcdiv"}],
-             ["div", {cla:"rangerightcurtdiv", id:cid + "rcdiv"}],
-             ["div", {cla:"vnobdiv", id:cid + "vnd",
-                      style:dimstyle(ranger.vnob)},
-              ["img", {src:"img/vknob.png"}]],
-             ["div", {cla:"hnobdiv", id:cid + "hnd",
-                      style:dimstyle(ranger.hnob)},
-              ["img", {src:"img/hknob.png"}]],
-             ["div", {cla:"mouseareadiv", id:cid + "vmad",
-                      style:dimstyle(ranger.vnob, "maxy")}],
-             ["div", {cla:"mouseareadiv", id:cid + "hmad",
-                      style:dimstyle(ranger.hnob, "maxx")}]]));
-        ctrls[cid].rgfoc = {min:0, max:99};
-        attachRangeCtrlMovement(cid);
-        addRangeSettingsFunc(cid);
-        addRangeSongMatchFunc(cid);
-        initRangeSetting(cid);
-    }
-
-
-    function containingDivEventTraps () {
-        //trap and ignore clicks in the controls container div to avoid
-        //selecting controls when you want to be changing a control value.
-        jt.on("panfiltdiv", "mousedown", function (event) {
-            if(ctrls.trapdrag) {
-                jt.evtend(event); }});
-        //stop tracking if the mouse is released outside of the control area,
-        //so that tracking doesn't get stuck "on" leaving the drag still in
-        //progress.  It might feel more resilient if the trap at this level
-        //instead passed the event through to the currently active control,
-        //then the general trap would be at the next containing div instead.
-        jt.on("panfiltdiv", "mouseup", function (event) {
-            ctrls.movestats.forEach(function (movestat) {
-                movestat.pointingActive = false; });
-            jt.evtend(event); });
-    }
-
-
-    function initializeInterface () {
-        jt.out("panfiltdiv", jt.tac2html(
-            ["div", {id:"panfiltcontentdiv"},
-             [["div", {cla:"paneltitlediv"}, "FILTERS"],
-              ["div", {id:"rangesdiv"},
-               [["div", {cla:"rangectrldiv", id:"eldiv"}],
-                ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
-              ["div", {id:"bowtiesdiv"}],
-              ["div", {id:"ratdiv"}]]]));
-        containingDivEventTraps();
-        mgrs.stg.rebuildAllControls();
-    }
+            return false; }
+    return {
+        updateRangeControlFocus: function (cid, rcr) {
+            //set the width of the range focus using the percentage indicated by
+            //the position of the vertical slider
+            var invy = ranger.vnob.maxy - rcr.cy - ranger.vnob.y;
+            var rangemax = ranger.vnob.maxy - ranger.vnob.y;
+            var pcnt = invy / rangemax;
+            var focw = Math.round(pcnt * ranger.panel.inner.w);
+            //adjust the percentage so the midpoint of the focus is zero
+            var basex = rcr.cx - ranger.hnob.x;
+            rangemax = ranger.hnob.maxx - ranger.hnob.x;
+            pcnt = -1 * (0.5 - (basex / rangemax));
+            //update the left and right curtains to reflect the focus.
+            const curtw = Math.floor((ranger.panel.inner.w - focw) / 2);
+            const ladj = curtw + Math.round(2 * pcnt * curtw);
+            const radj = curtw - Math.round(2 * pcnt * curtw);
+            jt.byId(cid + "lcdiv").style.width = ladj + "px";
+            jt.byId(cid + "rcdiv").style.width = radj + "px";
+            //update the current range focus min/max search values
+            rcr.rgfoc.min = Math.round((ladj / rangemax) * 100);
+            rcr.rgfoc.max = 99 - Math.round((radj / rangemax) * 100);
+            if(rcr.rgfoc.min <= 25 && rcr.rgfoc.max <= 60) {
+                rcr.actname = "+" + rcr.low; }
+            else if(rcr.rgfoc.min > 25 && rcr.rgfoc.max > 60) {
+                rcr.actname = "+" + rcr.high; }
+            else {
+                rcr.actname = ""; }
+            //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
+            mgrs.stg.filterValueChanged(); },
+        attachRangeCtrlMovement: function (cid) {
+            var rcr = ctrls[cid];
+            rcr.mstat = {pointingActive:false, roundpcnt:5,
+                         maxxlim:ranger.hnob.maxx - ranger.hnob.x,
+                         maxylim:ranger.vnob.maxy - ranger.vnob.y,
+                         cko:null};  //click origin point
+            ctrls.movestats.push(rcr.mstat);
+            rcr.mpos = function (x, y) {
+                var mstat = rcr.mstat;
+                //jt.out(cid + "rshbgdiv", x + "," + y);
+                if(mstat.pointingActive && !mstat.cko) {
+                    mstat.cko = {"x":x, "y":y,
+                                 disx:pointInsideBox(x, y, cid + "rsvbgdiv"),
+                                 disy:(pointInsideBox(x, y, cid + "rshbgdiv") ||
+                                       y >= rcr.mstat.maxylim)}; }
+                if(!mstat.pointingActive && mstat.cko) {  //clear click origin
+                    mstat.cko = null; }
+                if(mstat.cko) {
+                    if(!mstat.cko.disx) {
+                        rcr.cx = x + ranger.hnob.x;
+                        jt.byId(cid + "hnd").style.left = rcr.cx + "px"; }
+                    if(!mstat.cko.disy) {
+                        rcr.cy = y;  //base vertical offset is zero
+                        jt.byId(cid + "vnd").style.top = rcr.cy + "px"; }
+                    mgrs.rng.updateRangeControlFocus(cid, rcr); } };
+            attachMovementListeners(cid + "mousediv", rcr.mstat, rcr.mpos);
+            rcr.mpos(Math.floor((ranger.hnob.maxx - ranger.hnob.x) / 2),
+                     Math.floor(ranger.vnob.maxy / 2)); },
+        addRangeSettingsFunc: function (cid) {
+            ctrls[cid].settings = function () {
+                return {tp:"range", c:cid,
+                        v:ctrls[cid].cy,
+                        h:ctrls[cid].cx - ranger.hnob.x}; }; },
+        addRangeSongMatchFunc: function (cid) {
+            //Every song should have a numeric value set.
+            ctrls[cid].match = function (song) {
+                if(song[cid] >= ctrls[cid].rgfoc.min &&
+                   song[cid] <= ctrls[cid].rgfoc.max) {
+                    return true; }
+                return false; }; },
+        initRangeSetting: function (cid) {
+            var dfltset = {v:18, h:117};
+            var settings = findSetting({tp:"range", c:cid}) || dfltset;
+            if(settings.v !== 0) {  //zero is valid value, check for invalid.
+                settings.v = settings.v || dfltset.v;  //verify value defined
+                if(!Number.isInteger(settings.v)) {    //if not int, use default
+                    settings.v = dfltset.v; }
+                settings.v = Math.floor(settings.v); } //verify true integer
+            if(settings.h !== 0) {  //zero is valid, value, check for invalid
+                if(!Number.isInteger(settings.h)) {    //if not int, use default
+                    settings.h = dfltset.h; }
+                settings.h = Math.floor(settings.h); } //verify true integer
+            ctrls[cid].mpos(settings.h, settings.v); },
+        adjustSliderBg: function (elem, dims) {
+            //elem.style.background = "#ffab00";
+            //elem.style.opacity = "0.3";
+            elem.style.top = dims.t + "px";
+            elem.style.left = dims.l + "px";
+            elem.style.width = dims.w + "px";
+            elem.style.height = dims.h + "px"; },
+        adjustSliderBgDivs: function (cid) {
+            mgrs.rng.adjustSliderBg(jt.byId(cid + "rsvbgdiv"),
+                {l:ranger.vnob.x, t:ranger.vnob.y,
+                 w:ranger.vnob.w, h:ranger.vnob.maxy});
+            mgrs.rng.adjustSliderBg(jt.byId(cid + "rshbgdiv"),
+                {l:ranger.hnob.x, t:ranger.hnob.y,
+                 w:ranger.hnob.maxx, h:ranger.hnob.h}); },
+        createRangeControl: function (cid) {
+            jt.out(cid + "div", jt.tac2html(
+                [["div", {cla:"rngslidebg", id:cid + "rsvbgdiv"}],
+                 ["div", {cla:"rngslidebg", id:cid + "rshbgdiv"}],
+                 ["img", {src:"img/ranger.png"}],
+                 ["div", {cla:"rangetitlediv", id:cid + "tit"}, ctrls[cid].pn],
+                 ["div", {cla:"rangelowlabeldiv"}, ctrls[cid].low],
+                 ["div", {cla:"rangehighlabeldiv"}, ctrls[cid].high],
+                 ["div", {cla:"rangeleftcurtdiv", id:cid + "lcdiv"}],
+                 ["div", {cla:"rangerightcurtdiv", id:cid + "rcdiv"}],
+                 ["div", {cla:"vnobdiv", id:cid + "vnd",
+                          style:dimstyle(ranger.vnob)},
+                  ["img", {src:"img/vknob.png"}]],
+                 ["div", {cla:"hnobdiv", id:cid + "hnd",
+                          style:dimstyle(ranger.hnob)},
+                  ["img", {src:"img/hknob.png"}]],
+                 ["div", {cla:"mouseareadiv", id:cid + "mousediv",
+                          style:dimstyle(ranger.entire)}]]));
+            ctrls[cid].rgfoc = {min:0, max:99};
+            mgrs.rng.adjustSliderBgDivs(cid);
+            mgrs.rng.attachRangeCtrlMovement(cid);
+            mgrs.rng.addRangeSettingsFunc(cid);
+            mgrs.rng.addRangeSongMatchFunc(cid);
+            mgrs.rng.initRangeSetting(cid); },
+        rebuildControls: function () {
+            rcids.forEach(function (cid) {
+                if(!jt.byId(cid + "vnd")) {  //no range control displayed yet
+                    mgrs.rng.createRangeControl(cid); }
+                else {
+                    mgrs.rng.initRangeSetting(cid); } }); }
+    };  //end mgrs.rng returned functions
+    }());
 
 
     //BowTie manager handles 3-way toggle controls for keyword filtering
@@ -514,7 +504,6 @@ app.filter = (function () {
     //settings and other custom values for the account).
     mgrs.stg = (function () {
         var settings = null;
-        var rcids = ["el", "al"];  //energy level, approachability level
         var tmofilt = null;
         var tmosave = null;
     return {
@@ -561,11 +550,7 @@ app.filter = (function () {
             var ca = app.top.dispatch("gen", "getAccount");
             if(ca && ca.settings) { settings = ca.settings; }
             ctrls.filtersReady = false;  //turn off to avoid spurious events
-            rcids.forEach(function (cid) {
-                if(!jt.byId(cid + "vnd")) {  //no knob displayed yet
-                    createRangeControl(cid); }
-                else {
-                    initRangeSetting(cid); } });
+            mgrs.rng.rebuildControls();
             mgrs.btc.rebuildControls();
             mgrs.mruc.init("ratdiv");
             ctrls.filtersReady = ready;
@@ -630,9 +615,39 @@ app.filter = (function () {
     }());
 
 
-return {
+    //General panel level setup and dispatch
+    mgrs.gen = (function () {
+    return {
+        containingDivEventTraps: function () {
+            //trap and ignore clicks in the controls container div to avoid
+            //selecting controls when you want to be changing a control value.
+            jt.on("panfiltdiv", "mousedown", function (event) {
+                if(ctrls.trapdrag) {
+                    jt.evtend(event); }});
+            //stop tracking if the mouse is released outside of the control
+            //area, so that tracking doesn't get stuck "on" leaving the drag
+            //still in progress.
+            jt.on("panfiltdiv", "mouseup", function (event) {
+                ctrls.movestats.forEach(function (movestat) {
+                    movestat.pointingActive = false; });
+                jt.evtend(event); }); },
+        initializeInterface: function () {
+            jt.out("panfiltdiv", jt.tac2html(
+                ["div", {id:"panfiltcontentdiv"},
+                 [["div", {cla:"paneltitlediv"}, "FILTERS"],
+                  ["div", {id:"rangesdiv"},
+                   [["div", {cla:"rangectrldiv", id:"eldiv"}],
+                    ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
+                  ["div", {id:"bowtiesdiv"}],
+                  ["div", {id:"ratdiv"}]]]));
+            mgrs.gen.containingDivEventTraps();
+            mgrs.stg.rebuildAllControls(); }
+    };  //end of mgrs.gen returned functions
+    }());
 
-    init: function () { initializeInterface(); },
+
+return {
+    init: function () { mgrs.gen.initializeInterface(); },
     initialDataLoaded: function () { mgrs.stg.rebuildAllControls(true); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
