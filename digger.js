@@ -9,6 +9,7 @@ db.init(function (conf) {
     //Not specifying any header options here, default caching is one hour.
     var fileserver = new nodestatic.Server(path.join(db.appdir(), "docroot"));
     var plat = require("os").platform();
+    var websrv = {};
 
     function params2Obj (str) {
         var po = {};
@@ -33,17 +34,18 @@ db.init(function (conf) {
 
 
     function launchBrowser (conf, plat) {
-        var digurl = "http://localhost:" + conf.port;
+        var digurl = "http://localhost:" + conf.port +
+            "?cb=" + db.diggerVersion();  //browsers cache everything
         var sd = conf.spawn && conf.spawn[plat];
         if(!sd) {
-            console.log("No command to open a default browser on " + plat)
+            console.log("No command to open a default browser on " + plat);
             console.log("Open a browser and go to " + digurl);
             return; }
         //Launching Safari results in an options.env field being added, so
         //make a copy of sd to avoid writeback into .digger_config.json
         sd = JSON.parse(JSON.stringify(sd));
         sd.args = sd.args.map((arg) =>
-            arg.replace(/DIGGERURL/g, "http://localhost:" + conf.port));
+            arg.replace(/DIGGERURL/g, digurl));
         console.log(sd.command + " " + sd.args.join(" "));
         //Yield a sec to give any higher prio setup a chance
         setTimeout(function () {
@@ -57,18 +59,14 @@ db.init(function (conf) {
     }
 
 
-    //If a server is already running on a given port, the server throws.  If
-    //you closed the browser, and then clicked the digger app to get the
-    //interface back, then the server throw needs to be caught so the spawn
-    //command has a chance to execute before the process exits.  If there
-    //is a catastrophic failure from some REST endpoint it is also better
-    //to keep going.  So just catch it all.
-    process.on("uncaughtException", function (err) {
-        console.log("uncaughtException: " + err);
-    });
+    function stopServer () {
+        console.log("Server stopping.");
+        process.kill(process.pid, "SIGTERM");
+    }
 
-    //start the server
-    require("http").createServer(function (req, rsp) {
+
+    function createWebServer () {
+        websrv.server = require("http").createServer(function (req, rsp) {
         try {
             const quieturls = ["/songscount", "/mergestat"];
             const pu = parsedURL(req.url);
@@ -102,18 +100,45 @@ db.init(function (conf) {
                         case "/mergestat": db.mergestat(req, rsp); break;
                         case "/mailpwr": hub.mailpwr(pu, req, rsp); break;
                         case "/audio": db.audio(pu, req, rsp); break;
+                        case "/exitnow": stopServer(); break;
                         default:
                             fileserver.serve(req, rsp); }
                     } catch(geterr) {
                         console.error(geterr); }
                 }).resume(); }
         } catch(posterr) {
-            console.error(posterr); }
-    }).listen(conf.port);
+            console.error(posterr); } });
+        return websrv.server;
+    }
 
-    console.log("Digger " + db.diggerVersion() +
-                " running at http://localhost:" + conf.port);
-    launchBrowser(conf, plat);
+
+    function startWebServer () {
+        if(!websrv.server) {
+            createWebServer(); }
+        websrv.server.listen(conf.port, function () {
+            console.log("Digger " + db.diggerVersion() +
+                        " running at http://localhost:" + conf.port);
+            launchBrowser(conf, plat); });
+    }
+
+
+    process.on("uncaughtException", function (err) {
+        if(err.code === "EADDRINUSE") {  //previous instance running
+            if(!websrv.restart) {
+                websrv.restart = setTimeout(function () {
+                    console.log("Previous webserver still running...");
+                    require("node-fetch")("http://localhost:" + conf.port +
+                                          "/exitnow")
+                        .then(function () {
+                            console.log("exitnow actually returned..."); })
+                        .catch(function () {
+                            console.log("fetch exitnow failed as expected.");
+                            startWebServer(); }); }, 400); } }
+        else {
+            console.log("process uncaughtException: " + err);
+            console.log(JSON.stringify(err)); }
+    });
+    startWebServer();
 });
 } catch(crash) {
     console.log("--------");
