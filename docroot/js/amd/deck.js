@@ -22,7 +22,7 @@ app.deck = (function () {
             jt.out("deckinfodiv", jt.tac2html(wrk.fcs.map((fc) =>
                 ["div", {cla:"dinfrecdiv"},
                  [["span", {cla:"dinfrectspan"}, fc.filter + ": "],
-                  ["span", {cla:"dinfrecnspan"}, fc.sc]]]))); },
+                  ["span", {cla:"dinfrecnspan"}, String(fc.sc)]]]))); },
         getSearchText: function () {
             var st = jt.byId("srchin").value || "";
             st = st.toLowerCase().trim();
