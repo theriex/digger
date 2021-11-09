@@ -34,26 +34,27 @@ db.init(function (conf) {
 
 
     function launchBrowser (conf, plat) {
-        var digurl = "http://localhost:" + conf.port +
-            "?cb=" + db.diggerVersion();  //browsers cache everything
         var sd = conf.spawn && conf.spawn[plat];
         if(!sd) {
             console.log("No command to open a default browser on " + plat);
-            console.log("Open a browser and go to " + digurl);
+            console.log("Open a browser and go to " + websrv.digurl);
+            return; }
+        if(websrv.blaunch) {
+            console.log("Browser already launching");
             return; }
         //Launching Safari results in an options.env field being added, so
         //make a copy of sd to avoid writeback into .digger_config.json
         sd = JSON.parse(JSON.stringify(sd));
         sd.args = sd.args.map((arg) =>
-            arg.replace(/DIGGERURL/g, digurl));
+            arg.replace(/DIGGERURL/g, websrv.digurl));
         console.log(sd.command + " " + sd.args.join(" "));
         //Yield a sec to give any higher prio setup a chance
-        setTimeout(function () {
+        websrv.blaunch = setTimeout(function () {
             const { spawn } = require("child_process");
             const proc = spawn(sd.command, sd.args, sd.options);
             proc.on("error", function (err) {
                 console.log("Opening a browser failed. " + err);
-                console.log("Open a browser and go to " + digurl +
+                console.log("Open a browser and go to " + websrv.digurl +
                             " to listen."); }); },
                    800);
     }
@@ -112,33 +113,43 @@ db.init(function (conf) {
     }
 
 
-    function startWebServer () {
+    function startWebServer (text) {
+        if(!websrv.digurl) {
+            websrv.digurl = "http://localhost:" + conf.port +
+                "?cb=" + db.diggerVersion(); } //browsers cache everything
         if(!websrv.server) {
             createWebServer(); }
-        websrv.server.listen(conf.port, function () {
-            console.log("Digger " + db.diggerVersion() +
-                        " running at http://localhost:" + conf.port);
-            launchBrowser(conf, plat); });
+        if(!websrv.listening) {
+            websrv.server.listen(conf.port, function () {
+                websrv.listening = true;
+                console.log("startWebServer " + text);
+                console.log("Digger " + db.diggerVersion() +
+                            " available at " + websrv.digurl);
+                launchBrowser(conf, plat); }); }
     }
 
 
     process.on("uncaughtException", function (err) {
         if(err.code === "EADDRINUSE") {  //previous instance running
-            if(!websrv.restart) {
-                websrv.restart = setTimeout(function () {
+            if(!websrv.takingover) {
+                websrv.takingover = true;
+                setTimeout(function () {
                     console.log("Previous webserver still running...");
                     require("node-fetch")("http://localhost:" + conf.port +
                                           "/exitnow")
                         .then(function () {
-                            console.log("exitnow actually returned..."); })
+                            console.log("exitnow actually returned...");
+                            startWebServer("exitnow success"); })
                         .catch(function () {
                             console.log("fetch exitnow failed as expected.");
-                            startWebServer(); }); }, 400); } }
+                            startWebServer("exitnow fail"); }); }, 400); } }
         else {
             console.log("process uncaughtException: " + err);
             console.log(JSON.stringify(err)); }
     });
-    startWebServer();
+
+    startWebServer("normal start");
+
 });
 } catch(crash) {
     console.log("--------");
