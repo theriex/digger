@@ -1,0 +1,73 @@
+<!doctype html>
+<html itemscope="itemscope" itemtype="https://schema.org/WebPage"
+      xmlns="https://www.w3.org/1999/xhtml" dir="ltr" lang="en-US">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="robots" content="noodp" />
+  <meta name="description" content="What a webserver app is and why Digger is one." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digger Webserver Application</title>
+<style type="text/css">
+body { background:AntiqueWhite; padding:0px 10px; font-size:large; }
+h1 { text-align:center; }
+h2 { padding:10px 0px 0px 0px; }
+</style>
+</head>
+<body>
+
+<h1>Digger Webserver App</h1>
+
+<p>Digger is a web application.  When you run Digger, it first starts a
+local web server, then it opens the web app in your browser.  That means you
+can run it like a regular local app, or open the server on one computer and
+open the web interface from another computer on the same LAN. </p>
+
+<p>Running as server/webapp combination means that Digger on the web is
+literally the same interface as Digger on your computer.  And the local
+server code is the same across all platforms.  That's all great, but your
+specific platform might not be used to this.  Here are some things you might
+run into: </p>
+
+
+<h2>Warning about running a free app you downloaded directly</h2>
+
+<p>Proprietary operating systems like MacOS and Windows feel you should only
+run applications available through their stores, which they have some
+control over.  When you download Digger and run it, you might see a warning,
+and if you are not already familiar with this, you might have to figure out
+how to tell your computer to run the program anyway.  Instructions vary
+the the OS and version, but there is always a way if you search for it.</p>
+
+<p>The warning serves a purpose, which is to tell you to make sure you trust
+the program you are about to run.  For this reason, you should only download
+Digger from <a href="https://diggerhub.com/#files">DiggerHub.com</a>, or
+install node.js and download the source code from
+<a href="https://github.com/theriex/digger">GitHub</a>.</p>
+
+
+<h2>Warning about opening browser to localhost</h2>
+
+<p>It's odd that a personal firewall would prevent an app opening a browser
+from the command line, since the server is already running, and opening a
+browser to interact with it doesn't constitute a change in security.
+Nevertheless this can happen.  If it does, see if you can let your firewall
+know this is an ok thing to do. </p>
+
+<p>If your personal firewall is a hassle, check the server output for a
+line like:</p>
+<code>
+Digger v0.9.3 available at http://localhost:6980?cb=v0.9.3
+</code>
+<p>Copy that http address into your browser.  If you bookmark the link, you
+might need to update the bookmark when you download a new version of
+Digger. </p>
+
+
+<h2>Anything else</h2>
+
+<p>If you run into any other problems running
+Digger <a href="https://github.com/theriex/digger/issues">add an issue</a>
+so the project can try fix it. </p>
+
+</body>
+</html>
