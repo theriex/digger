@@ -278,7 +278,7 @@ app.player = (function () {
                     pstat = "notready";
                     pbi.state = "";  //will need to call playSong again
                     pmsg("Spotify Web Player not ready. Reconnecting...");
-                    app.svc.dispatch("spc", "refreshToken");
+                    //app.svc.dispatch("spc", "refreshToken");  //not available
                     mgrs.spa.verifyPlayer(); },
                 "player_state_changed":function (obj) {
                     mgrs.spa.noteWebPlaybackState(obj); }};
