@@ -40,7 +40,15 @@ db.init(function (conf) {
             console.log("Open a browser and go to " + websrv.digurl);
             return; }
         if(websrv.blaunch) {
-            console.log("Browser already launching");
+            const readline = require("readline");
+            const rl = readline.createInterface({input: process.stdin,
+                                                 output: process.stdout});
+            rl.question("Retry launching browser interface? ", function (s) {
+                rl.close();
+                if(!s.toLowerCase().startsWith("n")) {
+                    console.log("launching browser...");
+                    websrv.blaunch = false;
+                    launchBrowser(conf, plat); } });
             return; }
         //Launching Safari results in an options.env field being added, so
         //make a copy of sd to avoid writeback into .digger_config.json
@@ -55,8 +63,9 @@ db.init(function (conf) {
             proc.on("error", function (err) {
                 console.log("Opening a browser failed. " + err);
                 console.log("Open a browser and go to " + websrv.digurl +
-                            " to listen."); }); },
-                   800);
+                            " to listen.");
+                launchBrowser(conf, plat); }); },
+                                    800);
     }
 
 
