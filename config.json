@@ -3,9 +3,8 @@
   "musicPath": "~/Music",
   "dbPath": "~/digdat.json",
   "exPath": "~/diggerexport",
-  "cachePath": "~/diggercache",
   "spawn": {
-    "comment": "Optional platform command to run after the Digger server starts. Most useful is to open the Digger URL in the default browser. In the args, DIGGERHURL is replaced with http://localhost:6980 or whatever the port is set to.",
+    "comment": "Optional platform command to run after the Digger server starts. Most useful is to open the Digger URL in the default browser. In the args, DIGGERURL is replaced with http://localhost:6980 or whatever the port is set to.",
     "darwin": {
       "comment": "MacOS supports opening a URL via open.",
       "command": "open",
@@ -13,7 +12,7 @@
       "options": {"stdio": "ignore"} },
     "win32": {
       "comment": "Windows supports opening a URL via start.",
-      "command": "start",
+      "command": "Start",
       "args": ["DIGGERURL"],
       "options": {"shell": "true"} },
     "linux": {

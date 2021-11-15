@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.9.5";
+        return "v0.9.6";
     }
 
 
@@ -84,7 +84,7 @@ module.exports = (function () {
 
 
     function cleanLoadedConfig () {
-        var confpaths = ["musicPath", "dbPath", "exPath", "cachePath"];
+        var confpaths = ["musicPath", "dbPath", "exPath"];
         confpaths.forEach(function (cp) {
             var fp = conf[cp];
             //convert any forward slash specs to platform file separators so

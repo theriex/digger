@@ -5,7 +5,6 @@ module.exports = (function () {
 
     var db = require("./db");
     var formidable = require("formidable");
-    var path = require("path");
     const fetch = require("node-fetch");
     var eec = {};  //endpoint error contexts
     var hs = "https://diggerhub.com";
@@ -38,16 +37,6 @@ module.exports = (function () {
             conf.acctsinfo.currid = "101";
             ca = info.accts.find((a) => a.dsId === info.currid); }
         return ca;
-    }
-
-
-    function getFriendById (gid) {
-        if(!gid) { return null; }
-        const ca = getCurrentAccount();
-        if(!ca || !ca.musfs || !Array.isArray(ca.musfs) || !ca.musfs.length) {
-            return null; }
-        const musf = ca.musfs.find((g) => g.dsId === gid);
-        return musf;
     }
 
 
@@ -134,92 +123,6 @@ module.exports = (function () {
         accts = JSON.parse(accts);
         deserializeAccountFields(accts[0]);
         writeUpdatedAccount(accts[0]);
-    }
-
-
-    function musfDataFileName (gid) {
-        if(!db.fileExists(db.conf().cachePath)) {
-            db.mkdir(db.conf().cachePath); }
-        const gdf = path.join(db.conf().cachePath, "musf_" + gid + ".json");
-        return gdf;
-    }
-
-
-    function recountFilledByFriend (gid) {
-        return Object.values(db.dbo().songs).reduce((a, v) =>
-            a + ((v.srcid === gid)? 1 : 0)).length;
-    }
-
-
-    function loadLocalFriendData (gid) {
-        var gfc;
-        var gdat = {version:db.diggerVersion(),
-                    songcount:0,     //total songs from this musf
-                    songs:{}};       //canonicalsongname:songdata
-        var musf = getFriendById(gid);
-        if(musf) {
-            const gdf = musfDataFileName(gid);
-            if(db.fileExists(gdf)) {
-                gfc = null;
-                try {
-                    gfc = JSON.parse(db.readFile(gdf));
-                } catch(e) {
-                    console.log("hub.loadLocalFriendData " + gdf + " e: " + e);
-                }
-                if(gfc && gfc.version !== db.diggerVersion()) {
-                    gfc = null; }
-                if(gfc) {
-                    gdat = gfc; }
-                else {  //previous musf data unavailable, reset musf info.
-                    musf.lastrating = "";
-                    musf.lastcheck = "";
-                    musf.filled = recountFilledByFriend(musf.dsId); } } }
-        return [musf, gdat];
-    }
-
-
-    function writeLocalFriendData (gid, gdat) {
-        var gdf = musfDataFileName(gid);
-        db.writeFile(gdf, JSON.stringify(gdat, null, 2));
-    }
-
-
-    //see ../docroot/docs/guidenotes.txt
-    function songLookupKey (s, ignore /*p*/) {
-        var sk = "";
-        if(!s.ti) {
-            //console.log("song has no title. p: " + p);
-            return null; }
-        const flds = ["ti", "ar", "ab"];
-        flds.forEach(function (fld) {
-            var val = s[fld] || "";
-            val.trim();
-            sk += val; });
-        sk = sk.toLowerCase();
-        return sk;
-    }
-
-
-    function updateLocalFriendData (gdat, hubret, musf) {
-        var songs = JSON.parse(hubret);
-        songs.forEach(function (song) {
-            var key = songLookupKey(song);
-            gdat.songs[key] = song;
-            if(song.modified > musf.lastrating) {
-                musf.lastrating = song.modified; } });
-        if(songs.length) {  //received some newer ratings
-            gdat.songcount = Object.keys(gdat.songs).length;
-            writeLocalFriendData(musf.dsId, gdat);
-            musf.songcount = gdat.songcount;
-            musf.lastcheck = musf.lastrating; }  //note need to fetch more
-        else {  //lastcheck > lastrating means up to date
-            musf.lastcheck = new Date().toISOString(); }
-        db.writeConfigurationFile();  //save updated musf info
-    }
-
-
-    function isUnratedSong (s) {
-        return (!s.kws && s.el === 49 && s.al === 49);
     }
 
 

@@ -3,12 +3,12 @@
 var path = require("path");
 var hub = require("./server/hub");
 var db = require("./server/db");
+var plat = require("os").platform();
 try {
 db.init(function (conf) {
     var nodestatic = require("node-static");
     //Not specifying any header options here, default caching is one hour.
     var fileserver = new nodestatic.Server(path.join(db.appdir(), "docroot"));
-    var plat = require("os").platform();
     var websrv = {};
 
     function params2Obj (str) {
@@ -19,6 +19,7 @@ db.init(function (conf) {
             po[av[0]] = decodeURIComponent(av[1]); });
         return po;
     }
+
 
     function parsedURL (url) {
         var pu = {};
@@ -33,39 +34,57 @@ db.init(function (conf) {
     }
 
 
+    function alternateCommand (sd, plat) {
+        sd.oargs = sd.oargs || sd.args;  //[0]: the Digger URL to open
+        sd.failcount = sd.failcount || 0;
+        if(plat === "win32") {
+            sd.winsys = process.env.SYSTEMROOT || "C:\\Windows";
+            sd.winsys += "\\System32"; }
+        const acs = {
+            win32: [
+                {command:"powershell",
+                 args:["Start", sd.oargs[0]]},
+                {command:"explorer.exe",
+                 args:sd.oargs},
+                //retry fully qualified in case path not available
+                {command:sd.winsys + "\\WindowsPowerShell\\v1.0\\powershell",
+                 args:["Start", sd.oargs[0]]},
+                {command:sd.winsys + "\\explorer.exe",
+                 args:sd.oargs}]};
+        sd.command = acs[plat] && acs[plat][sd.failcount].command;
+        if(sd.command) {
+            sd.args = acs[plat][sd.failcount].args; }
+    }
+
+
+    function launchNow (sd, plat) {
+        console.log(sd.command + " " + sd.args.join(" "));
+        const { spawn } = require("child_process");
+        const proc = spawn(sd.command, sd.args, sd.options);
+        proc.on("error", function (err) {
+            console.log(err);
+            alternateCommand(sd, plat);
+            if(sd.command) {
+                launchNow(sd, plat); }
+            else {
+                console.log("Open a browser and go to " + websrv.digurl); } });
+    }
+
+
     function launchBrowser (conf, plat) {
         var sd = conf.spawn && conf.spawn[plat];
         if(!sd) {
             console.log("No command to open a default browser on " + plat);
-            console.log("Open a browser and go to " + websrv.digurl);
-            return; }
-        if(websrv.blaunch) {
-            const readline = require("readline");
-            const rl = readline.createInterface({input: process.stdin,
-                                                 output: process.stdout});
-            rl.question("Retry launching browser interface? ", function (s) {
-                rl.close();
-                if(!s.toLowerCase().startsWith("n")) {
-                    console.log("launching browser...");
-                    websrv.blaunch = false;
-                    launchBrowser(conf, plat); } });
+            console.log("Digger available at " + websrv.digurl);
             return; }
         //Launching Safari results in an options.env field being added, so
         //make a copy of sd to avoid writeback into .digger_config.json
         sd = JSON.parse(JSON.stringify(sd));
         sd.args = sd.args.map((arg) =>
             arg.replace(/DIGGERURL/g, websrv.digurl));
-        console.log(sd.command + " " + sd.args.join(" "));
         //Yield a sec to give any higher prio setup a chance
         websrv.blaunch = setTimeout(function () {
-            const { spawn } = require("child_process");
-            const proc = spawn(sd.command, sd.args, sd.options);
-            proc.on("error", function (err) {
-                console.log("Opening a browser failed. " + err);
-                console.log("Open a browser and go to " + websrv.digurl +
-                            " to listen.");
-                launchBrowser(conf, plat); }); },
-                                    800);
+            launchNow(sd, plat); }, 800);
     }
 
 
