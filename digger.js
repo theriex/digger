@@ -51,9 +51,12 @@ db.init(function (conf) {
                  args:["Start", sd.oargs[0]]},
                 {command:sd.winsys + "\\explorer.exe",
                  args:sd.oargs}]};
-        sd.command = acs[plat] && acs[plat][sd.failcount].command;
-        if(sd.command) {
-            sd.args = acs[plat][sd.failcount].args; }
+        const fallbacks = acs[plat];
+        sd.command = null;
+        if(fallbacks && sd.failcount < fallbacks.length) {
+            sd.command = fallbacks[sd.failcount].command;
+            sd.args = fallbacks[sd.failcount].args;
+            sd.failcount += 1; }
     }
 
 
