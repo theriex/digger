@@ -7,7 +7,9 @@
   "pkg": {
     "scripts": [
       "digger.js",
-      "./server/db.js"
+      "./server/db.js",
+      "./server/hub.js",
+      "./server/dhdefs.js"
     ],
     "assets": [
       "./config.json",
@@ -26,9 +28,9 @@
     ]
   },
   "dependencies": {
-    "formidable": "^1.2.1",
-    "jsmediatags": "^3.9.2",
-    "node-fetch": "^2.6.1",
+    "formidable": "^2.0.1",
+    "jsmediatags": "^3.9.7",
+    "node-fetch": "^2.6.6",
     "node-static": "^0.7.11"
   },
   "scripts": {

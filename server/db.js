@@ -1,11 +1,14 @@
 /*jslint node, white, long, unordered */
 
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const mt = require("jsmediatags");
+const formidable = require("formidable");
+
 module.exports = (function () {
     "use strict";
 
-    var fs = require("fs");
-    var os = require("os");
-    var path = require("path");
     var fects = {  //file extension content types
         //Common formats typically supported through OS libraries
         ".mp3":"audio/mp3",
@@ -28,13 +31,10 @@ module.exports = (function () {
         ".m4a":"audio/mp4"};
     var conf = null;
     var dbo = null;
-    var mt = require("jsmediatags");
     var state = "initializing";
     var mostRecentRelativePathRead = "";
-    var formidable = require("formidable");
     var mrg = {stat:null, obj:null, dict:null};
     var exp = {stat:null, spec:null};
-    var appdir = path.normalize(path.join(__dirname, ".."));
     var caud = {path:"", buf:null};
 
 
@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.9.7";
+        return "v0.9.8";
     }
 
 
@@ -96,7 +96,7 @@ module.exports = (function () {
                     os.homedir(),
                     ...fp.split(path.sep).slice(1)); }
             console.log(cp + ": " + conf[cp]); });
-        require("./hub").verifyDefaultAccount(conf);
+        require("./hub.js").verifyDefaultAccount(conf);
     }
 
 
@@ -120,9 +120,17 @@ module.exports = (function () {
     }
 
 
+    function getAppDir () {
+        if(process.pkg && process.pkg.entrypoint) {
+            return path.dirname(process.pkg.entrypoint); }
+        return process.cwd();
+    }
+
+
     function getConfigFileName () {
         var cfp = path.join(os.homedir(), ".digger_config.json");
         if(!jslf(fs, "existsSync", cfp)) {
+            const appdir = getAppDir();
             //console.log("appdir: " + appdir);
             //console.log(fs.readdirSync(appdir));
             safeCopyJSONFile(path.join(appdir, "config.json"), cfp);
@@ -252,7 +260,7 @@ module.exports = (function () {
                 if(err) {
                     console.log("walkFiles readdir error: " + err); }
                 files.forEach(function (childfile) {
-                    if(!require("./hub").isIgnoreDir(ws, childfile)) {
+                    if(!require("./hub.js").isIgnoreDir(ws, childfile)) {
                         ws.files.push(fn + "/" + childfile); } });
                 walkFiles(ws); }); }
         else if(isMusicFile(fn)) {
@@ -497,7 +505,7 @@ module.exports = (function () {
             song.srcid = fields.srcid || "";
             song.srcrat = fields.srcrat || "";
             normalizeIntegerValues(song);
-            require("./hub").verifyFriendRating(song);
+            require("./hub.js").verifyFriendRating(song);
             writeDatabaseObject();
             song.path = fields.path;
             console.log("Updated " + song.path);
@@ -644,7 +652,7 @@ module.exports = (function () {
 
     return {
         //server utilities
-        appdir: function () { return appdir; },
+        appdir: function () { return getAppDir(); },
         init: function (contf) { initialize(contf); },
         conf: function () { return conf; },
         writeConfigurationFile: function () { writeConfigurationFile(); },

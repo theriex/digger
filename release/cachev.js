@@ -1,9 +1,14 @@
 /*jslint node, white, fudge */
 
+const fs = require("fs");
+const path = require("path");
+const dirname = __dirname;
+//import { fileURLToPath } from "url";
+//const dirname = path.dirname(fileURLToPath(import.meta.url));
+
 var cachev = (function () {
     "use strict";
 
-    var fs = require("fs");
     var ws = {
         sr:"docroot",  //search root relative to one level up from this script
         srch:["css", //reload updated look
@@ -16,7 +21,7 @@ var cachev = (function () {
 
     var walker = {
         walkFiles: function  () {
-            var dn = __dirname;
+            var dn = dirname;
             ws.sr = dn.slice(0, dn.lastIndexOf("/") + 1) + ws.sr + "/";
             //console.log("ws.srchroot: " + ws.srchroot);
             ws.files = [];

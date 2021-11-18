@@ -1,11 +1,13 @@
 /*jslint node, white, long, unordered */
 
+const formidable = require("formidable");
+const db = require("./db.js");
+const fetch = require("node-fetch");
+const dhdefs = require("./dhdefs.js");
+
 module.exports = (function () {
     "use strict";
 
-    var db = require("./db");
-    var formidable = require("formidable");
-    const fetch = require("node-fetch");
     var eec = {};  //endpoint error contexts
     var hs = "https://diggerhub.com";
     //var hs = "http://localhost:8080";
@@ -19,7 +21,7 @@ module.exports = (function () {
                 {dsType:"DigAcc", dsId:"101", firstname:"Digger",
                  created:diggerbday, modified:diggerbday + ";1",
                  email:"support@diggerhub.com", token:"none",
-                 kwdefs:require("./dhdefs").initialKeywords(),
+                 kwdefs:dhdefs.initialKeywords(),
                  igfolds:["Ableton", "Audiffex", "Audio Music Apps",
                           "GarageBand", "JamKazam"]}); }
         if(!conf.acctsinfo.currid) {

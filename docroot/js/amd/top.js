@@ -55,7 +55,7 @@ app.top = (function () {
             if(curracct.hubVersion && curracct.diggerVersion) {
                 verstat.hub = curracct.hubVersion;
                 verstat.loc = curracct.diggerVersion;
-                if(!verstat.notice && verstat.hub !== verstat.loc) {
+                if(!verstat.notice && verstat.hub > verstat.loc) {
                     verstat.notice = true;
                     jt.err("You are running " + verstat.loc +
                            ". DiggerHub.com has " + verstat.hub +

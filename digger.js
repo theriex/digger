@@ -1,12 +1,17 @@
 /*jslint node, white, unordered, long */
 
-var path = require("path");
-var hub = require("./server/hub");
-var db = require("./server/db");
-var plat = require("os").platform();
+const path = require("path");
+const hub = require("./server/hub");
+const db = require("./server/db");
+const plat = require("os").platform();
+const nodestatic = require("node-static");
+const { spawn } = require("child_process");
+const http = require("http");
+const fetch = require("node-fetch");
+const readline = require("readline");
+
 try {
 db.init(function (conf) {
-    var nodestatic = require("node-static");
     //Not specifying any header options here, default caching is one hour.
     var fileserver = new nodestatic.Server(path.join(db.appdir(), "docroot"));
     var websrv = {};
@@ -35,39 +40,33 @@ db.init(function (conf) {
 
 
     function alternateCommand (sd, plat) {
-        sd.oargs = sd.oargs || sd.args;  //[0]: the Digger URL to open
-        sd.failcount = sd.failcount || 0;
+        websrv.aci = websrv.aci || 0;  //alt command index
         if(plat === "win32") {
-            sd.winsys = process.env.SYSTEMROOT || "C:\\Windows";
-            sd.winsys += "\\System32"; }
+            websrv.wdir = process.env.SYSTEMROOT || "C:\\Windows";
+            websrv.wsys = websrv.wdir + "\\System32"; }
         const acs = {
             win32: [
-                {command:"powershell",
-                 args:["Start", sd.oargs[0]]},
-                {command:"explorer.exe",
-                 args:sd.oargs},
-                //retry fully qualified in case path not available
-                {command:sd.winsys + "\\WindowsPowerShell\\v1.0\\powershell",
-                 args:["Start", sd.oargs[0]]},
-                {command:sd.winsys + "\\explorer.exe",
-                 args:sd.oargs}]};
+                {command:websrv.windir + "\\explorer.exe",
+                 args:[websrv.digurl]},  //options left undefined
+                {command:websrv.wsys + "\\WindowsPowerShell\\v1.0\\powershell",
+                 args:["Start", websrv.digurl]}  //options left undefined
+                ]};
+        sd = null;
         const fallbacks = acs[plat];
-        sd.command = null;
-        if(fallbacks && sd.failcount < fallbacks.length) {
-            sd.command = fallbacks[sd.failcount].command;
-            sd.args = fallbacks[sd.failcount].args;
-            sd.failcount += 1; }
+        if(fallbacks && websrv.aci < fallbacks.length) {
+            sd = fallbacks[websrv.aci];
+            websrv.aci += 1; }
+        return sd;
     }
 
 
     function launchNow (sd, plat) {
         console.log(sd.command + " " + sd.args.join(" "));
-        const { spawn } = require("child_process");
         const proc = spawn(sd.command, sd.args, sd.options);
         proc.on("error", function (err) {
             console.log(err);
-            alternateCommand(sd, plat);
-            if(sd.command) {
+            sd = alternateCommand(sd, plat);
+            if(sd) {
                 launchNow(sd, plat); }
             else {
                 console.log("Open a browser and go to " + websrv.digurl); } });
@@ -98,7 +97,7 @@ db.init(function (conf) {
 
 
     function createWebServer () {
-        websrv.server = require("http").createServer(function (req, rsp) {
+        websrv.server = http.createServer(function (req, rsp) {
         try {
             const quieturls = ["/songscount", "/mergestat"];
             const pu = parsedURL(req.url);
@@ -166,8 +165,7 @@ db.init(function (conf) {
                 websrv.takingover = true;
                 setTimeout(function () {
                     console.log("Previous webserver still running...");
-                    require("node-fetch")("http://localhost:" + conf.port +
-                                          "/exitnow")
+                    fetch("http://localhost:" + conf.port + "/exitnow")
                         .then(function () {
                             console.log("exitnow actually returned...");
                             startWebServer("exitnow success"); })
@@ -190,7 +188,6 @@ db.init(function (conf) {
     console.log("It would be greatly appreciated if you would copy the above info and mail it to support@diggerhub.com");
     //the console window immediately disappears on windows.  Prompt to
     //hold it open so the user has a chance to read and email the err.
-    const readline = require("readline");
     const rl = readline.createInterface({input: process.stdin,
                                          output: process.stdout});
     rl.question("\n", function (ignore) {

@@ -1,0 +1,32 @@
+The version of node is limited by what pkg can handle.  See
+https://vercel.com/docs/runtimes to find the latest supported.  When that
+supports node v16.x or later, the digger modules will need to switch from
+"require" usage to import/export declarations so instead of
+
+const path = require("path");
+const hub = require("./server/hub");
+
+it will be 
+
+import * as path from "path";
+import { hub } from "./server/hub.js";
+
+and on the declarations side instead of
+
+module.exports = (function () {...
+
+it will be 
+
+export let hub = (function () {...
+
+-----------
+
+Download the version of node needed from https://nodejs.org/en/download/
+e.g. node-v14.18.1.pkg  That will install appropriate node and npm.  Then
+
+npm install jsmediatags --save
+npm install node-static
+npm i -S formidable
+npm install node-fetch@2
+
+
