@@ -46,7 +46,7 @@ db.init(function (conf) {
             websrv.wsys = websrv.wdir + "\\System32"; }
         const acs = {
             win32: [
-                {command:websrv.windir + "\\explorer.exe",
+                {command:websrv.wdir + "\\explorer.exe",
                  args:[websrv.digurl]},  //options left undefined
                 {command:websrv.wsys + "\\WindowsPowerShell\\v1.0\\powershell",
                  args:["Start", websrv.digurl]}  //options left undefined
