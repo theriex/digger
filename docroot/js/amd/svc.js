@@ -340,6 +340,12 @@ app.svc = (function () {
                 .sort(function (a, b) {  //assuming filename start with track#
                     return a.path.localeCompare(b.path); });
             contf(song, abs); },
+        majorError: function (code, errtxt) {
+            if(!code && !errtxt) { //local server unreachable
+                jt.out("modindspan", "offline");
+                jt.err("Digger server unavailable. Close this page and launch the Digger app."); }
+            else {
+                jt.err("/songupd failed " + code + ": " + errtxt); } },
         updateSong: function (song, contf) {
             jt.call("POST", "/songupd", jt.objdata(song),
                     function (res)  {
@@ -350,7 +356,7 @@ app.svc = (function () {
                         if(contf) {
                             contf(updsong); } },
                     function (code, errtxt) {
-                        jt.err("/songupd failed " + code + ": " + errtxt); },
+                        mgrs.loc.majorError(code, errtxt); },
                     jt.semaphore("mgrs.loc.updateSong")); },
         noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
             var song = dbo.songs[updsong.path];
