@@ -496,12 +496,25 @@ app.player = (function () {
             tdiv.innerHTML = jt.tac2html(
                 [["div", {id:"frequencyoptionsdiv"}, mgrs.tun.fqOptsHTML()],
                  ["div", {id:"tuningdetdiv"}, mgrs.tun.optDetailsHTML()]]); },
+        chgMetDat: function (fld) {
+            var val = jt.byId("tdet" + fld).value;
+            //jt.log("Changing " + fld + " to " + val);
+            stat.song[fld] = val;
+            noteSongModified(); },
         optDetailsHTML: function () {
             var lastPlayed = "Never";
             if(stat.prevPlayed) {
                 lastPlayed = jt.tz2human(stat.prevPlayed); }
             const flds = [{a:"Last Played", v:lastPlayed},
+                          {a:"Title", v:"ti", e:true},
+                          {a:"Artist", v:"ar", e:true},
+                          {a:"Album", v:"ab", e:true},
                           {a:"File", v:stat.song.path}];
+            flds.forEach(function (fld) {
+                if(fld.e) {
+                    fld.v = ["input", {type:"text", id:"tdet" + fld.v,
+                                       oninput:mdfs("tun.chgMetDat", fld.v),
+                                       value:stat.song[fld.v]}]; } });
             return jt.tac2html(["table", flds.map((fld) =>
                 ["tr", {cla:"tuneoptdettr"},
                  [["td", {cla:"tuneoptdetattr"}, fld.a + ": "],
