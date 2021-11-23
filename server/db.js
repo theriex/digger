@@ -218,6 +218,31 @@ module.exports = (function () {
     }
 
 
+    function titleFromFilename (fname) {  //no path
+        var title = fname.slice(0, fname.lastIndexOf("."));
+        title = title.replace(/^\d\d?[\s\-]/, "");  //track number
+        title = title.replace(/^\s?\-\s/, "");  //dash separator
+        return title.trim();
+    }
+
+
+    function mdtagsFromPath (rpath) {
+        const nonas = ["compilations", "various", "various artists", "music",
+                       "soundtracks"];
+        const pes = rpath.split(path.sep);
+        if(pes.length === 2) {  //artist|title
+            return {tags:{artist:pes[0].trim(),
+                          album:"Singles",
+                          title:titleFromFilename(pes[1])}}; }
+        if(pes.length === 3 &&  //artist|album|title
+           nonas.indexOf(pes[0].toLowerCase()) < 0) {
+            return {tags:{artist:pes[0].trim(),
+                          album:pes[1].trim(),
+                          title:titleFromFilename(pes[2])}}; }
+        return null;
+    }
+
+
     function addSongToDb (fn, tagdata) {
         var rpath; var rec;
         dbo.songcount += 1;
@@ -234,6 +259,9 @@ module.exports = (function () {
             //console.log(dbo.songcount + " creating " + rpath);
             rec = {fq:"N", al:49, el:49, kws:"", rv:5};
             dbo.songs[rpath] = rec; }
+        //minimum required metadata is title + artist
+        if(!tagdata || !tagdata.tags.title || !tagdata.tags.artist) {
+            tagdata = mdtagsFromPath(rpath); }
         if(!tagdata || !tagdata.tags.title || !tagdata.tags.artist) {
             console.log("addSongToDb missing metadata " + rpath);
             if(!rec.fq.startsWith("U")) {  //mark as unreadable
@@ -665,6 +693,7 @@ module.exports = (function () {
         mkdir: function (path) { return jslf(fs, "mkdirSync", path); },
         diggerVersion: function () { return diggerVersion(); },
         isMusicFile: function (fn) { return isMusicFile(fn); },
+        mdtagsFromPath: function (rpath) { return mdtagsFromPath(rpath); },
         //server endpoints
         config: function (req, res) { return serveConfig(req, res); },
         startdata: function (req, res) { return startupData(req, res); },
