@@ -66,8 +66,30 @@ app.deck = (function () {
                 if(si < 0) { break; }  //deck changed from this index onward
                 wrk.prs.push(wrk.songs[si]);
                 wrk.songs.splice(si, 1); } },
+        shuffleArray: function (arr, startidx, endidx) {  //Fisher-Yates shuffle
+            var i; var j; var temp;
+            for(i = endidx; i >= startidx; i -= 1) {
+                j = Math.floor(Math.random() * i);
+                temp = arr[i];
+                if(!temp) {  //should never happen, complain loudly
+                    throw("arr index " + i + " was undefined"); }
+                arr[i] = arr[j];
+                arr[j] = temp; } },
+        shuffleUnplayed: function () { //All times within a minute are equal
+            var chk = {endidx:0};
+            if(!wrk.songs.length) { return; }
+            chk.thresh = wrk.songs[0].lp || "";
+            if(chk.thresh) {
+                chk.thresh = new Date(jt.isoString2Time(chk.thresh).getTime() +
+                                      (60 * 1000))  //one minute from oldest
+                    .toISOString(); }
+            while(chk.endidx < wrk.songs.length - 1 &&
+                  (!wrk.songs[chk.endidx].lp ||
+                   wrk.songs[chk.endidx].lp <= chk.thresh)) {
+                chk.endidx += 1; }
+            mgrs.ws.shuffleArray(wrk.songs, 0, chk.endidx); },
         shuffleSongs: function () {  //oldest first, artisanal variety
-            var first = []; var rest = []; var i; var j; var temp;
+            var first = []; var rest = [];
             var ba = {};  //string keys traverse in insertion order (ES2015)
             wrk.songs.forEach(function (s) {  //oldest songs first
                 var artist = s.ar || "Unknown";
@@ -76,14 +98,8 @@ app.deck = (function () {
             Object.values(ba).forEach(function (songs) {
                 first.push(songs.shift());      //oldest song from each artist
                 rest = rest.concat(songs); });  //rest of songs from artist
-            //leave [0] (2nd oldest song), Fisher-Yates shuffle rest
-            for(i = rest.length - 1; i > 0; i -= 1) {
-                j = Math.floor(Math.random() * i);
-                temp = rest[i];
-                if(!temp) {  //should never happen, complain loudly
-                    throw("rest index " + i + " was undefined"); }
-                rest[i] = rest[j];
-                rest[j] = temp; }
+            //leave [0] alone (2nd oldest song), shuffle rest
+            mgrs.ws.shuffleArray(rest, 1, rest.length -1);
             wrk.songs = first.concat(rest); },
         presentSongs: function () {
             mgrs.ws.preserveExistingDeckSongs();  //pulled into wrk.prs
@@ -92,6 +108,7 @@ app.deck = (function () {
                 if(!a.lp && b.lp) { return -1; }
                 if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); }
                 return 0; });
+            mgrs.ws.shuffleUnplayed();  //avoid predictable first song 
             wrk.songs = wrk.songs.slice(0, 1000);  //truncate to reasonable len
             mgrs.ws.shuffleSongs();  //older songs first, no starvation
             wrk.songs = wrk.prs.concat(wrk.songs); },  //recombine
