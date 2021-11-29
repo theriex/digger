@@ -22,8 +22,8 @@ app.filter = (function () {
                   panel:{outer:{x:25, y:0, w:244, h:56},
                          inner:{x:27, y:2, w:240, h:54},
                          gradient:{left:"0cd8e5", right:"faee0a"}},
-                  vnob:{x:0, y:5, w:21, h:10, maxy:52},
-                  hnob:{x:25, y:59, w:10, h:21, maxx:263}};
+                  vnob:{x:0, y:5, w:21, h:10, maxy:52, cot:7},
+                  hnob:{x:25, y:59, w:10, h:21, maxx:263, col:6}};
 
 
     //General container for all managers, used for dispatch
@@ -128,18 +128,17 @@ app.filter = (function () {
     //Range manager handles selection range window controls
     mgrs.rng = (function () {
         var rcids = ["el", "al"];  //energy level, approachability level
-        function pointInsideBox (x, y, box) {
-            box = jt.byId(box);
-            if(x >= box.offsetLeft && x <= box.offsetLeft + box.offsetWidth &&
-               y >= box.offsetTop && y <= box.offsetTop + box.offsetHeight) {
-                return true; }
-            return false; }
+        function rangeConstrain (val, min, max) {
+            val = Math.max(val, min);
+            val = Math.min(val, max);
+            return val; }
     return {
         updateRangeControlFocus: function (cid, rcr) {
             //set the width of the range focus using the percentage indicated by
             //the position of the vertical slider
-            var invy = ranger.vnob.maxy - rcr.cy - ranger.vnob.y;
+            var valy = rcr.cy - ranger.vnob.y;
             var rangemax = ranger.vnob.maxy - ranger.vnob.y;
+            var invy = rangemax - valy;
             var pcnt = invy / rangemax;
             var focw = Math.round(pcnt * ranger.panel.inner.w);
             //adjust the percentage so the midpoint of the focus is zero
@@ -166,27 +165,32 @@ app.filter = (function () {
         attachRangeCtrlMovement: function (cid) {
             var rcr = ctrls[cid];
             rcr.mstat = {pointingActive:false, roundpcnt:5,
-                         maxxlim:ranger.hnob.maxx - ranger.hnob.x,
+                         maxxlim:ranger.hnob.maxx + ranger.hnob.x,
                          maxylim:ranger.vnob.maxy - ranger.vnob.y,
-                         cko:null};  //click origin point
+                         cko:null};  //click origin data
             ctrls.movestats.push(rcr.mstat);
             rcr.mpos = function (x, y) {
                 var mstat = rcr.mstat;
-                //jt.out(cid + "rshbgdiv", x + "," + y);
-                if(mstat.pointingActive && !mstat.cko) {
-                    mstat.cko = {"x":x, "y":y,
-                                 disx:pointInsideBox(x, y, cid + "rsvbgdiv"),
-                                 disy:(pointInsideBox(x, y, cid + "rshbgdiv") ||
-                                       y >= rcr.mstat.maxylim)}; }
+                if(mstat.pointingActive && !mstat.cko) {  //init click origin
+                    mstat.cko = {xdat:{ogx:x, prevcx:rcr.cx || x,
+                                       solo:y >= mstat.maxylim},
+                                 ydat:{ogy:y, prevcy:rcr.cy || y,
+                                       solo:x <= ranger.hnob.x}}; }
                 if(!mstat.pointingActive && mstat.cko) {  //clear click origin
                     mstat.cko = null; }
-                if(mstat.cko) {
-                    if(!mstat.cko.disx) {
-                        rcr.cx = x + ranger.hnob.x;
-                        jt.byId(cid + "hnd").style.left = rcr.cx + "px"; }
-                    if(!mstat.cko.disy) {
-                        rcr.cy = y;  //base vertical offset is zero
-                        jt.byId(cid + "vnd").style.top = rcr.cy + "px"; }
+                if(mstat.cko) {  //track drag change
+                    rcr.cx = mstat.cko.xdat.prevcx;  //default hold prev val
+                    if(!mstat.cko.ydat.solo) {  //x tracking is active
+                        rcr.cx = rangeConstrain(x, ranger.hnob.x,
+                                                ranger.hnob.maxx);
+                        const kl = rcr.cx - ranger.hnob.col;  //center offset
+                        jt.byId(cid + "hnd").style.left = kl + "px"; }
+                    rcr.cy = mstat.cko.ydat.prevcy;  //default hold prev val
+                    if(!mstat.cko.xdat.solo) {  //y tracking is active
+                        rcr.cy = rangeConstrain(y, ranger.vnob.y,
+                                                ranger.vnob.maxy);
+                        const kt= rcr.cy - ranger.vnob.cot;  //center offset
+                        jt.byId(cid + "vnd").style.top = kt + "px"; }
                     mgrs.rng.updateRangeControlFocus(cid, rcr); } };
             attachMovementListeners(cid + "mousediv", rcr.mstat, rcr.mpos);
             rcr.mpos(Math.floor((ranger.hnob.maxx - ranger.hnob.x) / 2),
