@@ -145,8 +145,13 @@ db.init(function (conf) {
 
     function startWebServer (text) {
         if(!websrv.digurl) {
+            //No '=' in launch URL because that would need to be quoted if
+            //being interpreted via windows command. The result is the spawned
+            //browser process reports a successful start but does nothing.
+            //Essentially this URL passes the version as an attribute with
+            //an undefined value.  Enough to trigger a cache bust. 30nov21
             websrv.digurl = "http://localhost:" + conf.port +
-                "?cb=" + db.diggerVersion(); } //browsers cache everything
+                "?" + db.diggerVersion(); } //browsers cache everything
         if(!websrv.server) {
             createWebServer(); }
         if(!websrv.listening) {
