@@ -219,26 +219,50 @@ module.exports = (function () {
 
 
     function titleFromFilename (fname) {  //no path
-        var title = fname.slice(0, fname.lastIndexOf("."));
-        title = title.replace(/^\d\d?[\s\-]/, "");  //track number
-        title = title.replace(/^\s?\-\s/, "");  //dash separator
-        return title.trim();
+        var noext = fname.slice(0, fname.lastIndexOf("."));
+        var title = noext.replace(/^\d\d?[\s\-]/, "");  //track number
+        title = title.replace(/^\s?-\s/, "");  //dash separator
+        title = title.trim();
+        if(!title) {  //nothing but numbers and dashes in title
+            title = noext.trim(); }
+        return title;
     }
 
 
+    //This is a fallback in the absence of proper meta data, so that all
+    //music files can at least be loaded and played.  This is NOT where to
+    //fix broken song files and structures.  Digger does not modify music
+    //files, so filling song metadata from file names should be done via a
+    //separate tool.
+    //Top level files:
+    //  While it is tempting to try and smartly parse top level files
+    //  delimited by " - " or whatever, there is no standard format and names
+    //  are not reliably consistent.
+    //Buried subdirectories:
+    //  It would be great if 4+ deep subdirectories had some kind of
+    //  meaningful general structure but they don't.  More typically it's
+    //  Compilations/Friend Name/Party/Maybe Right Title.mp3
     function mdtagsFromPath (rpath) {
         const nonas = ["compilations", "various", "various artists", "music",
                        "soundtracks"];
         const pes = rpath.split(path.sep);
+        if(pes.length === 1 ||  //top level file. No further parsing. See note.
+           pes.length > 3) {    //buried subfolder. See note.
+            return {tags:{artist:"Unknown",
+                          album:"Singles",
+                          title:rpath}}; }
         if(pes.length === 2) {  //artist|title
             return {tags:{artist:pes[0].trim(),
                           album:"Singles",
                           title:titleFromFilename(pes[1])}}; }
-        if(pes.length === 3 &&  //artist|album|title
-           nonas.indexOf(pes[0].toLowerCase()) < 0) {
-            return {tags:{artist:pes[0].trim(),
-                          album:pes[1].trim(),
-                          title:titleFromFilename(pes[2])}}; }
+        if(pes.length === 3) {  //artist|album|title
+            if(nonas.indexOf(pes[0].toLowerCase()) < 0) {
+                return {tags:{artist:pes[0].trim(),
+                              album:pes[1].trim(),
+                              title:titleFromFilename(pes[2])}}; }
+            return {tags:{artist:"Unknown",
+                          album:"Singles",
+                          title:rpath}}; }
         return null;
     }
 
@@ -254,6 +278,8 @@ module.exports = (function () {
         if(rec) {  //updating existing entry
             //console.log(dbo.songcount + " updating " + rpath);
             if(rec.fq.startsWith("D")) {  //remove deletion mark since found
+                rec.fq = rec.fq.slice(1); }
+            if(rec.fq.startsWith("U")) {  //retry metadata read
                 rec.fq = rec.fq.slice(1); } }
         else {  //make new entry
             //console.log(dbo.songcount + " creating " + rpath);
@@ -266,7 +292,7 @@ module.exports = (function () {
             console.log("addSongToDb missing metadata " + rpath);
             if(!rec.fq.startsWith("U")) {  //mark as unreadable
                 rec.fq = "U" + rec.fq; } }
-        else { 
+        else {
             rec.ar = tagdata.tags.artist;
             rec.ab = tagdata.tags.album;
             rec.ti = tagdata.tags.title; }
