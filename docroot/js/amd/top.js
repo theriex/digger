@@ -232,6 +232,7 @@ app.top = (function () {
     //    Can add later if used, not displaying until useful.
     mgrs.h2a = (function () {
         var affs = [  //account form fields for direct input or display
+            //'j'oin, 's'ignin, pass'w'ordchg, 'p'rofile
             {n:"email", im:"js", dm:"pw", ty:"email", p:"nospam@example.com"},
             {n:"password", im:"js", ty:"password"},
             {n:"updpassword", im:"w", ty:"password", dn:"password"},
@@ -329,13 +330,17 @@ app.top = (function () {
                         de.errf); },
                 de.errf); },
         inputOrDisplay: function (mode, a) {
-            var curracct = mgrs.locam.getAccount();
+            var curracct = mgrs.locam.getAccount(); var val;
             if(curracct.dsId === "101") {
                 curracct = {dsId:"", email:"", password:"", firstname:""}; }
             if(a.im && a.im.includes(mode)) {
+                val = curracct[a.n] || "";
+                const previn = jt.byId(a.n + "in");
+                if(previn && previn.value) {
+                    val = previn.value; }
                 return ["input", {type:(a.ty || "text"),
                                   id:a.n + "in",
-                                  value:(curracct[a.n] || ""),
+                                  value:val,
                                   placeholder:(a.p || "")}]; }
             return ["span", {cla:"formvalspan"}, curracct[a.n]]; },
         accountFieldsForm: function (mode, buttons, help) {
@@ -379,26 +384,30 @@ app.top = (function () {
                                          "updpwdb", "w")},
                  "Change Password"]); },
         accountSettings: function (ix) {
+            var redisp = true;
             var tas = [
                 {h:"#friends", oc:"mfnd.friendsForm", t:"friends"},
                 {h:"#profile", oc:"h2a.profileForm", t:"profile"},
                 {h:"#password", oc:"h2a.changePwdForm", t:"password"},
                 {h:"#signout", oc:"h2a.signOut", t:"sign out"}];
             if(mgrs.h2a.usingDefaultAccount()) {
+                redisp = false;
                 tas = [
                     {h:"#join", oc:"h2a.newacctForm", t:"join"},
                     {h:"#signin", oc:"h2a.signInForm", t:"sign in"}]; }
             ix = ix || 0;
-            jt.out("topdlgdiv", jt.tac2html(
-                ["div", {id:"hubacctdiv"},
-                 [["div", {id:"hubaccttopdiv"},
-                   tas.map((ta, sx) => jt.tac2html(
-                       ["a", {href:ta.h, onclick:mdfs("h2a.accountSettings",
-                                                      sx)},
-                        ["span", {cla:((ix === sx)? "fhselspan" : "fhspan")},
-                         ta.t]]))
-                   .join(" &nbsp;|&nbsp ")],
-                  ["div", {id:"hubacctcontdiv"}]]]));
+            if(redisp || !jt.byId("hubacctcontdiv")) {
+                jt.out("topdlgdiv", jt.tac2html(
+                    ["div", {id:"hubacctdiv"},
+                     [["div", {id:"hubaccttopdiv"},
+                       tas.map((ta, sx) => jt.tac2html(
+                           ["a", {href:ta.h, onclick:mdfs("h2a.accountSettings",
+                                                          sx)},
+                            ["span", {cla:((ix === sx)?
+                                           "fhselspan" : "fhspan")},
+                             ta.t]]))
+                       .join(" &nbsp;|&nbsp ")],
+                      ["div", {id:"hubacctcontdiv"}]]])); }
             const [m, f] = tas[ix].oc.split(".");
             mgrs[m][f](); },
         emailPwdReset: function () {
