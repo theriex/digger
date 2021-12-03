@@ -301,8 +301,8 @@ module.exports = (function () {
                     uplds.push(s); } });
             if(uplds.length > 0) {
                 fields.uplds = JSON.stringify(uplds);
-                test.replace(/\(/g, "\\28");
-                test.replace(/\)/g, "\\29"); }
+                fields.uplds = fields.uplds.replace(/\(/g, "\\28");
+                fields.uplds = fields.uplds.replace(/\)/g, "\\29"); }
             return hubPostFields(res, "mfcontrib", function (hubret) {
                     var dbo = db.dbo();
                     noteUpdatedAccount(hubret);
