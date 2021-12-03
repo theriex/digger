@@ -277,6 +277,9 @@ module.exports = (function () {
     //has been tripped, sending the same data again is instantly rejected.
     //The best approach seems to be to start with just a single song, then
     //scale up to a reasonable max on continued success.
+    //03dec21: Security rules seem to be triggered by parenthetical
+    //expressions, especially two in a row e.g. "Song (Official) (1).mp3"
+    //Since uplds is an array of simple objects, escape all parens.
     function mfcontrib (req, res) {
         var fif = new formidable.IncomingForm();
         eec.mfcontrib = eec.mfcontrib || {};
@@ -297,7 +300,9 @@ module.exports = (function () {
                     s.path = p;
                     uplds.push(s); } });
             if(uplds.length > 0) {
-                fields.uplds = JSON.stringify(uplds); }
+                fields.uplds = JSON.stringify(uplds);
+                test.replace(/\(/g, "\\28");
+                test.replace(/\)/g, "\\29"); }
             return hubPostFields(res, "mfcontrib", function (hubret) {
                     var dbo = db.dbo();
                     noteUpdatedAccount(hubret);
