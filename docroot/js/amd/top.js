@@ -142,7 +142,8 @@ app.top = (function () {
             syt.up += upldsongs.length;
             mgrs.hcu.serializeAccount(curracct);
             const obj = {email:curracct.email, token:curracct.token,
-                         syncdata: JSON.stringify([curracct, ...upldsongs])};
+                         syncdata:app.safeTransmitJSON(
+                             [curracct, ...upldsongs])};
             mgrs.hcu.deserializeAccount(curracct);
             return jt.objdata(obj); },
         processReceivedSyncData: function (updates) {

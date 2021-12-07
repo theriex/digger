@@ -13,6 +13,17 @@ module.exports = (function () {
     //var hs = "http://localhost:8080";
 
 
+    //A serialized array of songs can still run foul of web security rules
+    //due to paths or titles with multiple paren expressions.  DiggerHub
+    //json.loads will translate escaped paren values back into parens.
+    function safeTransmitJSON (ob) {
+        ob = JSON.stringify(ob);
+        ob = ob.replace(/\(/g, "\\28");
+        ob = ob.replace(/\)/g, "\\29");
+        return ob;
+    }
+
+
     function verifyDefaultAccount (conf) {
         conf.acctsinfo = conf.acctsinfo || {currid:"", accts:[]};
         if(!conf.acctsinfo.accts.find((x) => x.dsId === "101")) {
@@ -300,9 +311,7 @@ module.exports = (function () {
                     s.path = p;
                     uplds.push(s); } });
             if(uplds.length > 0) {
-                fields.uplds = JSON.stringify(uplds);
-                fields.uplds = fields.uplds.replace(/\(/g, "\\28");
-                fields.uplds = fields.uplds.replace(/\)/g, "\\29"); }
+                fields.uplds = safeTransmitJSON(uplds); }
             return hubPostFields(res, "mfcontrib", function (hubret) {
                     var dbo = db.dbo();
                     noteUpdatedAccount(hubret);
