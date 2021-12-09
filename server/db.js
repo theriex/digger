@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.9.14";
+        return "v0.9.15";
     }
 
 
@@ -267,11 +267,11 @@ module.exports = (function () {
     }
 
 
-    function addSongToDb (fn, tagdata) {
+    function findOrAddDbSong (fn) {
         var rpath; var rec;
         dbo.songcount += 1;
         rpath = fn.slice(conf.musicPath.length);  //make path relative
-        if(rpath.startsWith(path.sep)) {
+        if(rpath.startsWith(path.sep) || rpath.startsWith("/")) {
             rpath = rpath.slice(1); }
         mostRecentRelativePathRead = rpath;
         rec = dbo.songs[rpath];
@@ -283,19 +283,64 @@ module.exports = (function () {
                 rec.fq = rec.fq.slice(1); } }
         else {  //make new entry
             //console.log(dbo.songcount + " creating " + rpath);
-            rec = {fq:"N", al:49, el:49, kws:"", rv:5};
+            rec = {fq:"N", al:49, el:49, kws:"", rv:5, path:rpath};
             dbo.songs[rpath] = rec; }
-        //minimum required metadata is title + artist
-        if(!tagdata || !tagdata.tags.title || !tagdata.tags.artist) {
-            tagdata = mdtagsFromPath(rpath); }
-        if(!tagdata || !tagdata.tags.title || !tagdata.tags.artist) {
-            console.log("addSongToDb missing metadata " + rpath);
-            if(!rec.fq.startsWith("U")) {  //mark as unreadable
-                rec.fq = "U" + rec.fq; } }
-        else {
-            rec.ar = tagdata.tags.artist;
-            rec.ab = tagdata.tags.album;
-            rec.ti = tagdata.tags.title; }
+        return rec;
+    }
+
+
+    function makeMetadataRef (td, complete) {
+        var mrd = (complete? "C": "I");
+        const flds = ["title", "artist", "album"];
+        flds.forEach(function (fld) {
+            var val = td.tags[fld] || "";
+            val = val.replace(/|/g, "");  //strip any contained delimiters
+            mrd += "|" + val; });
+        return mrd;
+    }
+
+
+    //minimum required metadata is title + artist
+    function updateMetadata (song, td) {
+        var pmrd = song.mrd || "";
+        var complete = false;
+        if(td && td.tags.title && td.tags.artist && td.tags.album) {
+            complete = true; }
+        if(!td || !td.tags.title || !td.tags.artist) {
+            td = mdtagsFromPath(song.path); }
+        if(!td || !td.tags.title || !td.tags.artist) {
+            console.log("missing metadata " + song.path);
+            if(!song.fq.startsWith("U")) {  //mark as unreadable
+                song.fq = "U" + song.fq; } }
+        else {  //have at least title and artist
+            song.mrd = makeMetadataRef(td, complete);
+            if(complete && pmrd !== song.mrd) {  //new metadata overrides prev
+                song.ar = "";
+                song.ab = "";
+                song.ti = ""; }
+            song.ar = song.ar || td.tags.artist;
+            song.ab = song.ab || td.tags.album || "Singles";
+            song.ti = song.ti || td.tags.title; }
+        return song;
+    }
+
+
+    //create or update the song corresponding to the given a full file path.
+    //contf is responsible for writing the updated dbo as needed.
+    function readMetadata (ffp, contf) {
+        new mt.Reader(ffp)
+            .setTagsToRead(["title", "artist", "album"])
+            .read({
+                onSuccess: function (tags) {
+                    var song = findOrAddDbSong(ffp);
+                    song = updateMetadata(song, tags);
+                    contf(song); },
+                onError: function (err) {
+                    var song;
+                    console.log("mt.read error " + err.info + ": " + ffp);
+                    song = findOrAddDbSong(ffp);
+                    song = updateMetadata(song);
+                    contf(song); }});
     }
 
 
@@ -318,16 +363,7 @@ module.exports = (function () {
                         ws.files.push(fn + "/" + childfile); } });
                 walkFiles(ws); }); }
         else if(isMusicFile(fn)) {
-            new mt.Reader(fn)
-                .setTagsToRead(["title", "artist", "album"])
-                .read({
-                    onSuccess: function (tags) {
-                        addSongToDb(fn, tags);
-                        walkFiles(ws); },
-                    onError: function (err) {
-                        console.log("mt.read error " + err.info + ": " + fn);
-                        addSongToDb(fn, null);
-                        walkFiles(ws); } }); }
+            readMetadata(fn, function () { walkFiles(ws); }); }
         else {  //not a directory and not a music file, continue.
             walkFiles(ws); }
     }
@@ -533,6 +569,23 @@ module.exports = (function () {
     }
 
 
+    function recheckMetadata (song, res) {
+        var rp = song.path;
+        if(rp.startsWith("/")) {
+            rp = rp.slice(1); }
+        //console.log("recheckMetadata " + rp);
+        readMetadata(conf.musicPath + "/" + rp, function (song) {
+            writeDatabaseObject();
+            console.log(new Date().toLocaleString() + " Updated " + song.path);
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(JSON.stringify([song])); });
+    }
+
+
+    //When a song is loaded into the player, lp and pc are updated to
+    //reflect that it was played.  A secondary use of lp is comparing it to
+    //modified, to determine which songs need to be sent in hubsync.  The
+    //update of lp here is for hubsync processing, pc remains the same.
     function updateSong (req, res) {
         var updat = new formidable.IncomingForm();
         updat.parse(req, function (err, fields) {
@@ -546,7 +599,7 @@ module.exports = (function () {
             if(fields.settings) {
                 dbo.settings = JSON.parse(fields.settings); }
             song.fq = fields.fq;
-            song.lp = fields.lp;
+            song.lp = new Date().toISOString();  //trigger hubsync, see note
             song.rv = fields.rv;
             song.al = fields.al;
             song.el = fields.el;
@@ -560,11 +613,8 @@ module.exports = (function () {
             song.srcrat = fields.srcrat || "";
             normalizeIntegerValues(song);
             require("./hub.js").verifyFriendRating(song);
-            writeDatabaseObject();
-            song.path = fields.path;
-            console.log("Updated " + song.path);
-            res.writeHead(200, {"Content-Type": "application/json"});
-            res.end(JSON.stringify([song])); });
+            song.path = fields.path;  //note local path for hub sync
+            recheckMetadata(song, res); });
     }
 
 

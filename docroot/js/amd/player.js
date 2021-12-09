@@ -421,6 +421,7 @@ app.player = (function () {
         updateSongDisplay: function () {
             mgrs.kwd.rebuildToggles();
             mgrs.aud.updateSongTitleDisplay();
+            mgrs.tun.resetClearedMetDat();
             mgrs.pan.updateControl("al", stat.song.al);
             mgrs.pan.updateControl("el", stat.song.el);
             stat.song.rv = stat.song.rv || 0;  //verify numeric value
@@ -501,6 +502,12 @@ app.player = (function () {
             //jt.log("Changing " + fld + " to " + val);
             stat.song[fld] = val;
             noteSongModified(); },
+        resetClearedMetDat: function () {
+            const sfs = ["ti", "ar", "ab"];
+            sfs.forEach(function (sf) {
+                var input = jt.byId("tdet" + sf);
+                if(input && !input.value) {
+                    input.value = stat.song[sf]; } }); },
         optDetailsHTML: function () {
             var lastPlayed = "Never";
             if(stat.prevPlayed) {

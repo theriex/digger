@@ -62,7 +62,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=211204");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=211209");
     },
 
 
@@ -70,7 +70,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=211204";  //updated as part of release process
+        return "v=211209";  //updated as part of release process
     },
 
 
@@ -180,20 +180,7 @@ return {
                     errmsg = errmsg.slice(0, ci); } }
             jt.log("app.pt returning: " + errmsg); }
         return errmsg;
-    },
-
-
-    //A serialized array of songs can still run foul of web security rules
-    //due to paths or titles with multiple paren expressions.  DiggerHub
-    //json.loads will translate escaped paren values back into parens.
-    safeTransmitJSON: function (ob) {
-        ob = JSON.stringify(ob);
-        ob = ob.replace(/\(/g, "\\28");
-        ob = ob.replace(/\)/g, "\\29");
-        return ob;
     }
-
-
 
 };  //end returned functions
 }());

@@ -14,13 +14,18 @@ module.exports = (function () {
 
 
     //A serialized array of songs can still run foul of web security rules
-    //due to paths or titles with multiple paren expressions.  DiggerHub
-    //json.loads will translate escaped paren values back into parens.
-    function safeTransmitJSON (ob) {
-        ob = JSON.stringify(ob);
-        ob = ob.replace(/\(/g, "\\28");
-        ob = ob.replace(/\)/g, "\\29");
-        return ob;
+    //due to paths or titles with multiple paren expressions.
+    function txSongsJSON (songs) {
+        songs = songs.map(function (sg) {
+            sg = JSON.parse(JSON.stringify(sg));
+            delete sg.mrd;
+            const flds = ["ti", "ar", "ab", "path"];
+            flds.forEach(function (fld) {
+                //paren expressions run afoul of web security rules. html esc
+                sg[fld] = sg[fld].replace(/\(/g, "&#40;");
+                sg[fld] = sg[fld].replace(/\)/g, "&#41;"); });
+            return sg; });
+        return JSON.stringify(songs);
     }
 
 
@@ -311,7 +316,7 @@ module.exports = (function () {
                     s.path = p;
                     uplds.push(s); } });
             if(uplds.length > 0) {
-                fields.uplds = safeTransmitJSON(uplds); }
+                fields.uplds = txSongsJSON(uplds); }
             return hubPostFields(res, "mfcontrib", function (hubret) {
                     var dbo = db.dbo();
                     noteUpdatedAccount(hubret);

@@ -129,6 +129,15 @@ app.top = (function () {
             else {  //hub sync done
                 setTimeout(mgrs.mfc.restartIfWaiting, 100);
                 jt.out("modindspan", ""); } }, //turn off comms indicator
+        txSgFmt: function (sg) {
+            sg = JSON.parse(JSON.stringify(sg));
+            delete sg.mrd;
+            const flds = ["ti", "ar", "ab", "path"];
+            flds.forEach(function (fld) {
+                //paren expressions run afoul of web security rules. html esc
+                sg[fld] = sg[fld].replace(/\(/g, "&#40;");
+                sg[fld] = sg[fld].replace(/\)/g, "&#41;"); });
+            return sg; },
         makeSendSyncData: function () {
             //send the current account + any songs that need sync.  If just
             //signed in, then don't send the current song or anything else
@@ -138,12 +147,12 @@ app.top = (function () {
             if(!curracct.syncsince) {  //not initial account creation
                 upldsongs = Object.values(app.svc.dispatch("loc", "songs"))
                     .filter((s) => s.lp > (s.modified || ""));
-                upldsongs = upldsongs.slice(0, 199); }
+                upldsongs = upldsongs.slice(0, 199);
+                upldsongs = upldsongs.map((sg) => mgrs.a2h.txSgFmt(sg)); }
             syt.up += upldsongs.length;
             mgrs.hcu.serializeAccount(curracct);
             const obj = {email:curracct.email, token:curracct.token,
-                         syncdata:app.safeTransmitJSON(
-                             [curracct, ...upldsongs])};
+                         syncdata:JSON.stringify([curracct, ...upldsongs])};
             mgrs.hcu.deserializeAccount(curracct);
             return jt.objdata(obj); },
         processReceivedSyncData: function (updates) {

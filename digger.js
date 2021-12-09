@@ -99,7 +99,7 @@ db.init(function (conf) {
     function createWebServer () {
         websrv.server = http.createServer(function (req, rsp) {
         try {
-            const quieturls = ["/songscount", "/mergestat"];
+            const quieturls = ["/songscount", "/mergestat", "/songupd"];
             const pu = parsedURL(req.url);
             if(!quieturls.includes(pu.baseurl)) {
                 console.log(req.url); }
