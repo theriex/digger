@@ -203,7 +203,7 @@ covering most common music playing situations.</p>
 </ul>
 
 
-<h2 id="digcfg">Digger Local Files Configuration</h2>
+<h2 id="digcfg">Local Files Configuration</h2>
 
 <p>To change where Digger should read your music files from, open the
 Library Actions in the top panel, then click either the "Music Files" or
@@ -238,11 +238,11 @@ directly.  It also has your email address and access token, so don't share
 your .digger_config.json with others.</p>
 
 
-<h2>Local Files Digger Hub Sync</h2>
+<h2>Digger Hub Sync</h2>
 
-<p>If you have signed in to DiggerHub, Digger synchronizes your local song
-data with data saved on the site.  This is handy as a backup, and great if
-you also run Digger from the web or from another computer.</p>
+<p>If you joined DiggerHub, Digger synchronizes your local song data with
+data saved on the site.  This is handy as a backup, and great if you also
+run Digger from the web or from another computer.</p>
 
 <p>The initial synchronization process can sometimes take a while, depending
 on how much song data you have.  Once the initial sync is done, it's usually
@@ -257,6 +257,25 @@ issues or whatever.</p>
 <p>For in-depth tech details on how hub sync works
 see <a href="hubsyncNotes.txt">hubnotes.txt</a>.</p>
 
+
+<h2>Metadata</h2>
+
+<p>When finding common songs between friends or music sources, DiggerHub
+matches on the song Title, Artist, and Album.  These fields are created
+during library import, typically by reading the song metadata.  If a field
+has a bad value, you can correct it in the tuning options on the player
+panel.  When you correct a field, you <em>override</em> the library import
+values, you do not change the underlying music file.
+
+<p>If you choose to change the metadata in the source music file, using a
+music player interface or similar tool, Digger will read the new values
+next time you play the song.</p>
+
+<p>The variety of inconsistencies in song metadata is a source of constant
+entertainment.  When overriding a field, use the most common value and put
+anything else in parentheses.  "My Song" and "My Song (remixed)" are
+considered different values within your collection, but equivalent between
+friends or across music sources.</p>
 
 </body>
 </html>
