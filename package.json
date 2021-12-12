@@ -24,6 +24,7 @@
       "./docroot/js/amd/deck.js",
       "./docroot/docs/manual.html",
       "./docroot/docs/hubsyncNotes.txt",
+      "./docroot/docs/metadata.html",
       "./docroot/index.html"
     ]
   },
