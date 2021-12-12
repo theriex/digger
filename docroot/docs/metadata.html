@@ -1,0 +1,84 @@
+<!doctype html>
+<html itemscope="itemscope" itemtype="https://schema.org/WebPage"
+      xmlns="https://www.w3.org/1999/xhtml" dir="ltr" lang="en-US">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="robots" content="noodp" />
+  <meta name="description" content="How metadata is mapped in Digger." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metadata Matching in Digger</title>
+<style type="text/css">
+body { background:AntiqueWhite; padding:0px 10px; font-size:large; }
+h1 { text-align:center; }
+h2 { padding:10px 0px 0px 0px; }
+tr { padding:0px; }
+th { font-weight:bold; font-style:normal; }
+td, th { padding:0px 10px 0px 0px; text-align:left; }
+</style>
+</head>
+<body>
+
+<h1>Metadata Matching</h1>
+
+<p>When saving your own song impressions on DiggerHub, the
+title/artist/album fields all need to match exactly for it to be considered
+the same song.  An original studio release and the live version are not the
+same.  When matching between friends, an exact match is preferable, but a
+soft match on title and artist is enough for default ratings or
+recomendations. </p>
+
+<h2>Soft Match</h2>
+
+<table><tr><th>Eric has</th><th>Alice has</th></tr><tr><td>
+Not Great Men (Remastered) <br/>
+<em>Gang Of Four</em><br/>
+Singles <br/>
+</td><td>
+Not Great Men <br/>
+<em>Gang Of Four</em><br/>
+Entertainment! <br/>
+</td></tr></table>
+
+<p>Digger ignores the parenthetical expression and matches the title and
+artist for friend collaboration.</p>
+
+
+<h2>No Match</h2>
+
+<table><tr><th>Eric has</th><th>Ennio has</th></tr><tr><td>
+The Great Curve <br/>
+<em>Talking Heads</em><br/>
+Remain In Light <br/>
+</td><td>
+Remain in Light/03-The Great Curve.mp3 <br/>
+<em>Unknown</em><br/>
+Singles <br/>
+</td></tr></table>
+
+<p>If the local song had been in a "Talking Heads" folder, then Digger would
+have filled out the metadata from the path.  With no metadata and incomplete
+folder structure, metadata needs to be filled out using something like
+<a href="https://picard.musicbrainz.org/">MuiscBrainz Picard</a> and then
+re-imported. </p>
+
+
+<h2>SpId Match</h2>
+
+<table><tr><th>Eric has</th><th>Alice has</th></tr><tr><td>
+Hautoa (Warrior) <br/>
+<em>Oceania</em><br/>
+CD <br/>
+</td><td>
+Hautoa (Warrior) <br/>
+<em>Jaz Coleman</em><br/>
+Oceania <br/>
+</td></tr></table>
+
+<p>The semi-automated mapping of local file metadata to Spotify database
+information resulted in both tracks having the same spid value, so these
+tracks match for friend collaboration.</p>
+
+
+
+</body>
+</html>
