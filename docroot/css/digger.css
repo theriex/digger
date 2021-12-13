@@ -81,6 +81,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .igftr td { padding:0px 10px 0px 0px; }
 #igfindiv label { font-size:small; margin:0px 5px 0px 0px; }
 
+#bmdsongsdiv { max-height:100px; overflow:scroll; margin:0px 0px 10px 0px;
+  border:1px solid; padding:3px; }
+.bmdsonglinkdiv { font-size:small; }
+
 .formattr { font-size:small; text-align:right; }
 .cblab { font-size:small; }
 #hubaccttopdiv { font-size:small; padding-left:4px; }

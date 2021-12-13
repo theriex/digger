@@ -1264,7 +1264,8 @@ app.top = (function () {
                       ["div", {cla:"pathdiv"},
                        [["a", {href:"#configure", onclick:a.oc, title:a.tt},
                          ["span", {cla:"pathlabelspan"}, a.n + ": "]],
-                        ["span", {cla:"pathspan"}, config[a.p]]]])],
+                        ["span", {cla:"pathspan", id:"cfgp" + a.p + "span"}, 
+                         config[a.p]]]])],
                  ["div", {cla:"dlgpathsdiv"},
                   acts.filter((a) => a.ty === "info")
                   .map((a) =>
@@ -1273,7 +1274,33 @@ app.top = (function () {
                   acts.filter((a) => a.ty === "btn")
                   .map((a) =>
                       ["button", {type:"button", title:a.tt, onclick:a.oc},
-                       a.n])]])); },
+                       a.n])]]));
+            setTimeout(mgrs.locla.missingMetadataLink, 50); },
+        missingMetadataSongs: function () {
+            return Object.values(app.svc.dispatch("loc", "songs"))
+                .filter((s) => s.ar === "Unknown" && s.ab === "Singles"); },
+        missingMetadataLink: function () {
+            var mmdcount = mgrs.locla.missingMetadataSongs().length;
+            if(!mmdcount) { return ""; }
+            jt.out("cfgpmusicPathspan", jt.tac2html(
+                [jt.byId("cfgpmusicPathspan").innerHTML,
+                 " &nbsp; ",
+                 ["a", {href:"#missingmetadata", title:"Songs Missing Metadata",
+                        onclick:mdfs("locla.displayMMSongs")},
+                  "-" + mmdcount + "md"]])); },
+        displayMMSongs: function () {
+            jt.out("topdlgdiv", jt.tac2html(
+                ["div", {id:"bmdsongsdiv"},
+                 mgrs.locla.missingMetadataSongs().map((s) =>
+                     ["div", {cla:"bmdsonglinkdiv"},
+                      ["a", {href:"#play" + s.dsId, title:"Play Song" + s.dsId,
+                             onclick:mdfs("locla.playSong", s.path)},
+                       s.path]])])); },
+        playSong: function (path) {
+            var song = app.svc.dispatch("loc", "songs")[path];
+            app.deck.dispatch("dk", "removeFromDeck", song);
+            app.deck.dispatch("hst", "noteSongPlayed", song);
+            app.deck.dispatch("dk", "playnow", "hst", 0); },
         hubSyncInfoHTML: function () {
             if(mgrs.locam.getAccount().dsId === "101") { return ""; }
             setTimeout(mgrs.a2h.makeStatusDisplay, 100);
