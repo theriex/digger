@@ -314,10 +314,13 @@ module.exports = (function () {
                 song.fq = "U" + song.fq; } }
         else {  //have at least title and artist
             song.mrd = makeMetadataRef(td, complete);
-            if(complete && pmrd !== song.mrd) {  //new metadata overrides prev
-                song.ar = "";
-                song.ab = "";
-                song.ti = ""; }
+            if(pmrd !== song.mrd) {  //metadata has changed
+                song.lp = new Date().toISOString();  //include song in hubsync
+                if(complete && ) {  //new metadata overrides prev
+                    song.ar = "";
+                    song.ab = "";
+                    song.ti = ""; } }
+            //fill in any empty fields
             song.ar = song.ar || td.tags.artist;
             song.ab = song.ab || td.tags.album || "Singles";
             song.ti = song.ti || td.tags.title; }
