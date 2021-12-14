@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.9.15";
+        return "v0.9.16";
     }
 
 
@@ -316,7 +316,7 @@ module.exports = (function () {
             song.mrd = makeMetadataRef(td, complete);
             if(pmrd !== song.mrd) {  //metadata has changed
                 song.lp = new Date().toISOString();  //include song in hubsync
-                if(complete && ) {  //new metadata overrides prev
+                if(complete) {  //new metadata overrides prev
                     song.ar = "";
                     song.ab = "";
                     song.ti = ""; } }
