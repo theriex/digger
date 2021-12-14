@@ -545,7 +545,8 @@ app.top = (function () {
     return {
         afterContributionsUpdated: function () {
             setTimeout(function () {
-                app.deck.dispatch("ws", "rebuildIfLow", "friendcontrib"); },
+                app.deck.dispatch("ws", "rebuildIfLow", "friendcontrib",
+                                  true); },
                        200); },
         updateMFContribs: function () {
             if(updstat.inprog) { return; }

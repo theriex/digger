@@ -154,9 +154,11 @@ app.deck = (function () {
                 clearTimeout(wrk.tmo); }  //didn't start yet. reschedule
             //jt.log("deck rebuild " + caller + " scheduled.");
             wrk.tmo = setTimeout(mgrs.ws.rebuildWork, wrk.wait); },
-        rebuildIfLow: function (caller) {
+        rebuildIfLow: function (caller, redisp) {
             if(wrk.songs.length < 5) {
-                mgrs.ws.rebuild(caller); } },
+                mgrs.ws.rebuild(caller); }
+            else if(redisp) {  //no rebuild, caller requested refresh
+                mgrs.sop.displaySongs("dk", "decksongsdiv", wrk.songs); } },
         noteUpdatedSongs: function (updatedsongs) {
             var upds = {};
             updatedsongs.forEach(function (s) { upds[s.dsId] = s; });
