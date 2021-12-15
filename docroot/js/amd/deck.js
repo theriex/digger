@@ -15,6 +15,24 @@ app.deck = (function () {
     mgrs.ws = (function () {
         var wrk = {tmo:null, stat:"", resched:false, songs:[], fcs:[],
                    prs:[], wait:600};  //debounce filters
+        function compareOwnership(a, b) {  //friend songs after own songs
+            if(a.dsId && b.dsId) {
+                if(a.dsId.startsWith("fr") && !b.dsId.startsWith("fr")) {
+                    return 1; }
+                if(!a.dsId.startsWith("fr") && b.dsId.startsWith("fr")) {
+                    return -1; } }
+            return 0; }
+        function compareLastPlayed(a, b) {  //oldest songs first
+            if(a.dsId && a.dsId.startsWith("fr") &&  //most recent first for
+               b.dsId && b.dsId.startsWith("fr")) {  //friend recs (email thx)
+                if(a.lp && !b.lp) { return -1; }  //unplayed last
+                if(!a.lp && b.lp) { return 1; }
+                if(a.lp && b.lp) { return b.lp.localeCompare(a.lp); } }
+            else {  //sorting own songs, oldest songs first
+                if(a.lp && !b.lp) { return 1; }  //unplayed first
+                if(!a.lp && b.lp) { return -1; }
+                if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); } }
+            return 0; }
     return {
         appendInfoCount: function (phasename, count) {
             count = count || wrk.songs.length;
@@ -84,6 +102,8 @@ app.deck = (function () {
                                       (60 * 1000))  //one minute from oldest
                     .toISOString(); }
             while(chk.endidx < wrk.songs.length - 1 &&
+                  (!wrk.songs[chk.endidx].dsId ||
+                   !wrk.songs[chk.endidx].dsId.startsWith("fr")) &&
                   (!wrk.songs[chk.endidx].lp ||
                    wrk.songs[chk.endidx].lp <= chk.thresh)) {
                 chk.endidx += 1; }
@@ -103,11 +123,8 @@ app.deck = (function () {
             wrk.songs = first.concat(rest); },
         presentSongs: function () {
             mgrs.ws.preserveExistingDeckSongs();  //pulled into wrk.prs
-            wrk.songs.sort(function (a, b) {  //sort by last played
-                if(a.lp && !b.lp) { return 1; }
-                if(!a.lp && b.lp) { return -1; }
-                if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); }
-                return 0; });
+            wrk.songs.sort(function (a, b) {  //sort by last played, fr last
+                return compareOwnership(a, b) || compareLastPlayed(a, b); });
             mgrs.ws.shuffleUnplayed();  //avoid predictable first song 
             wrk.songs = wrk.songs.slice(0, 1000);  //truncate to reasonable len
             mgrs.ws.shuffleSongs();  //older songs first, no starvation
