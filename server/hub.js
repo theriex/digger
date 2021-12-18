@@ -13,18 +13,20 @@ module.exports = (function () {
     //var hs = "http://localhost:8080";
 
 
-    //A serialized array of songs can still run foul of web security rules
-    //due to paths or titles with multiple paren expressions.
+    //!EQUIVALENT CODE IN ../docroot/js/amd/svc.js  See comments there.
+    function txSong (song) {
+        var delflds = ["mrd", "smti", "smar", "smab"];
+        var escflds = ["path", "ti", "ar", "ab", "nt"];
+        song = JSON.parse(JSON.stringify(song));
+        delflds.forEach(function (fld) { delete song[fld]; });
+        escflds.forEach(function (fld) {  //replace parens with HTML chars
+            song[fld] = song[fld].replace(/\(/g, "&#40;");
+            song[fld] = song[fld].replace(/\)/g, "&#41;"); });
+        return song;
+    }
+    //function txSongJSON (song) { return JSON.stringify(txSong(song)); }
     function txSongsJSON (songs) {
-        songs = songs.map(function (sg) {
-            sg = JSON.parse(JSON.stringify(sg));
-            delete sg.mrd;
-            const flds = ["ti", "ar", "ab", "path"];
-            flds.forEach(function (fld) {
-                //paren expressions run afoul of web security rules. html esc
-                sg[fld] = sg[fld].replace(/\(/g, "&#40;");
-                sg[fld] = sg[fld].replace(/\)/g, "&#41;"); });
-            return sg; });
+        songs = songs.map((song) => txSong(song));
         return JSON.stringify(songs);
     }
 

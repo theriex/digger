@@ -14,6 +14,27 @@ app.svc = (function () {
         jt.log(msg);
         jt.out("statspan", msg);
     }
+    //!EQUIVALENT CODE IN ../../../server/hub.js
+    //Even a serialized song can run afoul of web security rules due to
+    //paths, titles or other fields containing parenthetical expressions or
+    //other triggering patterns.  For UPLOAD, remove any problematic temp
+    //fields and escape parens in fields that could trigger security blocks.
+    function txSong (song) {
+        var delflds = ["mrd", "smti", "smar", "smab"];
+        //THIS MUST MATCH appdat.py unescape_song_fields
+        var escflds = ["path", "ti", "ar", "ab", "nt"];
+        song = JSON.parse(JSON.stringify(song));
+        delflds.forEach(function (fld) { delete song[fld]; });
+        escflds.forEach(function (fld) {  //replace parens with HTML chars
+            song[fld] = song[fld].replace(/\(/g, "&#40;");
+            song[fld] = song[fld].replace(/\)/g, "&#41;"); });
+        return song;
+    }
+    function txSongJSON (song) { return JSON.stringify(txSong(song)); }
+    function txSongsJSON (songs) {
+        songs = songs.map((song) => txSong(song));
+        return JSON.stringify(songs);
+    }
 
 
     //Copy export manager copies local songs to local export area
@@ -500,7 +521,7 @@ app.svc = (function () {
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {
-            var dat = {songdat:JSON.stringify(song)};
+            var dat = {songdat:txSongJSON(song)};
             jt.call("POST", "/api/songupd", app.svc.authdata(dat),
                     function (res) {
                         var updsong = res[0];
@@ -511,7 +532,7 @@ app.svc = (function () {
                         jt.err("songupd failed " + code + ": " + errtxt); },
                     jt.semaphore("mgrs.web.updateSong")); },
         updateMultipleSongs: function (updss, contf, errf) {
-            var updobj = {songs:JSON.stringify(updss)};  //100 songs ~= 61k
+            var updobj = {songs:txSongsJSON(updss)};  //100 songs ~= 61k
             jt.call("POST", "api/multiupd", app.svc.authdata(updobj),
                     contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
         addFriend: function (mfem, contf, errf) {
