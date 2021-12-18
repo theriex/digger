@@ -521,7 +521,7 @@ app.player = (function () {
                 if(fld.e) {
                     fld.v = ["input", {type:"text", id:"tdet" + fld.v,
                                        oninput:mdfs("tun.chgMetDat", fld.v),
-                                       value:stat.song[fld.v]}]; } });
+                                       value:jt.escq(stat.song[fld.v])}]; } });
             return jt.tac2html(["table", flds.map((fld) =>
                 ["tr", {cla:"tuneoptdettr"},
                  [["td", {cla:"tuneoptdetattr"}, fld.a + ": "],
