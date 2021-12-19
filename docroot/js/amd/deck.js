@@ -203,6 +203,18 @@ app.deck = (function () {
                        onclick:app.dfs("top", "gen.togtopdlg", ["am", "open"])},
                  txt]); }
     return {
+        optionsTAC: function (mgrnm, idx) {
+            var tac = opts.filter((o) => 
+                ((!o.x || o.x.indexOf(mgrnm) < 0) &&
+                 (o.id !== "playnext" || idx > 0)))
+                .map((o) => ["a", {href:"#" + o.id, title:o.tt, cla:"sopa",
+                                   onclick:mdfs("sop.dispatchOption", o.act,
+                                                mgrnm, idx)},
+                             ["img", {src:"img/" + o.img, cla:"ptico"}]]);
+            tac.unshift(["a", {href:"#close", title:"dismiss", cla:"sopx",
+                               onclick:mdfs("sop.togOptions", mgrnm, idx)},
+                         "x"]);
+            return tac; },
         togOptions: function  (mgrnm, idx) {
             var optdivid = "da" + mgrnm + idx;
             if(jt.byId(optdivid).innerHTML)  { //remove content to close
@@ -210,14 +222,7 @@ app.deck = (function () {
             const playerr = mgrs.hst.playbackError(mgrnm, idx);
             if(playerr) {
                 return jt.out(optdivid, playerr); }
-            jt.out(optdivid, jt.tac2html(
-                opts.filter((o) => 
-                    ((!o.x || o.x.indexOf(mgrnm) < 0) &&
-                     (o.id !== "playnext" || idx > 0)))
-                .map((o) => ["a", {href:"#" + o.id, title:o.tt, cla:"sopa",
-                                   onclick:mdfs("sop.dispatchOption", o.act,
-                                                mgrnm, idx)},
-                             ["img", {src:"img/" + o.img, cla:"ptico"}]]))); },
+            jt.out(optdivid, jt.tac2html(mgrs.sop.optionsTAC(mgrnm, idx))); },
         dispatchOption: function (action, mgrnm, idx) {
             mgrs.sop.togOptions(mgrnm, idx);  //remove actions overlay
             mgrs.dk[action](mgrnm, idx); },   //do clicked action
