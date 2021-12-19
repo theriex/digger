@@ -20,8 +20,9 @@ module.exports = (function () {
         song = JSON.parse(JSON.stringify(song));
         delflds.forEach(function (fld) { delete song[fld]; });
         escflds.forEach(function (fld) {  //replace parens with HTML chars
-            song[fld] = song[fld].replace(/\(/g, "&#40;");
-            song[fld] = song[fld].replace(/\)/g, "&#41;"); });
+            if(song[fld]) {
+                song[fld] = song[fld].replace(/\(/g, "&#40;");
+                song[fld] = song[fld].replace(/\)/g, "&#41;"); } });
         return song;
     }
     //function txSongJSON (song) { return JSON.stringify(txSong(song)); }
@@ -105,7 +106,8 @@ module.exports = (function () {
         var ls = dbo.songs[s.path];
         if(!ls) {  //song was last updated from some other setup
             ls = Object.values(dbo.songs).find((x) =>
-                x.ti === s.ti && x.ar === s.ar && x.ab === s.ab); }
+                x.dsId === s.dsId ||
+                    (x.ti === s.ti && x.ar === s.ar && x.ab === s.ab)); }
         if(!ls) {  //new song from some other setup
             ls = {path:s.path,  //Need a path, even if no file there.
                   fq:"DN",      //Deleted file, Newly added
@@ -116,7 +118,7 @@ module.exports = (function () {
         if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
             flds.push("fq"); }
         flds.forEach(function (fld) { ls[fld] = s[fld]; });
-        console.log("writing updated song " + s.path);
+        console.log("writing updated song " + ls.path);
         return ls;
     }
 

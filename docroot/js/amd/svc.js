@@ -26,8 +26,9 @@ app.svc = (function () {
         song = JSON.parse(JSON.stringify(song));
         delflds.forEach(function (fld) { delete song[fld]; });
         escflds.forEach(function (fld) {  //replace parens with HTML chars
-            song[fld] = song[fld].replace(/\(/g, "&#40;");
-            song[fld] = song[fld].replace(/\)/g, "&#41;"); });
+            if(song[fld]) {
+                song[fld] = song[fld].replace(/\(/g, "&#40;");
+                song[fld] = song[fld].replace(/\)/g, "&#41;"); } });
         return song;
     }
     function txSongJSON (song) { return JSON.stringify(txSong(song)); }
