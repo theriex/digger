@@ -261,7 +261,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .decksongactdiv { position:absolute; top:0px; left:20px;
   background:rgba(144, 144, 144, 0.6); padding:0px 8px; border-radius:5px; }
 .sopa { margin-left:30px; }
-.sopx { color:white; background:#999; }
+.sopx, .sopfrsugdiv { color:white; background:#999; }
 
 .albumsongdiv { font-size:smaller; margin:5px 0px; }
 .albumsonglink { display:block; font-size:smaller; padding:0px 0px 2px 15px; }

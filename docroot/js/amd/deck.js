@@ -211,9 +211,16 @@ app.deck = (function () {
                                    onclick:mdfs("sop.dispatchOption", o.act,
                                                 mgrnm, idx)},
                              ["img", {src:"img/" + o.img, cla:"ptico"}]]);
-            tac.unshift(["a", {href:"#close", title:"dismiss", cla:"sopx",
+            tac.unshift(["a", {href:"#close", title:"dismiss",
                                onclick:mdfs("sop.togOptions", mgrnm, idx)},
-                         "x"]);
+                         ["span", {cla:"sopx"}, "x"]]);
+            const song = mgrs[mgrnm].songByIndex(idx);
+            if(song.dsId && song.dsId.startsWith("fr")) {
+                const frnd = app.top.dispatch("mfnd", "findFriendById",
+                                              song.aid);
+                if(frnd) {
+                    tac.push(["div", {cla:"sopfrsugdiv"},
+                              "Sugggested by " + frnd.firstname]); } }
             return tac; },
         togOptions: function  (mgrnm, idx) {
             var optdivid = "da" + mgrnm + idx;

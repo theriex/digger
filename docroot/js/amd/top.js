@@ -638,6 +638,8 @@ app.top = (function () {
             if(!Array.isArray(curracc.musfs)) {
                 curracc.musfs = []; }
             return curracc.musfs; },
+        findFriendById: function (id) {
+            return mgrs.mfnd.getMusicFriends().find((mf) => mf.dsId === id); },
         cleanMusicFriends: function () {
             var srcmfs = mgrs.mfnd.getMusicFriends();
             var fixmfs = [];
