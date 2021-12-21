@@ -749,10 +749,11 @@ app.player = (function () {
                 if(!event.target || okinids.indexOf(event.target.id) < 0) {
                     jt.evtend(event); } });  //ignore to avoid selecting ctrls
             jt.on("panplaymousingdiv", "mouseup", function (event) {
+                //do not capture this event or Safari audio will capture the
+                //downclick on the position indicator and never let go.
                 ctrls.el.pointingActive = false;
                 ctrls.al.pointingActive = false;
-                ctrls.rat.pointingActive = false;
-                jt.evtend(event); }); },
+                ctrls.rat.pointingActive = false; }); },
         hex2RGB: function (hexcolor) {
             var hcs = hexcolor.match(/\S\S/g);
             return {r:parseInt(hcs[0], 16),
