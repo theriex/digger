@@ -258,7 +258,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .songtitlediv { font-size:medium; position:relative; padding:0px 0px 4px 0px; }
 .dsarspan { font-size:small; }
 .dsabspan { font-size:small; font-style:italic; }
-.decksongactdiv { position:absolute; top:0px; left:20px;
+.decksongactdiv { position:absolute; top:0px; left:20px; z-index:1;
   background:rgba(144, 144, 144, 0.6); padding:0px 8px; border-radius:5px; }
 .sopa { margin-left:30px; }
 .sopx, .sopfrsugdiv { color:white; background:#999; }

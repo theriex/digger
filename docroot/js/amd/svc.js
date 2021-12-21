@@ -527,6 +527,8 @@ app.svc = (function () {
                     function (res) {
                         var updsong = res[0];
                         mgrs.gen.copyUpdatedSongData(song, updsong);
+                        //title may have had a '+' if original from friend
+                        app.player.dispatch("aud", "updateSongTitleDisplay");
                         if(contf) {
                             contf(updsong); } },
                     function (code, errtxt) {
