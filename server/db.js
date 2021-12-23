@@ -3,7 +3,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const mt = require("jsmediatags");
+const mm = require("music-metadata");
 const formidable = require("formidable");
 
 module.exports = (function () {
@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.9.17";
+        return "v0.9.18";
     }
 
 
@@ -248,21 +248,21 @@ module.exports = (function () {
         const pes = rpath.split(path.sep);
         if(pes.length === 1 ||  //top level file. No further parsing. See note.
            pes.length > 3) {    //buried subfolder. See note.
-            return {tags:{artist:"Unknown",
-                          album:"Singles",
-                          title:rpath}}; }
+            return {artist:"Unknown",
+                    album:"Singles",
+                    title:rpath}; }
         if(pes.length === 2) {  //artist|title
-            return {tags:{artist:pes[0].trim(),
-                          album:"Singles",
-                          title:titleFromFilename(pes[1])}}; }
+            return {artist:pes[0].trim(),
+                    album:"Singles",
+                    title:titleFromFilename(pes[1])}; }
         if(pes.length === 3) {  //artist|album|title
             if(nonas.indexOf(pes[0].toLowerCase()) < 0) {
-                return {tags:{artist:pes[0].trim(),
-                              album:pes[1].trim(),
-                              title:titleFromFilename(pes[2])}}; }
-            return {tags:{artist:"Unknown",
-                          album:"Singles",
-                          title:rpath}}; }
+                return {artist:pes[0].trim(),
+                        album:pes[1].trim(),
+                        title:titleFromFilename(pes[2])}; }
+            return {artist:"Unknown",
+                    album:"Singles",
+                    title:rpath}; }
         return null;
     }
 
@@ -289,41 +289,42 @@ module.exports = (function () {
     }
 
 
-    function makeMetadataRef (td, complete) {
+    function makeMetadataRef (tags, complete) {
         var mrd = (complete? "C": "I");
         const flds = ["title", "artist", "album"];
         flds.forEach(function (fld) {
-            var val = td.tags[fld] || "";
+            var val = tags[fld] || "";
             val = val.replace(/|/g, "");  //strip any contained delimiters
             mrd += "|" + val; });
         return mrd;
     }
 
 
-    //minimum required metadata is title + artist
-    function updateMetadata (song, td) {
+    //tags: title, artist, album. min req metadata: title + artist
+    function updateMetadata (song, tags) {
         var pmrd = song.mrd || "";
         var complete = false;
-        if(td && td.tags.title && td.tags.artist && td.tags.album) {
+        if(tags && tags.title && tags.artist && tags.album) {
             complete = true; }
-        if(!td || !td.tags.title || !td.tags.artist) {
-            td = mdtagsFromPath(song.path); }
-        if(!td || !td.tags.title || !td.tags.artist) {
+        if(!tags || !tags.title || !tags.artist) {
+            tags = mdtagsFromPath(song.path); }
+        if(!tags || !tags.title || !tags.artist) {
             console.log("missing metadata " + song.path);
             if(!song.fq.startsWith("U")) {  //mark as unreadable
                 song.fq = "U" + song.fq; } }
         else {  //have at least title and artist
-            song.mrd = makeMetadataRef(td, complete);
+            song.mrd = makeMetadataRef(tags, complete);
             if(pmrd !== song.mrd) {  //metadata has changed
-                song.lp = new Date().toISOString();  //include song in hubsync
+                if(pmrd && song.lp) {  //song is not new and has been played
+                    song.lp = new Date().toISOString(); } //include in hubsync
                 if(complete) {  //new metadata overrides prev
                     song.ar = "";
                     song.ab = "";
                     song.ti = ""; } }
             //fill in any empty fields
-            song.ar = song.ar || td.tags.artist;
-            song.ab = song.ab || td.tags.album || "Singles";
-            song.ti = song.ti || td.tags.title; }
+            song.ar = song.ar || tags.artist;
+            song.ab = song.ab || tags.album || "Singles";
+            song.ti = song.ti || tags.title; }
         return song;
     }
 
@@ -331,19 +332,19 @@ module.exports = (function () {
     //create or update the song corresponding to the given a full file path.
     //contf is responsible for writing the updated dbo as needed.
     function readMetadata (ffp, contf) {
-        new mt.Reader(ffp)
-            .setTagsToRead(["title", "artist", "album"])
-            .read({
-                onSuccess: function (tags) {
-                    var song = findOrAddDbSong(ffp);
-                    song = updateMetadata(song, tags);
-                    contf(song); },
-                onError: function (err) {
-                    var song;
-                    console.log("mt.read error " + err.info + ": " + ffp);
-                    song = findOrAddDbSong(ffp);
-                    song = updateMetadata(song);
-                    contf(song); }});
+        mm.parseFile(ffp)
+            .then(function (md) {
+                //console.log(JSON.stringify(md, null, 2));
+                var song = findOrAddDbSong(ffp);
+                song = updateMetadata(song, md.common);
+                contf(song); })
+            .catch(function (err) {
+                var song;
+                console.log("mm.parseFile exception " + ffp);
+                console.log(err);
+                song = findOrAddDbSong(ffp);
+                song = updateMetadata(song);
+                contf(song); });
     }
 
 
