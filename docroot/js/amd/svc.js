@@ -587,7 +587,12 @@ app.svc = (function () {
                         results[0] = app.login.dispatch(
                             "act", "noteUpdatedAccount", digacc);
                         contf(results); },
-                    errf, jt.semaphore("mgrs.web.impsptracks")); }
+                    errf, jt.semaphore("mgrs.web.impsptracks")); },
+        postSupportRequest: function (subj, body, contf, errf) {
+            var data = app.svc.authdata({subj:jt.enc(subj),
+                                         body:jt.enc(body)});
+            jt.call("POST", "/api/emsupp", data, contf, errf,
+                    jt.semaphore("mgrs.web.emsupp")); }
     };  //end mgrs.web returned functions
     }());
 

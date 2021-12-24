@@ -311,8 +311,13 @@ app.player = (function () {
             pbi.state = (pbi.wpso.paused ? "paused" : "playing");
             pbi.pos = pbi.wpso.position;
             pbi.dur = pbi.wpso.duration;
-            pbi.spid = pbi.wpso.track_window.current_track.id;
+            const st = pbi.wpso.track_window.current_track;
+            pbi.spid = st.id;
+            pbi.det = {title:st.name, artist:st.artists[0].name,
+                       album:st.album.name};
             mgrs.spa.updatePlayState(pbi.state); },
+        spotifyTrackDetails: function () {
+            return pbi.det || {title:"", artist:"", album:""}; },
         switchToSpotifyTrack: function (wpso) {
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.toggleCommentDisplay("off");
@@ -508,6 +513,63 @@ app.player = (function () {
                 var input = jt.byId("tdet" + sf);
                 if(input && !input.value) {
                     input.value = stat.song[sf]; } }); },
+        spotWrongC: function () {
+            const trackdet = mgrs.spa.spotifyTrackDetails();
+            //"From" line filled out and prepended on server
+            const subj = "Bad spotify song mapping " + stat.song.spid;
+            var body = "Song " + stat.song.dsId + "\n" +
+                "  ti: " + stat.song.ti + "\n" +
+                "  ar: " + stat.song.ar + "\n" +
+                "  ab: " + stat.song.ab + "\n" +
+                "is wrongly mapped to " + stat.song.spid + "\n" +
+                "  title: " + trackdet.title + "\n" +
+                "  artist: " + trackdet.artist + "\n" +
+                "  album: " + trackdet.album + "\n" +
+                "Check and respond by email \n";
+            jt.out("spotdetactdiv", "Sending...");
+            app.svc.dispatch("web", "postSupportRequest", subj, body,
+                function () {
+                    jt.out("spotdetactdiv", "Support notified." +
+                           " Will be in touch by email."); },
+                function (code, errtxt) {
+                    jt.out("spotdetactdiv", code + ": " + errtxt); }); },
+        spotWrongSong: function () {
+            jt.out("spotdetactdiv", jt.tac2html(
+                ["div", {id:"badspidconfdiv"},
+                 ["Report bad song mapping to support@diggerhub.com?",
+                  ["div", {cla:"dlgbuttonsdiv"},
+                   [["button", {type:"button", onclick:mdfs("tun.spotDetails")},
+                     "Cancel"],
+                    ["button", {type:"button", onclick:mdfs("tun.spotWrongC")},
+                     "Send"]]]]])); },
+        spotDetails: function () {
+            if(jt.byId("spotdetactdiv")) {  //toggle off
+                return jt.out("tunedetwrkdiv", ""); }
+            const spurl = "https://open.spotify.com/track/" +
+                  stat.song.spid.slice(2);
+            const trackdet = mgrs.spa.spotifyTrackDetails();
+            jt.out("tunedetwrkdiv", jt.tac2html(
+                [["table", {id:"tunedetwrktable"},
+                  Object.entries(trackdet).map(function ([a, v]) {
+                      return ["tr", {cla:"spotdettr"},
+                              [["td", {cla:"spotdetattr"},
+                                a.capitalize() + ":"],
+                               ["td", {cla:"spotdetval"}, v]]]; })],
+                 ["div", {id:"spotdetactdiv", cla:"dlgbuttonsdiv"},
+                  [["span", {id:"spotwrongsongspan"},
+                    ["a", {href:"#wrongsong", onclick:mdfs("tun.spotWrongSong"),
+                           title:"Report bad song mapping"},
+                     "Report wrong song"]],
+                   " &nbsp; ",
+                   ["span", {id:"spotopentrackspan"},
+                    ["a", {href:"openspotify", title:"Open in Spotify",
+                           onclick:jt.fs("window.open('" + spurl + "')")},
+                     "Open in Spotify"]]]]])); },
+        spidlink: function () {
+            return jt.tac2html(
+                ["a", {href:"#spotifydetails", onclick:mdfs("tun.spotDetails"),
+                       title:"Show Spotify Track Details"},
+                 stat.song.spid.slice(2)]); },
         optDetailsHTML: function () {
             var lastPlayed = "Never";
             if(stat.prevPlayed) {
@@ -515,17 +577,20 @@ app.player = (function () {
             const flds = [{a:"Last Played", v:lastPlayed},
                           {a:"Title", v:"ti", e:true},
                           {a:"Artist", v:"ar", e:true},
-                          {a:"Album", v:"ab", e:true},
-                          {a:"File", v:stat.song.path}];
+                          {a:"Album", v:"ab", e:true}];
+            switch(app.svc.dispatch("gen", "getHostDataManager")) {
+            case "web": flds.push({a:"Spotify", v:mgrs.tun.spidlink()}); break;
+            default: flds.push({a:"File", v:stat.song.path}); }
             flds.forEach(function (fld) {
                 if(fld.e) {
                     fld.v = ["input", {type:"text", id:"tdet" + fld.v,
                                        oninput:mdfs("tun.chgMetDat", fld.v),
                                        value:jt.ndq(stat.song[fld.v])}]; } });
-            return jt.tac2html(["table", flds.map((fld) =>
+            return jt.tac2html([["table", flds.map((fld) =>
                 ["tr", {cla:"tuneoptdettr"},
                  [["td", {cla:"tuneoptdetattr"}, fld.a + ": "],
-                  ["td", {cla:"tuneoptdetval"}, fld.v]]])]); },
+                  ["td", {cla:"tuneoptdetval"}, fld.v]]])],
+                ["div", {id:"tunedetwrkdiv"}]]); },
         bumpTired: function (song) {  //general utility
             var tfqidx = subcats.B.indexOf(stat.song.fq);
             if(tfqidx < 0) {  //not currently marked as tired
@@ -748,7 +813,7 @@ app.player = (function () {
                 var okinids = ["kwdin", "commentta"];
                 if(!event.target || okinids.indexOf(event.target.id) < 0) {
                     jt.evtend(event); } });  //ignore to avoid selecting ctrls
-            jt.on("panplaymousingdiv", "mouseup", function (event) {
+            jt.on("panplaymousingdiv", "mouseup", function (ignore /*event*/) {
                 //do not capture this event or Safari audio will capture the
                 //downclick on the position indicator and never let go.
                 ctrls.el.pointingActive = false;
