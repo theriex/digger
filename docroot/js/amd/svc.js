@@ -93,22 +93,30 @@ app.svc = (function () {
                     "playlist-read-private", //warn before overwrite name
                     "user-library-read",   //import
                     "playlist-read-collaborative"],  //name check, import
-            useby:""};
+            refresh:false, useby:""};
         function pmsg (tac) {  //display a player message (init status or err)
             jt.log("pmsg: " + tac);
             jt.out("audiodiv", jt.tac2html(["div", {id:"pmsgdiv"}, tac])); }
     return {
-        playerMessage: function (tac) {
-            pmsg(tac); },
-        token: function (contf) {  //verify token info, or contf(token)
+        playerMessage: function (tac) { pmsg(tac); },
+        isRefreshToken: function () { return toki.refresh; },
+        tokenTimeOk: function () {
             if(toki.access_token) {
-                if(new Date().toISOString() < toki.useby) {  //still valid
-                    if(contf) {  //probably called from spotify player
-                        setTimeout(function () {
-                            contf(toki.access_token); }, 50); }
-                    return true; } }
+                if(new Date().toISOString() < toki.useby) {
+                    return true; }
+                jt.log("token expired " + toki.useby); }
+            return false; },
+        token: function (contf) {  //verify token info, or contf(token)
+            if(mgrs.spc.tokenTimeOk()) {
+                if(contf) {  //probably called from spotify player
+                    setTimeout(function () {
+                        contf(toki.access_token); }, 50); }
+                return true; }
             const acct = app.login.getAuth();  //server inits acct.hubdat.spa
-            if(app.startParams.state === acct.token) {  //spotify called back
+            const state = app.startParams.state || "";
+            if(state.slice(3) === acct.token) {  //spotify called back
+                if(state.startsWith("ref")) {  //note this was a token refresh
+                    toki.refresh = true; }
                 tokflds.forEach(function (fld) {  //set or clear token info
                     toki[fld] = app.startParams[fld];
                     app.startParams[fld] = ""; });
@@ -117,7 +125,8 @@ app.svc = (function () {
                            app.startParams.error);
                     return false; }
                 toki.useby = new Date(
-                    Date.now() + ((toki.expires_in - 1) * 1000)).toISOString();
+                    //shave off a few seconds to allow time to play next song
+                    Date.now() + ((toki.expires_in - 4) * 1000)).toISOString();
                 window.history.replaceState({}, document.title, "/digger");
                 return true; }  //done handling spotify callback
             pmsg("Redirecting to Spotify for access token...");
@@ -125,10 +134,11 @@ app.svc = (function () {
                 pmsg(["Spotify authorization redirect only available from ",
                       ["a", {href:"https://diggerhub.com"}, "diggerhub.com"]]);
                 return false; }
+            const ststr = (toki.access_token? "ref" : "new") + acct.token;
             const params = {client_id:acct.hubdat.spa.clikey,
                             response_type:"token",
                             redirect_uri:acct.hubdat.spa.returi,
-                            state:acct.token,
+                            state:ststr,
                             scope:toki.scopes.join(" ")};
             var spurl = "https://accounts.spotify.com/authorize?" +
                 jt.objdata(params);

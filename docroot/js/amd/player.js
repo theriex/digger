@@ -64,15 +64,15 @@ app.player = (function () {
     //local audio interface uses standard audio element
     mgrs.loa = (function () {
     return {
-        verifyPlayer: function () {
+        verifyPlayer: function (contf) {
             if(!jt.byId("playeraudio")) {
                 jt.out("audiodiv", jt.tac2html(
                     ["audio", {id:"playeraudio", controls:"controls",
                                autoplay:"autoplay"},  //may or may not happen
                      "WTF? Your browser doesn't support audio.."]));
-                jt.on("playeraudio", "ended", app.player.next);
-                app.player.next(); }
-            mgrs.loa.bumpPlayerLeftIfOverhang(); },
+                jt.on("playeraudio", "ended", app.player.next); }
+            mgrs.loa.bumpPlayerLeftIfOverhang();
+            contf(); },
         bumpPlayerLeftIfOverhang: function  () {
             var player = jt.byId("playeraudio");
             var playw = player.offsetWidth;
@@ -229,7 +229,7 @@ app.player = (function () {
                 window.onSpotifyWebPlaybackSDKReady = function () {
                     sdkstate = "loaded";
                     pmsg("Spotify Player Loaded. Starting...");
-                    mgrs.spa.verifyPlayer(); };
+                    app.player.next(); };
                 setTimeout(function () {  //this can take a while to load
                     var script = document.createElement("script");
                     script.id = "diggerspasdk";
@@ -258,16 +258,24 @@ app.player = (function () {
                     else {
                         pstat = "connfail";
                         pmsg(["a", {href:"#Reconnect",
-                                    onclick:mdfs("spa.verifyPlayer")},
+                                    onclick:jt.fs("app.player.next()")},
                               "Reconnect Spotify Web Player"]); } })
                     .catch(function (err) {
                         jt.log("swpconn swpi.connect catch: " + err); }); }
             return false; },
         getPlayerStatus: function () { return pstat; },
-        verifyPlayer: function () {  //called after deck updated
-            if(pstat !== "connected") {
-                const steps = ["token", "sdkload", "swpconn"];
-                steps.every((step) => mgrs.spa[step]()); } },
+        verifyPlayer: function (contf) {
+            if(pstat === "connected") {
+                if(app.svc.dispatch("spc", "tokenTimeOk")) {
+                    return contf(); }
+                pstat = "tokexpired"; }
+            const steps = ["token", "sdkload", "swpconn"];
+            if(steps.every((step) => mgrs.spa[step]())) {
+                contf(); } },
+        autoplayErr: function (err, mtxt) {
+            jt.log("autoplayErr " + err + ": " + mtxt);
+            if(app.svc.dispatch("spc", "isRefreshToken")) {
+                mgrs.slp.startSleep("Token renewed, autoplay disabled."); } },
         addPlayerListeners: function () {
             var listeners = {
                 "ready":function (obj) {  //obj has only the device_id in it
@@ -279,7 +287,7 @@ app.player = (function () {
                     pbi.state = "";  //will need to call playSong again
                     pmsg("Spotify Web Player not ready. Reconnecting...");
                     //app.svc.dispatch("spc", "refreshToken");  //not available
-                    mgrs.spa.verifyPlayer(); },
+                    app.player.next(); },
                 "player_state_changed":function (obj) {
                     mgrs.spa.noteWebPlaybackState(obj); }};
             var errors = {
@@ -291,12 +299,12 @@ app.player = (function () {
                 return function (msg) {
                     var mtxt = msg.message || "No Spotify message text";
                     if(mtxt.toLowerCase().includes("autoplay")) {
-                        return jt.log("Ignoring " + err + ": " + mtxt); }
+                        return mgrs.spa.autoplayErr(err, mtxt); }
                     pstat = err;
                     swpi.disconnect();  //returns a promise. Ignoring.
                     pmsg([txt + ": " + mtxt + " ",
                           ["a", {href:"#Retry",
-                                 onclick:mdfs("spa.verifyPlayer")},
+                                 onclick:jt.fs("app.player.next()")},
                            "Retry"]]); }; };
             Object.entries(errors).forEach(function ([err, txt]) {
                 listeners[err] = makeErrorFunction(err, txt); });
@@ -306,7 +314,7 @@ app.player = (function () {
         noteWebPlaybackState: function (wpso) {
             if(!wpso) { return; }  //ignore if seek crashes
             if(pbi.spid && wpso.track_window.current_track.id !== pbi.spid) {
-                mgrs.spa.switchToSpotifyTrack(wpso); }
+                mgrs.spa.switchToSpotifyTrack(wpso); }  //changed from Spotify
             pbi.wpso = wpso;  //object may be live, but helpful for debug
             pbi.state = (pbi.wpso.paused ? "paused" : "playing");
             pbi.pos = pbi.wpso.position;
@@ -344,8 +352,9 @@ app.player = (function () {
                         jt.log("rpsfail " + pbi.rpsfails + " retrying...");
                         return setTimeout(mgrs.spa.refreshPlayState, 500); }
                     jt.log("rpsfail assuming token expired");
+                    pstat = "retriesexceeded";
                     pmsg("Spotify Web Player disconnected. Reconnecting...");
-                    return mgrs.spa.verifyPlayer(); }
+                    return app.player.next(); }
                 mgrs.spa.noteWebPlaybackState(wpso); }); },
         updatePlayState: function (state) {
             pbi.state = state;
@@ -439,17 +448,17 @@ app.player = (function () {
         playAudio: function () {
             stat.status = "playing";
             jt.log(JSON.stringify(stat.song));
-            mgrs.aud.verifyPlayer();
-            mgrs.aud.updateSongDisplay();
-            mgrs[cap].playSong(stat.song); },
-        verifyPlayer: function () {
+            mgrs.aud.verifyPlayer(function () {
+                mgrs.aud.updateSongDisplay();
+                mgrs[cap].playSong(stat.song); }); },
+        verifyPlayer: function (contf) {
             if(!jt.byId("playerdiv")) {
                 jt.out("mediadiv", jt.tac2html(
                     ["div", {id:"playerdiv"},
                      [["div", {id:"playertitle"}, "Starting"],
                       ["div", {id:"playertuningdiv"}],
                       ["div", {id:"audiodiv"}]]])); }
-            mgrs[cap].verifyPlayer(); }
+            mgrs[cap].verifyPlayer(contf); }
     };  //end mgrs.aud returned functions
     }());
 
@@ -986,7 +995,9 @@ app.player = (function () {
             if(sc.count > 0) {
                 sc.count -= 1;
                 return false; }
-            sc = {active:false, count:0};  //reset
+            mgrs.slp.startSleep("Sleeping..."); },
+        startSleep: function (msg) {
+            sc = {active:false, count:0};  //sleeping. reset countdown
             jt.byId("togsleepimg").src = "img/sleep.png";
             //The song being paused on will already have been updated when
             //it was popped from deck, and may be written again due to the
@@ -999,9 +1010,8 @@ app.player = (function () {
                               jt.byId("playertitle").offsetHeight + 2) + "px";
             odiv.style.display = "block";
             odiv.innerHTML = jt.tac2html(
-                ["Sleeping... ",
-                 ["a", {href:"#playnext", onclick:mdfs("slp.resume")},
-                  "Resume playback"],
+                [msg, ["a", {href:"#playnext", onclick:mdfs("slp.resume")},
+                       "Resume playback"],
                  " &nbsp; &nbsp; "]);
             app.spacebarhookfunc = mgrs.slp.resume;
             return true; },
@@ -1051,16 +1061,19 @@ app.player = (function () {
 
     function next () {
         saveSongDataIfModified("ignoreUpdatedSongDataReturn");
-        mgrs.tun.toggleTuningOpts("off");
-        mgrs.cmt.toggleCommentDisplay("off");
-        stat.status = "";
-        const ns = app.deck.getNextSong();
-        if(!ns) { //just stop, might be playing an album, deck shows status
-            return; }
-        stat.song = ns;
-        mgrs.cmt.updateCommentIndicator();
-        if(!mgrs.slp.sleepNow()) {
-            mgrs.aud.playAudio(); }
+        //player calls contf if is ready, otherwise contf is ignored and it
+        //is up to the player to start playback after it is ready.
+        mgrs.aud.verifyPlayer(function () {
+            mgrs.tun.toggleTuningOpts("off");
+            mgrs.cmt.toggleCommentDisplay("off");
+            stat.status = "";
+            const ns = app.deck.getNextSong();
+            if(!ns) { //just stop, might be playing an album, deck shows status
+                return; }
+            stat.song = ns;
+            mgrs.cmt.updateCommentIndicator();
+            if(!mgrs.slp.sleepNow()) {
+                mgrs.aud.playAudio(); } });
     }
 
 
@@ -1073,7 +1086,7 @@ app.player = (function () {
 return {
 
     init: function () { initializeDisplay(); },
-    deckUpdated: function () { mgrs.aud.verifyPlayer(); },
+    deckUpdated: function () { if(!stat.song) { app.player.next(); } },
     next: function () { next(); },
     skip: function () { skip(); },
     song: function () { return stat.song; },
