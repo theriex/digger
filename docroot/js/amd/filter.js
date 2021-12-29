@@ -162,6 +162,25 @@ app.filter = (function () {
                 rcr.actname = ""; }
             //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
             mgrs.stg.filterValueChanged(); },
+        updateRangeSliders: function (x, y, cid, rcr, mstat) {
+            if(mstat.cko) {  //track drag change
+                rcr.cx = mstat.cko.xdat.prevcx;  //default hold prev val
+                if(!mstat.cko.ydat.solo) {  //x tracking is active
+                    rcr.cx = rangeConstrain(x, ranger.hnob.x,
+                                            ranger.hnob.maxx);
+                    const kl = rcr.cx - ranger.hnob.col;  //center offset
+                    jt.byId(cid + "hnd").style.left = kl + "px"; }
+                rcr.cy = mstat.cko.ydat.prevcy;  //default hold prev val
+                if(!mstat.cko.xdat.solo) {  //y tracking is active
+                    rcr.cy = rangeConstrain(y, ranger.vnob.y,
+                                            ranger.vnob.maxy);
+                    const kt = rcr.cy - ranger.vnob.cot;  //center offset
+                    jt.byId(cid + "vnd").style.top = kt + "px"; }
+                // jt.log(cid + " rcr cx:" + rcr.cx +
+                //        (mstat.cko.xdat.solo? "(solo)" : "") +
+                //        ", cy:" + rcr.cy +
+                //        (mstat.cko.ydat.solo? "(solo)" : ""));
+                mgrs.rng.updateRangeControlFocus(cid, rcr); } },
         attachRangeCtrlMovement: function (cid) {
             var rcr = ctrls[cid];
             rcr.mstat = {pointingActive:false, roundpcnt:5,
@@ -169,32 +188,23 @@ app.filter = (function () {
                          maxylim:ranger.vnob.maxy - ranger.vnob.y,
                          cko:null};  //click origin data
             ctrls.movestats.push(rcr.mstat);
-            rcr.mpos = function (x, y) {
+            rcr.mpos = function (x, y, hardset) {
                 var mstat = rcr.mstat;
-                if(mstat.pointingActive && !mstat.cko) {  //init click origin
+                //jt.log("x:" + x + ", y:" + y + (hardset? " (hardset)" : ""));
+                if((mstat.pointingActive && !mstat.cko) || //init click origin
+                   hardset) {
                     mstat.cko = {xdat:{ogx:x, prevcx:rcr.cx || x,
                                        solo:y >= mstat.maxylim},
                                  ydat:{ogy:y, prevcy:rcr.cy || y,
                                        solo:x <= ranger.hnob.x}}; }
-                if(!mstat.pointingActive && mstat.cko) {  //clear click origin
+                if((!mstat.pointingActive && mstat.cko) && //clear click origin
+                   !hardset) {
                     mstat.cko = null; }
-                if(mstat.cko) {  //track drag change
-                    rcr.cx = mstat.cko.xdat.prevcx;  //default hold prev val
-                    if(!mstat.cko.ydat.solo) {  //x tracking is active
-                        rcr.cx = rangeConstrain(x, ranger.hnob.x,
-                                                ranger.hnob.maxx);
-                        const kl = rcr.cx - ranger.hnob.col;  //center offset
-                        jt.byId(cid + "hnd").style.left = kl + "px"; }
-                    rcr.cy = mstat.cko.ydat.prevcy;  //default hold prev val
-                    if(!mstat.cko.xdat.solo) {  //y tracking is active
-                        rcr.cy = rangeConstrain(y, ranger.vnob.y,
-                                                ranger.vnob.maxy);
-                        const kt= rcr.cy - ranger.vnob.cot;  //center offset
-                        jt.byId(cid + "vnd").style.top = kt + "px"; }
-                    mgrs.rng.updateRangeControlFocus(cid, rcr); } };
+                mgrs.rng.updateRangeSliders(x, y, cid, rcr, mstat);
+                if(hardset) { mstat.cko = null; } };
             attachMovementListeners(cid + "mousediv", rcr.mstat, rcr.mpos);
             rcr.mpos(Math.floor((ranger.hnob.maxx - ranger.hnob.x) / 2),
-                     Math.floor(ranger.vnob.maxy / 2)); },
+                     Math.floor(ranger.vnob.maxy / 2), "init"); },
         addRangeSettingsFunc: function (cid) {
             ctrls[cid].settings = function () {
                 return {tp:"range", c:cid,
@@ -219,7 +229,7 @@ app.filter = (function () {
                 if(!Number.isInteger(settings.h)) {    //if not int, use default
                     settings.h = dfltset.h; }
                 settings.h = Math.floor(settings.h); } //verify true integer
-            ctrls[cid].mpos(settings.h, settings.v); },
+            ctrls[cid].mpos(settings.h, settings.v, "init"); },
         adjustSliderBg: function (elem, dims) {
             //elem.style.background = "#ffab00";
             //elem.style.opacity = "0.3";
