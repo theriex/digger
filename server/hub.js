@@ -17,12 +17,20 @@ module.exports = (function () {
     function txSong (song) {
         var delflds = ["mrd", "smti", "smar", "smab"];
         var escflds = ["path", "ti", "ar", "ab", "nt"];
+        var wsrw = ["having", "select", "union"];
         song = JSON.parse(JSON.stringify(song));
         delflds.forEach(function (fld) { delete song[fld]; });
         escflds.forEach(function (fld) {  //replace parens with HTML chars
             if(song[fld]) {
                 song[fld] = song[fld].replace(/\(/g, "&#40;");
-                song[fld] = song[fld].replace(/\)/g, "&#41;"); } });
+                song[fld] = song[fld].replace(/\)/g, "&#41;");
+                song[fld] = song[fld].replace(/'/g, "&#39;");
+                wsrw.forEach(function (rw) {
+                    song[fld] = song[fld].replace(
+                        new RegExp(rw, "gi"), function (match) {
+                            const rev = match.split("").reverse().join("");
+                            return "WSRW" + rev; }); });
+            } });
         return song;
     }
     //function txSongJSON (song) { return JSON.stringify(txSong(song)); }

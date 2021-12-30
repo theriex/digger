@@ -15,20 +15,31 @@ app.svc = (function () {
         jt.out("statspan", msg);
     }
     //!EQUIVALENT CODE IN ../../../server/hub.js
+    //!UNPACKED BY appdat.py unescape_song_fields
     //Even a serialized song can run afoul of web security rules due to
     //paths, titles or other fields containing parenthetical expressions or
     //other triggering patterns.  For UPLOAD, remove any problematic temp
     //fields and escape parens in fields that could trigger security blocks.
+    //Some SQL words are effectively web security reserved words.
     function txSong (song) {
         var delflds = ["mrd", "smti", "smar", "smab"];
         //THIS MUST MATCH appdat.py unescape_song_fields
         var escflds = ["path", "ti", "ar", "ab", "nt"];
+        //Web Security Reserved Words that must be escaped to be let through
+        var wsrw = ["having", "select", "union"];
         song = JSON.parse(JSON.stringify(song));
         delflds.forEach(function (fld) { delete song[fld]; });
         escflds.forEach(function (fld) {  //replace parens with HTML chars
             if(song[fld]) {
                 song[fld] = song[fld].replace(/\(/g, "&#40;");
-                song[fld] = song[fld].replace(/\)/g, "&#41;"); } });
+                song[fld] = song[fld].replace(/\)/g, "&#41;");
+                song[fld] = song[fld].replace(/'/g, "&#39;");
+                wsrw.forEach(function (rw) {
+                    song[fld] = song[fld].replace(
+                        new RegExp(rw, "gi"), function (match) {
+                            const rev = match.split("").reverse().join("");
+                            return "WSRW" + rev; }); });
+            } });
         return song;
     }
     function txSongJSON (song) { return JSON.stringify(txSong(song)); }
