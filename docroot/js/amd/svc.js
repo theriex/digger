@@ -613,7 +613,14 @@ app.svc = (function () {
             var data = app.svc.authdata({subj:jt.enc(subj),
                                          body:jt.enc(body)});
             jt.call("POST", "/api/emsupp", data, contf, errf,
-                    jt.semaphore("mgrs.web.emsupp")); }
+                    jt.semaphore("mgrs.web.emsupp")); },
+        playbackError: function (data) {
+            jt.call("POST", "/api/playerr", app.svc.authdata(data),
+                    function () {
+                        jt.log("playbackError reported " +
+                               JSON.stringify(data)); },
+                    function () {
+                        jt.log("playbackError reporting failed."); }); }
     };  //end mgrs.web returned functions
     }());
 

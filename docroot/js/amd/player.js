@@ -375,6 +375,21 @@ app.player = (function () {
                 if(pbi.song) {
                     return mgrs.spa.playSong(pbi.song); }
                 app.player.next(); } },
+        handlePlayFailure: function (stat, err) {
+            const msg = stat + ": " + err;
+            app.svc.dispatch("spc", "playerMessage", "Playback failed " + msg);
+            mgrs.spa.pause();  //stop playback of previously loaded song
+            const odiv = jt.byId("mediaoverlaydiv");
+            odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
+                              jt.byId("playertitle").offsetHeight + 2) + "px";
+            odiv.style.display = "block";
+            odiv.innerHTML = "Song currently unavailable, skipping...";
+            setTimeout(function () {
+                jt.out("mediaoverlaydiv", "");
+                jt.byId("mediaoverlaydiv").style.display = "none";
+                app.player.next(); }, 3000);
+            app.svc.dispatch("web", "playbackError",
+                             {type:"spid", spid:pbi.song.spid, error:msg}); },
         playSong: function (song) {
             pbi.song = song;
             if(pstat !== "connected" || !pdid) {
@@ -386,10 +401,7 @@ app.player = (function () {
                              "PUT", {uris:[pbi.spuri]},
                              function () {
                                  jt.log("Playing " + pbi.spuri); },
-                             function (stat, msg) {
-                                 app.svc.dispatch("spc", "playerMessage",
-                                                  "Playback failed " + stat +
-                                                  ": " + msg); }); }
+                             mgrs.spa.handlePlayFailure); }
     };  //end mgrs.spa returned functions
     }());
 
