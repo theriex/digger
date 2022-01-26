@@ -16,13 +16,6 @@ var app = (function () {
     }
 
 
-    function initDiggerModules () {
-        diggerapp.modules.forEach(function (md) {
-            if(md.type === "dm") {
-                app[md.name].init(); } });
-    }
-
-
     function init2 () {
         app.amdtimer.load.end = new Date();
         jt.log("window.innerWidth: " + window.innerWidth);
@@ -40,9 +33,9 @@ var app = (function () {
                    ["div", {cla:"paneldiv", id:"panfiltdiv"}],
                    ["div", {cla:"paneldiv", id:"pandeckdiv"}]]]]));
             if(app.startPath === "/digger") {  //web startup needs auth info
-                app.login.init(false, initDiggerModules); }
+                app.login.init(false); }  //calls initDiggerModules
             else {
-                initDiggerModules(); } }
+                app.initDiggerModules(); } }
         else if(diggerapp.context === "web") {
             app.login.init(); }
     }
@@ -67,6 +60,13 @@ return {
 
 
     restart: init2,
+
+
+    initDiggerModules: function () {
+        diggerapp.modules.forEach(function (md) {
+            if(md.type === "dm") {
+                app[md.name].init(); } });
+    },
 
 
     fileVersion: function () {
