@@ -125,7 +125,7 @@ app.svc = (function () {
                 return true; }
             const acct = app.login.getAuth();  //server inits acct.hubdat.spa
             const state = app.startParams.state || "";
-            if(state.slice(3) === acct.token) {  //spotify called back
+            if(state && state.slice(3) === acct.token) {  //spotify called back
                 if(state.startsWith("ref")) {  //note this was a token refresh
                     toki.refresh = true; }
                 tokflds.forEach(function (fld) {  //set or clear token info
@@ -526,6 +526,7 @@ app.svc = (function () {
                     if(song.dsId.startsWith("fr")) {
                         delete pool[sk]; } }); }
             fvsj.friendidcsv = mfids;  //include friend suggestions in fetch
+            fvsj.startsongid = app.startParams.songid || "";
             fvsj = JSON.stringify(fvsj);
             if(lastfvsj && lastfvsj === fvsj &&   //if no change in search, and
                mgrs.web.poolAvailable() > 100) {  //enough songs available,

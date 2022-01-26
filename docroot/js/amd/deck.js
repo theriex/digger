@@ -135,9 +135,15 @@ app.deck = (function () {
             Object.entries(songs).forEach(function ([p, s]) {
                 if(!s.fq || !s.fq.match(/^[DUI]/)) {  //see player.tun.subcats
                     s.path = p;  //used for lookup post update
+                    if(s.dsId === app.startParams.songid) {
+                        wrk.startsong = s; }
                     wrk.songs.push(s); } });
             mgrs.ws.filterSongs();
             mgrs.ws.presentSongs();
+            if(wrk.startsong) {
+                wrk.songs.unshift(wrk.startsong);
+                wrk.startsong = null;
+                app.startParams.songid = ""; }
             mgrs.dk.setSongs(wrk.songs);  //replace working set
             if(wrk.songs.length) {  //show songs if any found
                 app.player.deckUpdated(); }
@@ -584,7 +590,7 @@ app.deck = (function () {
     }());
 
 return {
-    init: function () { mgrs.gen.initDisplay(); },
+    init: function () { mgrs.gen.initDisplay(); },  //filters call update
     deckinfo: function () { return mgrs.gen.deckinfo(); },
     update: function (caller) { mgrs.ws.rebuild(caller); },
     getNextSong: function () { return mgrs.gen.getNextSong(); },

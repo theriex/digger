@@ -740,13 +740,25 @@ app.top = (function () {
                  ["img", {cla:"friendinfotogimg", src:"img/info.png"}]]); },
         friendEmailClick: function (event) {
             jt.log("friendEmailClick " + event.target.innerHTML); },
+        songFinderLink: function (song) {
+            //if you have diggerhub friends, then your songs are on the hub.
+            return "https://diggerhub.com/songfinder?songid=" + song.dsId; },
         mfMailLink: function (mf) {
-            var subj = "diggin";
+            var song = app.player.song(); var subj = ""; var body = "";
             if(!mf) { return ""; }
+            if(song) {
+                subj = "diggin " + song.ti;
+                body = "Thought you would like this song I'm listening to\n\n" +
+                    "Title: " + song.ti + "\n" +
+                    "Artist: " + song.ar + "\n" +
+                    "Album: " + song.ab + "\n";
+                if(song.kws) {
+                    body += "(" + song.kws + ")\n"; }
+                body += "\n\nIf not attached, find a link at\n" +
+                    mgrs.mfnd.songFinderLink(song); }
             const link = "mailto:" + mf.email +
                   "?subject=" + jt.dquotenc(subj) +
-                  "&body=" + jt.dquotenc(
-                      "\n\n" + mgrs.mfnd.currentSongsText()) + "%0A%0A";
+                  "&body=" + jt.dquotenc(body) + "%0A%0A";
             return jt.tac2html(
                 ["a", {href:link,
                        onclick:mdfs("mfnd.friendEmailClick", "event")},
@@ -797,17 +809,6 @@ app.top = (function () {
             musfs.sort(function (a, b) {
                 return (a.firstname.localeCompare(b.firstname) ||
                         a.email.localeCompare(b.email)); }); },
-        currentSongsText: function () {
-            var txt = "";
-            var np = app.player.song();  //now playing
-            if(np) {
-                txt += np.ti + " - " + np.ar + " - " + np.ab + "\n"; }
-            const dki = app.deck.deckinfo();
-            dki.songs.slice(0, 5).forEach(function (song) {
-                txt += song.ti + " - " + song.ar + " - " + song.ab + "\n"; });
-            if(txt) {
-                txt = "Cued up and playing:\n" + txt; }
-            return txt; },
         friendInviteClick: function (ignore /*event*/) {
             jt.byId("mfinvdoneb").disabled = false;
             jt.byId("mfinvdonebdiv").style.opacity = 1.0; },
@@ -817,7 +818,7 @@ app.top = (function () {
             var body = "Hi " + dat.firstname + ",\n\n" +
 "I just added you as a music friend on DiggerHub!  Looking forward to pulling the best from each other's music libraries while digging through the stacks.\n\n" +
 "Happy listening,\n" + me.firstname + "\n\n" +
-"P.S. You should have already received an access link from support@diggerhub.com\n\n" + mgrs.mfnd.currentSongsText();
+"P.S. You should have already received an access link from support@diggerhub.com\n\n";
             var link = "mailto:" + dat.emaddr + "?subject=" +
                 jt.dquotenc(subj) + "&body=" + jt.dquotenc(body) + "%0A%0A";
             return jt.tac2html(
