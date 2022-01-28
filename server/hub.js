@@ -192,7 +192,8 @@ module.exports = (function () {
                 res.writeHead(200, {"Content-Type": "application/json"});
                 res.end(ctx.restext); })
             .catch(function (err) {
-                console.log(err.stack);
+                if(String(err).indexOf("ENOTFOUND") < 0) {  //not just offline
+                    console.log(err.stack); }
                 if(ctx.restext) {
                     console.log("ctx.restext: " + ctx.restext); }
                 if(ctx.code === 200) {
