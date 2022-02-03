@@ -520,6 +520,11 @@ app.svc = (function () {
             return pa.length; },
         fetchSongs: function (contf, errf) {  //retrieve more songs
             var fvsj = app.filter.summary();
+            if(fvsj.ddst === "newest") {
+                return mgrs.web.callSongFetch(JSON.stringify(fvsj),
+                                              contf, errf); }
+            return mgrs.web.fetchDeckSongs(fvsj, contf, errf); },
+        fetchDeckSongs: function (fvsj, contf, errf) {
             var mfids = app.top.dispatch("mfnd", "musicFriendsIdCSV");
             if(mfids !== fvsj.friendidcsv) {  //clear friend suggested songs
                 Object.entries(pool).forEach(function ([sk, song]) {
@@ -534,13 +539,15 @@ app.svc = (function () {
                     contf(pool); }, 200); }       //to save server calls.
             else {
                 lastfvsj = fvsj;
-                const ps = app.svc.authdata({fvs:fvsj});
-                jt.call("GET", app.cb(app.dr("/api/songfetch"), ps), null,
-                        function (songs) {
-                            mgrs.web.addSongsToPool(songs);
-                            contf(pool); },
-                        errf,
-                        jt.semaphore("mgrs.web.fetchSongs")); } },
+                mgrs.web.callSongFetch(fvsj, contf, errf); } },
+        callSongFetch: function (fvsj, contf, errf) {
+            const ps = app.svc.authdata({fvs:fvsj});
+            jt.call("GET", app.cb(app.dr("/api/songfetch"), ps), null,
+                    function (songs) {
+                        mgrs.web.addSongsToPool(songs);
+                        contf(pool); },
+                    errf,
+                    jt.semaphore("mgrs.web.fetchSongs")); },
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf) {

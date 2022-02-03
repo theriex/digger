@@ -128,7 +128,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #modindspan { color:#ffab00; padding-right:5px; font-weight:bold; }
 .indicatorlightcolor { color:#ffab00; }
 .ptico { vertical-align:middle; height:18px; max-height:18px; cursor:pointer;
-  background:#333; border-radius:2px; padding:1px; }
+  padding:1px; }
 #tuneopta { margin-right:10px; }
 .tuneoptiondiv { display:inline-block; font-size:small; padding-right:10px; }
 .tuneoptdetattr, .spotdetattr { text-align:right; font-size:small;
@@ -251,10 +251,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #srchin { margin-right:2px; }
 #clrsrchdiv { display:inline-block; margin-left:-14px; width:14px;
   overflow:hidden; vertical-align:middle; }
-#toginfob, #togalb, #toghistb { margin-left:6px; }
+#toginfob, #togalb, #togviewsb { margin-left:6px; }
 .dinfrecdiv { font-size:medium; }
 .dinfrecnspan { font-size:small; }
-#decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckhistorydiv {
+#decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckhistorydiv, #decknewestdiv {
   height:160px; min-height:160px; max-height:160px; overflow:scroll; }
 
 .songtitlediv { font-size:medium; position:relative; padding:0px 0px 4px 0px; }
@@ -268,3 +268,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .albumsongdiv { font-size:smaller; margin:5px 0px; }
 .albumsonglink { display:block; font-size:smaller; padding:0px 0px 2px 15px; }
 .albumarrow { padding-right:3px; vertical-align:middle; }
+
+.vtab, .vtabsel { display:inline-block; font-size:small; padding:2px 6px;
+  margin:0px 10px 0px 0px; border-radius:5px; border:1px solid black; }
+.vtab { }
+.vtabsel { background:#ffab00; }
+#deckvtabsdiv { padding:0px 0px 6px 0px; letter-spacing:0.2em; }
+#deckvcontdiv { }
+

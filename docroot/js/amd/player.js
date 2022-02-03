@@ -433,13 +433,17 @@ app.player = (function () {
                 playerrs[stat.song.path] = errmsg;
                 app.player.skip(); } },
         updateSongTitleDisplay: function () {
+            var tunesrc = "img/tunefork.png";
+            const tuneimg = jt.byId("tuneimg");
+            if(tuneimg) {
+                tunesrc = tuneimg.src; }
             jt.out("playertitle", jt.tac2html(
                 ["div", {cla:"songtitlediv"},
                  [["div", {id:"playtitlebuttonsdiv"},
                    [["span", {id:"modindspan"}],
                     ["a", {href:"#tuneoptions", title:"Tune Playback Options",
                            id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
-                     ["img", {src:"img/tunefork.png", cla:"ptico"}]],
+                     ["img", {src:tunesrc, cla:"ptico", id:"tuneimg"}]],
                     ["a", {href:"#skip", title:"Skip To Next Song",
                            onclick:jt.fs("app.player.skip()")},
                      ["img", {src:"img/skip.png", cla:"ptico"}]]]],
@@ -512,12 +516,15 @@ app.player = (function () {
         toggleTuningOpts: function (togstate) {
             var ptitle = jt.byId("playertitle");
             var tdiv = jt.byId("playertuningdiv");
+            var timg = jt.byId("tuneimg");
             if(!tdiv) { return; }  //nothing to do
             if(tdiv.innerHTML || !stat.song || togstate === "off") {
                 tdiv.innerHTML = "";
+                if(timg) { timg.src = "img/tunefork.png"; }
                 ptitle.style.overflow = "hidden";
                 ptitle.style.maxHeight = "18px";
                 return; }
+            if(timg) { timg.src = "img/tuneforkact.png"; }
             ptitle.style.overflow = "visible";
             ptitle.style.maxHeight = "none";
             tdiv.innerHTML = jt.tac2html(

@@ -590,6 +590,7 @@ app.filter = (function () {
                     tagfidx:ctrls.rat.tagf.idx,   //Both|Tagged|Untagged
                     fq:mgrs.fq.getFrequencyFiltering(),  //on|off
                     fpst:mgrs.dsc.filteringPanelState(),  //on|off
+                    ddst:mgrs.dsc.deckDisplayState(),  //normal|newest
                     srchtxt:jt.byId("srchin").value || ""}; },
         name: function () {
             var name = "Digger";  //caps sort before lowercase.
@@ -624,7 +625,13 @@ app.filter = (function () {
             var togfiltb = jt.byId("togfiltb");
             if(togfiltb && togfiltb.dataset.togstate === "off") {
                 return "off"; }
-            return "on"; }
+            return "on"; },
+        deckDisplayState: function () {
+            const view = app.deck.dispatch("vws", "getView");
+            const di = app.deck.dispatch("gen", "deckinfo");
+            if(di.disp === "views" && view === "newest") {
+                return "newest"; }
+            return "normal"; }
     };  //end of mgrs.dsc returned functions
     }());
 
