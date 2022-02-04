@@ -93,7 +93,8 @@ app.player = (function () {
                 function (ignore /*successvalue*/) {
                     jt.log("Playing " + song.path); },
                 function (errorvalue) {
-                    mgrs.aud.handlePlayerError(errorvalue); }); }
+                    mgrs.aud.handlePlayerError(errorvalue); });
+            app.top.dispatch("locla", "libimpNeeded"); }
     };  //end mgrs.loa returned functions
     }());
 

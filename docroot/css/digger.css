@@ -50,7 +50,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .buttonico { max-height:30px; vertical-align:middle; padding:0px 5px; }
 #topdlgdiv { display:table; max-height:180px; overflow:scroll; }
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
-.statdiv { font-size:medium; }
+.statdiv { font-size:small; }
 
 .pathdiv { font-size:small; }
 .pathlabelspan, .pathlabelgreyspan { font-size:x-small; font-style:italic; }

@@ -284,7 +284,8 @@ app.svc = (function () {
                         jt.out("countspan", String(info.count) + "&nbsp;songs");
                         loadproc.stat = info.status;
                         if(info.status === "reading") {  //work ongoing, monitor
-                            jt.out(loadproc.divid, info.lastrpath);
+                            jt.out(loadproc.divid,
+                                   jt.ellipsis(info.lastrpath, 40));
                             jt.out("decksongsdiv", "Importing music...");
                             setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete
@@ -297,7 +298,9 @@ app.svc = (function () {
         checkForReadErrors: function (info) {
             if(info.status === "badMusicPath") {
                 jt.err("bad musicPath " + info.musicpath);
-                app.top.dispatch("cfg", "launch"); } },
+                app.top.dispatch("cfg", "launch"); }
+            else {
+                app.top.dispatch("locla", "noteLibraryLoaded"); } },
         rebuildSongData: function (databaseobj) {
             dbo = databaseobj;
             jt.out("countspan", String(dbo.songcount) + "&nbsp;songs");

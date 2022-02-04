@@ -1258,6 +1258,7 @@ app.top = (function () {
              tt:"Ignore folders when reading music files", n:"Ignore Folders"},
             {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
              tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
+        var slfrc = "";  //session library file import check
     return {
         writeDlgContent: function () {
             var config = app.svc.dispatch("loc", "getConfig");
@@ -1308,7 +1309,15 @@ app.top = (function () {
         hubSyncInfoHTML: function () {
             if(mgrs.locam.getAccount().dsId === "101") { return ""; }
             setTimeout(mgrs.a2h.makeStatusDisplay, 100);
-            return jt.tac2html(["div", {id:"hubSyncInfoDiv"}]); }
+            return jt.tac2html(["div", {id:"hubSyncInfoDiv"}]); },
+        libimpNeeded: function () {
+            if(slfrc) { return; }
+            slfrc = new Date().toISOString();
+            setTimeout(function () {
+                app.svc.dispatch("loc", "loadLibrary", "topstatdiv"); },
+                       200); },
+        noteLibraryLoaded: function () {
+            slfrc = new Date().toISOString(); }
     };  //end mgrs.locla returned functions
     }());
 
