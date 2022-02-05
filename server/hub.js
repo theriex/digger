@@ -22,9 +22,10 @@ module.exports = (function () {
         delflds.forEach(function (fld) { delete song[fld]; });
         escflds.forEach(function (fld) {  //replace parens with HTML chars
             if(song[fld]) {
-                song[fld] = song[fld].replace(/\(/g, "&#40;");
-                song[fld] = song[fld].replace(/\)/g, "&#41;");
-                song[fld] = song[fld].replace(/'/g, "&#39;");
+                song[fld] = song[fld].replace(/\(/g, "ESCOPENPAREN");
+                song[fld] = song[fld].replace(/\)/g, "ESCCLOSEPAREN");
+                song[fld] = song[fld].replace(/'/g, "ESCSINGLEQUOTE");
+                song[fld] = song[fld].replace(/&/g, "ESCAMPERSAND");
                 wsrw.forEach(function (rw) {
                     song[fld] = song[fld].replace(
                         new RegExp(rw, "gi"), function (match) {
