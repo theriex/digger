@@ -278,6 +278,10 @@ app.svc = (function () {
         var dbo = null;
         var loadproc = null;
     return {
+        deckImportWorkMessage: function () {
+            const di = app.deck.deckinfo();
+            if(!di.songs || !di.songs.length) {
+                jt.out("decksongsdiv", "Importing music..."); } },
         monitorReadTotal: function () {
             jt.call("GET", app.cb("/songscount"), null,
                     function (info) {
@@ -286,7 +290,7 @@ app.svc = (function () {
                         if(info.status === "reading") {  //work ongoing, monitor
                             jt.out(loadproc.divid,
                                    jt.ellipsis(info.lastrpath, 40));
-                            jt.out("decksongsdiv", "Importing music...");
+                            mgrs.loc.deckImportWorkMessage();
                             setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete
                             //app.deck.updateDeck(); handled by dbread return
