@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v0.9.23";
+        return "v0.9.24";
     }
 
 
@@ -387,7 +387,7 @@ module.exports = (function () {
         //mark everything deleted, then undo as the songs are found.
         Object.keys(dbo.songs).forEach(function (key) {
             var fq = dbo.songs[key].fq;
-            if(!fq.startsWith("D")) {  //already marked as deleted
+            if(!fq.startsWith("D")) {  //not already marked as deleted
                 dbo.songs[key].fq = "D" + fq; } });
         root = conf.musicPath;
         if(root.endsWith("/") || root.endsWith("\\")) {
