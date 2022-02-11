@@ -51,6 +51,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #topdlgdiv { display:table; max-height:180px; overflow:scroll; }
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
 .statdiv { font-size:small; }
+#toponelinestatdiv { max-width:280px; max-height:1em; overflow:hidden; }
 
 .pathdiv { font-size:small; }
 .pathlabelspan, .pathlabelgreyspan { font-size:x-small; font-style:italic; }
@@ -100,18 +101,22 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #musflabelspan { font-size:medium; font-weight:bold; }
 #musfinfonamespan { font-size:medium; }
 
+.mflediv { display:inline-block; padding:0px 3px; }
+.dispnamespan { display:inline-block; min-width:64px; max-width:64px;
+  vertical-align:middle; }
+.dhcspan, .obcspan { display:inline-block; min-width:40px;
+  vertical-align:middle;}
+.dhcspan { text-align:right; }
+.obcspan { text-align:left; }
+#addmfdiv { margin-top:6px; }
 #mfsdiv { font-size:medium; }
 #mfbdiv { display:inline-block; padding:0px 0px 0px 6px; }
-#amfsdiv { margin-top:10px; font-size:medium; }
-#amfsdiv select { margin:0px 6px 0px 6px; }
-.mflinenospan { cursor:pointer; }
-.mflinenospandis { opacity:0.4; }
-.friendinfotogimg { max-height:16px; margin:0px 4px 2px 0px; }
 #mfsubstatdiv { padding:4px 0px 0px 0px; }
 #mfsubformdiv label { margin-right:4px; }
 #mfsubformdiv input { margin-right:4px; }
 #mfsubformbdiv, #mfinvdonebdiv { display:inline-block; }
 #mfinvitelink { font-weight:bold; font-size:large; }
+
 
 #ciheadingdiv { font-size:small; padding:0px 0px 7px 0px; font-style:italic; }
 .filenamespan { font-style:normal; }

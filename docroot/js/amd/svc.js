@@ -532,7 +532,7 @@ app.svc = (function () {
                                               contf, errf); }
             return mgrs.web.fetchDeckSongs(fvsj, contf, errf); },
         fetchDeckSongs: function (fvsj, contf, errf) {
-            var mfids = app.top.dispatch("mfnd", "musicFriendsIdCSV");
+            var mfids = app.top.dispatch("mfnd", "activeFriendsIdCSV");
             if(mfids !== fvsj.friendidcsv) {  //clear friend suggested songs
                 Object.entries(pool).forEach(function ([sk, song]) {
                     if(song.dsId.startsWith("fr")) {
