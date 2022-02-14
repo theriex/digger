@@ -165,6 +165,15 @@ module.exports = (function () {
     }
 
 
+    function isIgnorableError (res, err, apiname) {
+        if(String(err).indexOf("ENOTFOUND")) {
+            console.log(apiname + " offline");
+            res.writeHead(400, {"Content-Type": "text/plain"});
+            res.end(apiname + " offline");
+            return true; }
+    }
+
+
     function hubPostFields (res, apiname, procf, fldsobj) {
         var ctx = {reqflds:fldsobj,
                    url:hs + "/api/" + apiname,
@@ -193,8 +202,8 @@ module.exports = (function () {
                 res.writeHead(200, {"Content-Type": "application/json"});
                 res.end(ctx.restext); })
             .catch(function (err) {
-                if(String(err).indexOf("ENOTFOUND") < 0) {  //not just offline
-                    console.log(err.stack); }
+                if(isIgnorableError(res, err, apiname)) { return; }
+                console.log(err.stack);
                 if(ctx.restext) {
                     console.log("ctx.restext: " + ctx.restext); }
                 if(ctx.code === 200) {

@@ -422,17 +422,20 @@ app.player = (function () {
             jt.log("Play error " + errmsg + " " + stat.song.path);
             //NotAllowedError is normal on app start. Autoplay is generally
             //disabled until the user has interacted with the player.
-            if(errmsg.indexOf("NotAllowedError")) {
+            if(errmsg.indexOf("NotAllowedError") >= 0) {
                 if(mgrs[cap].handleNotAllowedError) {
                     return mgrs[cap].handleNotAllowedError(errmsg); }
                 return; }
             //NotSupportedError means file is unplayable by the current
             //player, but might be ok.  For example on MacOS, Safari handles
-            //an .m4a but Firefox doesn't.  Best to skip to the next file,
+            //an .m4a but Firefox doesn't.  Best to skip to the next song,
             //assuming this is an anomaly and the next one will likely play.
+            //Wait before skipping so it doesn't seem like "play now" just
+            //played the wrong song.  Error displays in history view.
             if(errmsg.indexOf("NotSupportedError") >= 0) {
+                jt.log("mgrs.aud.handlePlayerError skipping song...");
                 playerrs[stat.song.path] = errmsg;
-                app.player.skip(); } },
+                setTimeout(app.player.skip, 4000); } },
         updateSongTitleDisplay: function () {
             var tunesrc = "img/tunefork.png";
             const tuneimg = jt.byId("tuneimg");
