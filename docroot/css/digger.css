@@ -231,7 +231,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .btleftb { border-radius:10px 0px 0px 10px; }
 .btrightb { border-radius:0px 10px 10px 0px; }
 
-#ratdiv { margin:5px 10px 5px 0px; }
+#ratdiv { margin:5px 5px 5px 0px; }
 .gtoreqspan { font-size:large; font-weight:bold; }
 .ratstarscontainerdiv { display:inline-block; width:85px; height:15px; }
 .ratstarsanchordiv { position:relative; cursor:pointer; }
@@ -239,9 +239,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .ratstarseldiv { position:absolute; top:0px; left:0px; overflow:hidden; }
 #ratstardragdiv, #filtstardragdiv { position:absolute; top:0px; left:0px;
   width:85px; height:15px; }
-#incluntb { background:#333; font-size:12px; width:120px;
-  padding:2px 6px; margin-left:10px; border:0px; border-radius:0px;
+#incluntb, #pullscopeb { background:#333; font-size:12px;
+  padding:2px 6px; margin:5px 5px 0px 10px; border:0px; border-radius:0px;
   box-shadow:1px 1px 1px #666; }
+#incluntb { width:110px; }
+#pullscopeb { width:90px; }
 
 #fqftogdiv { display:inline-block; opacity:0.75; }
 #fqtogb { border-radius:0px; box-shadow:unset; border:3px solid black;
