@@ -427,6 +427,8 @@ app.filter = (function () {
                 if(song.kws && tgds.tgf.idx === 2) {
                     return false; }  //song is tagged, playing untagged only
                 return true; }; },
+        minrat: function () { return tgds.mrf.vs[tgds.mrf.idx].v; },
+        tagf: function () { return tgds.tgf.idx; },
         init: function (divid) {
             mgrs.mruc.writeHTML(divid);
             mgrs.mruc.setFromSettings();
@@ -578,8 +580,8 @@ app.filter = (function () {
             return {elmin:ctrls.el.rgfoc.min, elmax:ctrls.el.rgfoc.max,
                     almin:ctrls.al.rgfoc.min, almax:ctrls.al.rgfoc.max,
                     poskws:buttonsCSV("pos"), negkws:buttonsCSV("neg"),
-                    minrat:ctrls.rat.stat.minrat,
-                    tagfidx:ctrls.rat.tagf.idx,   //Both|Tagged|Untagged
+                    minrat:mgrs.mruc.minrat(),
+                    tagfidx:mgrs.mruc.tagf(),
                     fq:mgrs.fq.getFrequencyFiltering(),  //on|off
                     fpst:mgrs.dsc.filteringPanelState(),  //on|off
                     ddst:mgrs.dsc.deckDisplayState(),  //normal|newest
