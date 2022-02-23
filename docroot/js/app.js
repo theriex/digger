@@ -48,7 +48,10 @@ return {
                (ox.search(/:\d080/) < 0)) {  //and not local dev
                 window.location.href = "https:" + ox.slice(ox.indexOf("/"));
                 return; } }  //stop and let the redirect happen.
-        app.docroot = ox.split("/").slice(0, 3).join("/") + "/";
+        if(ox.indexOf("android")) {
+            app.docroot = "https://appassets.androidplatform.net/assets/"; }
+        else {
+            app.docroot = ox.split("/").slice(0, 3).join("/") + "/"; }
         if(!jtminjsDecorateWithUtilities) { //support lib not loaded yet
             return setTimeout(app.init, 50); }
         jtminjsDecorateWithUtilities(jt);
