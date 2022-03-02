@@ -412,7 +412,7 @@ app.player = (function () {
         var cap = "loa";  //current audio player
     return {
         init: function () {
-            var ctx = app.svc.dispatch("gen", "getHostDataManager");
+            var ctx = app.svc.dispatch("gen", "getHostType");
             if(ctx === "web") {  //deal with Spotify redirect if needed
                 cap = "spa";
                 mgrs.spa.token(); } },
@@ -610,7 +610,7 @@ app.player = (function () {
                           {a:"Title", v:"ti", e:true},
                           {a:"Artist", v:"ar", e:true},
                           {a:"Album", v:"ab", e:true}];
-            switch(app.svc.dispatch("gen", "getHostDataManager")) {
+            switch(app.svc.dispatch("gen", "getHostType")) {
             case "web": flds.push({a:"Spotify", v:mgrs.tun.spidlink()}); break;
             default: flds.push({a:"File", v:stat.song.path}); }
             flds.forEach(function (fld) {

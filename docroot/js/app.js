@@ -48,7 +48,7 @@ return {
                (ox.search(/:\d080/) < 0)) {  //and not local dev
                 window.location.href = "https:" + ox.slice(ox.indexOf("/"));
                 return; } }  //stop and let the redirect happen.
-        if(ox.indexOf("android")) {
+        if(ox.indexOf("android") >= 0) {
             app.docroot = "https://appassets.androidplatform.net/assets/"; }
         else {
             app.docroot = ox.split("/").slice(0, 3).join("/") + "/"; }
@@ -183,7 +183,38 @@ return {
                     errmsg = errmsg.slice(0, ci); } }
             jt.log("app.pt returning: " + errmsg); }
         return errmsg;
+    },
+
+
+    //!UNPACKED BY appdat.py unescape_song_fields
+    //!EQUIVALENT CODE IN ../../../server/hub.js
+    //Even a serialized song can run afoul of web security rules due to
+    //paths, titles or other fields containing parenthetical expressions or
+    //other triggering patterns.  For UPLOAD, remove any problematic temp
+    //fields and escape whatever triggers security blocks.
+    txSong: function (song) {
+        var delflds = ["mrd", "smti", "smar", "smab"];
+        //THIS MUST MATCH appdat.py unescape_song_fields
+        var escflds = ["path", "ti", "ar", "ab", "nt"];
+        //Web Security Reserved Words that must be escaped to be let through
+        var wsrw = ["having", "select", "union"];
+        song = JSON.parse(JSON.stringify(song));
+        delflds.forEach(function (fld) { delete song[fld]; });
+        escflds.forEach(function (fld) {  //replace parens with HTML chars
+            if(song[fld]) {
+                song[fld] = song[fld].replace(/\(/g, "ESCOPENPAREN");
+                song[fld] = song[fld].replace(/\)/g, "ESCCLOSEPAREN");
+                song[fld] = song[fld].replace(/'/g, "ESCSINGLEQUOTE");
+                song[fld] = song[fld].replace(/&/g, "ESCAMPERSAND");
+                wsrw.forEach(function (rw) {
+                    song[fld] = song[fld].replace(
+                        new RegExp(rw, "gi"), function (match) {
+                            const rev = match.split("").reverse().join("");
+                            return "WSRW" + rev; }); });
+            } });
+        return song;
     }
+
 
 };  //end returned functions
 }());

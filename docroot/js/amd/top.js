@@ -152,7 +152,7 @@ app.top = (function () {
                 upldsongs = upldsongs.slice(0, 199);
                 if(upldsongs.some((s) => !s.dsId && app.deck.isUnrated(s))) {
                     mgrs.mfcm.noteNewUnratedSongUploaded(); }
-                upldsongs = upldsongs.map((sg) => app.svc.txSong(sg)); }
+                upldsongs = upldsongs.map((sg) => app.txSong(sg)); }
             syt.up += upldsongs.length;
             mgrs.hcu.serializeAccount(curracct);
             const obj = {email:curracct.email, token:curracct.token,
@@ -584,7 +584,7 @@ app.top = (function () {
         checkContributions: function () {
             if(updstat.inprog) {
                 return jt.log("checkContributions inprog " + updstat.inprog); }
-            if(app.svc.hostDataManager() === "loc" &&
+            if(app.svc.getHostType() === "loc" &&
                !mgrs.a2h.hubSyncStable()) {  //hubsync calls here as needed
                 return jt.log("checkContributions waiting on hubSyncStable"); }
             if(!updstat.newsong && mgrs.mfnd.contribsUpToDate()) {
@@ -1689,9 +1689,9 @@ app.top = (function () {
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],
                  ["div", {cla:"statdiv", id:"topstatdiv"}]])); },
         getAccount: function () {
-            return mgrs[app.svc.hostDataManager() + "am"].getAccount(); },
+            return mgrs[app.svc.getHostType() + "am"].getAccount(); },
         updateAccount: function (cf, ef) {
-            mgrs[app.svc.hostDataManager() + "am"].updateAccount(cf, ef); },
+            mgrs[app.svc.getHostType() + "am"].updateAccount(cf, ef); },
         togtopdlg: function (mode, cmd) {
             var dlgdiv = jt.byId("topdlgdiv");
             if(cmd === "close" || (!cmd && dlgdiv.dataset.mode === mode)) {
@@ -1699,9 +1699,9 @@ app.top = (function () {
                 dlgdiv.innerHTML = ""; }
             else {
                 dlgdiv.dataset.mode = mode;
-                mgrs[app.svc.hostDataManager() + mode].writeDlgContent(); } },
+                mgrs[app.svc.getHostType() + mode].writeDlgContent(); } },
         initialDataLoaded: function () {
-            mgrs[app.svc.hostDataManager() + "am"].initialDataLoaded(); },
+            mgrs[app.svc.getHostType() + "am"].initialDataLoaded(); },
         updateHubToggleSpan: function (acct) {
             jt.byId("hubtogspan").title = "Account Info (" +
                 acct.diggerVersion + ", " + app.fileVersion() + ")";

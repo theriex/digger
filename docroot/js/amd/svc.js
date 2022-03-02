@@ -14,37 +14,9 @@ app.svc = (function () {
         jt.log(msg);
         jt.out("statspan", msg);
     }
-    //!UNPACKED BY appdat.py unescape_song_fields
-    //!EQUIVALENT CODE IN ../../../server/hub.js
-    //Even a serialized song can run afoul of web security rules due to
-    //paths, titles or other fields containing parenthetical expressions or
-    //other triggering patterns.  For UPLOAD, remove any problematic temp
-    //fields and escape whatever triggers security blocks.
-    function txSong (song) {
-        var delflds = ["mrd", "smti", "smar", "smab"];
-        //THIS MUST MATCH appdat.py unescape_song_fields
-        var escflds = ["path", "ti", "ar", "ab", "nt"];
-        //Web Security Reserved Words that must be escaped to be let through
-        var wsrw = ["having", "select", "union"];
-        song = JSON.parse(JSON.stringify(song));
-        delflds.forEach(function (fld) { delete song[fld]; });
-        escflds.forEach(function (fld) {  //replace parens with HTML chars
-            if(song[fld]) {
-                song[fld] = song[fld].replace(/\(/g, "ESCOPENPAREN");
-                song[fld] = song[fld].replace(/\)/g, "ESCCLOSEPAREN");
-                song[fld] = song[fld].replace(/'/g, "ESCSINGLEQUOTE");
-                song[fld] = song[fld].replace(/&/g, "ESCAMPERSAND");
-                wsrw.forEach(function (rw) {
-                    song[fld] = song[fld].replace(
-                        new RegExp(rw, "gi"), function (match) {
-                            const rev = match.split("").reverse().join("");
-                            return "WSRW" + rev; }); });
-            } });
-        return song;
-    }
-    function txSongJSON (song) { return JSON.stringify(txSong(song)); }
+    function txSongJSON (song) { return JSON.stringify(app.txSong(song)); }
     function txSongsJSON (songs) {
-        songs = songs.map((song) => txSong(song));
+        songs = songs.map((song) => app.txSong(song));
         return JSON.stringify(songs);
     }
 
@@ -651,7 +623,7 @@ app.svc = (function () {
             return url &&
                 url.match(/https?:\/\/(localhost|127.0.0.1):80\d\d\/digger/); }
     return {
-        getHostDataManager: function () { return hdm; },
+        getHostType: function () { return hdm; },
         initialDataLoaded: function () {
             //Setting the filter values triggers a call to app.deck.update
             //which rebuilds the deck and starts the player.
@@ -674,7 +646,6 @@ app.svc = (function () {
                 mgrs[hdm].loadInitialData(mgrs.gen.initialDataLoaded,
                                           mgrs.gen.initialDataFailed); },
                        200); },
-        hostDataManager: function () { return hdm; },
         loadLibrary: function (libname, divid, cnf, donef) {
             switch(libname) {
             case "local": return mgrs.loc.loadLibrary(divid, cnf, donef);
@@ -713,13 +684,12 @@ app.svc = (function () {
 
 return {
     init: function () { mgrs.gen.initialize(); },
-    hostDataManager: function () { return mgrs.gen.hostDataManager(); },
+    getHostType: function () { return mgrs.gen.getHostType(); },
     songs: function () { return mgrs.gen.songs(); },
     fetchSongs: function (cf, ef) { mgrs.gen.fetchSongs(cf, ef); },
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
     updateSong: function (song, contf) { mgrs.gen.updateSong(song, contf); },
     authdata: function (obj) { return mgrs.gen.authdata(obj); },
-    txSong: function (sg) { return txSong(sg); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }
 };  //end of returned functions

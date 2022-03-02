@@ -5,6 +5,8 @@
 #   ./Digger/Digger.app/Contents/Info.plist CFBundleVersion (numeric, no 'v')
 #   ../server/db.js diggerVersion (string, preceding 'v')
 #   ../../diggerhub/site/py/util.py version (string, preceding 'v')
+# Verify compiled client versions are >=:
+#   ../../diggerdroid/app/src/main/assets/js/amd/svc.js
 
 # Update the static resource cache bust flag.  Server cachev modifies app.js
 # which local will then pick up so always latest.

@@ -271,7 +271,7 @@ app.deck = (function () {
                         f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {
                     msgs.push("Try wider energy level and approachability"); }
                 //extend library and/or add a friend to help
-                if(app.svc.dispatch("gen", "getHostDataManager") === "web") {
+                if(app.svc.dispatch("gen", "getHostType") === "web") {
                     app.top.dispatch("webla", "spimpNeeded", "nosongs");
                     msgs.push(amfLink("Add a friend to find more music")); }
                 else { //local player
