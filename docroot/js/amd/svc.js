@@ -624,6 +624,10 @@ app.svc = (function () {
                 url.match(/https?:\/\/(localhost|127.0.0.1):80\d\d\/digger/); }
     return {
         getHostType: function () { return hdm; },
+        getAudioPlatform: function () {  //overriden on mobile platforms
+            if(hdm === "web") {      //switch on app.startParams for plats
+                return "Spotify"; }
+            return "Browser"; },
         initialDataLoaded: function () {
             //Setting the filter values triggers a call to app.deck.update
             //which rebuilds the deck and starts the player.

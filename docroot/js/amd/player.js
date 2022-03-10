@@ -407,15 +407,56 @@ app.player = (function () {
     }());
 
 
+    //Mobile device general audio interface
+    mgrs.mob = (function () {
+        var pbi = null; //playback state information
+    return {
+        ////calls from svc.mp
+        notePlaybackStatus: function (status) {
+            pbi.state = status.state;  //"playing" or "paused"
+            pbi.pos = status.pos;  //current play position ms
+            pbi.dur = status.dur || pbi.dur;  //song duration if provided
+            mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur); },
+        handlePlayFailure: function (stat, err) {
+            const odiv = jt.byId("mediaoverlaydiv");
+            odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
+                              jt.byId("playertitle").offsetHeight + 2) + "px";
+            odiv.style.display = "block";
+            // odiv.innerHTML = "Playback failed, skipping song...";
+            // setTimeout(function () {
+            //     jt.out("mediaoverlaydiv", "");
+            //     jt.byId("mediaoverlaydiv").style.display = "none";
+            //     app.player.next(); }, 3000);
+            odiv.innerHTML = "Play failed: " + stat + ": " + err; },
+        ////calls from mgrs.plui
+        refreshPlayState: function () {  //calls notePlaybackStatus
+            app.svc.dispatch("mp", "requestStatusUpdate"); },
+        pause: function () {
+            app.svc.dispatch("mp", "pause"); },
+        resume: function () {
+            app.svc.dispatch("mp", "resume"); },
+        seek: function (ms) {
+            app.svc.dispatch("mp", "seek", ms); },
+        ////calls from mgrs.aud
+        playSong: function (ps) {
+            pbi = {song:ps, pos:0, dur:ps.duration || 0, state:""};
+            app.svc.dispatch("mp", "playSong", ps.path); },
+        verifyPlayer: function (contf) {
+            contf(); }  //nothing to do. plat/UI initialized as needed
+    };  //end mgrs.mob returned functions
+    }());
+
+
     //general interface for whatever audio player is being used.
     mgrs.aud = (function () {
         var cap = "loa";  //current audio player
     return {
         init: function () {
-            var ctx = app.svc.dispatch("gen", "getHostType");
-            if(ctx === "web") {  //deal with Spotify redirect if needed
-                cap = "spa";
-                mgrs.spa.token(); } },
+            var ap = app.svc.dispatch("gen", "getAudioPlatform");
+            switch(ap) {
+            case "Spotify": cap = "spa"; mgrs.spa.token(); break;
+            case "Android": cap = "mob"; break;
+            default: cap = "loa"; } },
         handlePlayerError: function (errval) {
             //On Firefox, errval is a DOMException
             var errmsg = String(errval);  //error name and detail text
