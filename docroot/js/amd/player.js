@@ -124,14 +124,14 @@ app.player = (function () {
                 else {
                     prog.ticker = setTimeout(tickf, 1000); } } }
     return {
-        reflectPlaybackState: function () {
-            if(state === "paused") {
+        reflectPlaybackState: function (pbs, skiptick) {
+            if(pbs === "paused") {
                 if(prog.ticker) {
                     clearTimeout(prog.ticker);
                     prog.ticker = null; }
                 bimg = "img/play.png"; }
             else {  //playing
-                if(!prog.ticker) {
+                if(!prog.ticker && !skiptick) {
                     prog.ticker = setTimeout(tickf, 1000); }
                 bimg = "img/pause.png"; }
             jt.byId("pluibimg").src = bimg; },
@@ -142,7 +142,7 @@ app.player = (function () {
             else {  //playing
                 prog.svco.pause();
                 state = "paused"; }
-            mgrs.plui.reflectPlaybackState(); },
+            mgrs.plui.reflectPlaybackState(state); },
         seek: function (event) {
             var clickrect = event.target.getBoundingClientRect();
             var x = event.clientX - clickrect.left;
@@ -197,7 +197,7 @@ app.player = (function () {
             app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             if(state !== pbstate) {
                 state = pbstate;
-                mgrs.plui.reflectPlaybackState(); }
+                mgrs.plui.reflectPlaybackState(state); }
             mgrs.plui.updatePosIndicator(); }
     };  //end mgrs.plui returned functions
     }());
@@ -410,13 +410,15 @@ app.player = (function () {
     //Mobile device general audio interface
     mgrs.mob = (function () {
         var pbi = null; //playback state information
+        var debouncing = false;
     return {
         ////calls from svc.mp
         notePlaybackStatus: function (status) {
             pbi.state = status.state;  //"playing" or "paused"
             pbi.pos = status.pos;  //current play position ms
             pbi.dur = status.dur || pbi.dur;  //song duration if provided
-            mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur); },
+            mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
+            debouncing = false; },
         handlePlayFailure: function (stat, err) {
             const odiv = jt.byId("mediaoverlaydiv");
             odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
@@ -432,14 +434,22 @@ app.player = (function () {
         refreshPlayState: function () {  //calls notePlaybackStatus
             app.svc.dispatch("mp", "requestStatusUpdate"); },
         pause: function () {
-            app.svc.dispatch("mp", "pause"); },
+            jt.log("mgrs.mob.pause debouncing " + debouncing);
+            if(!debouncing) {
+                mgrs.plui.reflectPlaybackState("paused");
+                debouncing = true;
+                app.svc.dispatch("mp", "pause"); } },
         resume: function () {
-            app.svc.dispatch("mp", "resume"); },
+            jt.log("mgrs.mob.resume debouncing " + debouncing);
+            if(!debouncing) {
+                mgrs.plui.reflectPlaybackState("playing", "noticker");
+                debouncing = true;
+                app.svc.dispatch("mp", "resume"); } },
         seek: function (ms) {
             app.svc.dispatch("mp", "seek", ms); },
         ////calls from mgrs.aud
         playSong: function (ps) {
-            pbi = {song:ps, pos:0, dur:ps.duration || 0, state:""};
+            pbi = {song:ps, pos:0, dur:ps.duration || 0, state:"playing"};
             app.svc.dispatch("mp", "playSong", ps.path);
             mgrs.mob.refreshPlayState(); },
         verifyPlayer: function (contf) {
