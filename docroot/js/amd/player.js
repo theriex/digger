@@ -440,7 +440,8 @@ app.player = (function () {
         ////calls from mgrs.aud
         playSong: function (ps) {
             pbi = {song:ps, pos:0, dur:ps.duration || 0, state:""};
-            app.svc.dispatch("mp", "playSong", ps.path); },
+            app.svc.dispatch("mp", "playSong", ps.path);
+            mgrs.mob.refreshPlayState(); },
         verifyPlayer: function (contf) {
             contf(); }  //nothing to do. plat/UI initialized as needed
     };  //end mgrs.mob returned functions
@@ -503,12 +504,12 @@ app.player = (function () {
             ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2)); },
         reflectPlaying: function () {
             stat.status = "playing";
-            jt.log(JSON.stringify(stat.song));
+            jt.log("player.aud.reflectPlaying " + JSON.stringify(stat.song));
             mgrs.aud.updateSongDisplay();
             app.deck.dispatch("gen", "redisplayCurrentSection"); },
         playAudio: function () {
             stat.status = "playing";
-            jt.log(JSON.stringify(stat.song));
+            jt.log("player.aud.playAudio " + JSON.stringify(stat.song));
             mgrs.aud.verifyPlayer(function () {
                 mgrs.aud.updateSongDisplay();
                 mgrs[cap].playSong(stat.song); }); },
