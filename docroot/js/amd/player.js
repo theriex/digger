@@ -104,7 +104,8 @@ app.player = (function () {
         var state = "paused";
         var bimg = "img/play.png";
         var prog = {pos:0, dur:0, w:200, left:16, //CSS pluiprogbgdiv left
-                    svco:null, divs:["pluiprogbgdiv", "pluiprogclickdiv"]};
+                    divs:["pluiprogbgdiv", "pluiprogclickdiv"],
+                    tickcount:0, svco:null};
         function mmss (ms) {
             var sep = ":";
             ms = Math.round(ms / 1000);
@@ -119,7 +120,7 @@ app.player = (function () {
             prog.tickcount = (prog.tickcount + 1) % 4;
             if(jt.byId("pluidiv")) { //interface still available
                 const rems = prog.dur - prog.pos;
-                if(state === "playing" && rems < 1200) {
+                if(state === "playing" && prog.dur && rems < 1200) {
                     setTimeout(app.player.next, rems); }
                 else {
                     prog.ticker = setTimeout(tickf, 1000); } } }
@@ -434,13 +435,13 @@ app.player = (function () {
         refreshPlayState: function () {  //calls notePlaybackStatus
             app.svc.dispatch("mp", "requestStatusUpdate"); },
         pause: function () {
-            jt.log("mgrs.mob.pause debouncing " + debouncing);
+            //jt.log("mgrs.mob.pause debouncing " + debouncing);
             if(!debouncing) {
                 mgrs.plui.reflectPlaybackState("paused");
                 debouncing = true;
                 app.svc.dispatch("mp", "pause"); } },
         resume: function () {
-            jt.log("mgrs.mob.resume debouncing " + debouncing);
+            //jt.log("mgrs.mob.resume debouncing " + debouncing);
             if(!debouncing) {
                 mgrs.plui.reflectPlaybackState("playing", "noticker");
                 debouncing = true;
