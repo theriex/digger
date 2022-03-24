@@ -105,7 +105,7 @@ app.player = (function () {
         var bimg = "img/play.png";
         var prog = {pos:0, dur:0, w:200, left:16, //CSS pluiprogbgdiv left
                     divs:["pluiprogbgdiv", "pluiprogclickdiv"],
-                    tickcount:0, svco:null};
+                    tickcount:1, svco:null};
         function mmss (ms) {
             var sep = ":";
             ms = Math.round(ms / 1000);
@@ -117,6 +117,7 @@ app.player = (function () {
             if(!prog.tickcount) {
                 prog.svco.refreshPlayState(); }
             prog.pos = Math.min(prog.pos + 1000, prog.dur);  //tick 1 sec fwd
+            mgrs.plui.updatePosIndicator();  //reflect new position
             prog.tickcount = (prog.tickcount + 1) % 4;
             if(jt.byId("pluidiv")) { //interface still available
                 const rems = prog.dur - prog.pos;
@@ -133,6 +134,8 @@ app.player = (function () {
                 bimg = "img/play.png"; }
             else {  //playing
                 if(!prog.ticker && !skiptick) {
+                    prog.tickcount = 1;
+                    mgrs.plui.updatePosIndicator();  //reflect position
                     prog.ticker = setTimeout(tickf, 1000); }
                 bimg = "img/pause.png"; }
             jt.byId("pluibimg").src = bimg; },
@@ -197,6 +200,7 @@ app.player = (function () {
                 mgrs.plui.initInterface(); }
             app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             if(state !== pbstate) {
+                jt.log("player.plui.updateDisplay reflecting " + pbstate);
                 state = pbstate;
                 mgrs.plui.reflectPlaybackState(state); }
             mgrs.plui.updatePosIndicator(); }
@@ -432,8 +436,10 @@ app.player = (function () {
             //     app.player.next(); }, 3000);
             odiv.innerHTML = "Play failed: " + stat + ": " + err; },
         ////calls from mgrs.plui
-        refreshPlayState: function () {  //calls notePlaybackStatus
-            app.svc.dispatch("mp", "requestStatusUpdate"); },
+        refreshPlayState: function () {  //calls back to notePlaybackStatus
+            //use timeout to yield to plui tickf processing
+            setTimeout(function () {
+                app.svc.dispatch("mp", "requestStatusUpdate"); }, 100); },
         pause: function () {
             //jt.log("mgrs.mob.pause debouncing " + debouncing);
             if(!debouncing) {
@@ -454,7 +460,14 @@ app.player = (function () {
             app.svc.dispatch("mp", "playSong", ps.path);
             mgrs.mob.refreshPlayState(); },
         verifyPlayer: function (contf) {
-            contf(); }  //nothing to do. plat/UI initialized as needed
+            contf(); },  //nothing to do. plat/UI initialized as needed
+        ////general funcs
+        setState: function (rst) {
+            stat.song = rst.song;
+            pbi = {song:rst.song, pos:rst.pos, dur:rst.dur, state:rst.state};
+            mgrs.aud.verifyPlayer(function () {
+                mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
+                mgrs.aud.updateSongDisplay(); }); }
     };  //end mgrs.mob returned functions
     }());
 
@@ -1160,7 +1173,6 @@ app.player = (function () {
 
 
 return {
-
     init: function () { initializeDisplay(); },
     deckUpdated: function () { if(!stat.song) { app.player.next(); } },
     next: function () { next(); },
@@ -1168,6 +1180,7 @@ return {
     song: function () { return stat.song; },
     playerr: function (path) { return playerrs[path]; },
     noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; },
+    setState: function (state) { mgrs.mob.setState(state); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.player, args); }
 
