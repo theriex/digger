@@ -151,7 +151,7 @@ app.deck = (function () {
             if(wrk.songs.length) {  //show songs if any found
                 app.player.deckUpdated(); }
             setTimeout(function () {  //leave info up momentarily
-                mgrs.gen.showSection("songs"); }, 800);
+                mgrs.gen.showSection(wrk.selview); }, 800);
             mgrs.sop.displaySongs("dk", "decksongsdiv", wrk.songs);
             wrk.tmo = null;
             wrk.stat = "";
@@ -164,6 +164,7 @@ app.deck = (function () {
         rebuildWork: function () {
             wrk.stat = "updating";  //note work has started
             wrk.wait = 1200;  //debounce any filter control movement
+            wrk.selview = mgrs.gen.deckstate().disp;
             mgrs.gen.showSection("info");
             jt.out("deckinfodiv", "Fetching songs...");
             app.svc.fetchSongs(mgrs.ws.updateDeck, mgrs.ws.fetchFailure); },
@@ -416,6 +417,7 @@ app.deck = (function () {
                           onclick:mdfs("alb.playnow", idx)},
                     song.ti]; },
         displayAlbum: function (np) {
+            app.svc.noteUpdatedState("deck");  //enable restoring to album view
             jt.out("deckalbumdiv", jt.tac2html(
                 [["div", {cla:"albumtitlediv"},
                   [["span", {cla:"dsabspan"}, np.ab],
@@ -424,11 +426,13 @@ app.deck = (function () {
                  aid[cak].songs.map((song, idx) =>
                      mgrs.alb.makeAlbumSongDiv(song, idx))])); },
         albumstate: function () {
-            return {key:cak, info:aid}; },
+            return {key:cak, info:aid[cak]}; },
         restore: function (state) {
             cak = state.key;
-            aid = state.aid;
-            mgrs.alb.updateDisplayContent(); },
+            jt.log("mgrs.alb.restore cak: " + cak);
+            aid[cak] = state.info;
+            jt.log("mgrs.alb.restore aid[cak]: " + JSON.stringify(aid[cak]));
+            mgrs.gen.showSection("album"); },
         playnow: function (idx) {
             aid[cak].ci = idx - 1;
             app.player.next(); },
@@ -567,7 +571,7 @@ app.deck = (function () {
                  mgrs.gen.showSection(state ? "views" : "songs"); }}];
     return {
         showSection: function (showing) {
-            showing = showing || "songs";
+            showing = showing || deckstat.disp;
             const sections = ["songs", "info", "album", "views"];
             const buttons = ["", "toginfob", "togalb", "togviewsb"];
             sections.forEach(function (section, idx) {
@@ -670,6 +674,7 @@ app.deck = (function () {
             return di; },
         deckstate: function () {  //interim rapid restore info
             var state = {disp:deckstat.disp};
+            jt.log("deck.gen.deckstate disp: " + deckstat.disp);
             if(deckstat.disp === "album") {
                 state.det = mgrs.alb.albumstate(); }
             else { //might be displaying other tab, but next song is from deck
@@ -679,7 +684,7 @@ app.deck = (function () {
             jt.log("deck.gen.restore " + state.disp);
             if(state.disp === "album") {
                 deckstat.disp = "album";
-                mgrs.alb.restore(state); }
+                mgrs.alb.restore(state.det); }
             else {
                 deckstat.disp = "deck";
                 mgrs.dk.setSongs(state.det); } },

@@ -694,6 +694,7 @@ return {
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
     updateSong: function (song, contf) { mgrs.gen.updateSong(song, contf); },
     authdata: function (obj) { return mgrs.gen.authdata(obj); },
+    noteUpdatedState: function (/*label*/) { return; },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }
 };  //end of returned functions
