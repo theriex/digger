@@ -122,6 +122,7 @@ app.player = (function () {
             if(jt.byId("pluidiv")) { //interface still available
                 const rems = prog.dur - prog.pos;
                 if(state === "playing" && prog.dur && rems < 1200) {
+                    prog.ticker = null;
                     setTimeout(app.player.next, rems); }
                 else {
                     prog.ticker = setTimeout(tickf, 1000); } } }
@@ -199,7 +200,8 @@ app.player = (function () {
             if(!jt.byId("pluidiv")) { //interface not set up yet
                 mgrs.plui.initInterface(); }
             app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
-            if(state !== pbstate) {
+            //ticker may have stopped if playing new song
+            if(state !== pbstate || (state === "playing" && !prog.ticker)) {
                 jt.log("player.plui.updateDisplay reflecting " + pbstate);
                 state = pbstate;
                 mgrs.plui.reflectPlaybackState(state); }

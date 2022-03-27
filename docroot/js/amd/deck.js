@@ -672,13 +672,14 @@ app.deck = (function () {
             case "views": di.songs = mgrs.vws.songs(); break;
             default: di.disp = "deck"; di.songs = mgrs.dk.songs(); }
             return di; },
-        deckstate: function () {  //interim rapid restore info
+        deckstate: function (dmx) {  //interim rapid restore info (minimal data)
             var state = {disp:deckstat.disp};
-            jt.log("deck.gen.deckstate disp: " + deckstat.disp);
+            dmx = dmx || 7;
+            //jt.log("deck.gen.deckstate disp: " + deckstat.disp);
             if(deckstat.disp === "album") {
                 state.det = mgrs.alb.albumstate(); }
             else { //might be displaying other tab, but next song is from deck
-                state.det = mgrs.dk.songs().slice(0, 10); }
+                state.det = mgrs.dk.songs().slice(0, dmx); }
             return state; },
         restore: function (state) {  //interim rapid restore display
             jt.log("deck.gen.restore " + state.disp);
@@ -701,7 +702,7 @@ return {
     update: function (caller) { mgrs.ws.rebuild(caller); },
     getNextSong: function () { return mgrs.gen.getNextSong(); },
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
-    getState: function () { return mgrs.gen.deckstate(); },
+    getState: function (dmx) { return mgrs.gen.deckstate(dmx); },
     setState: function (state) { mgrs.gen.restore(state); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.deck, args); }
