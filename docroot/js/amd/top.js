@@ -112,6 +112,8 @@ app.top = (function () {
         hubSyncStart: function () { //see ../../docs/hubsyncNotes.txt
             var curracct = mgrs.locam.getAccount();
             if(curracct.dsId === "101") {
+                jt.out("modindspan", ""); //turn off comms indicator
+                mgrs.a2h.hubStatInfo("");
                 return jt.log("hubSyncStart aborted since not signed in"); }
             syt.stat = "executing";
             mgrs.a2h.hubStatInfo("processing...");
@@ -299,12 +301,18 @@ app.top = (function () {
             if(!(dat.email && dat.password)) {  //auth not included in call
                 const curracct = mgrs.locam.getAccount();
                 dat.an = curracct.email;
+                if(curracct.dsId === "101") {  //default account
+                    dat.an = ""; }  //email not filled in.
                 dat.at = curracct.token; }
             dat = jt.objdata(dat);
             return {data:dat, errf:function (code, errtxt) {
                 jt.byId(buttonid).disabled = false;
                 jt.out("hubacctstatdiv", code + ": " + errtxt); }}; },
         createOrSignIn: function (endpoint, buttonid, mode) {
+            if(!jt.isProbablyEmail(jt.byId("emailin").value)) {
+                return jt.out("hubacctstatdiv", "Need email address."); }
+            if(!jt.byId("passwordin").value) {
+                return jt.out("hubacctstatdiv", "Need password."); }
             var de = mgrs.h2a.accountFieldsServiceCallPrep(buttonid, mode);
             app.svc.dispatch("loc", "signInOrJoin", endpoint, de.data,
                 function (accntok) {
@@ -426,7 +434,8 @@ app.top = (function () {
                     jt.out("hubaccthelplinkdiv", "Sent reset email."); },
                 function (code, errtxt) {
                     jt.out("hubaccthelplinkdiv", "Reset failed " + code + ": " +
-                           errtxt); }); },
+                           errtxt);
+                    setTimeout(mgrs.h2a.signInForm, 6000); }); },
         noteSyncCompleted: function () {
             var ca = mgrs.locam.getAccount();
             if(jt.byId("fmvspanmodified")) {
