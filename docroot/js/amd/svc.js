@@ -614,6 +614,11 @@ app.svc = (function () {
 
     //general manager is main interface for app logic
     mgrs.gen = (function () {
+        var platconf = {
+            hdm: "loc",   //host data manager "loc" or "web", default local
+            musicPath: "editable",  //can change where music files are found
+            dbPath: "editable",  //can change where rating info is saved
+            audsrc: "Browser"};  //audio source for music
         var dwurl = "https://diggerhub.com/digger";
         var hdm = "loc";  //host data manager.  either loc or web
         var songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
@@ -623,11 +628,7 @@ app.svc = (function () {
             return url &&
                 url.match(/https?:\/\/(localhost|127.0.0.1):80\d\d\/digger/); }
     return {
-        getHostType: function () { return hdm; },
-        getAudioPlatform: function () {  //overriden on mobile platforms
-            if(hdm === "web") {      //switch on app.startParams for plats
-                return "Spotify"; }
-            return "Browser"; },
+        plat: function (key) { return platconf[key]; },
         initialDataLoaded: function () {
             //Setting the filter values triggers a call to app.deck.update
             //which rebuilds the deck and starts the player.
@@ -639,9 +640,11 @@ app.svc = (function () {
         initialize: function () {
             var url = window.location.href.toLowerCase();
             if(url.startsWith(dwurl) || isLocalDev(url)) {
-                hdm = "web"; }
+                platconf.hdm = "web";
+                //support different web audio via app.startParams values
+                platconf.audsrc = "Spotify"; }
             else {  //localhost or LAN
-                hdm = "loc"; }
+                platconf.hdm = "loc"; }
             //background image fails to load after redirect Mac FF 88.0.1
             const cssbg = "url('" + app.dr("/img/panelsbg.png") + "')";
             jt.byId("contentdiv").style.backgroundImage = cssbg;
@@ -688,13 +691,13 @@ app.svc = (function () {
 
 return {
     init: function () { mgrs.gen.initialize(); },
-    getHostType: function () { return mgrs.gen.getHostType(); },
+    plat: function (key) { return mgrs.gen.plat(key); },
     songs: function () { return mgrs.gen.songs(); },
     fetchSongs: function (cf, ef) { mgrs.gen.fetchSongs(cf, ef); },
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
     updateSong: function (song, contf) { mgrs.gen.updateSong(song, contf); },
     authdata: function (obj) { return mgrs.gen.authdata(obj); },
-    noteUpdatedState: function (/*label*/) { return; },
+    noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }
 };  //end of returned functions

@@ -313,7 +313,7 @@ app.top = (function () {
                 return jt.out("hubacctstatdiv", "Need email address."); }
             if(!jt.byId("passwordin").value) {
                 return jt.out("hubacctstatdiv", "Need password."); }
-            var de = mgrs.h2a.accountFieldsServiceCallPrep(buttonid, mode);
+            const de = mgrs.h2a.accountFieldsServiceCallPrep(buttonid, mode);
             app.svc.dispatch("loc", "signInOrJoin", endpoint, de.data,
                 function (accntok) {
                     accntok[0].syncsince = accntok[0].created + ";1";
@@ -593,7 +593,7 @@ app.top = (function () {
         checkContributions: function () {
             if(updstat.inprog) {
                 return jt.log("checkContributions inprog " + updstat.inprog); }
-            if(app.svc.getHostType() === "loc" &&
+            if(app.svc.plat("hdm") === "loc" &&
                !mgrs.a2h.hubSyncStable()) {  //hubsync calls here as needed
                 return jt.log("checkContributions waiting on hubSyncStable"); }
             if(!updstat.newsong && mgrs.mfnd.contribsUpToDate()) {
@@ -1233,7 +1233,8 @@ app.top = (function () {
             var config = app.svc.dispatch("loc", "getConfig");
             jt.out("topdlgdiv", jt.tac2html(
                 [["div", {cla:"dlgpathsdiv"},
-                  acts.filter((a) => a.ty === "cfgp")
+                  acts.filter((a) => (a.ty === "cfgp" &&
+                                      app.svc.plat(a.p) === "editable"))
                   .map((a) =>
                       ["div", {cla:"pathdiv"},
                        [["a", {href:"#configure", onclick:a.oc, title:a.tt},
@@ -1698,9 +1699,9 @@ app.top = (function () {
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],
                  ["div", {cla:"statdiv", id:"topstatdiv"}]])); },
         getAccount: function () {
-            return mgrs[app.svc.getHostType() + "am"].getAccount(); },
+            return mgrs[app.svc.plat("hdm") + "am"].getAccount(); },
         updateAccount: function (cf, ef) {
-            mgrs[app.svc.getHostType() + "am"].updateAccount(cf, ef); },
+            mgrs[app.svc.plat("hdm") + "am"].updateAccount(cf, ef); },
         togtopdlg: function (mode, cmd) {
             var dlgdiv = jt.byId("topdlgdiv");
             if(cmd === "close" || (!cmd && dlgdiv.dataset.mode === mode)) {
@@ -1708,9 +1709,9 @@ app.top = (function () {
                 dlgdiv.innerHTML = ""; }
             else {
                 dlgdiv.dataset.mode = mode;
-                mgrs[app.svc.getHostType() + mode].writeDlgContent(); } },
+                mgrs[app.svc.plat("hdm") + mode].writeDlgContent(); } },
         initialDataLoaded: function () {
-            mgrs[app.svc.getHostType() + "am"].initialDataLoaded(); },
+            mgrs[app.svc.plat("hdm") + "am"].initialDataLoaded(); },
         updateHubToggleSpan: function (acct) {
             jt.byId("hubtogspan").title = "Account Info (" +
                 acct.diggerVersion + ", " + app.fileVersion() + ")";

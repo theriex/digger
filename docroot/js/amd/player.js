@@ -479,7 +479,7 @@ app.player = (function () {
         var cap = "loa";  //current audio player
     return {
         init: function () {
-            var ap = app.svc.dispatch("gen", "getAudioPlatform");
+            var ap = app.svc.dispatch("gen", "plat", "audsrc");
             switch(ap) {
             case "Spotify": cap = "spa"; mgrs.spa.token(); break;
             case "Android": cap = "mob"; break;
@@ -678,7 +678,7 @@ app.player = (function () {
                           {a:"Title", v:"ti", e:true},
                           {a:"Artist", v:"ar", e:true},
                           {a:"Album", v:"ab", e:true}];
-            switch(app.svc.dispatch("gen", "getHostType")) {
+            switch(app.svc.dispatch("gen", "plat", "hdm")) {
             case "web": flds.push({a:"Spotify", v:mgrs.tun.spidlink()}); break;
             default: flds.push({a:"File", v:stat.song.path}); }
             flds.forEach(function (fld) {
