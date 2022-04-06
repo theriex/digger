@@ -1258,7 +1258,8 @@ app.top = (function () {
             setTimeout(mgrs.locla.missingMetadataLink, 50); },
         missingMetadataSongs: function () {
             return Object.values(app.svc.dispatch("loc", "songs"))
-                .filter((s) => s.ar === "Unknown" && s.ab === "Singles"); },
+                .filter((s) => ((!s.fq || !s.fq.startsWith("D")) &&
+                                s.ar === "Unknown" && s.ab === "Singles")); },
         missingMetadataLink: function () {
             var mmdcount = mgrs.locla.missingMetadataSongs().length;
             //on fixed music config platforms, this info is less useful
