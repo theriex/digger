@@ -262,7 +262,8 @@ app.top = (function () {
                 function (code, errtxt) {
                     jt.out("topstatdiv", code + ": " + errtxt); }); },
         signOut: function () {
-            mgrs.h2a.removeAccount(mgrs.locam.getAccount().dsId); },
+            if(confirm("You will have to resync all your songs when you sign in again. Continue signing out?")) {
+                mgrs.h2a.removeAccount(mgrs.locam.getAccount().dsId); } },
         usingDefaultAccount: function () {
             var curracct = mgrs.locam.getAccount();
             if(!curracct || curracct.dsId === "101") {
@@ -826,9 +827,13 @@ app.top = (function () {
         contribsUpToDate: function () {
             const ctms = 24 * 60 * 60 * 1000;
             const due = new Date(Date.now() - ctms).toISOString();
-            return mgrs.mfnd.musfs()
-                .filter((mf) => mf.status === "Active")
-                .every((mf) => mf.checksince >= due); },
+            const cmfs = mgrs.mfnd.musfs().filter((mf) =>
+                mf.status === "Active" && mf.checksince < due);
+            if(cmfs.length) {
+                jt.log("Contributions check needed for " + JSON.stringify(
+                    cmfs.map((mf) => mf.firstname + mf.checksince)));
+                return false; }
+            return true; },
         sortAndMax4Active: function (musfs) {
             musfs.sort(function (a, b) {
                 if(a.status === "Inactive" && b.status === "Inactive") {
@@ -1256,7 +1261,8 @@ app.top = (function () {
                 .filter((s) => s.ar === "Unknown" && s.ab === "Singles"); },
         missingMetadataLink: function () {
             var mmdcount = mgrs.locla.missingMetadataSongs().length;
-            if(!mmdcount) { return ""; }
+            //on fixed music config platforms, this info is less useful
+            if(!mmdcount || !jt.byId("cfgpmusicPathspan")) { return ""; }
             jt.out("cfgpmusicPathspan", jt.tac2html(
                 [jt.byId("cfgpmusicPathspan").innerHTML,
                  " &nbsp; ",
@@ -1691,10 +1697,8 @@ app.top = (function () {
                    ["div", {id:"titrightdiv"},
                     [["a", {href:"#database", title:"Library Actions",
                             onclick:mdfs("gen.togtopdlg", "la")},
-                      ["img", {cla:"buttonico", src:"img/recordcrate.png"}]],
-                     ["a", {href:"#copyplaylist", title:"Copy Deck To Playlist",
-                            onclick:mdfs("gen.togtopdlg", "xp")},
-                      ["img", {cla:"buttonico", src:"img/export.png"}]]]]]],
+                      ["img", {cla:"buttonico",
+                               src:"img/recordcrate.png"}]]]]]],
                  ["div", {id:"topdlgdiv", "data-mode":"empty"}],
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],
                  ["div", {cla:"statdiv", id:"topstatdiv"}]])); },
