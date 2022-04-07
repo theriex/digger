@@ -15,6 +15,13 @@ h2 { padding:10px 0px 0px 0px; }
 </head>
 <body>
 
+<!-- Writing notes:
+  * No links. On mobile platforms, external links definitely crash and
+    internal links are suspect.
+  * Minimal styling: On mobile platforms, only the body content is 
+    retained so any head styling would need to be duplicated.
+-->
+
 <h1>The Digger Manual</h1>
 
 <p>Digger is a music library tool for retrieval and collaboration.  It works
@@ -23,17 +30,10 @@ like a mixer for your music collection. </p>
 
 <h2>Getting started</h2>
 
-<p>When you first start Digger, it reads your library to start playing.  If
-you are on the web, it pulls from your music service.  If you are running
-locally, it scans your Music folder.  If your music is in a different
-folder, you can configure that in the Library Actions section of the top
-panel.  Digger keeps your library information, it does not modify your music
-files.</p>
-
-<p>Whether you run Digger locally or on the web (or both), it's the same
-interface.  The local server syncs to the web when you sign in.  By
-default your local server runs
-at <a href="http://localhost:6980">http://localhost:6980</a>.  If you need to change that see <a href="#digcfg">local files configuration</a>.</p>
+<p>When you first start Digger, it reads and saves song information from
+your library and starts playing music.  If you sign in, song impressions you
+save in Digger will be backed up and synchronized across your devices.
+Digger does not modify your music files or library. </p>
 
 
 <h2>The Player Panel</h2>
@@ -58,8 +58,7 @@ category.  Keywords combine with energy level and approachability when
 digging for music to play.  For example you might select "Social" for songs
 you are comfortable playing when having people over, then adjust energy
 level and approachability as appropriate for the situation.  Click the '+'
-button to the left to expand all keywords and/or add more.  See the 
-<a href="#kwddesc">default keyword descriptions</a> for more info.</p>
+button to the left to expand all keywords and/or add more. </p>
 
 <p>Use the comment button to save a statement about the song.  The snooze
 button will pause playback after the song finishes.</p>
@@ -89,12 +88,11 @@ retrieved should, or should not, include the given keyword.  The middle
 position is neutral.  Four selection keywords can be active at any time.
 You can select which ones in the top panel library actions.</p>
 
-<p>The rating stars represent the minimum rating required.</p>
-
-<p>The default "Include Untagged" keyword filtering should work for most
-situations.  Change this if you want to explicitely look for songs without
-any associated keywords, or for songs with at least one associated
-keyword.</p>
+<p>Standard retrieval is 2.5 stars (the default rating) or better.  Toggle
+this setting to pull higher rated or include more depth.  The default
+"Include Untagged" keyword filtering should work for most situations.
+Change this if you want to explicitely look for songs without any associated
+keywords, or for songs with at least one associated keyword.</p>
 
 <p>By default, frequency filtering "Fq" is on.  If you want to retrieve
 songs regardless of when they were last played, you can switch this off.  Be
@@ -123,15 +121,20 @@ snooze it (mark as tired and skip). </p>
 
 <h2 id="toppanel">The Top Panel</h2>
 
-<p>The top panel has your account actions link on the left, library actions
-and export icons on the right.</p>
+<p>The top panel provides account actions and library actions. </p>
 
 <h3>Account Actions</h3>
 
 <p>If you are running locally, the account actions link will say "Digger"
 until you have signed in.  It is not required to connect the local server to
 DiggerHub, but connecting will sync your data and allow for collaborating
-with <a href="musicfriend.html">music friends</a>.</p>
+with music friends. </p>
+
+<p>A music friend is someone whose musical listening interests and
+impressions you respect and enjoy.  You might not agree on everything, but
+you have at least some shared music interests.  Digger supports friend
+collaboration across collections and relative to what each person is
+independently listening to at the time. </p>
 
 
 <h3>Library Actions</h3>
@@ -146,19 +149,6 @@ was last imported.  If it's been a while, you can click that link to check
 the service again.  For local files, click the "Read Files" button to
 re-read everything.  If you have folders in your library that should be
 ignored, add them to your "Ignore Folders".</p>
-
-<p>For more information on configuring Digger with local files,
-see <a href="#digconf">local files configuration</a> below.</p>
-
-
-<h3>Export</h3>
-
-<p>The export screen lets you make a playlist out of the songs you currently
-have on deck.  Using Digger's retrieval and deck transport adjustments you
-can quickly pull together a selection of songs for general listening.  On
-the web, the playlist is written to your music service.  For local files,
-Digger creates an m3u file and optionally copies associated music files to
-your export folder.</p>
 
 
 <h2 id="kwddesc">Default Keyword Descriptions</h2>
@@ -188,6 +178,10 @@ there are too many, so go broad for maximum leverage. </p>
 
 
 <h2 id="digcfg">Local Files Configuration</h2>
+
+<p>If you are running Digger locally on your computer, the Digger local
+server runs at http://localhost:6980 by default.  You can configure this,
+and where to find your music files. </p>
 
 <p>To change where Digger should read your music files from, open Library
 Actions in the top panel, then click either the "Music Files" or "Digger
@@ -238,8 +232,8 @@ uploaded and downloaded.  The status display shows "init", "processing",
 used to restart hubsync if you suspect it might have hung up due to network
 issues or whatever.</p>
 
-<p>For tech details on how hub sync works
-see <a href="hubsyncNotes.txt">hubnotes.txt</a>.</p>
+<p>For advanced tech details on how hub sync works, reference
+hubsyncNotes.txt in the same project folder as this manual. </p>
 
 
 <h2>Metadata</h2>
@@ -259,8 +253,10 @@ next time you play the song.</p>
 entertainment.  For best results when overriding a field, use the common
 value and put anything else in parentheses.  "My Song" and "My Song
 (remixed)" are considered different values within your collection, but
-equivalent between friends or across music sources.  For details on metadata
-matching, see <a href="metadata.html">metadata.html</a>.</p>
+equivalent between friends or across music sources. </p>
+
+<p>For advanced tech details on metatdata matching, reference metadata.html
+in the same project folder as this manual. </p>
 
 </body>
 </html>

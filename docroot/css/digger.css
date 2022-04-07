@@ -30,6 +30,12 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   background-attachment: fixed;
   background-size: cover;
   background-repeat: no-repeat; }
+#appoverlaydiv { position:absolute; left:5px; top:12px; width:90%;
+  background:AntiqueWhite; overflow:scroll; }
+#closeoverlaydiv { float:right; margin-right:10px; }
+#manualcontentdiv { padding:0px 10px; font-size:large; overflow:scroll; }
+#manualcontentdiv h1 { text-align:center; }
+#manualcontentdiv h2 { padding:10px 0px 0px 0px; }
 #titlediv { padding-bottom:5px; display:flex; justify-content:space-between; }
 #titleftdiv, #titcenterdiv, #titrightdiv { display:inline-block;
   vertical-align:middle; }

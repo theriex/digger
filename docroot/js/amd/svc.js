@@ -685,7 +685,13 @@ app.svc = (function () {
         friendContributions: function (contf, errf) {
             mgrs[hdm].friendContributions(contf, errf); },
         clearFriendRatings: function (mfid, contf, errf) {
-            mgrs[hdm].clearFriendRatings(mfid, contf, errf); }
+            mgrs[hdm].clearFriendRatings(mfid, contf, errf); },
+        manualContent: function () {
+            var aod = jt.byId("appoverlaydiv");
+            return jt.tac2html(
+                ["iframe", {src:"/docs/manual.html",
+                            width:aod.offsetWidth - 4,
+                            height:aod.offsetHeight - 20}]); }
     };  //end mgrs.gen returned functions
     }());
 
@@ -697,6 +703,7 @@ return {
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
     updateSong: function (song, contf) { mgrs.gen.updateSong(song, contf); },
     authdata: function (obj) { return mgrs.gen.authdata(obj); },
+    manualContent: function () { return mgrs.gen.manualContent(); },
     noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }

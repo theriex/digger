@@ -1698,8 +1698,8 @@ app.top = (function () {
                     [["span", {id:"countspan"}, "Loading..."],
                      ["div", {id:"rtfmdiv"},
                       ["a", {href:"/docs/manual.html", title:"How Digger works",
-                             onclick:"window.open('/docs/manual.html')" +
-                             ";return false;"}, "RTFM"]]]]]],
+                             onclick:mdfs("gen.dispManual", "open")},
+                       "RTFM"]]]]]],
                  ["div", {id:"topdlgdiv", "data-mode":"empty"}],
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],
                  ["div", {cla:"statdiv", id:"topstatdiv"}]])); },
@@ -1720,7 +1720,22 @@ app.top = (function () {
         updateHubToggleSpan: function (acct) {
             jt.byId("hubtogspan").title = "Account Info (" +
                 acct.diggerVersion + ", " + app.fileVersion() + ")";
-            jt.out("hubtogspan", acct.firstname); }
+            jt.out("hubtogspan", acct.firstname); },
+        dispManual: function (action) {
+            const odiv = jt.byId("appoverlaydiv");
+            if(action === "close") {
+                odiv.style.height = "0px";
+                return jt.out("appoverlaydiv", ""); }
+            const cdiv = jt.byId("contentdiv");
+            odiv.style.left = (cdiv.offsetLeft + 10) + "px";
+            odiv.style.width = (cdiv.offsetWidth - 20) + "px";
+            odiv.style.height = (cdiv.offsetHeight - 40) + "px";
+            jt.out("appoverlaydiv", jt.tac2html(
+                [["div", {id:"closeoverlaydiv"},
+                  ["a", {href:"#close",
+                         onclick:mdfs("gen.dispManual", "close")}, "X"]],
+                 ["div", {id:"appoverlaycontentdiv"},
+                  app.svc.manualContent()]])); }
     };  //end mgrs.gen returned functions
     }());
 
