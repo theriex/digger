@@ -80,7 +80,7 @@ app.filter = (function () {
                 if(stat.lastY - stat.roundy <= 0) {
                     stat.lastY = 0; } } }
         if(Number.isFinite(stat.lastX) && Number.isFinite(stat.lastY)) {
-            posf(stat.lastX, stat.lastY); }
+            posf(stat.lastX, stat.lastY, stat.pointingActive); }
     }
 
 
@@ -98,7 +98,9 @@ app.filter = (function () {
         jt.on(div, "mousemove", function (event) {
             if(stat.pointingActive) {
                 updateCoords(stat, posf, event); } });
-        jt.on(div, "click", function (event) {
+        jt.on(div, "click", function (event) {  //down + up to avoid latching
+            stat.pointingActive = true;
+            updateCoords(stat, posf, event);
             stat.pointingActive = false;
             updateCoords(stat, posf, event); });
         //Touch interfaces are essentially the same as the mouse actions.

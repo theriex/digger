@@ -715,7 +715,16 @@ app.player = (function () {
         const ptbr = 44 + 28;  //polar tracking border radius (outer edge)
         const ptir = 12;   //polar tracking inner border radius
     return {
+        balanceLabels: function () {
+            const ids = ["elpanlld", "elpanrld", "alpanlld", "alpanrld"];
+            const els = ids.map((i) => jt.byId(i));
+            const wds = els.map((e) => e? e.offsetWidth : 0);
+            const mw = Math.max.apply(null, wds);
+            els.forEach(function (e) {
+                if(e) {
+                    e.style.width = mw + "px"; } }); },
         packControlWidthwise: function (id) {
+            mgrs.pan.balanceLabels();
             const pk = {leftlab:{elem:jt.byId(id + "panlld")},
                         rightlab:{elem:jt.byId(id + "panrld")},
                         panbg:{elem:jt.byId(id + "panbgdiv")},
@@ -881,9 +890,39 @@ app.player = (function () {
                 //        ", ptdis:" + pc.di.ptdis +
                 //        ", dv:" + pc.di.dv + ", " + pc.di.vt);
                 mgrs.pan.updateControl(ctrls[id].fld, pc.di.dv); } },
+        pressAndHold: function (id) {
+            var pc = ctrls[id];
+            var val = stat.song[id];
+            if(pc.ci.trg === "left") {
+                val -= 1; }
+            else { //"right"
+                val += 1; }
+            val = mgrs.pan.valueRangeConstrain(val);
+            mgrs.pan.updateControl(ctrls[id].fld, val);
+            if(pc.ci.active && !pc.ci.tmo) {
+                pc.ci.tmo = setTimeout(function () {
+                    pc.ci.tmo = null;
+                    mgrs.pan.pressAndHold(id); }, 100); } },
+        handleClickMove: function (id, x, y, pa) {
+            //jt.log("handleClickMove " + id + " " + x + "," + y + " " + pa);
+            var pc = ctrls[id];   //the pan control being manipulated
+            pc.ci = pc.ci || {};  //click info container for work vars
+            if(!pc.ci.active && pa) {   //new movement, figure out what kind
+                const kf = jt.byId(id + "panfacediv");
+                if(x < kf.offsetLeft - 4) {
+                    pc.ci.trg = "left"; }
+                else if(x > kf.offsetLeft + kf.offsetWidth + 4) {
+                    pc.ci.trg = "right"; }
+                else {
+                    pc.ci.trg = "knob"; } }
+            pc.ci.active = pa;
+            if(pc.ci.trg === "knob") {
+                mgrs.pan.followClickDrag(id, x, y); }
+            else if(pc.ci.active) {
+                mgrs.pan.pressAndHold(id); } },
         activateControl: function (id) {
-            ctrls[id].posf = function (x, y) {
-                mgrs.pan.followClickDrag(id, x, y); };
+            ctrls[id].posf = function (x, y, pa) {
+                mgrs.pan.handleClickMove(id, x, y, pa); };
             jt.on(jt.byId(id + "pandragdiv"), "dblclick", function (ignore) {
                 mgrs.pan.updateControl(ctrls[id].fld, 49); });
             app.filter.movelisten(id + "pandragdiv",
