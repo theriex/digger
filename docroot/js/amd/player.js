@@ -1125,15 +1125,10 @@ app.player = (function () {
             if(sc.count > 0) {
                 sc.count -= 1;
                 return false; }
-            mgrs.slp.startSleep("Sleeping..."); },
+            return mgrs.slp.startSleep("Sleeping..."); },
         startSleep: function (msg) {
             sc = {active:false, count:0};  //sleeping. reset countdown
             jt.byId("togsleepimg").src = "img/sleep.png";
-            //The song being paused on will already have been updated when
-            //it was popped from deck, and may be written again due to the
-            //control displays being updated.  So it will be marked as
-            //played even though playback never started.  Not worth getting
-            //in the way of deck update logic for this functionality.
             mgrs.aud.updateSongDisplay();
             const odiv = jt.byId("mediaoverlaydiv");
             odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
@@ -1143,12 +1138,17 @@ app.player = (function () {
                 [msg, ["a", {href:"#playnext", onclick:mdfs("slp.resume")},
                        "Resume playback"],
                  " &nbsp; &nbsp; "]);
-            app.spacebarhookfunc = mgrs.slp.resume;
+            //resuming with the space bar can cause conflict with play/pause
+            //hook for the player, leaving playback stopped.  If that causes
+            //an error, or the spacebarhook is not reset, hitting the space
+            //bar again will go to the next song.  Require clicking the
+            //resume link.
+            //app.spacebarhookfunc = mgrs.slp.resume;
             return true; },
         resume: function () {
             jt.out("mediaoverlaydiv", "");
             jt.byId("mediaoverlaydiv").style.display = "none";
-            mgrs.aud.playAudio(); }
+            app.player.next(); }
     };  //end mgrs.slp returned functions
     }());
 
@@ -1197,12 +1197,12 @@ app.player = (function () {
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.toggleCommentDisplay("off");
             stat.status = "";
-            const ns = app.deck.getNextSong();
-            if(!ns) { //just stop, might be playing an album, deck shows status
-                return; }
-            stat.song = ns;
-            mgrs.cmt.updateCommentIndicator();
             if(!mgrs.slp.sleepNow()) {
+                const ns = app.deck.getNextSong();
+                if(!ns) { //just stop, might be playing an album.
+                    return; }
+                stat.song = ns;
+                mgrs.cmt.updateCommentIndicator();
                 mgrs.aud.playAudio(); } });
     }
 
