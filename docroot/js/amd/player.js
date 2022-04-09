@@ -41,12 +41,14 @@ app.player = (function () {
                 ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]],
                ["div", {id:"ratstardragdiv"}]]]]));
         ctrls.rat = {stat:{pointingActive:false, maxxlim:85, roundpcnt:5},
-                     posf:function (x, ignore /*y*/) {
+                     posf:function (x, ignore /*y*/, pa) {
                          //jt.log("ctrls.rat.posf x: " + x);
-                         jt.byId("playerstarseldiv").style.width = x + "px";
-                         if(stat.song) {
+                         const nrv = Math.round((x / 17) * 2);
+                         const psw = Math.round((nrv * 17) / 2);
+                         jt.byId("playerstarseldiv").style.width = psw + "px";
+                         if(stat.song && pa) {
                              const cv = stat.song.rv;
-                             stat.song.rv = Math.round((x / 17) * 2);
+                             stat.song.rv = nrv;
                              if(cv !== stat.song.rv) {
                                  noteSongModified(); } } } };
         app.filter.movelisten("ratstardragdiv", ctrls.rat.stat,
