@@ -11,12 +11,9 @@ app.filter = (function () {
                      low:"Easy", high:"Hard"},
                  rat:{pn:"Minimum Rating"},
                  fq:{pn:"Frequency Eligible"}};
-    var ranger = {entire:{x:0, y:0, w:270, h:80},
-                  panel:{outer:{x:25, y:0, w:244, h:56},
-                         inner:{x:27, y:2, w:240, h:54},
-                         gradient:{left:"0cd8e5", right:"faee0a"}},
-                  vnob:{x:0, y:5, w:21, h:10, maxy:52, cot:7},
-                  hnob:{x:25, y:59, w:10, h:21, maxx:263, col:6}};
+    var ranger = {dims:{x:0, y:0, w:120, h:120},
+                  dflt:{x:55, y:76},  //default values if not previously set
+                  gradient:{left:"0cd8e5", right:"faee0a"}};
 
 
     //General container for all managers, used for dispatch
@@ -32,20 +29,6 @@ app.filter = (function () {
         return settings.ctrls.find((x) =>
             Object.entries(avs).every(function ([attr, val]) {
                 return x[attr] === val; }));
-    }
-
-
-    function dimstyle (dims, mousearea) {
-        var rd = {x:dims.x, y:dims.y, w:dims.w, h:dims.h};
-        if(mousearea === "maxy") {
-            rd.h = dims.maxy - rd.y; }
-        else if(mousearea === "maxx") {
-            rd.w = dims.maxx - rd.x; }
-        const style = "left:" + rd.x + "px;" +
-                      "top:" + rd.y + "px;" +
-                      "width:" + rd.w + "px;" +
-                      "height:" + rd.h + "px;";
-        return style;
     }
 
 
@@ -123,142 +106,92 @@ app.filter = (function () {
     //Range manager handles selection range window controls
     mgrs.rng = (function () {
         var rcids = ["el", "al"];  //energy level, approachability level
-        function rangeConstrain (val, min, max) {
-            val = Math.max(val, min);
+        function verifyValue (val, dflt, min, max) {
+            val = val || dflt;
+            if(!Number.isInteger(val)) {
+                val = dflt; }
+            val = Math.floor(val);  //verify integer value
             val = Math.min(val, max);
+            val = Math.max(val, min);
             return val; }
     return {
-        updateRangeControlFocus: function (cid, rcr) {
-            //set the width of the range focus using the percentage indicated by
-            //the position of the vertical slider
-            var valy = rcr.cy - ranger.vnob.y;
-            var rangemax = ranger.vnob.maxy - ranger.vnob.y;
-            var invy = rangemax - valy;
-            var pcnt = invy / rangemax;
-            var focw = Math.round(pcnt * ranger.panel.inner.w);
-            //adjust the percentage so the midpoint of the focus is zero
-            var basex = rcr.cx - ranger.hnob.x;
-            rangemax = ranger.hnob.maxx - ranger.hnob.x;
-            pcnt = -1 * (0.5 - (basex / rangemax));
-            //update the left and right curtains to reflect the focus.
-            const curtw = Math.floor((ranger.panel.inner.w - focw) / 2);
-            const ladj = curtw + Math.round(2 * pcnt * curtw);
-            const radj = curtw - Math.round(2 * pcnt * curtw);
-            jt.byId(cid + "lcdiv").style.width = ladj + "px";
-            jt.byId(cid + "rcdiv").style.width = radj + "px";
-            //update the current range focus min/max search values
-            rcr.rgfoc.min = Math.round((ladj / rangemax) * 100);
-            rcr.rgfoc.max = 99 - Math.round((radj / rangemax) * 100);
-            if(rcr.rgfoc.min <= 25 && rcr.rgfoc.max <= 60) {
-                rcr.actname = "+" + rcr.low; }
-            else if(rcr.rgfoc.min > 25 && rcr.rgfoc.max > 60) {
-                rcr.actname = "+" + rcr.high; }
-            else {
-                rcr.actname = ""; }
-            //jt.out(cid + "tit", "rlx:" + rlx + " rrx:" + rrx);
+        initRangeCtrlStatus: function (rcr) {
+            var maw = Math.round(0.1 * ranger.dims.h);  //min active width
+            var stat = {pointingActive:false, roundpcnt:7,
+                        minx:ranger.dims.x, maxx:ranger.dims.w,
+                        miny:ranger.dims.y + maw, maxy:ranger.dims.h};
+            stat.thrx = Math.round((stat.roundpcnt / 100) * stat.maxx);
+            stat.thry = Math.round((stat.roundpcnt / 100) * stat.maxy);
+            rcr.stat = stat; },
+        updateRangeValues: function (x, y, cid) {
+            const stat = ctrls[cid].stat;
+            y = stat.maxy - y;  //invert y so bottom is zero
+            if(x <= stat.thrx) { x = stat.minx; }  //round x down
+            if(x >= stat.maxx - stat.thrx) { x = stat.maxx; }  //or up
+            if(y < stat.miny) { y = stat.miny; }  //round y down
+            if(y >= stat.maxy - stat.thry) { y = stat.maxy; }  //or up
+            //jt.out(cid + "tit", x + "," + y);
+            stat.setx = x;  //value to save for settings (state restore)
+            stat.sety = y;  //settings restore reinverts when calling here
+            const wesx = Math.round(y / 2);  //width either side x
+            const cw = {lc:Math.max((x - wesx), 0),  //left curtain width
+                        rc:Math.max((stat.maxx - (x + wesx)), 0)};  //right
+            if(y === stat.maxy) { cw.lc = 0; cw.rc = 0; }  //no curtains, at max
+            jt.byId(cid + "lcdiv").style.width = cw.lc + "px";
+            jt.byId(cid + "rcdiv").style.width = cw.rc + "px";
+            //jt.out(cid + "tit", wesx + ", " + cw.lc + "|" + cw.rc);
+            const lox = stat.minx + cw.lc;  //leftmost open x val
+            const rox = stat.maxx - cw.rc;  //rightmost open x val
+            stat.mnrv = Math.round((lox / stat.maxx) * 99);  //min rating value
+            stat.mxrv = Math.round((rox / stat.maxx) * 99);  //max rating value
+            //jt.out(cid + "tit", stat.mnrv + "<=rv=>" + stat.mxrv);
             mgrs.stg.filterValueChanged(); },
-        updateRangeSliders: function (x, y, cid, rcr, mstat) {
-            if(mstat.cko) {  //track drag change
-                rcr.cx = mstat.cko.xdat.prevcx;  //default hold prev val
-                if(!mstat.cko.ydat.solo) {  //x tracking is active
-                    rcr.cx = rangeConstrain(x, ranger.hnob.x,
-                                            ranger.hnob.maxx);
-                    const kl = rcr.cx - ranger.hnob.col;  //center offset
-                    jt.byId(cid + "hnd").style.left = kl + "px"; }
-                rcr.cy = mstat.cko.ydat.prevcy;  //default hold prev val
-                if(!mstat.cko.xdat.solo) {  //y tracking is active
-                    rcr.cy = rangeConstrain(y, ranger.vnob.y,
-                                            ranger.vnob.maxy);
-                    const kt = rcr.cy - ranger.vnob.cot;  //center offset
-                    jt.byId(cid + "vnd").style.top = kt + "px"; }
-                // jt.log(cid + " rcr cx:" + rcr.cx +
-                //        (mstat.cko.xdat.solo? "(solo)" : "") +
-                //        ", cy:" + rcr.cy +
-                //        (mstat.cko.ydat.solo? "(solo)" : ""));
-                mgrs.rng.updateRangeControlFocus(cid, rcr); } },
         attachRangeCtrlMovement: function (cid) {
-            var rcr = ctrls[cid];
-            rcr.mstat = {pointingActive:false, roundpcnt:5,
-                         maxxlim:ranger.hnob.maxx + ranger.hnob.x,
-                         maxylim:ranger.vnob.maxy - ranger.vnob.y,
-                         cko:null};  //click origin data
-            ctrls.movestats.push(rcr.mstat);
+            const rcr = ctrls[cid];
+            ctrls.movestats.push(rcr.stat);  //catch containing div mouseup
             rcr.mpos = function (x, y, hardset) {
-                var mstat = rcr.mstat;
+                var stat = rcr.stat;
                 //jt.log("x:" + x + ", y:" + y + (hardset? " (hardset)" : ""));
-                if((mstat.pointingActive && !mstat.cko) || //init click origin
-                   hardset) {
-                    mstat.cko = {xdat:{ogx:x, prevcx:rcr.cx || x,
-                                       solo:y >= mstat.maxylim},
-                                 ydat:{ogy:y, prevcy:rcr.cy || y,
-                                       solo:x <= ranger.hnob.x}}; }
-                if((!mstat.pointingActive && mstat.cko) && //clear click origin
-                   !hardset) {
-                    mstat.cko = null; }
-                mgrs.rng.updateRangeSliders(x, y, cid, rcr, mstat);
-                if(hardset) { mstat.cko = null; } };
-            attachMovementListeners(cid + "mousediv", rcr.mstat, rcr.mpos);
-            rcr.mpos(Math.floor((ranger.hnob.maxx - ranger.hnob.x) / 2),
-                     Math.floor(ranger.vnob.maxy / 2), "init"); },
+                if(stat.pointingActive || hardset) {
+                    mgrs.rng.updateRangeValues(x, y, cid); } };
+            attachMovementListeners(cid + "mousediv", rcr.stat, rcr.mpos);
+            rcr.mpos(ranger.dflt.h, ranger.dflt.v, "init"); },
         addRangeSettingsFunc: function (cid) {
             ctrls[cid].settings = function () {
                 return {tp:"range", c:cid,
-                        v:ctrls[cid].cy,
-                        h:ctrls[cid].cx - ranger.hnob.x}; }; },
+                        x:ctrls[cid].setx,
+                        y:ctrls[cid].sety}; }; },
         addRangeSongMatchFunc: function (cid) {
             //Every song should have a numeric value set.
             ctrls[cid].match = function (song) {
-                if(song[cid] >= ctrls[cid].rgfoc.min &&
-                   song[cid] <= ctrls[cid].rgfoc.max) {
+                if(song[cid] >= ctrls[cid].stat.mnrv &&
+                   song[cid] <= ctrls[cid].stat.mxrv) {
                     return true; }
                 return false; }; },
         initRangeSetting: function (cid) {
-            var dfltset = {v:18, h:117};
-            var settings = findSetting({tp:"range", c:cid}) || dfltset;
-            if(settings.v !== 0) {  //zero is valid value, check for invalid.
-                settings.v = settings.v || dfltset.v;  //verify value defined
-                if(!Number.isInteger(settings.v)) {    //if not int, use default
-                    settings.v = dfltset.v; }
-                settings.v = Math.floor(settings.v); } //verify true integer
-            if(settings.h !== 0) {  //zero is valid, value, check for invalid
-                if(!Number.isInteger(settings.h)) {    //if not int, use default
-                    settings.h = dfltset.h; }
-                settings.h = Math.floor(settings.h); } //verify true integer
-            ctrls[cid].mpos(settings.h, settings.v, "init"); },
-        adjustSliderBg: function (elem, dims) {
-            //elem.style.background = "#ffab00";
-            //elem.style.opacity = "0.3";
-            elem.style.top = dims.t + "px";
-            elem.style.left = dims.l + "px";
-            elem.style.width = dims.w + "px";
-            elem.style.height = dims.h + "px"; },
-        adjustSliderBgDivs: function (cid) {
-            mgrs.rng.adjustSliderBg(jt.byId(cid + "rsvbgdiv"),
-                {l:ranger.vnob.x, t:ranger.vnob.y,
-                 w:ranger.vnob.w, h:ranger.vnob.maxy});
-            mgrs.rng.adjustSliderBg(jt.byId(cid + "rshbgdiv"),
-                {l:ranger.hnob.x, t:ranger.hnob.y,
-                 w:ranger.hnob.maxx, h:ranger.hnob.h}); },
+            var settings = findSetting({tp:"range", c:cid}) || ranger.dflt;
+            if(settings.x !== 0) { //have some kind of possibly invalid value
+                settings.x = verifyValue(settings.x, ranger.dflt.x,
+                                         ranger.dims.x, ranger.dims.w); }
+            if(settings.y !== 0) {
+                settings.y = verifyValue(settings.y, ranger.dflt.y,
+                                         ranger.dims.y, ranger.dims.h); }
+            //re-invert y value like it is coming from the mouse tracking
+            ctrls[cid].mpos(settings.x, ranger.dims.h - settings.y, "init"); },
         createRangeControl: function (cid) {
             jt.out(cid + "div", jt.tac2html(
-                [["div", {cla:"rngslidebg", id:cid + "rsvbgdiv"}],
-                 ["div", {cla:"rngslidebg", id:cid + "rshbgdiv"}],
-                 ["img", {src:"img/ranger.png"}],
+                [["img", {src:"img/ranger.png"}],
                  ["div", {cla:"rangetitlediv", id:cid + "tit"}, ctrls[cid].pn],
                  ["div", {cla:"rangelowlabeldiv"}, ctrls[cid].low],
                  ["div", {cla:"rangehighlabeldiv"}, ctrls[cid].high],
                  ["div", {cla:"rangeleftcurtdiv", id:cid + "lcdiv"}],
                  ["div", {cla:"rangerightcurtdiv", id:cid + "rcdiv"}],
-                 ["div", {cla:"vnobdiv", id:cid + "vnd",
-                          style:dimstyle(ranger.vnob)},
-                  ["img", {src:"img/vknob.png"}]],
-                 ["div", {cla:"hnobdiv", id:cid + "hnd",
-                          style:dimstyle(ranger.hnob)},
-                  ["img", {src:"img/hknob.png"}]],
                  ["div", {cla:"mouseareadiv", id:cid + "mousediv",
-                          style:dimstyle(ranger.entire)}]]));
-            ctrls[cid].rgfoc = {min:0, max:99};
-            mgrs.rng.adjustSliderBgDivs(cid);
+                          style:"left:" + ranger.dims.x + "px;" +
+                                "top:" + ranger.dims.y + "px;" +
+                                "width:" + ranger.dims.w + "px;" +
+                                "height:" + ranger.dims.h + "px;"}]]));
+            mgrs.rng.initRangeCtrlStatus(ctrls[cid]);
             mgrs.rng.attachRangeCtrlMovement(cid);
             mgrs.rng.addRangeSettingsFunc(cid);
             mgrs.rng.addRangeSongMatchFunc(cid);
@@ -670,7 +603,7 @@ return {
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
     summary: function () { return mgrs.dsc.summarizeFiltering(); },
     filteringPanelState: function () { return mgrs.dsc.filteringPanelState(); },
-    gradient: function () { return ranger.panel.gradient; },
+    gradient: function () { return ranger.gradient; },
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.filter, args); }

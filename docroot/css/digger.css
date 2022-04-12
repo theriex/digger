@@ -205,17 +205,19 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 
 .paneltitlediv { font-size:x-small; text-align:center; letter-spacing:1.2em; 
   font-weight:bold; }
-.rangectrldiv { display:inline-block; position:relative; 
-  margin:5px 10px 5px 0px; }
-.rangetitlediv { position:absolute; top:5px; left:87px; font-size:large; }
-.rangelowlabeldiv, .rangehighlabeldiv { position:absolute; top:36px;
+#rangesdiv { display:flex; justify-content:space-around; }
+.rangectrldiv { display:inline-block; position:relative;
+  border:2px solid #777;}
+.rangetitlediv { position:absolute; top:10px; left:0px; width:100%;
+  text-align:center; font-size:x-small; letter-spacing:0.2em; color:#777; }
+.rangelowlabeldiv, .rangehighlabeldiv { position:absolute; top:64px;
   font-size:medium; color:#333; }
-.rangelowlabeldiv { left:42px; }
-.rangehighlabeldiv { right:15px; }
-.rangeleftcurtdiv, .rangerightcurtdiv { position:absolute; top:2px;
-  height:52px; background:black; opacity:0.2; }
-.rangeleftcurtdiv { left:26px; }
-.rangerightcurtdiv { right:2px; }
+.rangelowlabeldiv { left:7px; }
+.rangehighlabeldiv { right:7px; }
+.rangeleftcurtdiv, .rangerightcurtdiv { position:absolute; top:0px;
+  height:120px; background:black; opacity:0.3; }
+.rangeleftcurtdiv { left:0px; }
+.rangerightcurtdiv { right:0px; }
 .vnobdiv { position:absolute; top:0px; left:0px; }
 .hnobdiv { position:absolute; top:0px; left:0px; }
 .mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer; }
