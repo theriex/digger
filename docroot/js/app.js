@@ -198,7 +198,7 @@ return {
         //THIS MUST MATCH appdat.py unescape_song_fields
         var escflds = ["path", "ti", "ar", "ab", "nt"];
         //Web Security Reserved Words that must be escaped to be let through
-        var wsrw = ["having", "select", "union"];
+        var wsrw = ["having", "select", "union", "within"];
         song = JSON.parse(JSON.stringify(song));
         delflds.forEach(function (fld) { delete song[fld]; });
         escflds.forEach(function (fld) {  //replace parens with HTML chars

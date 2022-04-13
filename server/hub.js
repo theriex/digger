@@ -17,7 +17,7 @@ module.exports = (function () {
     function txSong (song) {
         var delflds = ["mrd", "smti", "smar", "smab"];
         var escflds = ["path", "ti", "ar", "ab", "nt"];
-        var wsrw = ["having", "select", "union"];
+        var wsrw = ["having", "select", "union", "within"];
         song = JSON.parse(JSON.stringify(song));
         delflds.forEach(function (fld) { delete song[fld]; });
         escflds.forEach(function (fld) {  //replace parens with HTML chars
