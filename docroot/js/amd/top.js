@@ -491,7 +491,7 @@ app.top = (function () {
             if(!context || context === "keywords") {
                 mgrs.kwd.rebuildKeywords();
                 app.player.dispatch("kwd", "rebuildToggles");
-                app.filter.dispatch("btc", "rebuildControls"); }
+                app.filter.dispatch("kft", "rebuildControls"); }
             if(!context || context === "igfolders") {
                 mgrs.igf.redrawIgnoreFolders(); }
             if(!context || context === "settings") {
@@ -1169,7 +1169,7 @@ app.top = (function () {
                 jt.byId("kwdefupdb").disabled = false; }
             return errmsg; },
         saveKeywordDefs: function () {
-            //either showing the full keywords form, or swapping a bowtie ctrl
+            //either showing the full keywords form, or swapping a kwtog ctrl
             if(jt.byId("kwdefupdb")) {  //called from local form
                 jt.byId("kwdefupdb").disabled = true;  //debounce button
                 jt.out("kwupdstatdiv", "Saving..."); }

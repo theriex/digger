@@ -43,7 +43,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #countspan { font-size:medium; padding:0px 10px; }
 #rtfmdiv { text-align:center; font-size:x-small; }
 #statspan { font-size:small; padding-left:10px; }
-.paneldiv { border:5px solid #333; border-radius:0px;
+.paneldiv { border:3px solid #333; border-radius:0px;
   padding:5px 6px 10px 6px; }
 #pantopdiv { padding-bottom:0px; }
 #pandbdiv { padding:10px 6px 0px 6px; }
@@ -222,24 +222,15 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .hnobdiv { position:absolute; top:0px; left:0px; }
 .mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer; }
 .rngslidebg { position:absolute; top:0px; left:0px; }
+#kwtogsdiv { text-align:center; overflow:hidden; }
+.kwtogdiv { display:inline-block; font-size:medium; padding:5px 0px; }
+.kwtcontdiv { cursor:pointer; position:relative; width:72px; }
+.kwtoglabel { position:absolute; left:0px; top:0px; transform-origin:top left;
+  transform:rotate(90deg) translate(2%, -100%);
+  max-width:58px; overflow:hidden; }
+.kwtbdiv { postion:absolute; right:20px; top:0px; }
 
-#bowtiesdiv { text-align:center; }
-.bowtiediv { display:inline-block; font-size:medium;
-  margin:5px 10px 5px 0px; padding:5px;
-  border:2px solid #777; border-radius:10px;
-}
-.btlabeldiv { text-align:center; }
-.btlaba:link { text-decoration:none; color:#333; }
-.btlaba:visited { text-decoration:none; color:#333; }
-.btlaba:active { text-decoration:none; color:#333; }
-.btlaba:hover { text-decoration:none; color:#333; }
-.btleftb, .btmidb, .btrightb { color:white; background:#333; font-size:18px; 
-  padding:4px 8px; margin:0px 2px; border:0px; border-radius:0px;
-  box-shadow:1px 1px 1px #666; }
-.btleftb { border-radius:10px 0px 0px 10px; }
-.btrightb { border-radius:0px 10px 10px 0px; }
-
-#ratdiv { margin:5px 5px 5px 0px; }
+#ratdiv { margin:0px 5px 0px 0px; text-align:center; }
 .gtoreqspan { font-size:large; font-weight:bold; }
 .ratstarscontainerdiv { display:inline-block; width:85px; height:15px; }
 .ratstarsanchordiv { position:relative; cursor:pointer; }

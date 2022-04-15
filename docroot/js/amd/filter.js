@@ -206,100 +206,69 @@ app.filter = (function () {
     }());
 
 
-    //BowTie manager handles 3-way toggle controls for keyword filtering
-    mgrs.btc = (function () {
-        var tbs = [{sy:"-", id:"neg", bp:"left", ti:"No $NAME Songs"},
-                   {sy:"o", id:"off", bp:"mid", ti:"Unset $NAME Filtering"},
-                   {sy:"+", id:"pos", bp:"right", ti:"Only $NAME Songs"}];
-        var labind = {neg:{td:"line-through", fw:"normal"},
-                      off:{td:"none", fw:"normal"},
-                      pos:{td:"none", fw:"bold"}};
+    //Keyword filter toggle manager handles 3-way keyword filtering controls
+    mgrs.kft = (function () {
         var kwdefs = null;
     return {
-        makeControl: function (btc, idx) {
-            jt.out("btdiv" + idx, jt.tac2html(
-                [["div", {cla:"btlabeldiv", id:"btlab" + idx}, btc.pn],
-                 ["div", {cla:"btbuttonsdiv"}, tbs.map((b) =>
-                     ["button", {type:"button", cla:"bt" + b.bp + "b",
-                                 id:"btb" + idx + b.id,
-                                 title:b.ti.replace(/\$NAME/g, btc.pn),
-                                 onclick:mdfs("btc.setValue", idx, b.id)},
-                      b.sy])]])); },
-        updateToggleIndicators: function (idx, tog) {
-            tbs.forEach(function (tb) {
-                var button = jt.byId("btb" + idx + tb.id);
-                if(tog === tb.id && tog !== "off") {
-                    button.style.fontWeight = "bold";
-                    button.style.color = ctrls.activecolor; }
-                else {
-                    button.style.fontWeight = "normal";
-                    button.style.color = "#ffffff"; } }); },
-        updateToggleLabel: function (idx, tog) {
-            var labdiv = jt.byId("btlab" + idx);
-            var kwd = ctrls.bts[idx].pn;
-            if(tog === "off") {
-                kwd = ["a", {href:"#swapkeyword", cla:"btlaba",
-                             onclick:mdfs("btc.activateLabel", idx)}, kwd]; }
-            jt.out("btlab" + idx, jt.tac2html(kwd));
-            labdiv.style.textDecoration = labind[tog].td;
-            labdiv.style.fontWeight = labind[tog].fw; },
-        activateLabel: function (idx) {
-            ctrls.trapdrag = false;
-            const kwd = ctrls.bts[idx].pn;
-            jt.out("btlab" + idx, jt.tac2html(
-                ["select", {id:"btswapsel" + idx, title:"Swap Keyword",
-                            onchange:mdfs("btc.swapKeyword", idx)},
-                 [["option", {value:kwd}, kwd],
-                  ...kwdefs.slice(4).map((kd) =>
-                      ["option", {value:kd.kw}, kd.kw])]])); },
-        swapKeyword: function (idx) {  //only called if keyword actually changed
-            ctrls.trapdrag = true;
-            const kwd = jt.byId("btswapsel" + idx).value;
-            const pos = idx + 1;
-            app.top.dispatch("kwd", "swapFilterKeyword", kwd, pos); },
-        setValue: function (idx, tog) {
-            ctrls.trapdrag = true;
-            const prev = ctrls.bts[idx].tog;
-            ctrls.bts[idx].tog = tog;  //note the value for filtering
-            mgrs.btc.updateToggleIndicators(idx, tog);
-            mgrs.btc.updateToggleLabel(idx, tog);
-            if(prev !== ctrls.bts[idx].tog) {
-                mgrs.stg.filterValueChanged();  //save updated bowtie value
+        setValue: function (idx, tog, changed) {
+            ctrls.kts[idx].tog = tog;  //note the value for filtering
+            jt.byId("kwtbimg" + idx).src = "img/kwtog" + tog + ".png";
+            if(changed) {
+                mgrs.stg.filterValueChanged();  //save updated kwtog value
                 app.deck.update("keyword filter"); } },
-        addBTSettingsFunc: function (idx) {
-            var bt = ctrls.bts[idx];
-            bt.settings = function () {
-                return {tp:"kwbt", k:bt.pn, v:bt.tog}; }; },
-        addBTSongMatchFunc: function (idx) {
-            var bt = ctrls.bts[idx];
-            bt.match = function (song) {
-                if(bt.tog === "neg" &&
-                   song.kws && (song.kws.indexOf(bt.pn) >= 0)) {
+        togClick: function (idx) {
+            const kt = ctrls.kts[idx];
+            switch(kt.tog) {
+                case "off": kt.tog = "pos"; break;
+                case "pos": kt.tog = "neg"; break;
+                case "neg": kt.tog = "off"; break;
+                default: jt.log("Bad state tog " + idx + ": " + kt.tog); }
+            mgrs.kft.setValue(idx, kt.tog, "changed"); },
+        openKeywordSelectDialog: function () {
+            app.top.dispatch("kwd", "chooseKeywords"); },
+        makeControl: function (kwdef, idx) {
+            jt.out("kwtdiv" + idx, jt.tac2html(
+                ["div", {cla:"kwtcontdiv",
+                         onclick:mdfs("kft.togClick", idx),
+                         ondblclick:mdfs("kft.openKeywordSelectDialog")},
+                 [["div", {cla:"kwtoglabel"}, kwdef.pn],
+                  ["div", {cla:"kwtbdiv"},
+                   ["img", {cla:"kwtbimg", id:"kwtbimg" + idx,
+                            src:"img/kwtogoff.png"}]]]])); },
+        addKWTSettingsFunc: function (idx) {
+            var kt = ctrls.kts[idx];
+            kt.settings = function () {
+                return {tp:"kwbt", k:kt.pn, v:kt.tog}; }; },
+        addKWTSongMatchFunc: function (idx) {
+            var kt = ctrls.kts[idx];
+            kt.match = function (song) {
+                if(kt.tog === "neg" &&
+                   song.kws && (song.kws.indexOf(kt.pn) >= 0)) {
                     return false; }
-                if(bt.tog === "pos" &&
-                   (!song.kws || (song.kws.indexOf(bt.pn) < 0))) {
+                if(kt.tog === "pos" &&
+                   (!song.kws || (song.kws.indexOf(kt.pn) < 0))) {
                     return false; }
                 return true; }; },
         makeFiltersAndDivs: function () {
-            var btdivs = [];
+            var kwtdivs = [];
             kwdefs.slice(0, 4).map((kd) => kd.kw).forEach(function (kwd, idx) {
-                ctrls.bts.push({pn:kwd, tog:"off"});
-                mgrs.btc.addBTSettingsFunc(idx);
-                mgrs.btc.addBTSongMatchFunc(idx);
-                btdivs.push(["div", {cla:"bowtiediv", id:"btdiv" + idx}]); });
-            jt.out("bowtiesdiv", jt.tac2html(btdivs)); },
+                ctrls.kts.push({pn:kwd, tog:"off"});
+                mgrs.kft.addKWTSettingsFunc(idx);
+                mgrs.kft.addKWTSongMatchFunc(idx);
+                kwtdivs.push(["div", {cla:"kwtogdiv", id:"kwtdiv" + idx}]); });
+            jt.out("kwtogsdiv", jt.tac2html(kwtdivs)); },
         createAndInitControls: function () {
-            ctrls.bts.forEach(function (bt, idx) {
-                mgrs.btc.makeControl(bt, idx);
+            ctrls.kts.forEach(function (kt, idx) {
+                mgrs.kft.makeControl(kt, idx);
                 const dfltset = {v:"off"};
-                const setting = findSetting({tp:"kwbt", k:bt.pn}) || dfltset;
-                mgrs.btc.setValue(idx, setting.v || dfltset.v); }); },
+                const setting = findSetting({tp:"kwbt", k:kt.pn}) || dfltset;
+                mgrs.kft.setValue(idx, setting.v || dfltset.v); }); },
         rebuildControls: function () {
             kwdefs = app.top.dispatch("kwd", "defsArray", true);
-            ctrls.bts = [];
-            mgrs.btc.makeFiltersAndDivs();
-            mgrs.btc.createAndInitControls(); }
-    };  //end mgrs.btc returned functions
+            ctrls.kts = [];
+            mgrs.kft.makeFiltersAndDivs();
+            mgrs.kft.createAndInitControls(); }
+    };  //end mgrs.kft returned functions
     }());
 
 
@@ -476,16 +445,16 @@ app.filter = (function () {
                                errtxt); }); }, 5 * 1000); },
         arrayOfAllFilters: function (mode) {
             var filts = [ctrls.el, ctrls.al];
-            if(ctrls.bts) {
-                ctrls.bts.forEach(function (bt) {
+            if(ctrls.kts) {
+                ctrls.kts.forEach(function (kt) {
                     if(!mode) {
-                        filts.push(bt); }
-                    else if(mode === "active" && bt.tog !== "off") {
-                        bt.actname = "+";
-                        if(bt.tog === "neg") {
-                            bt.actname = "-"; }
-                        bt.actname += bt.pn;
-                        filts.push(bt); } }); }
+                        filts.push(kt); }
+                    else if(mode === "active" && kt.tog !== "off") {
+                        kt.actname = "+";
+                        if(kt.tog === "neg") {
+                            kt.actname = "-"; }
+                        kt.actname += kt.pn;
+                        filts.push(kt); } }); }
             filts.push(ctrls.rat);
             filts.push(ctrls.fq);
             return filts; },
@@ -494,7 +463,7 @@ app.filter = (function () {
             if(ca && ca.settings) { settings = ca.settings; }
             ctrls.filtersReady = false;  //turn off to avoid spurious events
             mgrs.rng.rebuildControls();
-            mgrs.btc.rebuildControls();
+            mgrs.kft.rebuildControls();
             mgrs.mruc.init("ratdiv");
             ctrls.filtersReady = ready;
             app.deck.update("filters rebuilt"); }
@@ -505,7 +474,7 @@ app.filter = (function () {
     //Description manager returns filter summary information
     mgrs.dsc = (function () {
         function buttonsCSV (togval) {
-            return ctrls.bts.filter((b) => b.tog === togval)
+            return ctrls.kts.filter((b) => b.tog === togval)
                 .map((b) => b.pn).join(","); }
         function formatCSV (csv, sep, prefix) {
             prefix = prefix || "";
@@ -568,7 +537,7 @@ app.filter = (function () {
     //General panel level setup and dispatch
     mgrs.gen = (function () {
     return {
-        containingDivEventTraps: function () {
+        containingDivEventHooks: function () {
             //trap and ignore clicks in the controls container div to avoid
             //selecting controls when you want to be changing a control value.
             jt.on("panfiltdiv", "mousedown", function (event) {
@@ -588,9 +557,9 @@ app.filter = (function () {
                   ["div", {id:"rangesdiv"},
                    [["div", {cla:"rangectrldiv", id:"eldiv"}],
                     ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
-                  ["div", {id:"bowtiesdiv"}],
+                  ["div", {id:"kwtogsdiv"}],
                   ["div", {id:"ratdiv"}]]]));
-            mgrs.gen.containingDivEventTraps();
+            mgrs.gen.containingDivEventHooks();
             mgrs.stg.rebuildAllControls(); }
     };  //end of mgrs.gen returned functions
     }());

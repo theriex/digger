@@ -18,7 +18,8 @@ var app = (function () {
 
     function init2 () {
         app.amdtimer.load.end = new Date();
-        jt.log("window.innerWidth: " + window.innerWidth);
+        jt.log("window.innerWidth/Height: " + window.innerWidth + " x " +
+               window.innerHeight);
         jt.on(document, "keydown", globkey);
         app.startParams = jt.parseParams("String");
         app.startPath = window.location.pathname.toLowerCase();
@@ -59,7 +60,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=220406");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=220413");
     },
 
 
@@ -74,7 +75,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=220406";  //updated as part of release process
+        return "v=220413";  //updated as part of release process
     },
 
 
