@@ -390,8 +390,7 @@ app.player = (function () {
             app.svc.dispatch("spc", "playerMessage", "Playback failed " + msg);
             mgrs.spa.pause();  //stop playback of previously loaded song
             const odiv = jt.byId("mediaoverlaydiv");
-            odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
-                              jt.byId("playertitle").offsetHeight + 2) + "px";
+            odiv.style.top = (jt.byId("playertitle").offsetHeight + 2) + "px";
             odiv.style.display = "block";
             odiv.innerHTML = "Song currently unavailable, skipping...";
             setTimeout(function () {
@@ -430,8 +429,7 @@ app.player = (function () {
             debouncing = false; },
         handlePlayFailure: function (stat, err) {
             const odiv = jt.byId("mediaoverlaydiv");
-            odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
-                              jt.byId("playertitle").offsetHeight + 2) + "px";
+            odiv.style.top = (jt.byId("playertitle").offsetHeight + 2) + "px";
             odiv.style.display = "block";
             // odiv.innerHTML = "Playback failed, skipping song...";
             // setTimeout(function () {
@@ -1133,8 +1131,7 @@ app.player = (function () {
             jt.byId("togsleepimg").src = "img/sleep.png";
             mgrs.aud.updateSongDisplay();
             const odiv = jt.byId("mediaoverlaydiv");
-            odiv.style.top = (jt.byId("playpantitlediv").offsetHeight +
-                              jt.byId("playertitle").offsetHeight + 2) + "px";
+            odiv.style.top = (jt.byId("playertitle").offsetHeight + 2) + "px";
             odiv.style.display = "block";
             odiv.innerHTML = jt.tac2html(
                 [msg, ["a", {href:"#playnext", onclick:mdfs("slp.resume")},
@@ -1161,8 +1158,7 @@ app.player = (function () {
         mgrs.aud.init();  //may redirect to authenticate web player
         jt.out("panplaydiv", jt.tac2html(
             [["div", {id:"panplaymousingdiv"},
-              [["div", {cla:"paneltitlediv", id:"playpantitlediv"}, "PLAYER"],
-               ["div", {id:"mediadiv"}, "No songs on deck yet"],
+              [["div", {id:"mediadiv"}, "No songs on deck yet"],
                ["div", {id:"mediaoverlaydiv", style:"display:none"}],
                ["div", {id:"impressiondiv"},
                 [["div", {id:"panpotsdiv"},

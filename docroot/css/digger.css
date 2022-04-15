@@ -23,7 +23,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   border:2px solid black; border-radius:8px; box-shadow:2px 2px 2px #666; }
 
 #contentframingdiv { background:black; height:100vh; }
-#contentdiv { margin:0px auto; width:100vw; max-width:600px;
+#contentdiv { margin:0px auto; width:100vw; max-width:512px;
   border-top:3px solid #363636;
   border-bottom:6px solid #363636;
   background-image: url('/img/panelsbg.png');
@@ -205,6 +205,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 
 .paneltitlediv { font-size:x-small; text-align:center; letter-spacing:1.2em; 
   font-weight:bold; }
+#fpecspan { display:inline-block; transition:all 0.2s; }
 #rangesdiv { display:flex; justify-content:space-around; }
 .rangectrldiv { display:inline-block; position:relative;
   border:2px solid #777;}

@@ -536,6 +536,8 @@ app.filter = (function () {
 
     //General panel level setup and dispatch
     mgrs.gen = (function () {
+        const spte = "rotate(0deg)";
+        const sptc = "rotate(90deg) translate(25%, 25%)";
     return {
         containingDivEventHooks: function () {
             //trap and ignore clicks in the controls container div to avoid
@@ -550,15 +552,32 @@ app.filter = (function () {
                 ctrls.movestats.forEach(function (movestat) {
                     movestat.pointingActive = false; });
                 jt.evtend(event); }); },
+        togglePanelView: function () {
+            const fpeca = jt.byId("fpeca");
+            const bspan = jt.byId("fpecspan");
+            if(fpeca.href.endsWith("#collapse")) {
+                fpeca.href = "#expand";
+                bspan.style.transform = spte;
+                jt.byId("filtpanelcontdiv").style.display = "none"; }
+            else {
+                fpeca.href = "#collapse";
+                bspan.style.transform = sptc;
+                jt.byId("filtpanelcontdiv").style.display = "block"; } },
         initializeInterface: function () {
             jt.out("panfiltdiv", jt.tac2html(
                 ["div", {id:"panfiltcontentdiv"},
-                 [["div", {cla:"paneltitlediv"}, "FILTERS"],
-                  ["div", {id:"rangesdiv"},
-                   [["div", {cla:"rangectrldiv", id:"eldiv"}],
-                    ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
-                  ["div", {id:"kwtogsdiv"}],
-                  ["div", {id:"ratdiv"}]]]));
+                 [["div", {cla:"paneltitlediv"},
+                   ["a", {id:"fpeca", href:"#init",
+                          onclick:mdfs("gen.togglePanelView")},
+                    [["span", {id:"fpecspan"}, ">"],
+                     "FILTERS"]]],
+                  ["div", {id:"filtpanelcontdiv"},
+                   [["div", {id:"rangesdiv"},
+                     [["div", {cla:"rangectrldiv", id:"eldiv"}],
+                      ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
+                    ["div", {id:"kwtogsdiv"}],
+                    ["div", {id:"ratdiv"}]]]]]));
+            mgrs.gen.togglePanelView();
             mgrs.gen.containingDivEventHooks();
             mgrs.stg.rebuildAllControls(); }
     };  //end of mgrs.gen returned functions
