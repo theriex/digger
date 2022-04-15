@@ -9,15 +9,28 @@ app.player = (function () {
     var playerrs = {};
 
 
+    //This could be a call where the song is no longer displayed, or an
+    //interim save triggered from ongoing user interaction.  In the first
+    //case there are no relevant UI elements left, in the second case the
+    //user may have continued to interact with the display while the save
+    //was ongoing and the UI elements should not be disturbed.  Even if the
+    //save fails, the UI state cannot be touched since there is nothing to
+    //revert back to.  A save failure basically never happens for local
+    //storage, and for web it would most likely be a well timed network
+    //hiccup or a server failure.  Not much to be done.
     function saveSongDataIfModified (ignoreupdate) {
-        if(!stat.songModified) { return; }
-        app.svc.updateSong(stat.song, function (updsong) {
-            jt.out("modindspan", "");
-            if(!ignoreupdate) {
-                //stat.song = updsong; song data copied, keep current reference
-                app.player.dispatch("aud", "updateSongDisplay");
-                stat.songModified = false; }
-            jt.log("song data updated " + JSON.stringify(updsong)); });
+        if(!stat.songModified) { return; }  //save not needed
+        if(!ignoreupdate) {  //saving the working song
+            //optimistically mark as saved.  If more changes there will
+            //be another save call.
+            stat.songModified = false; }
+        app.svc.updateSong(stat.song,
+            function (updsong) {
+                jt.out("modindspan", "");
+                jt.log("song data updated " + JSON.stringify(updsong)); },
+            function (code, errtxt) {
+                stat.songModified = true;  //hopefully next try will work
+                jt.err("song save failed " + code + ": " + errtxt); });
     }
 
 

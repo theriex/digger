@@ -368,7 +368,7 @@ app.svc = (function () {
                 jt.err("Digger server unavailable. Close this page and launch the Digger app."); }
             else {
                 jt.err("/songupd failed " + code + ": " + errtxt); } },
-        updateSong: function (song, contf) {
+        updateSong: function (song, contf, errf) {
             jt.call("POST", "/songupd", jt.objdata(song),
                     function (res)  {
                         var updsong = res[0];
@@ -378,7 +378,10 @@ app.svc = (function () {
                         if(contf) {
                             contf(updsong); } },
                     function (code, errtxt) {
-                        mgrs.loc.majorError(code, errtxt); },
+                        if(!errf) {
+                            mgrs.loc.majorError(code, errtxt); }
+                        else {
+                            errf(code, errtxt); } },
                     jt.semaphore("mgrs.loc.updateSong")); },
         noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
             var song = dbo.songs[updsong.path];
@@ -529,7 +532,7 @@ app.svc = (function () {
                     jt.semaphore("mgrs.web.fetchSongs")); },
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
-        updateSong: function (song, contf) {
+        updateSong: function (song, contf, errf) {
             var dat = {songdat:txSongJSON(song)};
             jt.call("POST", "/api/songupd", app.svc.authdata(dat),
                     function (res) {
@@ -540,7 +543,10 @@ app.svc = (function () {
                         if(contf) {
                             contf(updsong); } },
                     function (code, errtxt) {
-                        jt.err("songupd failed " + code + ": " + errtxt); },
+                        if(!errf) {
+                            jt.err("songupd failed " + code + ": " + errtxt); }
+                        else {
+                            errf(code, errtxt); } },
                     jt.semaphore("mgrs.web.updateSong")); },
         updateMultipleSongs: function (updss, contf, errf) {
             var updobj = {songs:txSongsJSON(updss)};  //100 songs ~= 61k
@@ -663,9 +669,9 @@ app.svc = (function () {
             mgrs[hdm].fetchSongs(contf, errf); },
         fetchAlbum: function (song, contf, errf) {
             mgrs[hdm].fetchAlbum(song, contf, errf); },
-        updateSong: function (song, contf) {
+        updateSong: function (song, contf, errf) {
             jt.log("updateSong " + song.dsId + " " + song.ti);
-            mgrs[hdm].updateSong(song, contf); },
+            mgrs[hdm].updateSong(song, contf, errf); },
         updateMultipleSongs: function (songs, contf, errf) {
             mgrs[hdm].updateMultipleSongs(songs, contf, errf); },
         copyUpdatedSongData: function (song, updsong) {
@@ -701,7 +707,7 @@ return {
     songs: function () { return mgrs.gen.songs(); },
     fetchSongs: function (cf, ef) { mgrs.gen.fetchSongs(cf, ef); },
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
-    updateSong: function (song, contf) { mgrs.gen.updateSong(song, contf); },
+    updateSong: function (song, cf, ef) { mgrs.gen.updateSong(song, cf, ef); },
     authdata: function (obj) { return mgrs.gen.authdata(obj); },
     manualContent: function () { return mgrs.gen.manualContent(); },
     noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
