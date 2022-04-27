@@ -138,7 +138,7 @@ app.top = (function () {
                 syt.resched = false;
                 mgrs.a2h.syncToHub(); }
             else if(haveUnpostedNewSongs()) {
-                syt.resched = true;  //prevent interim friend suggestions.
+                syt.resched = true;  //prevent interim fan suggestions.
                 mgrs.a2h.postNewSongsToHub(); }
             else {  //hub sync done
                 setTimeout(mgrs.mfcm.checkContributions, 100);
@@ -180,7 +180,7 @@ app.top = (function () {
         postNewSongsToHub: function () {
             mgrs.a2h.hubStatInfo("uploading...");
             syt.err = "";
-            app.svc.dispatch("gen", "friendContributions",
+            app.svc.dispatch("gen", "fanContributions",
                 function (retcount) {
                     syt.up += retcount;
                     jt.log("postNewSongsToHub " + retcount + " songs.");
@@ -403,7 +403,7 @@ app.top = (function () {
         accountSettings: function (ix) {
             var redisp = true;
             var tas = [
-                {h:"#friends", oc:"mfnd.friendsForm", t:"friends"},
+                {h:"#fans", oc:"mfnd.fansForm", t:"fans"},
                 {h:"#profile", oc:"h2a.profileForm", t:"profile"},
                 {h:"#password", oc:"h2a.changePwdForm", t:"password"},
                 {h:"#signout", oc:"h2a.signOut", t:"sign out"}];
@@ -518,7 +518,7 @@ app.top = (function () {
             mgrs.kwd.rebuildKeywords(); },
         writeDlgContent: function () {  //general account info on main site
             jt.out("topdlgdiv", jt.tac2html(["div", {id:"hubacctcontdiv"}]));
-            mgrs.mfnd.friendsForm(); },
+            mgrs.mfnd.fansForm(); },
         getAccount: function () {
             return app.login.getAuth(); },
         updateAccount: function (contf, errf) {
@@ -537,17 +537,17 @@ app.top = (function () {
     // General Account actions
     ////////////////////////////////////////////////////////////
 
-    //Music friend contributions manager handles default rating contributions
+    //Music fan contributions manager handles default rating contributions
     mgrs.mfcm = (function () {
         var updstat = {inprog:false, pass:0, total:0};
         function doneRemoving () {
             jt.out("mfstatdiv", updstat.rmf.dispname + " removed.");
-            app.deck.dispatch("ws", "rebuild", "removeFriend");
-            mgrs.mfnd.friendsForm(); }
+            app.deck.dispatch("ws", "rebuild", "removeFan");
+            mgrs.mfnd.fansForm(); }
         function removeDefaultRatings () {
             updstat.inprog = "remove";
             updstat.rmpass += 1;
-            app.svc.dispatch("gen", "clearFriendRatings", updstat.rmf.dsId,
+            app.svc.dispatch("gen", "clearFanRatings", updstat.rmf.dsId,
                 function (retcount) {
                     updstat.inprog = false;
                     if(!retcount) { //no more default ratings to remove
@@ -562,16 +562,16 @@ app.top = (function () {
         function updateMFContribs () {
             updstat.inprog = "contributions";
             updstat.pass += 1;
-            jt.out("mfstatdiv", "Checking friend contributions...");
-            app.svc.dispatch("gen", "friendContributions",
+            jt.out("mfstatdiv", "Checking fan contributions...");
+            app.svc.dispatch("gen", "fanContributions",
                 function (retcount) {
                     updstat.inprog = false;
                     updstat.total += retcount;
-                    mgrs.mfnd.friendsForm();  //resets mfstatdiv
+                    mgrs.mfnd.fansForm();  //resets mfstatdiv
                     if(!retcount) { //no more ratings returned
                         if(updstat.pass > 1) {  //got some ratings before
                             app.deck.dispatch("ws", "rebuildIfLow",
-                                              "friendcontrib", true); } }
+                                              "fancontrib", true); } }
                     else { //got some new ratings, check for more
                         //server can cut off access if calls are too tight
                         setTimeout(updateMFContribs, 4 * 1000); } },
@@ -598,7 +598,7 @@ app.top = (function () {
                !mgrs.a2h.hubSyncStable()) {  //hubsync calls here as needed
                 return jt.log("checkContributions waiting on hubSyncStable"); }
             if(!updstat.newsong && mgrs.mfnd.contribsUpToDate()) {
-                return jt.log("Friend contributions up to date."); }
+                return jt.log("Fan contributions up to date."); }
             delete updstat.newsong;
             updstat.pass = 0;
             setTimeout(updateMFContribs, 4 * 1000); }
@@ -606,38 +606,38 @@ app.top = (function () {
     }());
 
 
-    //Music friend add manager handles form and workflow for adding a friend
+    //Music fan add manager handles form and workflow for adding a fan
     mgrs.mfad = (function () {
     return {
-        friendInviteClick: function (ignore /*event*/) {
+        fanInviteClick: function (ignore /*event*/) {
             jt.byId("mfinvdoneb").disabled = false;
             jt.byId("mfinvdonebdiv").style.opacity = 1.0; },
         inviteSendHTML: function (dat) {
             var me = mgrs.gen.getAccount();
-            var subj = "DiggerHub music friend invitation";
+            var subj = "DiggerHub music fan invitation";
             var body = "Hi " + dat.firstname + ",\n\n" +
-"I just added you as a music friend on DiggerHub!  Looking forward to pulling the best from each other's music libraries while digging through the stacks.\n\n" +
+"I just added you as a music fan on DiggerHub!  Looking forward to pulling the best from each other's music libraries while digging through the stacks.\n\n" +
 "Happy listening,\n" + me.firstname + "\n\n" +
 "P.S. You should have already received an access link from support@diggerhub.com\n\n";
             var link = "mailto:" + dat.emaddr + "?subject=" +
                 jt.dquotenc(subj) + "&body=" + jt.dquotenc(body) + "%0A%0A";
             return jt.tac2html(
                 [["a", {href:link, id:"mfinvitelink",
-                        onclick:mdfs("mfad.friendInviteClick", "event")},
+                        onclick:mdfs("mfad.fanInviteClick", "event")},
                   "&gt;&gt; Send Invite to " + dat.firstname +
                   " &lt;&lt;&nbsp; "],
                  ["div", {id:"mfinvdonebdiv", style:"opacity:0.4"},
                   ["button", {type:"button", id:"mfinvdoneb", disabled:true,
-                              onclick:mdfs("mfnd.friendsForm", "event")},
+                              onclick:mdfs("mfnd.fansForm", "event")},
                    "Done"]]]); },
-        createFriend: function () {
+        createFan: function () {
             var dat = {emaddr:jt.byId("mfemin").value,
-                       firstname:jt.byId("friendnamein").value};
+                       firstname:jt.byId("fannamein").value};
             if(!dat.emaddr || !dat.firstname) { return; }
             jt.out("mfsubformbdiv", "Creating...");
-            app.svc.dispatch("gen", "createFriend", dat,
+            app.svc.dispatch("gen", "createFan", dat,
                 function () {
-                    mgrs.mfnd.noteAddRemoveFriend();
+                    mgrs.mfnd.noteAddRemoveFan();
                     jt.out("mfsubstatdiv", "");
                     jt.out("mfsubformdiv", mgrs.mfad.inviteSendHTML(dat)); },
                 function (code, errtxt) {
@@ -648,9 +648,9 @@ app.top = (function () {
             if(!jt.byId("mfsubformbutton")) {
                 jt.out("mfsubformbdiv", jt.tac2html(
                     ["button", {type:"button", id:"mfsubformbutton",
-                                onclick:mdfs("mfad.createFriend")},
+                                onclick:mdfs("mfad.createFan")},
                      "Create"])); }
-            if(jt.byId("friendnamein").value) {
+            if(jt.byId("fannamein").value) {
                 jt.byId("mfsubformbutton").disabled = false;
                 jt.byId("mfsubformbdiv").style.opacity = 1.0; }
             else {
@@ -662,23 +662,23 @@ app.top = (function () {
                 ["div", {id:"statformdiv"},
                  [["div", {id:"mfsubstatdiv"}, "Not found. Create and invite?"],
                   ["div", {id:"mfsubformdiv", cla:"formlinediv"},
-                   [["label", {fo:"friendnamein"}, "First name:"],
-                    ["input", {id:"friendnamein", type:"text", size:8,
+                   [["label", {fo:"fannamein"}, "First name:"],
+                    ["input", {id:"fannamein", type:"text", size:8,
                                oninput:mdfs("mfad.mfnameinput", "event")}],
                     ["div", {id:"mfsubformbdiv"}]]]]]));
             mgrs.mfad.mfnameinput(); }, //display disabled button
-        addFriend: function () {
+        addFan: function () {
             var emaddr = jt.byId("mfemin").value;
             if(!jt.isProbablyEmail(emaddr)) {
                 return jt.out("mfstatdiv", "Need a valid email address..."); }
             jt.out("mfbdiv", "Adding...");
-            app.svc.dispatch("gen", "addFriend", emaddr,
+            app.svc.dispatch("gen", "addFan", emaddr,
                 function () {
-                    jt.log("Added friend " + emaddr);
-                    mgrs.mfnd.noteAddRemoveFriend();
-                    mgrs.mfnd.friendsForm(); },
+                    jt.log("Added fan " + emaddr);
+                    mgrs.mfnd.noteAddRemoveFan();
+                    mgrs.mfnd.fansForm(); },
                 function (code, errtxt) {
-                    mgrs.mfnd.friendsForm();
+                    mgrs.mfnd.fansForm();
                     jt.byId("mfemin").value = emaddr;
                     if(code === 404) {
                         return mgrs.mfad.inviteCreate(); }
@@ -689,7 +689,7 @@ app.top = (function () {
             if(!jt.byId("mfaddb")) {
                 jt.out("mfbdiv", jt.tac2html(
                     ["button", {type:"button", id:"mfaddb",
-                                onclick:mdfs("mfad.addFriend")},
+                                onclick:mdfs("mfad.addFan")},
                      "Add"])); }
             if(jt.isProbablyEmail(jt.byId("mfemin").value)) {
                 jt.byId("mfaddb").disabled = false;
@@ -700,10 +700,10 @@ app.top = (function () {
         redisplayAddForm: function () {
             jt.out("mfaddiv", jt.tac2html(
                 ["div", {id:"addmfdiv"},
-                 [["label", {fo:"mfemin"}, "New music friend's email: "],
+                 [["label", {fo:"mfemin"}, "New music fan's email: "],
                   ["input", {type:"email", id:"mfemin",
                              oninput:mdfs("mfad.mfeminput", "event"),
-                             placeholder:"friend@example.com"}],
+                             placeholder:"fan@example.com"}],
                   ["div", {id:"mfbdiv"}],  //button or wait marker
                   ["div", {id:"mfaddstatdiv"}]]]));  //workflow stat div
             mgrs.mfad.mfeminput(); }
@@ -711,7 +711,7 @@ app.top = (function () {
     }());
 
 
-    //Music friend display management and song push contact
+    //Music fan display management and song push contact
     mgrs.mfds = (function () {
         const ag = "&#x21c4;";  //right arrow over left arrow glyph
         const opts = [ag + " 1", ag + " 2", ag + " 3", ag + " 4", "-", "X"];
@@ -755,11 +755,11 @@ app.top = (function () {
                   "&body=" + jt.dquotenc(body) + "%0A%0A";
             return ["span", {cla:"emcspan"},
                     ["a", {href:link,
-                           onclick:mdfs("mfds.friendEmailClick", "event")},
+                           onclick:mdfs("mfds.fanEmailClick", "event")},
                      ["img", {cla:"buttonico", src:"img/email.png"}]]]; }
     return {
-        friendEmailClick: function (event) {
-            jt.log("friendEmailClick " + event.target.innerHTML); },
+        fanEmailClick: function (event) {
+            jt.log("fanEmailClick " + event.target.innerHTML); },
         editDispName: function (idx) {
             if(!jt.byId("mfnamein" + idx)) {  //not already editing
                 jt.out("dispnamespan" + idx, jt.tac2html(
@@ -775,8 +775,8 @@ app.top = (function () {
             if(!name) { musfs[idx].dispname = musfs[idx].firstname; }
             if(name !== prevname) {
                 musfs[idx].dispname = name;
-                mgrs.mfnd.updateMusicFriends(musfs); }
-            mgrs.mfds.redisplayFriends(); },
+                mgrs.mfnd.updateMusicFans(musfs); }
+            mgrs.mfds.redisplayFans(); },
         adjustOrder: function (selidx) {
             var musfs = mgrs.mfnd.musfs();
             var mf = musfs[selidx];
@@ -799,9 +799,9 @@ app.top = (function () {
                     mf.status = "Inactive"; }
                 musfs.splice(optidx, 0, musfs.splice(selidx, 1)[0]); }
             musfs = mgrs.mfnd.sortAndMax4Active(musfs);
-            mgrs.mfnd.updateMusicFriends(musfs, contf);
-            mgrs.mfds.redisplayFriends(); },
-        redisplayFriends: function () {
+            mgrs.mfnd.updateMusicFans(musfs, contf);
+            mgrs.mfds.redisplayFans(); },
+        redisplayFans: function () {
             var musfs = mgrs.mfnd.musfs();
             jt.out("mfdsdiv", jt.tac2html(
                 musfs.map((mf, idx) => 
@@ -815,11 +815,11 @@ app.top = (function () {
     }());
 
 
-    //Music friend manager handles main display and access functions
+    //Music fan manager handles main display and access functions
     mgrs.mfnd = (function () {
         var mst = {ds:"init"};
     return {
-        activeFriendsIdCSV: function () {  //svc.web.fetchSongsDeck
+        activeFansIdCSV: function () {  //svc.web.fetchSongsDeck
             return mgrs.mfnd.musfs()
                 .filter((mf) => mf.status === "Active")
                 .map((mf) => mf.dsId)
@@ -844,7 +844,7 @@ app.top = (function () {
             musfs.forEach(function (mf, idx) {
                 if(idx > 3) { mf.status = "Inactive"; } });
             return musfs; },
-        verifyFriendDefs: function (musfs) {
+        verifyFanDefs: function (musfs) {
             musfs = musfs.filter((mf) => mf.dsId && mf.email && mf.firstname);
             musfs.forEach(function (mf) {
                 mf.dispname = mf.dispname || mf.firstname;
@@ -853,13 +853,13 @@ app.top = (function () {
                 if(mf.status !== "Active") {
                     mf.status = "Inactive"; } });
             return mgrs.mfnd.sortAndMax4Active(musfs); },
-        updateMusicFriends: function (musfs, contf, errf) {
+        updateMusicFans: function (musfs, contf, errf) {
             var curracc = mgrs.gen.getAccount();
             curracc.musfs = musfs;
             contf = contf || function () {
-                jt.log("top.mfnd.updateMusicFriends account saved."); };
+                jt.log("top.mfnd.updateMusicFans account saved."); };
             errf = errf || function (code, errtxt) {
-                jt.log("top.mfnd.updateMusicFriends account save failed " +
+                jt.log("top.mfnd.updateMusicFans account save failed " +
                        code + ": " + errtxt); };
             mgrs.gen.updateAccount(contf, errf); },
         musfs: function () {
@@ -871,14 +871,14 @@ app.top = (function () {
                 curracc.musfs = []; }
             musfs = curracc.musfs;
             if(mst.ds === "init") {
-                musfs = mgrs.mfnd.verifyFriendDefs(musfs);
-                mgrs.mfnd.updateMusicFriends(musfs, function () {
+                musfs = mgrs.mfnd.verifyFanDefs(musfs);
+                mgrs.mfnd.updateMusicFans(musfs, function () {
                     mst.ds = "verified";
                     mgrs.mfcm.checkContributions(); }); }
             return musfs; },
-        noteAddRemoveFriend: function () {
-            mst.ds = "init"; },  //rebuild needed friend fields
-        friendsForm: function () {
+        noteAddRemoveFan: function () {
+            mst.ds = "init"; },  //rebuild needed fan fields
+        fansForm: function () {
             if(!jt.byId("hubacctcontdiv")) { return; }
             jt.out("hubacctcontdiv", jt.tac2html(
                 ["div", {id:"mfsdiv"},
@@ -886,7 +886,7 @@ app.top = (function () {
                   ["div", {id:"mfscontdiv"},  //~6 lines high, scrollable
                    [["div", {id:"mfdsdiv"}],
                     ["div", {id:"mfaddiv"}]]]]]));
-            mgrs.mfds.redisplayFriends();
+            mgrs.mfds.redisplayFans();
             mgrs.mfad.redisplayAddForm();
             if(mst.ds === "verified") {
                 mgrs.mfcm.checkContributions(); } }

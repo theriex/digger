@@ -1,0 +1,150 @@
+<!doctype html>
+<html itemscope="itemscope" itemtype="https://schema.org/WebPage"
+      xmlns="https://www.w3.org/1999/xhtml" dir="ltr" lang="en-US">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="robots" content="noodp" />
+  <meta name="description" content="Types of interactions between listeners" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Fans</title>
+<style type="text/css">
+body { background:AntiqueWhite; padding:0px 10px; font-size:large; }
+h1 { text-align:center; }
+h2 { padding:10px 0px 0px 0px; }
+</style>
+</head>
+<body>
+
+<h1>Music Fans</h1>
+
+<p>A music fan is someone whose musical listening interests and reactions
+you respect and enjoy.  You might not agree on everything, but you
+definitely agree on some things, and you might share tips and reactions to
+various songs and artists. </p>
+
+<p>Back in the day, when you went over to a someone's house, you might check
+out their album collection, see how much you recognize, check out what you
+don't recognize, and maybe talk about what you've been listening to
+recently.  They might play something they think you should hear, or let you
+choose something to put on.  This type of interaction didn't scale into the
+digital age like radio or mixtapes.  There are several reasons for this:</p>
+<ul>
+
+<li>Casually browsing other people's music collections doesn't work anymore
+because albums are no longer part of the room.  They exist on screen.
+
+<li>Without the constraints of physical space, libraries have grown very
+large.
+
+<li>With a large collection, it takes more effort and knowledge to find
+something appropriate to suggest.
+
+</ul>
+
+<p>How we access our collections needs help to make it easier to enjoy our
+music and bring back fan interactions like the following: </p>
+
+
+<h2>Have you heard...</h2>
+
+<p>Some of the most treasured music in my collection came from fans that
+pointed out gems I hadn't discovered yet.  If they hadn't clued me in, I
+might have missed out on music I've listened to for years since.</p>
+
+<p>Digger supports suggestions of new music from fans.  If a music source
+supports it, fan-suggested songs matching your current retrieval parameters
+can be included on deck.  When you play a recommended song, it gets added to
+your collection with the ratings you set.  You can activate up to 4 fans at
+once all providing suggestions of music to play. </p>
+
+
+<h2>This song is amazing!</h2>
+
+<p>Sometimes when you listen to a song or album, the experience is so great
+you need to let other fans know about it.  If you have saved contact fan
+contact info with your account, Digger helps with the typing by filling out
+text about the song that is playing, and some of what's on deck, to provide
+context. </p>
+
+
+<h2>Notable artistic aspects</h2>
+
+<p>When you are listening, you might be struck by aspects of the
+composition, performance, production, or other magic that is worth noting
+for your future self and any fan you might be providing suggestions to.
+Put these notes in the song comment field to capture them. </p>
+
+
+<h2>Context</h2>
+
+<p>Songs are recorded in a studio or at a live performance, but sometimes
+there is more to it.  Fans in the know often share amusing or
+illuminating anecdotes about the song background, contractual obligations,
+recording situations or other info.  These anecdotes can also be put in the
+comment field, but there is an opportunity here to do more.  Context might be
+more stories than facts, but it's always fun to hear from fans. </p>
+
+
+<h2>Relationships</h2>
+
+<p>Great music is made by great musicians, and it can be rewarding to see
+what else they have done who else they have worked with.  Some relationships
+are surprising and lead to things you might not have explored otherwise.
+Looking forward to developing this further. </p>
+
+
+<h2>Personal connections</h2>
+
+<p>Nothing beats directly supporting artists you like.  "I saw them live"
+expresses both appreciation and commitment.  Any connection to the creative
+process is great and worth sharing, including music purchases and other
+items that directly benefit artists.  Most musicians don't get enough
+support from streaming.  You should be able to see more of how your fans
+are connecting to the music. </p>
+
+
+<h2>Happenings</h2>
+
+<p>New releases, upcoming concerts, and other happenings are important to
+know about.  It's a drag missing something you would have wanted to go see.
+Fans are good source, but looking forward to connecting with services to
+get the scoop on what's going on. </p>
+
+
+<h2>Help with setup</h2>
+
+<p>Fans help you get started.  When you add a music fan, Digger checks their
+library for songs you haven't rated yet and copies their rating info to jump
+start your tuned listening experience.  When you rate your own music you
+help fans discover music they want to hear.  All while you get back into
+enjoying music in your library. </p>
+
+<br/><br/><br/><br/>
+<!--
+
+DiggerHub collaboration walks through your active music fans in order,
+checking each one to see if they can contribute default ratings for songs
+you haven't rated yet.  Up to 200 rated songs are returned per call.  The
+checksince attribute for each music fan is updated with either the
+creation time of the last song rating contributed, or the current time if
+the fan has no more song ratings left to contribute.  After
+collaborations are updated, fan ratings are checked at most once a day.
+
+If you adjust the ratings while a song is playing, the ratings are
+considered yours.  If you deactivate a fan, any rating defaults they have
+contributed stick around.  If you remove them, then their default rating
+contributions are also removed.
+
+When you update your active music fans, or click the info button next to an
+active music fan.  Digger calls /api/mfcontrib on the hub.  If you are
+running music locally, any songs not yet on the hub are uploaded so they are
+available for collaboration.  If this is your first time collaborating, and
+you have a lot of local music, the initial upload might take a few minutes.
+After that, only newly added songs need to be uploaded.  Uploading new music
+resets the checksince time for all of your music fans and restarts the
+collaboration process.
+
+-->
+
+</body>
+</html>

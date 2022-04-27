@@ -15,7 +15,7 @@ app.deck = (function () {
     mgrs.ws = (function () {
         var wrk = {tmo:null, stat:"", resched:false, songs:[], fcs:[],
                    prs:[], wait:50};  //first wait is quick since starting up
-        function compareOwnership(a, b) {  //friend songs after own songs
+        function compareOwnership(a, b) {  //fan songs after own songs
             if(a.dsId && b.dsId) {
                 if(a.dsId.startsWith("fr") && !b.dsId.startsWith("fr")) {
                     return 1; }
@@ -24,7 +24,7 @@ app.deck = (function () {
             return 0; }
         function compareLastPlayed(a, b) {  //oldest songs first
             if(a.dsId && a.dsId.startsWith("fr") &&  //most recent first for
-               b.dsId && b.dsId.startsWith("fr")) {  //friend recs (email thx)
+               b.dsId && b.dsId.startsWith("fr")) {  //fan recs (email thx)
                 if(a.lp && !b.lp) { return -1; }  //unplayed last
                 if(!a.lp && b.lp) { return 1; }
                 if(a.lp && b.lp) { return b.lp.localeCompare(a.lp); } }
@@ -226,7 +226,7 @@ app.deck = (function () {
                          ["span", {cla:"sopx"}, "x"]]);
             const song = mgrs[mgrnm].songByIndex(idx);
             if(song.dsId && song.dsId.startsWith("fr")) {
-                const frnd = app.top.dispatch("mfnd", "findFriendById",
+                const frnd = app.top.dispatch("mfnd", "findFanById",
                                               song.aid);
                 if(frnd) {
                     tac.push(["div", {cla:"sopfrsugdiv"},
@@ -274,13 +274,13 @@ app.deck = (function () {
                 else if(filts.some((f) =>
                         f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {
                     msgs.push("Try wider energy level and approachability"); }
-                //extend library and/or add a friend to help
+                //extend library and/or add a fan to help
                 if(app.svc.dispatch("gen", "plat", "hdm") === "web") {
                     app.top.dispatch("webla", "spimpNeeded", "nosongs");
-                    msgs.push(amfLink("Add a friend to find more music")); }
+                    msgs.push(amfLink("Add a fan to find more music")); }
                 else { //local player
                     msgs.push("Import more music");
-                    msgs.push(amfLink("Add a friend to help rate music")); } }
+                    msgs.push(amfLink("Add a fan to help rate music")); } }
             return jt.tac2html([msgs.join(". ") + ".",
                                 ["div", {id:"nomusicstatdiv"}]]); },
         displaySongs: function (mgrnm, divid, songs) {

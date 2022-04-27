@@ -404,23 +404,23 @@ app.svc = (function () {
             //endpoint is either /newacct or /acctok
             jt.call("POST", "/" + endpoint, data, contf, errf,
                     jt.semaphore("svc.loc.signInOrJoin")); },
-        addFriend: function (mfem, contf, errf) {
+        addFan: function (mfem, contf, errf) {
             jt.call("POST", "/addmusf", app.svc.authdata({mfaddr:mfem}),
                     function (accts) {
                         const ca = app.top.dispatch("locam", "getAccount");
                         app.top.dispatch("locam", "noteReturnedCurrAcct",
                                          accts[0], ca.token);
                         contf(accts); },
-                    errf, jt.semaphore("svc.loc.addFriend")); },
-        createFriend: function (dat, contf, errf) {
+                    errf, jt.semaphore("svc.loc.addFan")); },
+        createFan: function (dat, contf, errf) {
             jt.call("POST", "/createmusf", app.svc.authdata(dat),
                     function (results) {
                         const ca = app.top.dispatch("locam", "getAccount");
                         app.top.dispatch("locam", "noteReturnedCurrAcct",
                                          results[0], ca.token);
                         contf(results); },
-                    errf, jt.semaphore("svc.loc.createFriend")); },
-        friendContributions: function (contf, errf) {
+                    errf, jt.semaphore("svc.loc.createFan")); },
+        fanContributions: function (contf, errf) {
             jt.call("POST", "/mfcontrib", app.svc.authdata(),
                     function (results) {
                         const ca = app.top.dispatch("locam", "getAccount");
@@ -429,14 +429,14 @@ app.svc = (function () {
                         results.slice(1).forEach(function (song) {
                             mgrs.loc.noteUpdatedSongData(song); });
                         contf(results.length - 1); },
-                    errf, jt.semaphore("svc.loc.friendContributions")); },
-        clearFriendRatings: function (friendid, contf, errf) {
-            jt.call("POST", "/mfclear", app.svc.authdata({mfid:friendid}),
+                    errf, jt.semaphore("svc.loc.fanContributions")); },
+        clearFanRatings: function (fanid, contf, errf) {
+            jt.call("POST", "/mfclear", app.svc.authdata({mfid:fanid}),
                     function (results) {
                         results.forEach(function (song) {
                             mgrs.loc.noteUpdatedSongData(song); });
                         contf(results.length); },
-                    errf, jt.semaphore("svc.loc.clearFriendRatings")); },
+                    errf, jt.semaphore("svc.loc.clearFanRatings")); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {
@@ -507,12 +507,12 @@ app.svc = (function () {
                                               contf, errf); }
             return mgrs.web.fetchDeckSongs(fvsj, contf, errf); },
         fetchDeckSongs: function (fvsj, contf, errf) {
-            var mfids = app.top.dispatch("mfnd", "activeFriendsIdCSV");
-            if(mfids !== fvsj.friendidcsv) {  //clear friend suggested songs
+            var mfids = app.top.dispatch("mfnd", "activeFansIdCSV");
+            if(mfids !== fvsj.fanidcsv) {  //clear fan suggested songs
                 Object.entries(pool).forEach(function ([sk, song]) {
                     if(song.dsId.startsWith("fr")) {
                         delete pool[sk]; } }); }
-            fvsj.friendidcsv = mfids;  //include friend suggestions in fetch
+            fvsj.fanidcsv = mfids;  //include fan suggestions in fetch
             fvsj.startsongid = app.startParams.songid || "";
             fvsj = JSON.stringify(fvsj);
             if(lastfvsj && lastfvsj === fvsj &&   //if no change in search, and
@@ -538,7 +538,7 @@ app.svc = (function () {
                     function (res) {
                         var updsong = res[0];
                         mgrs.gen.copyUpdatedSongData(song, updsong);
-                        //title may have had a '+' if original from friend
+                        //title may have had a '+' if original from fan
                         app.player.dispatch("aud", "updateSongTitleDisplay");
                         if(contf) {
                             contf(updsong); } },
@@ -552,23 +552,23 @@ app.svc = (function () {
             var updobj = {songs:txSongsJSON(updss)};  //100 songs ~= 61k
             jt.call("POST", "api/multiupd", app.svc.authdata(updobj),
                     contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
-        addFriend: function (mfem, contf, errf) {
+        addFan: function (mfem, contf, errf) {
             jt.call("POST", "/api/addmusf", app.svc.authdata({mfaddr:mfem}),
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);
                         contf(app.login.dispatch("act", "noteUpdatedAccount",
                                                  digacc)); },
                     errf,
-                    jt.semaphore("mgrs.web.addFriend")); },
-        createFriend: function (dat, contf, errf) {
+                    jt.semaphore("mgrs.web.addFan")); },
+        createFan: function (dat, contf, errf) {
             jt.call("POST", "/api/createmusf", app.svc.authdata(dat),
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);
                         contf(app.login.dispatch("act", "noteUpdatedAccount",
                                                  digacc)); },
                     errf,
-                    jt.semaphore("mgrs.web.createFriend")); },
-        friendContributions: function (contf, errf) {
+                    jt.semaphore("mgrs.web.createFan")); },
+        fanContributions: function (contf, errf) {
             jt.call("POST", "/api/mfcontrib", app.svc.authdata(),
                     function (results) {
                         var digacc = app.refmgr.deserialize(results[0]);
@@ -576,14 +576,14 @@ app.svc = (function () {
                                                     digacc);
                         mgrs.web.addSongsToPool(results.slice(1));
                         contf(results.length - 1); },
-                    errf, jt.semaphore("mgrs.web.friendContributions")); },
-        clearFriendRatings: function (friendid, contf, errf) {
-            jt.call("POST", "/api/mfclear", app.svc.authdata({mfid:friendid}),
+                    errf, jt.semaphore("mgrs.web.fanContributions")); },
+        clearFanRatings: function (fanid, contf, errf) {
+            jt.call("POST", "/api/mfclear", app.svc.authdata({mfid:fanid}),
                     function (results) {
                         results.forEach(function (song) {
                             mgrs.web.reflectUpdatedSongIfInPool(song); });
                         contf(); },
-                    errf, jt.semaphore("mgrs.web.clearFriendRatings")); },
+                    errf, jt.semaphore("mgrs.web.clearFanRatings")); },
         getSongTotals: function (contf, errf) {
             jt.call("POST", "/api/songttls", app.svc.authdata(),
                     function (results) {
@@ -684,14 +684,14 @@ app.svc = (function () {
             if(obj) {
                 authdat += "&" + jt.objdata(obj); }
             return authdat; },
-        addFriend: function (mfem, contf, errf) {
-            mgrs[hdm].addFriend(mfem, contf, errf); },
-        createFriend: function (dat, contf, errf) {
-            mgrs[hdm].createFriend(dat, contf, errf); },
-        friendContributions: function (contf, errf) {
-            mgrs[hdm].friendContributions(contf, errf); },
-        clearFriendRatings: function (mfid, contf, errf) {
-            mgrs[hdm].clearFriendRatings(mfid, contf, errf); },
+        addFan: function (mfem, contf, errf) {
+            mgrs[hdm].addFan(mfem, contf, errf); },
+        createFan: function (dat, contf, errf) {
+            mgrs[hdm].createFan(dat, contf, errf); },
+        fanContributions: function (contf, errf) {
+            mgrs[hdm].fanContributions(contf, errf); },
+        clearFanRatings: function (mfid, contf, errf) {
+            mgrs[hdm].clearFanRatings(mfid, contf, errf); },
         manualContent: function () {
             var aod = jt.byId("appoverlaydiv");
             return jt.tac2html(

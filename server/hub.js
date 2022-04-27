@@ -376,7 +376,7 @@ module.exports = (function () {
                 .join(";");  //avoid serialization confusion with url safe sep
             musf.filled += 1;
             musf.lastimport = new Date().toISOString(); },
-        verifyFriendRating: function (song) {
+        verifyFanRating: function (song) {
             if(!song.srcid || !song.srcrat) { return; }  //no guide info
             if(song.dsId) { return; }  //srcid preserved after hub save
             const gvals = song.srcrat.split(";");
@@ -394,7 +394,7 @@ module.exports = (function () {
         //server utilities
         verifyDefaultAccount: function (conf) { verifyDefaultAccount(conf); },
         isIgnoreDir: function (ws, dn) { return isIgnoreDir(ws, dn); },
-        verifyFriendRating: function (s) { gdutil.verifyFriendRating(s); },
+        verifyFanRating: function (s) { gdutil.verifyFanRating(s); },
         //server endpoints
         acctsinfo: function (req, res) { return accountsInfo(req, res); },
         newacct: function (req, res) { return hubpost(req, res, "newacct"); },

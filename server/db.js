@@ -241,7 +241,7 @@ module.exports = (function () {
     //Buried subdirectories:
     //  It would be great if 4+ deep subdirectories had some kind of
     //  meaningful general structure but they don't.  More typically it's
-    //  Compilations/Friend Name/Party/Maybe Right Title.mp3
+    //  Compilations/Fan Name/Party/Maybe Right Title.mp3
     function mdtagsFromPath (rpath) {
         const nonas = ["compilations", "various", "various artists", "music",
                        "soundtracks"];
@@ -616,7 +616,7 @@ module.exports = (function () {
             song.srcid = fields.srcid || "";
             song.srcrat = fields.srcrat || "";
             normalizeIntegerValues(song);
-            require("./hub.js").verifyFriendRating(song);
+            require("./hub.js").verifyFanRating(song);
             song.path = fields.path;  //note local path for hub sync
             recheckMetadata(song, res); });
     }
