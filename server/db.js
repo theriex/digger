@@ -48,7 +48,7 @@ module.exports = (function () {
 
 
     function diggerVersion () {
-        return "v1.0.0";
+        return "v1.0.1";
     }
 
 
@@ -758,6 +758,19 @@ module.exports = (function () {
     }
 
 
+    function doctext (pu, req, res) {
+        var fn = decodeURIComponent(pu.query.docurl);
+        var sidx = fn.lastIndexOf("/");
+        if(sidx >= 0) {
+            fn = fn.slice(sidx + 1); }
+        fn = path.join(getAppDir(), "docroot", "docs", fn);
+        console.log("doctext reading " + fn)
+        const text = jslf(fs, "readFileSync", fn, "utf8");
+        res.writeHead(200, {"Content-Type": "text/plain; charset=UTF-8"});
+        res.end(text);
+    }
+
+
     return {
         //server utilities
         appdir: function () { return getAppDir(); },
@@ -785,6 +798,7 @@ module.exports = (function () {
         plistexp: function (req, res) { return playlistExport(req, res); },
         audio: function (pu, req, res) { return serveAudio(pu, req, res); },
         version: function (req, res) { return serveVersion(req, res); },
-        cfgchg: function (req, res) { return changeConfig(req, res); }
+        cfgchg: function (req, res) { return changeConfig(req, res); },
+        doctext: function (pu, req, res) { return doctext(pu, req, res); }
     };
 }());

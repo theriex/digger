@@ -1462,6 +1462,60 @@ app.top = (function () {
     }());
 
 
+    //Database check manager verifies the working database object
+    mgrs.dbc = (function () {
+        var stat = null;
+        const sflds = [
+            {fn:"el", dv:49, min:0, max:99},
+            {fn:"al", dv:49, min:0, max:99},
+            {fn:"kws", dv:""},
+            {fn:"rv", dv:5, min:1, max:10},
+            {fn:"fq", dv:"N"},
+            {fn:"lp", dv:""},
+            {fn:"nt", dv:""},
+            {fn:"pc", dv:0, min:0, max:Number.MAX_SAFE_INTEGER},
+            {fn:"srcid", dv:""},
+            {fn:"srcrat", dv:""}];
+        function err (et) {
+            if(stat) {
+                stat.verified = false;
+                stat.errs.push(et); } }
+    return {
+        verifySong: function (song) {
+            sflds.forEach(function (fld) {
+                song[fld.fn] = song[fld.fn] || fld.dv;
+                if(fld.min) {
+                    song[fld.fn] = Math.max(song[fld.fn], fld.min); }
+                if(fld.max) {
+                    song[fld.fn] = Math.min(song[fld.fn], fld.max); } }); },
+        verifyDatabase: function (dbo) {
+            stat = {verified:true, errs:[], count:0};
+            if(!dbo) {
+                err("No database object given"); }
+            if(!dbo.version) {
+                err("dbo.version must be set by platform when dbo created"); }
+            if(!dbo.songs || typeof dbo.songs !== "object") {
+                err("dbo.songs is not an object"); }
+            if(Array.isArray(dbo.songs)) {  //arrays are objects...
+                err("dbo.songs is an array, not an object"); }
+            if(stat.verified) {
+                Object.entries(dbo.songs).forEach(function ([path, song]) {
+                    if(!song || typeof song !== "object") {
+                        err("song path " + path + " has no song object"); }
+                    else {
+                        stat.count += 1;
+                        song.path = path;  //copy value into song for hub sync
+                        mgrs.dbc.verifySong(song); } }); }
+            dbo.songcount = dbo.songcount || 0;
+            if(dbo.songcount > stat.count) {
+                err("probable song loss: dbo.songcount " + dbo.songcount +
+                    " > " + stat.count + " in dbo.songs"); }
+            dbo.scanned = dbo.scanned || "";
+            return stat; }
+    };
+    }());
+
+
     ////////////////////////////////////////////////////////////
     // Export actions
     ////////////////////////////////////////////////////////////
@@ -1698,7 +1752,8 @@ app.top = (function () {
                     [["span", {id:"countspan"}, "Loading..."],
                      ["div", {id:"rtfmdiv"},
                       ["a", {href:"/docs/manual.html", title:"How Digger works",
-                             onclick:mdfs("gen.dispManual", "open")},
+                             onclick:jt.fs("app.displayDoc('appoverlaydiv'," +
+                                           "'manual.html')")},
                        "RTFM"]]]]]],
                  ["div", {id:"topdlgdiv", "data-mode":"empty"}],
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],
@@ -1720,22 +1775,7 @@ app.top = (function () {
         updateHubToggleSpan: function (acct) {
             jt.byId("hubtogspan").title = "Account Info (" +
                 acct.diggerVersion + ", " + app.fileVersion() + ")";
-            jt.out("hubtogspan", acct.firstname); },
-        dispManual: function (action) {
-            const odiv = jt.byId("appoverlaydiv");
-            if(action === "close") {
-                odiv.style.height = "0px";
-                return jt.out("appoverlaydiv", ""); }
-            const cdiv = jt.byId("contentdiv");
-            odiv.style.left = (cdiv.offsetLeft + 10) + "px";
-            odiv.style.width = (cdiv.offsetWidth - 20) + "px";
-            odiv.style.height = (cdiv.offsetHeight - 40) + "px";
-            jt.out("appoverlaydiv", jt.tac2html(
-                [["div", {id:"closeoverlaydiv"},
-                  ["a", {href:"#close",
-                         onclick:mdfs("gen.dispManual", "close")}, "X"]],
-                 ["div", {id:"appoverlaycontentdiv"},
-                  app.svc.manualContent()]])); }
+            jt.out("hubtogspan", acct.firstname); }
     };  //end mgrs.gen returned functions
     }());
 

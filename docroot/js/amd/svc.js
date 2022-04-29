@@ -449,7 +449,11 @@ app.svc = (function () {
                             setTimeout(mgrs.loc.loadLibrary, 50); }
                         contf(); },
                     errf,
-                    jt.semaphore("svc.loc.loadInitialData")); }
+                    jt.semaphore("svc.loc.loadInitialData")); },
+        docContent: function (docurl, contf, errf) {
+            const up = jt.objdata({docurl:jt.enc(docurl)});
+            jt.request("GET", app.cb(app.dr("/doctext"), up, "day"), null,
+                       contf, errf, jt.semaphore("mgrs.loc.docContent")); }
     };  //end mgrs.loc returned functions
     }());
             
@@ -613,7 +617,11 @@ app.svc = (function () {
                         jt.log("playbackError reported " +
                                JSON.stringify(data)); },
                     function () {
-                        jt.log("playbackError reporting failed."); }); }
+                        jt.log("playbackError reporting failed."); }); },
+        docContent: function (docurl, contf, errf) {
+            const up = jt.objdata({docurl:jt.enc(docurl)});
+            jt.request("GET", app.cb(app.dr("/api/doctext"), up, "day"), null,
+                       contf, errf, jt.semaphore("mgrs.web.docContent")); }
     };  //end mgrs.web returned functions
     }());
 
@@ -634,6 +642,18 @@ app.svc = (function () {
             return url &&
                 url.match(/https?:\/\/(localhost|127.0.0.1):80\d\d\/digger/); }
     return {
+        initplat: function (overhdm) {
+            if(overhdm) {
+                platconf.hdm = overhdm; }
+            else {
+                const url = window.location.href.toLowerCase();
+                if(url.startsWith(dwurl) || isLocalDev(url)) {
+                    platconf.hdm = "web";
+                    //support different web audio via app.startParams values
+                    platconf.audsrc = "Spotify"; }
+                else {  //localhost or LAN
+                    platconf.hdm = "loc"; } }
+            hdm = platconf.hdm; },
         plat: function (key) { return platconf[key]; },
         initialDataLoaded: function () {
             //Setting the filter values triggers a call to app.deck.update
@@ -644,13 +664,7 @@ app.svc = (function () {
         initialDataFailed: function (code, errtxt) {
             jt.err("Initial data load failed " + code + ": " + errtxt); },
         initialize: function () {
-            var url = window.location.href.toLowerCase();
-            if(url.startsWith(dwurl) || isLocalDev(url)) {
-                platconf.hdm = "web";
-                //support different web audio via app.startParams values
-                platconf.audsrc = "Spotify"; }
-            else {  //localhost or LAN
-                platconf.hdm = "loc"; }
+            mgrs.gen.initplat();
             //background image fails to load after redirect Mac FF 88.0.1
             const cssbg = "url('" + app.dr("/img/panelsbg.png") + "')";
             jt.byId("contentdiv").style.backgroundImage = cssbg;
@@ -692,12 +706,9 @@ app.svc = (function () {
             mgrs[hdm].fanContributions(contf, errf); },
         clearFanRatings: function (mfid, contf, errf) {
             mgrs[hdm].clearFanRatings(mfid, contf, errf); },
-        manualContent: function () {
-            var aod = jt.byId("appoverlaydiv");
-            return jt.tac2html(
-                ["iframe", {src:"/docs/manual.html",
-                            width:aod.offsetWidth - 4,
-                            height:aod.offsetHeight - 20}]); }
+        docContent: function (docurl, contf) {
+            mgrs[hdm].docContent(docurl, contf, function (code, errtxt) {
+                contf("Doc error " + code + ": " + errtxt); }); }
     };  //end mgrs.gen returned functions
     }());
 
@@ -709,8 +720,9 @@ return {
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
     updateSong: function (song, cf, ef) { mgrs.gen.updateSong(song, cf, ef); },
     authdata: function (obj) { return mgrs.gen.authdata(obj); },
-    manualContent: function () { return mgrs.gen.manualContent(); },
     noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
+    urlOpenSupp: function () { return true; }, //ok to open urls in new tab
+    docContent: function (du, cf) { mgrs.gen.docContent(du, cf); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }
 };  //end of returned functions

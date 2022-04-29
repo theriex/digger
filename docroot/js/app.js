@@ -60,7 +60,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=220425");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=220429");
     },
 
 
@@ -75,7 +75,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=220425";  //updated as part of release process
+        return "v=220429";  //updated as part of release process
     },
 
 
@@ -185,6 +185,63 @@ return {
                     errmsg = errmsg.slice(0, ci); } }
             jt.log("app.pt returning: " + errmsg); }
         return errmsg;
+    },
+
+
+    subPlaceholders: function (divid, body, extlnk) {
+        const dom = "diggerhub.com";
+        const bot = "@" + dom;
+        const docpre = "https://" + dom + "/docs/";
+        const repls = [
+            {plc:"ABOUT", txt:"About", url:docpre + "about.html"},
+            {plc:"MANUAL", txt:"Manual", url:docpre + "manual.html"},
+            {plc:"PRIVACY", txt:"Privacy", url:docpre + "privacy.html"},
+            {plc:"SUPPORT", txt:"Support", url:docpre + "support.html"},
+            {plc:"OPENSOURCE", txt:"open source",
+             url:"https://github.com/theriex/digger"},
+            {plc:"ISSUESONGITHUB", txt:"issues on GitHub",
+             url:"https://github.com/theriex/digger/issues"},
+            {plc:"SUPPEMAIL", txt:"support" + bot,
+             url:"mailto:support" + bot},
+            {plc:"EPINOVA", txt:"epinova.com", url:"https://epinova.com"}];
+        repls.forEach(function (repl) {
+            var link = repl.url;
+            if(link.startsWith(docpre)) {  //internal doc url
+                link = jt.tac2html(["a", {href:link, onclick:jt.fs(
+                    "app.displayDoc('" + divid + "','" + link + "')")},
+                                    repl.txt]); }
+            else if(extlnk) {  //external links supported by UI
+                link = jt.tac2html(["a", {href:link, onclick:jt.fs(
+                    "window.open('" + link + "')")}, repl.txt]); }
+            else {  //links not supported
+                if(link.startsWith("mailto")) {
+                    link = repl.txt; }
+                else {  //regular link
+                    link = repl.txt + " (" + repl.url + ")"; } }
+            body = body.replace(new RegExp(repl.plc, "g"), link); });
+        return body;
+    },
+
+
+    displayDoc: function (divid, docurl) {  //full url or doc filename
+        if(!docurl) {
+            return jt.out(divid, ""); }
+        jt.out(divid, "Loading " + docurl + "...");
+        app.svc.docContent(docurl, function (body) {
+            if(!body) { body = docurl + " unavailable"; }
+            if(body.indexOf("<body>") >= 0 && body.indexOf("</body>") >= 0) {
+                body = body.slice(body.indexOf("<body>") + 6,
+                                  body.indexOf("</body>")); }
+            const mbp = "| ABOUT | MANUAL | PRIVACY | SUPPORT |";
+            body = jt.tac2html(["div", {id:"docmenubardiv"}, mbp]) + body;
+            body = app.subPlaceholders(divid, body, app.svc.urlOpenSupp());
+            jt.out(divid, jt.tac2html(
+                ["div", {id:"docdispdiv"},
+                 [["div", {id:"docdispxdiv"},
+                   ["a", {href:"#close",
+                          onclick:jt.fs("app.displayDoc('" + divid + "')")},
+                    "X"]],
+                  ["div", {id:"docdispbodydiv"}, body]]])); });
     },
 
 
