@@ -188,7 +188,7 @@ return {
     },
 
 
-    subPlaceholders: function (divid, body, extlnk) {
+    subPlaceholders: function (divid, extlnk, body) {
         const dom = "diggerhub.com";
         const bot = "@" + dom;
         const docpre = "https://" + dom + "/docs/";
@@ -197,6 +197,8 @@ return {
             {plc:"MANUAL", txt:"Manual", url:docpre + "manual.html"},
             {plc:"PRIVACY", txt:"Privacy", url:docpre + "privacy.html"},
             {plc:"SUPPORT", txt:"Support", url:docpre + "support.html"},
+            {plc:"PRIVPOLICY", txt:"privacy policy",
+             url:docpre + "privacy.html"},
             {plc:"OPENSOURCE", txt:"open source",
              url:"https://github.com/theriex/digger"},
             {plc:"ISSUESONGITHUB", txt:"issues on GitHub",
@@ -234,7 +236,7 @@ return {
                                   body.indexOf("</body>")); }
             const mbp = "| ABOUT | MANUAL | PRIVACY | SUPPORT |";
             body = jt.tac2html(["div", {id:"docmenubardiv"}, mbp]) + body;
-            body = app.subPlaceholders(divid, body, app.svc.urlOpenSupp());
+            body = app.subPlaceholders(divid, app.svc.urlOpenSupp(), body);
             jt.out(divid, jt.tac2html(
                 ["div", {id:"docdispdiv"},
                  [["div", {id:"docdispxdiv"},

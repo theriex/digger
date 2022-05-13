@@ -96,7 +96,6 @@ module.exports = (function () {
                     os.homedir(),
                     ...fp.split(path.sep).slice(1)); }
             console.log(cp + ": " + conf[cp]); });
-        require("./hub.js").verifyDefaultAccount(conf);
     }
 
 
@@ -180,6 +179,7 @@ module.exports = (function () {
                 console.log("readDatabaseFile failed: " + conf.dbPath);
                 throw err; }
             dbo = JSON.parse(data);
+            dbo.version = diggerVersion();
             if(dbo.songs) {
                 Object.entries(dbo.songs).forEach(function ([path, song]) {
                     song.path = path;  //for ease of reference and sorting
@@ -771,6 +771,21 @@ module.exports = (function () {
     }
 
 
+    function writeConfig (req, res) {
+        const updat = new formidable.IncomingForm();
+        updat.parse(req, function (err, fields) {
+            if(err) {
+                return resError(res, "writeConfig form error: " + err); }
+            try {
+                conf = JSON.parse(fields.cfg);
+                writeConfigurationFile();
+            } catch(e) {
+                return resError(res, e.toString()); }
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(JSON.stringify(conf)); });
+    }
+
+
     return {
         //server utilities
         appdir: function () { return getAppDir(); },
@@ -799,6 +814,7 @@ module.exports = (function () {
         audio: function (pu, req, res) { return serveAudio(pu, req, res); },
         version: function (req, res) { return serveVersion(req, res); },
         cfgchg: function (req, res) { return changeConfig(req, res); },
-        doctext: function (pu, req, res) { return doctext(pu, req, res); }
+        doctext: function (pu, req, res) { return doctext(pu, req, res); },
+        wrtcfg: function (req, res) { return writeConfig(req, res); }
     };
 }());

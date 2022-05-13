@@ -109,6 +109,7 @@ db.init(function (conf) {
             case "/songupd": db.songupd(req, rsp); break;
             case "/plistexp": db.plistexp(req, rsp); break;
             case "/cfgchg": db.cfgchg(req, rsp); break;
+            case "/wrtcfg": db.wrtcfg(req, rsp); break;
             case "/acctsinfo": hub.acctsinfo(req, rsp); break;
             case "/newacct": hub.newacct(req, rsp); break;
             case "/acctok": hub.acctok(req, rsp); break;

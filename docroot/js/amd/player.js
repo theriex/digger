@@ -292,6 +292,8 @@ app.player = (function () {
                 if(app.svc.dispatch("spc", "tokenTimeOk")) {
                     return contf(); }
                 pstat = "tokexpired"; }
+            //Need to verify signin before getting token. No login on main page
+            //prior to launch anymore.
             const steps = ["token", "sdkload", "swpconn"];
             if(steps.every((step) => mgrs.spa[step]())) {
                 contf(); } },

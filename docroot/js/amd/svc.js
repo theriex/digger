@@ -374,7 +374,7 @@ app.svc = (function () {
                         var updsong = res[0];
                         mgrs.gen.copyUpdatedSongData(song, updsong);
                         jt.out("modindspan", "");  //turn off indicator light
-                        app.top.dispatch("a2h", "syncToHub");  //sched sync
+                        app.top.dispatch("srs", "syncToHub");  //sched sync
                         if(contf) {
                             contf(updsong); } },
                     function (code, errtxt) {
@@ -394,37 +394,34 @@ app.svc = (function () {
         hubSyncDat: function (data, contf, errf) {
             jt.call("POST", "/hubsync", data, contf, errf,
                     jt.semaphore("svc.loc.hubSynchronize")); },
-        updateHubAccount: function (data, contf, errf) {
-            jt.call("POST", "/updacc", data, contf, errf,
-                    jt.semaphore("svc.loc.updateHubAccount")); },
-        emailPwdReset: function (data, contf, errf) {
-            jt.call("GET", app.cb("/mailpwr", data), null, contf, errf,
-                    jt.semaphore("svc.loc.emailPwdReset")); },
-        signInOrJoin: function (endpoint, data, contf, errf) {
-            //endpoint is either /newacct or /acctok
-            jt.call("POST", "/" + endpoint, data, contf, errf,
-                    jt.semaphore("svc.loc.signInOrJoin")); },
+        makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
+            jt.call(verb, "/" + endpoint, data, contf, errf,
+                    jt.semaphore("svc.loc." + endpoint)); },
+        writeConfig: function (cfg, contf, errf) {
+            var data = jt.objdata({cfg:JSON.stringify(cfg)});
+            jt.call("POST", "/wrtcfg", data, contf, errf,
+                    jt.semaphore("svc.loc.cfgupd")); },
         addFan: function (mfem, contf, errf) {
             jt.call("POST", "/addmusf", app.svc.authdata({mfaddr:mfem}),
                     function (accts) {
-                        const ca = app.top.dispatch("locam", "getAccount");
-                        app.top.dispatch("locam", "noteReturnedCurrAcct",
+                        const ca = app.top.dispatch("aaa", "getAccount");
+                        app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
                                          accts[0], ca.token);
                         contf(accts); },
                     errf, jt.semaphore("svc.loc.addFan")); },
         createFan: function (dat, contf, errf) {
             jt.call("POST", "/createmusf", app.svc.authdata(dat),
                     function (results) {
-                        const ca = app.top.dispatch("locam", "getAccount");
-                        app.top.dispatch("locam", "noteReturnedCurrAcct",
+                        const ca = app.top.dispatch("aaa", "getAccount");
+                        app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
                                          results[0], ca.token);
                         contf(results); },
                     errf, jt.semaphore("svc.loc.createFan")); },
         fanContributions: function (contf, errf) {
             jt.call("POST", "/mfcontrib", app.svc.authdata(),
                     function (results) {
-                        const ca = app.top.dispatch("locam", "getAccount");
-                        app.top.dispatch("locam", "noteReturnedCurrAcct",
+                        const ca = app.top.dispatch("aaa", "getAccount");
+                        app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
                                          results[0], ca.token);
                         results.slice(1).forEach(function (song) {
                             mgrs.loc.noteUpdatedSongData(song); });
@@ -442,7 +439,7 @@ app.svc = (function () {
                     function (startdata) {
                         config = startdata.config;
                         dbo = startdata.songdata;
-                        mgrs.gen.initialDataLoaded();
+                        mgrs.gen.initialDataLoaded(startdata);
                         jt.out("countspan", String(dbo.songcount) +
                                "&nbsp;songs");
                         if(!dbo.scanned) {
@@ -463,6 +460,12 @@ app.svc = (function () {
         //var libs = {};  //active libraries to match against for song retrieval
         var pool = {};  //locally cached songs by title/artist/album key
         var lastfvsj = null;  //most recent fetch values json
+        function makeStartDataAndContinue (contf) {
+            const startdata = {config:app.top.dispatch("aaa", "getConfig"),
+                               songdata:{version:"vDiggerHub",
+                                         songs:pool}};
+            mgrs.gen.initialDataLoaded(startdata);
+            contf(startdata); }
     return {
         key: function (song) {
             if(!song.path) {  //history filters by path, verify value exists
@@ -476,18 +479,19 @@ app.svc = (function () {
                     songdata:{version:auth.hubVersion,
                               songs:pool}}; },
         loadInitialData: function (contf, ignore /*errf*/) {
-            var auth = app.login.getAuth();
-            if(!auth) {  //Can't use web player if not signed in, redirect home
-                const hm = window.location.href.split("/").slice(0,3).join("/");
-                jt.out("outercontentdiv", jt.tac2html(
-                    ["a", {href:hm}, "Sign in required."]));
-                setTimeout(function () { window.location.href = hm; }, 2000);
-                return; }
-            mgrs.gen.initialDataLoaded();
             jt.out("countspan", "DiggerHub");
             jt.byId("countspan").style.fontStyle = "italic";
             jt.byId("countspan").style.opacity = 0.6;
-            contf(mgrs.web.makeStartData(auth)); },
+            app.top.dispatch("aaa", "verifyConfig");  //init a default config
+            app.login.dispatch("ap", "signInUsingCookie",
+                function (accntok) {
+                    var acct = app.top.dispatch("hcu", "deserializeAccount",
+                                                accntok[0]);
+                    app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
+                                     acct, accntok[1]);
+                    makeStartDataAndContinue(contf); },
+                function () {  //not signed in
+                    makeStartDataAndContinue(contf); }); },
         addSongsToPool: function (songs) {
             songs.forEach(function (song) {
                 const sk = mgrs.web.key(song);
@@ -556,6 +560,12 @@ app.svc = (function () {
             var updobj = {songs:txSongsJSON(updss)};  //100 songs ~= 61k
             jt.call("POST", "api/multiupd", app.svc.authdata(updobj),
                     contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
+        makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
+            jt.call(verb, "/api/" + endpoint, data, contf, errf,
+                    jt.semaphore("svc.loc." + endpoint)); },
+        writeConfig: function (cfg, contf) {
+            //nothing to do, account info already saved on server
+            setTimeout(function () { contf(cfg); }, 50); },
         addFan: function (mfem, contf, errf) {
             jt.call("POST", "/api/addmusf", app.svc.authdata({mfaddr:mfem}),
                     function (results) {
@@ -638,6 +648,7 @@ app.svc = (function () {
         var songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
                           "el", "al", "kws", "rv", "fq", "lp", "nt",
                           "dsId", "modified"];
+        var stat = {idl:false};
         function isLocalDev (url) {
             return url &&
                 url.match(/https?:\/\/(localhost|127.0.0.1):80\d\d\/digger/); }
@@ -655,12 +666,17 @@ app.svc = (function () {
                     platconf.hdm = "loc"; } }
             hdm = platconf.hdm; },
         plat: function (key) { return platconf[key]; },
-        initialDataLoaded: function () {
+        initialDataLoaded: function (startdata) {
+            if(stat.idl) {
+                return jt.log("initial data already loaded"); }
             //Setting the filter values triggers a call to app.deck.update
             //which rebuilds the deck and starts the player.
-            var uims = ["top",     //reflect login name
-                        "filter"];  //reflect settings used for song retrieval
-            uims.forEach(function (uim) { app[uim].initialDataLoaded(); }); },
+            const uims = ["top",     //reflect login name
+                          "filter"];  //reflect settings used for song retrieval
+            uims.forEach(function (uim) {
+                app[uim].initialDataLoaded(startdata); }); },
+        initialDataSuccess: function () {
+            jt.log("Initial data loaded"); },
         initialDataFailed: function (code, errtxt) {
             jt.err("Initial data load failed " + code + ": " + errtxt); },
         initialize: function () {
@@ -669,8 +685,9 @@ app.svc = (function () {
             const cssbg = "url('" + app.dr("/img/panelsbg.png") + "')";
             jt.byId("contentdiv").style.backgroundImage = cssbg;
             //At a minimum, load the current account so settings are available.
+            jt.log("svc.gen.initialize setting up for loadInitialData");
             setTimeout(function () {
-                mgrs[hdm].loadInitialData(mgrs.gen.initialDataLoaded,
+                mgrs[hdm].loadInitialData(mgrs.gen.initialDataSuccess,
                                           mgrs.gen.initialDataFailed); },
                        200); },
         loadLibrary: function (libname, divid, cnf, donef) {
@@ -693,7 +710,7 @@ app.svc = (function () {
                 if(updsong.hasOwnProperty(fld)) {  //don't copy undefined values
                     song[fld] = updsong[fld]; } }); },
         authdata: function (obj) { //return obj post data, with an/at added
-            var digacc = app.top.dispatch("gen", "getAccount");
+            var digacc = app.top.dispatch("aaa", "getAccount");
             var authdat = jt.objdata({an:digacc.email, at:digacc.token});
             if(obj) {
                 authdat += "&" + jt.objdata(obj); }
@@ -708,7 +725,11 @@ app.svc = (function () {
             mgrs[hdm].clearFanRatings(mfid, contf, errf); },
         docContent: function (docurl, contf) {
             mgrs[hdm].docContent(docurl, contf, function (code, errtxt) {
-                contf("Doc error " + code + ": " + errtxt); }); }
+                contf("Doc error " + code + ": " + errtxt); }); },
+        makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
+            mgrs[hdm].makeHubAcctCall(verb, endpoint, data, contf, errf); },
+        writeConfig: function (cfg, contf, errf) {
+            mgrs[hdm].writeConfig(cfg, contf, errf); }
     };  //end mgrs.gen returned functions
     }());
 
@@ -723,6 +744,7 @@ return {
     noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
     urlOpenSupp: function () { return true; }, //ok to open urls in new tab
     docContent: function (du, cf) { mgrs.gen.docContent(du, cf); },
+    writeConfig: function (cfg, cf, ef) { mgrs.gen.writeConfig(cfg, cf, ef); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }
 };  //end of returned functions

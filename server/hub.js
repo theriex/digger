@@ -9,8 +9,8 @@ module.exports = (function () {
     "use strict";
 
     var eec = {};  //endpoint error contexts
-    var hs = "https://diggerhub.com";
-    //var hs = "http://localhost:8080";
+    //var hs = "https://diggerhub.com";
+    var hs = "http://localhost:8080";
 
 
     //!EQUIVALENT CODE IN ../docroot/js/amd/svc.js  See comments there.
@@ -38,22 +38,6 @@ module.exports = (function () {
     function txSongsJSON (songs) {
         songs = songs.map((song) => txSong(song));
         return JSON.stringify(songs);
-    }
-
-
-    function verifyDefaultAccount (conf) {
-        conf.acctsinfo = conf.acctsinfo || {currid:"", accts:[]};
-        if(!conf.acctsinfo.accts.find((x) => x.dsId === "101")) {
-            const diggerbday = "2019-10-11T00:00:00Z";
-            conf.acctsinfo.accts.push(
-                {dsType:"DigAcc", dsId:"101", firstname:"Digger",
-                 created:diggerbday, modified:diggerbday + ";1",
-                 email:"support@diggerhub.com", token:"none",
-                 kwdefs:dhdefs.initialKeywords(),
-                 igfolds:["Ableton", "Audiffex", "Audio Music Apps",
-                          "GarageBand", "JamKazam"]}); }
-        if(!conf.acctsinfo.currid) {
-            conf.acctsinfo.currid = "101"; }
     }
 
 
@@ -392,7 +376,6 @@ module.exports = (function () {
 
     return {
         //server utilities
-        verifyDefaultAccount: function (conf) { verifyDefaultAccount(conf); },
         isIgnoreDir: function (ws, dn) { return isIgnoreDir(ws, dn); },
         verifyFanRating: function (s) { gdutil.verifyFanRating(s); },
         //server endpoints

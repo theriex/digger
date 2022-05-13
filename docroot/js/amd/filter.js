@@ -436,8 +436,9 @@ app.filter = (function () {
                 tmosave = null;
                 settings.ctrls = mgrs.stg.arrayOfAllFilters()
                     .map((filt) => filt.settings());
-                app.top.dispatch("gen", "getAccount").settings = settings;
-                app.top.dispatch("gen", "updateAccount",
+                const acct = app.top.dispatch("aaa", "getAccount");
+                acct.settings = settings;
+                app.top.dispatch("aaa", "updateAccount", acct, acct.token,
                     function () {
                         jt.log("stg.saveSettings completed"); },
                     function (code, errtxt) {
@@ -459,7 +460,7 @@ app.filter = (function () {
             filts.push(ctrls.fq);
             return filts; },
         rebuildAllControls: function (ready) {
-            var ca = app.top.dispatch("gen", "getAccount");
+            var ca = app.top.dispatch("aaa", "getAccount");
             if(ca && ca.settings) { settings = ca.settings; }
             ctrls.filtersReady = false;  //turn off to avoid spurious events
             mgrs.rng.rebuildControls();
