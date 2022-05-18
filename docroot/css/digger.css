@@ -51,10 +51,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #pandeckdiv { padding:10px 6px 4px 6px; }
 
 /****************************************/
-/* DB Panel */
+/* Hub/Library Panel */
 
 .buttonico { max-height:30px; vertical-align:middle; padding:0px 5px; }
-#topdlgdiv { display:table; max-height:180px; overflow:scroll; margin:auto; }
+#topdlgdiv { max-height:180px; overflow:scroll; }
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
 .statdiv { font-size:small; }
 #toponelinestatdiv { max-width:280px; max-height:1em; overflow:hidden; }
@@ -102,6 +102,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .formvalspan { font-size:medium; color:#666; font-style:italic;
   margin-left:2px; }
 .dachoicediv { min-width:100px; }
+#mfsrchdiv { text-align:right; font-size:small; }
+.fgacelldiv { display:inline-block; font-size:small; padding:0px 5px 0px 0px; }
+#fgaemptyhtmldiv { font-size:small; }
 
 .musflinksspan { font-size:small; }
 .sepcomspan { padding:0px 5px 0px 0px; }

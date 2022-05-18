@@ -601,13 +601,151 @@ app.top = (function () {
 
     //Fan group actions manager handles connecting with other fans
     mgrs.fga = (function () {
+        //messages and account musfs may be sorted without persisting
+        var messages = null;  //retrieved from server and tracked here
+        var fni = null;  //current display working info
+        const srch = {id:"mfsrchin", value:""};
+        const conflds = {af:"musfs", flds:[
+            {n:"digname", c:"showDelete"},
+            {n:"firstname", p:"name"},
+            {n:"added", o:"desc", f:"ts"},
+            {n:"lastheard", p:"last heard", o:"desc", f:"ts"}]};
+        const actflds = {af:"musfs", flds:[
+            {n:"digname"},
+            {n:"added", o:"desc", f:"ts"},
+            {n:"common", o:"desc", p:"cmn", f:"int"},
+            {n:"dfltin", o:"desc", p:"rcv", f:"int"},
+            {n:"dfltout", o:"desc", p:"snt", f:"int"}]};
+        const msgflds = {af:"digmsgs", flds:[
+            {n:"created", o:"desc", p:"when", f:"ts"},
+            {n:"sendername", p:"who"},
+            {n:"msgtype", p:"what", d:"getMsgTxt", c:"showReplyOptions"}]};
+        const mds = {
+            suggestion:{pn:"Suggestion", desc:"$FAN recommends $SONG. $COMMENT",
+                        //Thank you msg generated after rating it above average
+                        alnk:"mailMeDetails"},
+            response:{pn:"Response", desc:"$FAN rated $SONG. $COMMENT",
+                      repl:"Glad you liked $SONG"},
+            discovery:{pn:"Discovery", desc:"$FAN added $SONG. $COMMENT",
+                       repl:"Glad you liked $SONG"},
+            pathcross:{pn:"Path Cross", desc:"$FAN just listened to $SONG.",
+                       repl:"Listened to $SONG recently also! $LEV song."},
+            share:{pn:"Share", desc:"$FAN shared $SONG. $COMMENT",
+                   repl:"Thanks for sharing $SONG", alnk:"addToDeckOrMailMe"}};
+        function sortCurrentObjects () {
+            fni.objs.sort(function (a, b) {
+                var res = 0; var sfi = 0; var sfd = null;
+                while(!res && sfi < fni.sfs.length) {
+                    sfd = fni.sfs[sfi];
+                    res = a[sfd.n].localeCompare(b[sfd.n]);
+                    if(sfd.o === "desc") { res *= -1; }
+                    sfi += 1; }
+                return res; }); }
+        function setCurrentFieldsAndInstances (hd, curracct) {
+            fni = {flds:hd.flds, objs:curracct[hd.af] || [], acct:curracct};
+            if(hd.af === "digmsgs") {
+                fni.objs = messages; }
+            else {  //skip any old/bad fan defs
+                fni.objs = fni.objs.filter((mf) => mf.digname); }
+            fni.objs = fni.objs || [];
+            hd.sfs = hd.sfs || hd.flds.map((fld) => fld); //copy defs array
+            fni.sfs = hd.sfs;
+            sortCurrentObjects(); }
+        function headerFieldsHTML () {
+            const downarrow = "&#x2193;";
+            const uparrow = "&#x2191;";
+            const html = jt.tac2html(["tr", fni.flds.map((fld) =>
+                ["th", ["div", {cla:"fgacelldiv"},
+                        ["a", {href:"#sortby", onclick:mdfs("fga.sort", fld.n)},
+                         (fld.o === "desc"? downarrow : uparrow) +
+                         (fld.p || fld.n)]]])]);
+            return html; }
+        function contentCellHTML (fld, obj, idx) {
+            var val = obj[fld.n];
+            if(fld.f === "ts") {
+                val = jt.colloquialDate(val, true, "z2loc nodaily"); }
+            if(fld.d) {
+                val = mgrs.fga[fld.d](val, fld, obj, idx); }
+            if(fld.c) {
+                val = ["a", {href:"#" + fld.c,
+                             onclick:mdfs("fga." + fld.c, idx)}, val]; }
+            return ["div", {cla:"fgacelldiv"}, val]; }
+        function contentRowsHTML (extras) {
+            var rows = [];
+            if(extras.before) {
+                rows.push(jt.tac2html(
+                    ["tr", ["td", {colspan:fni.flds.length},
+                            ["div", {id:"fgabeforehtmldiv"},
+                             extras.before]]])); }
+            if(extras.empty && !fni.objs.length) {
+                rows.push(jt.tac2html(
+                    ["tr", ["td", {colspan:fni.flds.length},
+                            ["div", {id:"fgaemptyhtmldiv"},
+                             extras.empty]]])); }
+            rows = rows.concat(fni.objs.map((obj, idx) =>
+                jt.tac2html(
+                    ["tr", fni.flds.map((fld) =>
+                        ["td", contentCellHTML(fld, obj, idx)])])));
+            if(extras.after) {
+                rows.push(jt.tac2html(
+                    ["tr", ["td", {colspan:fni.flds.length},
+                            ["div", {id:"fgaafterhtmldiv"},
+                             extras.after]]])); }
+            return jt.tac2html(rows); }
+        function formDisplayHTML (extras) {
+            return jt.tac2html(
+                ["div", {id:"fgadispdiv"},
+                 ["table",
+                  [headerFieldsHTML(),
+                   contentRowsHTML(extras)]]]); }
     return {
-        connectForm: function (/*acct*/) {
-            jt.out("afgcontdiv", "Not implemented yet"); },
-        activityForm: function (/*acct*/) {
-            jt.out("afgcontdiv", "Not implemented yet"); },
-        messagesForm: function (/*acct*/) {
-            jt.out("afgcontdiv", "Not implemented yet"); }
+        getMsgTxt: function (val, ignore /*fld*/, obj, idx) {
+            var txt; var level = "Good"; var comment = obj.nt || "";
+            if(obj.rv > 8) { level = "Great"; }
+            if(obj.rv === 10) { level = "Awesome"; }
+            if(comment.length > 255) {
+                comment = jt.tac2html(
+                    ["span", {id:"expnt" + idx},
+                     ["a", {href:"#expand",
+                            onclick:mdfs("fga.expandComment", idx)},
+                      jt.ellipsis(comment, 255)]]); }
+            const md = mds[val] || {pn:"Unknown",
+                                    desc:"Unknown message type $VAL"};
+            txt = md.desc.replace(/\$VAL/g, val);
+            txt = txt.replace(/\$FAN/g, obj.sendername);
+            txt = txt.replace(/\$SONG/g, obj.ti + " - " + obj.ar);
+            txt = txt.replace(/\$COMMENT/g, comment);
+            txt = txt.replace(/\$LEV/g, level);
+            return txt; },
+        connectForm: function (acct) {
+            setCurrentFieldsAndInstances(conflds, acct);
+            jt.out("afgcontdiv", formDisplayHTML({
+                before:jt.tac2html(
+                    ["div", {id:"mfsrchdiv"},
+                     ["Find music fan &nbsp;",
+                      ["input", {type:"text", id:srch.id, size:14,
+                                 placeholder:"digname...",
+                                 value:srch.value,
+                                 oninput:mdfs("fga.search", srch.id)}],
+                      ["a", {href:"#search", title:"Search Fans",
+                             onclick:mdfs("fga.search", srch.id)},
+                       ["img", {src:"img/search.png", cla:"ico20"}]]]]),
+                empty:jt.tac2html(
+                    ["button", {type:"button", id:"connectmeb",
+                                onclick:mdfs("fga.connectme", "connectmeb")},
+                     "Connect Me"])})); },
+        activityForm: function (acct) {
+            setCurrentFieldsAndInstances(actflds, acct);
+            jt.out("afgcontdiv", formDisplayHTML({
+                empty:"No music fans in your group"})); },
+        messagesForm: function (acct) {
+            setCurrentFieldsAndInstances(msgflds, acct);
+            jt.out("afgcontdiv", formDisplayHTML({
+                empty:"No messages",
+                after:jt.tac2html(
+                    ["button", {type:"button", id:"getrecsb",
+                                onclick:mdfs("fga.getrecs", "getrecsb")},
+                     "Get Recommendations"])})); }
     };  //end mgrs.fga returned functions
     }());
 
@@ -997,7 +1135,8 @@ app.top = (function () {
                 pts = body.slice(0, body.indexOf("<"));
                 if(!mgrs.ppc.policyAccepted()) {
                     jt.err("The DiggerHub privacy policy has been updated.");
-                    mgrs.afg.accountFanGroup("personal", 1); } }); }
+                    //open the profile tab with the priv policy checkbox
+                    mgrs.afg.accountFanGroup("personal", 0); } }); }
     };  //end mgrs.ppc returned functions
     }());
 
@@ -1880,8 +2019,12 @@ app.top = (function () {
             else {
                 dlgdiv.dataset.mode = mode;
                 if(mode === "am") {  //account management
+                    dlgdiv.style.display = "block";
+                    dlgdiv.style.margin = "0px";
                     mgrs.afg.accountFanGroup(); }
                 else { //"la" - library actions
+                    dlgdiv.style.display = "table";
+                    dlgdiv.style.margin = "auto";
                     mgrs[app.svc.plat("hdm") + mode].writeDlgContent(); } } },
         initialDataLoaded: function (startdata) {
             mgrs.aaa.setConfig(startdata.config);
