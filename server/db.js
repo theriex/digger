@@ -38,17 +38,28 @@ module.exports = (function () {
     var caud = {path:"", buf:null};
 
 
+    function diggerVersion () {
+        return "v1.0.1";
+    }
+
+
+    function crepTimeout (fun, ms) {
+        setTimeout(function () {
+            try {
+                fun();
+            } catch(e) {
+                console.log("crepTimeout caught exception " + e);
+                console.error(e);
+            } }, ms);
+    }
+
+
     //JavaScript Lint Fuckery avoids warnings about sync methods that
     //"shouldn't" be used and therefore don't have properties automatically
     //created for them.  Just a silly workaround to make the call without
     //generating warnings in the usually beloved static code analyzer.
     function jslf (obj, method, ...args) {
         return obj[method].apply(obj, args);
-    }
-
-
-    function diggerVersion () {
-        return "v1.0.1";
     }
 
 
@@ -348,6 +359,42 @@ module.exports = (function () {
     }
 
 
+    function getCurrentAccount () {
+        var ca = null;
+        var info = conf.acctsinfo;
+        if(info) {
+            if(info.currid) {
+                ca = info.accts.find((a) => a.dsId === info.currid); }
+            if(!ca) {  //missing currid or bad currid value
+                conf.acctsinfo.currid = "101";
+                ca = info.accts.find((a) => a.dsId === info.currid); } }
+        return ca;
+    }
+
+
+    function initIgnoreFolders (ws) {
+        ws.igfolds = conf.dfltigfolds || [];
+        ws.curracct = ws.curracct || getCurrentAccount();
+        if(ws.curracct) {
+            ws.igfolds = ws.curracct.igfolds || []; }
+        if(!Array.isArray(ws.igfolds)) {
+            ws.curracct.igfolds = []; }
+        if(!ws.wildms) { //wildcard ending match strings array
+            ws.wildms = ws.igfolds.filter((ign) => ign.endsWith("*"));
+            ws.wildms = ws.wildms.map((wm) => wm.slice(0, -1)); }
+        console.log("ws.igfolds: " + JSON.stringify(ws.igfolds));
+    }
+
+
+    function isIgnoreDir (ws, dirname) {
+        if(!ws.igfolds) {
+            initIgnoreFolders(ws); }
+        if(ws.igfolds.includes(dirname)) {
+            return true; }
+        return ws.wildms.some((wm) => dirname.startsWith(wm));
+    }
+
+
     //Walk the file tree, starting at the root.
     function walkFiles (ws) {
         if(!ws.files.length) {
@@ -363,7 +410,7 @@ module.exports = (function () {
                 if(err) {
                     console.log("walkFiles readdir error: " + err); }
                 files.forEach(function (childfile) {
-                    if(!require("./hub.js").isIgnoreDir(ws, childfile)) {
+                    if(!isIgnoreDir(ws, childfile)) {
                         ws.files.push(fn + "/" + childfile); } });
                 walkFiles(ws); }); }
         else if(isMusicFile(fn)) {
@@ -498,7 +545,7 @@ module.exports = (function () {
             mrg.stat.idx += 1;
             mrg.stat.cb -= 1;
             if(mrg.stat.cb <= 0) {  //done with this batch
-                setTimeout(mergeDataChunk, mrg.stat.pausems);
+                crepTimeout(mergeDataChunk, mrg.stat.pausems);
                 break; } }
         if(mrg.stat.idx >= keys.length) {
             writeDatabaseObject();
@@ -512,7 +559,7 @@ module.exports = (function () {
             var song = dbo.songs[key];
             var cankey = canonicalKeyForSong(song);
             mrg.dict[cankey] = key; });
-        setTimeout(mergeDataChunk, 50);
+        crepTimeout(mergeDataChunk, 50);
     }
 
 
@@ -530,7 +577,7 @@ module.exports = (function () {
             res.writeHead(200, {"Content-Type": "text/html"});
             res.end("Error: " + mrg.stat.errmsg); }
         else {
-            setTimeout(makeMergeDictionary, 50);
+            crepTimeout(makeMergeDictionary, 50);
             res.writeHead(200, {"Content-Type": "text/html"});
             res.end("Received."); }
     }
@@ -665,7 +712,7 @@ module.exports = (function () {
                     exp.stat.remaining = JSON.parse(exp.spec.songs);
                     if(exp.spec.writepl) {
                         writePlaylistFile(); }
-                    setTimeout(exportNextSong, 200);
+                    crepTimeout(exportNextSong, 200);
                 } catch(e) {
                     exp.stat.state = "Failed";
                     exp.stat.errmsg = "playlistExport error " + e;
@@ -758,13 +805,13 @@ module.exports = (function () {
     }
 
 
-    function doctext (pu, req, res) {
+    function doctext (pu, ignore /*req*/, res) {
         var fn = decodeURIComponent(pu.query.docurl);
         var sidx = fn.lastIndexOf("/");
         if(sidx >= 0) {
             fn = fn.slice(sidx + 1); }
         fn = path.join(getAppDir(), "docroot", "docs", fn);
-        console.log("doctext reading " + fn)
+        console.log("doctext reading " + fn);
         const text = jslf(fs, "readFileSync", fn, "utf8");
         res.writeHead(200, {"Content-Type": "text/plain; charset=UTF-8"});
         res.end(text);

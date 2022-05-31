@@ -224,13 +224,6 @@ app.deck = (function () {
             tac.unshift(["a", {href:"#close", title:"dismiss",
                                onclick:mdfs("sop.togOptions", mgrnm, idx)},
                          ["span", {cla:"sopx"}, "x"]]);
-            const song = mgrs[mgrnm].songByIndex(idx);
-            if(song.dsId && song.dsId.startsWith("fr")) {
-                const frnd = app.top.dispatch("mfnd", "findFanById",
-                                              song.aid);
-                if(frnd) {
-                    tac.push(["div", {cla:"sopfrsugdiv"},
-                              "Sugggested by " + frnd.firstname]); } }
             return tac; },
         togOptions: function  (mgrnm, idx) {
             var optdivid = "da" + mgrnm + idx;

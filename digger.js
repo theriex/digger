@@ -115,10 +115,8 @@ db.init(function (conf) {
             case "/acctok": hub.acctok(req, rsp); break;
             case "/updacc": hub.updacc(req, rsp); break;
             case "/hubsync": hub.hubsync(req, rsp); break;
-            case "/addmusf": hub.addmusf(req, rsp); break;
-            case "/createmusf": hub.createmusf(req, rsp); break;
-            case "/mfcontrib": hub.mfcontrib(req, rsp); break;
-            case "/mfclear": hub.mfclear(req, rsp); break;
+            case "/fangrpact": hub.fangrpact(req, rsp); break;
+            case "/fancollab": hub.fancollab(req, rsp); break;
             default: //handle after request is fully stabilized
                 req.addListener("end", function () {
                     //GET requests:

@@ -248,7 +248,6 @@ return {
 
 
     //!UNPACKED BY appdat.py unescape_song_fields
-    //!EQUIVALENT CODE IN ../../../server/hub.js
     //Even a serialized song can run afoul of web security rules due to
     //paths, titles or other fields containing parenthetical expressions or
     //other triggering patterns.  For UPLOAD, remove any problematic temp

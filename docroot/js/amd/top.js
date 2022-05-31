@@ -71,8 +71,8 @@ app.top = (function () {
     mgrs.srs = (function () {
         const syt = {tmo:null, stat:"", resched:false, up:0, down:0};
         var upldsongs = null;
-        var contexts = {signin:1800, unposted:4000, reset:1200,
-                        standard:20 * 1000};
+        var contexts = {newacct:1800, acctok:1800, unposted:2000, reset:1200,
+                        resched:2000, standard:20 * 1000};
         function isNewlyPlayed (s) {
             return s.lp && s.lp > (s.modified || ""); }
         function notPostedYet (s) {
@@ -93,7 +93,10 @@ app.top = (function () {
                 //and should not be attempting to sync.  To fix, the user will
                 //need to sign in again.  Sign them out to start the process.
                 mgrs.asu.signOut(mgrs.aaa.getAccount(), true); }
-            jt.log("syncToHub " + code + ": " + errtxt); },
+            else {  //error condition not recovered, stop auto retry
+                syt.errcode = code;
+                syt.errtxt = errtxt;
+                jt.log("syncToHub " + code + ": " + errtxt); } },
         syncToHub: function (context) {
             var curracct = mgrs.aaa.getAccount();
             if(!curracct || curracct.dsId === "101" || !curracct.token ||
@@ -137,14 +140,16 @@ app.top = (function () {
             syt.stat = "";
             mgrs.srs.hubStatInfo("");
             syt.tmo = null;
-            if(syt.resched) {
-                syt.resched = false;
-                mgrs.srs.syncToHub(); }
+            if(syt.errcode) {
+                jt.out("modindspan", ""); } //turn off comms indicator
             else if(haveUnpostedNewSongs()) {
                 syt.resched = true;  //prevent interim fan suggestions.
-                mgrs.srs.postNewSongsToHub(); }
+                mgrs.srs.syncToHub("unposted"); }
+            else if(syt.resched) {
+                syt.resched = false;
+                mgrs.srs.syncToHub("resched"); }
             else {  //hub sync done
-                setTimeout(mgrs.mfcm.checkContributions, 100);
+                setTimeout(mgrs.fsc.updateContributions, 100);
                 jt.out("modindspan", ""); } }, //turn off comms indicator
         makeSendSyncData: function () {
             //send the current account + any songs that need sync.  If just
@@ -156,8 +161,6 @@ app.top = (function () {
             if(!curracct.syncsince) {  //not just signed in
                 upldsongs = uploadableSongs();
                 upldsongs = upldsongs.slice(0, 199);
-                if(upldsongs.some((s) => !s.dsId && app.deck.isUnrated(s))) {
-                    mgrs.mfcm.noteNewUnratedSongUploaded(); }
                 upldsongs = upldsongs.map((sg) => app.txSong(sg)); }
             syt.up += upldsongs.length;
             mgrs.hcu.serializeAccount(curracct);
@@ -180,19 +183,6 @@ app.top = (function () {
             const curracct = mgrs.aaa.getAccount();
             if(curracct.syncsince && curracct.syncsince < curracct.modified) {
                 mgrs.srs.syncToHub(); } },  //more to download...
-        postNewSongsToHub: function () {
-            mgrs.srs.hubStatInfo("uploading...");
-            syt.err = "";
-            app.svc.dispatch("gen", "fanContributions",
-                function (retcount) {
-                    syt.up += retcount;
-                    jt.log("postNewSongsToHub " + retcount + " songs.");
-                    mgrs.srs.hubStatInfo("");
-                    mgrs.srs.syncToHub("unposted"); },  //check if more
-                function (code, errtxt) {  //do not retry on failure (loop)
-                    syt.err = "Error " + code + ": " + app.pt(errtxt);
-                    mgrs.srs.hubStatInfo(syt.err, true);
-                    jt.log("postNewSongsToHub " + code + ": " + errtxt); }); },
         makeStatusDisplay: function () {
             var reset = false;
             if(!jt.byId("hubSyncInfoDiv")) { return; }
@@ -242,385 +232,135 @@ app.top = (function () {
     // General Account actions
     ////////////////////////////////////////////////////////////
 
-    //Music fan contributions manager handles default rating contributions
-    mgrs.mfcm = (function () {
-        var updstat = {inprog:false, pass:0, total:0};
-        function doneRemoving () {
-            jt.out("mfstatdiv", updstat.rmf.dispname + " removed.");
-            app.deck.dispatch("ws", "rebuild", "removeFan");
-            mgrs.mfnd.fansForm(); }
-        function removeDefaultRatings () {
-            updstat.inprog = "remove";
-            updstat.rmpass += 1;
-            app.svc.dispatch("gen", "clearFanRatings", updstat.rmf.dsId,
-                function (retcount) {
-                    updstat.inprog = false;
-                    if(!retcount) { //no more default ratings to remove
-                        return doneRemoving(); }
-                    jt.out("mfstatdiv", "Pass " + updstat.pass + " removed " +
-                           retcount + " default ratings.");
-                    removeDefaultRatings(); },
+    //Fan status calculation manager handles multi-stage server calcs
+    mgrs.fsc = (function () {
+        const fas = [  //fan actions
+            {a:"deleteFan", n:"Delete", d:"Delete $FAN from your group"},
+            {a:"getDefaultRatings", n:"Ratings", m:5,
+             d:"Fill default song ratings from $FAN"},
+            {a:"recomputeFanCounts", n:"Recount", m:20,
+             d:"Recompute collection common/received/sent"}];
+        var mfps = {}; //music fan processing status
+        function noteFan (mf, dispid) {
+            mfps[mf.dsId] = mfps[mf.dsId] || {};
+            mfps[mf.dsId].fan = mf;  //always update with latest given instance
+            if(dispid) {
+                mfps[mf.dsId].dispid = dispid; } }
+        function callHubFanCollab (mfanid, collabtype, contf, errf) {
+            app.svc.dispatch("gen", "fanCollab",
+                app.svc.authdata({mfid:mfanid, ctype:collabtype}),
+                function (hubres) {
+                    mgrs.aaa.reflectAccountChangeInRuntime(hubres[0]);
+                    hubres.slice(1).forEach(function (s) {
+                        app.svc.dispatch("gen", "noteUpdatedSongData", s); });
+                    const acct = mgrs.saa.getAccount();
+                    noteFan(acct.musfs.find((mf) => mf.dsId === mfanid));
+                    mgrs.fga.reflectUpdatedAccount(acct);
+                    contf(); },
                 function (code, errtxt) {
-                    updstat.inprog = false;
-                    jt.out("mfstatdiv", "removeDefaultRatings " + code + ": " +
-                           errtxt); }); }
-        function updateMFContribs () {
-            updstat.inprog = "contributions";
-            updstat.pass += 1;
-            jt.out("mfstatdiv", "Checking fan contributions...");
-            app.svc.dispatch("gen", "fanContributions",
-                function (retcount) {
-                    updstat.inprog = false;
-                    updstat.total += retcount;
-                    mgrs.mfnd.fansForm();  //resets mfstatdiv
-                    if(!retcount) { //no more ratings returned
-                        if(updstat.pass > 1) {  //got some ratings before
-                            app.deck.dispatch("ws", "rebuildIfLow",
-                                              "fancontrib", true); } }
-                    else { //got some new ratings, check for more
-                        //server can cut off access if calls are too tight
-                        setTimeout(updateMFContribs, 4 * 1000); } },
-                function (code, errtxt) {
-                    updstat.inprog = false;
-                    jt.out("mfstatdiv", "Contributions check failed " + code +
-                           ": " + errtxt); }); }
+                    //PENDING: if API throttling error, setTimeout and retry
+                    errf(code, errtxt); }); }
     return {
-        inProgress: function () { return updstat.inprog; },
-        noteNewUnratedSongUploaded: function () {
-            updstat.newsong = new Date().toISOString(); },
-        removeContributions: function (mf) {
-            if(updstat.inprog) {
-                return jt.out("mfstatdiv", "In progress, " + updstat.inprog +
-                              "..."); }
-            jt.out("mfstatdiv", "Removing " + mf.dispname + "...");
-            updstat.rmpass = 0;
-            updstat.rmf = mf;
-            removeDefaultRatings(); },
-        checkContributions: function () {
-            if(updstat.inprog) {
-                return jt.log("checkContributions inprog " + updstat.inprog); }
-            if(app.svc.plat("hdm") === "loc" &&
-               !mgrs.srs.hubSyncStable()) {  //hubsync calls here as needed
-                return jt.log("checkContributions waiting on hubSyncStable"); }
-            if(!updstat.newsong && mgrs.mfnd.contribsUpToDate()) {
-                return jt.log("Fan contributions up to date."); }
-            delete updstat.newsong;
-            updstat.pass = 0;
-            setTimeout(updateMFContribs, 4 * 1000); }
-    };  //end mgrs.mfcm returned functions
-    }());
-
-
-    //Music fan add manager handles form and workflow for adding a fan
-    mgrs.mfad = (function () {
-    return {
-        fanInviteClick: function (ignore /*event*/) {
-            jt.byId("mfinvdoneb").disabled = false;
-            jt.byId("mfinvdonebdiv").style.opacity = 1.0; },
-        inviteSendHTML: function (dat) {
-            var me = mgrs.aaa.getAccount();
-            var subj = "DiggerHub music fan invitation";
-            var body = "Hi " + dat.firstname + ",\n\n" +
-"I just added you as a music fan on DiggerHub!  Looking forward to pulling the best from each other's music libraries while digging through the stacks.\n\n" +
-"Happy listening,\n" + me.firstname + "\n\n" +
-"P.S. You should have already received an access link from " + suppem + "\n\n";
-            var link = "mailto:" + dat.emaddr + "?subject=" +
-                jt.dquotenc(subj) + "&body=" + jt.dquotenc(body) + "%0A%0A";
-            return jt.tac2html(
-                [["a", {href:link, id:"mfinvitelink",
-                        onclick:mdfs("mfad.fanInviteClick", "event")},
-                  "&gt;&gt; Send Invite to " + dat.firstname +
-                  " &lt;&lt;&nbsp; "],
-                 ["div", {id:"mfinvdonebdiv", style:"opacity:0.4"},
-                  ["button", {type:"button", id:"mfinvdoneb", disabled:true,
-                              onclick:mdfs("mfnd.fansForm", "event")},
-                   "Done"]]]); },
-        createFan: function () {
-            var dat = {emaddr:jt.byId("mfemin").value,
-                       firstname:jt.byId("fannamein").value};
-            if(!dat.emaddr || !dat.firstname) { return; }
-            jt.out("mfsubformbdiv", "Creating...");
-            app.svc.dispatch("gen", "createFan", dat,
+        deleteFan: function (mfid) {
+            const fan = mfps[mfid].fan;
+            const digname = fan.digname;
+            var confmsg = "Are you sure you want to delete " + digname + "?";
+            if(fan.dfltrcv) {
+                confmsg = "Clear " + fan.dfltrcv + " received default " +
+                    "ratings and delete " + digname + "?"; }
+            if(confirm(confmsg)) {
+                mgrs.fsc.clearAndRemove(mfid); } },
+        clearAndRemove: function (mfid) {
+            const mp = mfps[mfid];
+            if(mp.fan.dfltrcv) {  //still more default ratings to get rid of
+                mp.statHTML = "Clearing " + mp.fan.dlftrcv +
+                    "default ratings from " + mp.fan.digname + "...";
+                jt.out(mp.dispid, mp.statHTML);
+                callHubFanCollab(mfid, "clear",
+                    function () {
+                        mgrs.fsc.clearAndRemove(mfid); },
+                    function (code, errtxt) {
+                        mp.statHTML = "";
+                        jt.out(mp.dispid, "Clearing default ratings failed " +
+                               code + ": " + errtxt); }); }
+            else { //default ratings cleared, remove fan from group
+                const digname = mp.fan.digname;
+                mp.statHTML = "Removing " + digname + " from group...";
+                jt.out(mp.dispid, mp.statHTML);
+                mp.statHTML = "";  //clear stat in case adding back later
+                mgrs.fga.removeFanFromGroup(digname, mfps[mfid].dispid); } },
+        getDefaultRatings: function (mfid) {
+            const mp = mfps[mfid];
+            const digname = mp.fan.digname;
+            const prevdrc = mp.fan.dfltrcv;
+            mp.statHTML = "Getting default ratings from " + digname + "...";
+            jt.out(mp.dispid, mp.statHTML);
+            callHubFanCollab(mfid, "get",
                 function () {
-                    mgrs.mfnd.noteAddRemoveFan();
-                    jt.out("mfsubstatdiv", "");
-                    jt.out("mfsubformdiv", mgrs.mfad.inviteSendHTML(dat)); },
+                    if(mp.fan.dfltrcv !== prevdrc) {  //more received
+                        mgrs.fsc.getDefaultRatings(mfid); }  //check again
+                    else {  //no more default ratings received
+                        if(!mp.fan.lastHeard) {  //haven't counted yet
+                            mgrs.fsc.recomputeFanCounts(mfid); }
+                        else {
+                            mgrs.fga.redisplay(); } } },
                 function (code, errtxt) {
-                    mgrs.mfad.mfnameinput();
-                    jt.out("mfsubformdiv", "Add failed " +
+                    mp.statHTML = "";
+                    jt.out(mp.dispid, "Getting default ratings failed " +
                            code + ": " + errtxt); }); },
-        mfnameinput: function (ignore /*event*/) {
-            if(!jt.byId("mfsubformbutton")) {
-                jt.out("mfsubformbdiv", jt.tac2html(
-                    ["button", {type:"button", id:"mfsubformbutton",
-                                onclick:mdfs("mfad.createFan")},
-                     "Create"])); }
-            if(jt.byId("fannamein").value) {
-                jt.byId("mfsubformbutton").disabled = false;
-                jt.byId("mfsubformbdiv").style.opacity = 1.0; }
-            else {
-                jt.byId("mfsubformbutton").disabled = true;
-                jt.byId("mfsubformbdiv").style.opacity = 0.4; } },
-        inviteCreate: function () {
-            jt.out("mfbdiv", "");  //Clear button and status
-            jt.out("mfaddstatdiv", jt.tac2html(
-                ["div", {id:"statformdiv"},
-                 [["div", {id:"mfsubstatdiv"}, "Not found. Create and invite?"],
-                  ["div", {id:"mfsubformdiv", cla:"formlinediv"},
-                   [["label", {fo:"fannamein"}, "First name:"],
-                    ["input", {id:"fannamein", type:"text", size:8,
-                               oninput:mdfs("mfad.mfnameinput", "event")}],
-                    ["div", {id:"mfsubformbdiv"}]]]]]));
-            mgrs.mfad.mfnameinput(); }, //display disabled button
-        addFan: function () {
-            var emaddr = jt.byId("mfemin").value;
-            if(!jt.isProbablyEmail(emaddr)) {
-                return jt.out("mfstatdiv", "Need a valid email address..."); }
-            jt.out("mfbdiv", "Adding...");
-            app.svc.dispatch("gen", "addFan", emaddr,
+        recomputeFanCounts: function (mfid) {
+            const mp = mfps[mfid];
+            const digname = mp.fan.digname;
+            mp.statHTML = "Counting collaborations with " + digname + "...";
+            jt.out(mp.dispid, mp.statHTML);
+            callHubFanCollab(mfid, "count",
                 function () {
-                    jt.log("Added fan " + emaddr);
-                    mgrs.mfnd.noteAddRemoveFan();
-                    mgrs.mfnd.fansForm(); },
+                    mgrs.fga.redisplay(); },
                 function (code, errtxt) {
-                    mgrs.mfnd.fansForm();
-                    jt.byId("mfemin").value = emaddr;
-                    if(code === 404) {
-                        return mgrs.mfad.inviteCreate(); }
-                    jt.out("mfstatdiv", "Add failed " + code +
-                           ": " + errtxt); }); },
-        mfeminput: function (ignore /*event*/) {
-            jt.out("mfstatdiv", "");
-            if(!jt.byId("mfaddb")) {
-                jt.out("mfbdiv", jt.tac2html(
-                    ["button", {type:"button", id:"mfaddb",
-                                onclick:mdfs("mfad.addFan")},
-                     "Add"])); }
-            if(jt.isProbablyEmail(jt.byId("mfemin").value)) {
-                jt.byId("mfaddb").disabled = false;
-                jt.byId("mfbdiv").style.opacity = 1.0; }
-            else {
-                jt.byId("mfaddb").disabled = true;
-                jt.byId("mfbdiv").style.opacity = 0.4; } },
-        redisplayAddForm: function () {
-            jt.out("mfaddiv", jt.tac2html(
-                ["div", {id:"addmfdiv"},
-                 [["label", {fo:"mfemin"}, "New music fan's email: "],
-                  ["input", {type:"email", id:"mfemin",
-                             oninput:mdfs("mfad.mfeminput", "event"),
-                             placeholder:"fan@example.com"}],
-                  ["div", {id:"mfbdiv"}],  //button or wait marker
-                  ["div", {id:"mfaddstatdiv"}]]]));  //workflow stat div
-            mgrs.mfad.mfeminput(); }
-    };  //end mgrs.mfad returned functions
-    }());
-
-
-    //Music fan display management and song push contact
-    mgrs.mfds = (function () {
-        const ag = "&#x21c4;";  //right arrow over left arrow glyph
-        const opts = [ag + " 1", ag + " 2", ag + " 3", ag + " 4", "-", "X"];
-        function selopts (mf) {
-            if(mf.status === "Active") { return opts.slice(0, -1); }
-            return opts; }
-        function selVal (oi, mf, idx) {
-            var selected = ((mf.status === "Active" && oi === idx) ||
-                            (mf.status === "Inactive" && oi === 4));
-            return jt.toru(selected, "selected"); }
-        function activeSel (mf, idx) {
-            return ["select", {id:"mfsel" + idx,
-                               onchange:mdfs("mfds.adjustOrder", idx)},
-                    selopts(mf).map((opt, oi) =>
-                        ["option", {value:oi, selected:selVal(oi, mf, idx)},
-                         opt])]; }
-        function dispName (mf, idx) {
-            return ["span", {cla:"dispnamespan", id:"dispnamespan" + idx,
-                             onclick:mdfs("mfds.editDispName", idx)},
-                    mf.dispname]; }
-        function dhCount (mf, idx) {
-            return ["span", {cla:"dhcspan", id:"dhcspan" + idx},
-                    mf.dhcontrib + "&#x2190;"]; }  //nn<-
-        function obCount (mf, idx) {
-            return ["span", {cla:"obcspan", id:"obcspan" + idx},
-                    "&#x2192;" + mf.obcontrib]; }  //->nn
-        function contact (mf) {
-            var song = app.player.song(); var subj = ""; var body = "";
-            if(song) {
-                subj = "diggin " + song.ti;
-                body = "Thought you would like this song I'm listening to\n\n" +
-                    "Title: " + song.ti + "\n" +
-                    "Artist: " + song.ar + "\n" +
-                    "Album: " + song.ab + "\n";
-                if(song.kws) {
-                    body += "(" + song.kws + ")\n"; }
-                body += "\n\nIf not attached, find a link at\n" +
-                    "https://" + hubdom + "/songfinder?songid=" + song.dsId; }
-            const link = "mailto:" + mf.email +
-                  "?subject=" + jt.dquotenc(subj) +
-                  "&body=" + jt.dquotenc(body) + "%0A%0A";
-            return ["span", {cla:"emcspan"},
-                    ["a", {href:link,
-                           onclick:mdfs("mfds.fanEmailClick", "event")},
-                     ["img", {cla:"buttonico", src:"img/email.png"}]]]; }
-    return {
-        fanEmailClick: function (event) {
-            jt.log("fanEmailClick " + event.target.innerHTML); },
-        editDispName: function (idx) {
-            if(!jt.byId("mfnamein" + idx)) {  //not already editing
-                jt.out("dispnamespan" + idx, jt.tac2html(
-                    ["input", {id:"mfnamein" + idx, type:"text", size:8,
-                               value:mgrs.mfnd.musfs()[idx].dispname,
-                               onblur:mdfs("mfds.nameChange", idx),
-                               onchange:mdfs("mfds.nameChange", idx)}]));
-                jt.byId("mfnamein" + idx).focus(); } },
-        nameChange: function (idx) {
-            var musfs = mgrs.mfnd.musfs();
-            var prevname = musfs[idx].dispname;
-            var name = jt.byId("mfnamein" + idx).value;
-            if(!name) { musfs[idx].dispname = musfs[idx].firstname; }
-            if(name !== prevname) {
-                musfs[idx].dispname = name;
-                mgrs.mfnd.updateMusicFans(musfs); }
-            mgrs.mfds.redisplayFans(); },
-        adjustOrder: function (selidx) {
-            var musfs = mgrs.mfnd.musfs();
-            var mf = musfs[selidx];
-            var optidx = jt.byId("mfsel" + selidx).selectedIndex;
-            var contf = null;
-            if((optidx === opts.length - 1) &&
-               (confirm("Delete " + mf.dispname + "?"))) {
-                if(mgrs.mfcm.inProgress()) {
-                    jt.out("mfstatdiv", "Still removing, retry in a minute."); }
-                else {
-                    mgrs.mfcm.removeContributions(mf);
-                    musfs.splice(selidx, 1); } }
-            else {
-                if(optidx <= 3) {
-                    if(mf.status === "Inactive") {  //activating...
-                        contf = mgrs.mfcm.checkContributions; }
-                    mf.status = "Active"; }
-                else {
-                    mf.checksince = "";  //reset to force refresh when activated
-                    mf.status = "Inactive"; }
-                musfs.splice(optidx, 0, musfs.splice(selidx, 1)[0]); }
-            musfs = mgrs.mfnd.sortAndMax4Active(musfs);
-            mgrs.mfnd.updateMusicFans(musfs, contf);
-            mgrs.mfds.redisplayFans(); },
-        redisplayFans: function () {
-            var musfs = mgrs.mfnd.musfs();
-            jt.out("mfdsdiv", jt.tac2html(
-                musfs.map((mf, idx) => 
-                    ["div", {cla:"mflinediv"},
-                     [["div", {cla:"mflediv"}, activeSel(mf, idx)],
-                      ["div", {cla:"mflediv"}, contact(mf, idx)],
-                      ["div", {cla:"mflediv"}, dispName(mf, idx)],
-                      ["div", {cla:"mflediv"}, dhCount(mf, idx)],
-                      ["div", {cla:"mflediv"}, obCount(mf, idx)]]]))); }
-    };  //end mgrs.mfds returned functions
-    }());
-
-
-    //Music fan manager handles main display and access functions
-    mgrs.mfnd = (function () {
-        var mst = {ds:"init"};
-    return {
-        activeFansIdCSV: function () {  //svc.web.fetchSongsDeck
-            return mgrs.mfnd.musfs()
-                .filter((mf) => mf.status === "Active")
-                .map((mf) => mf.dsId)
-                .join(","); },
-        contribsUpToDate: function () {
-            const ctms = 24 * 60 * 60 * 1000;
-            const due = new Date(Date.now() - ctms).toISOString();
-            const cmfs = mgrs.mfnd.musfs().filter((mf) =>
-                mf.status === "Active" && mf.checksince < due);
-            if(cmfs.length) {
-                jt.log("Contributions check needed for " + JSON.stringify(
-                    cmfs.map((mf) => mf.firstname + mf.checksince)));
-                return false; }
-            return true; },
-        sortAndMax4Active: function (musfs) {
-            musfs.sort(function (a, b) {
-                if(a.status === "Inactive" && b.status === "Inactive") {
-                    return a.dispname.localeCompare(b.dispname); }
-                if(a.status === "Active") { return -1; }
-                if(b.status === "Active") { return 1; }
-                return 0; });  //sort is stable, so Actives order preserved
-            musfs.forEach(function (mf, idx) {
-                if(idx > 3) { mf.status = "Inactive"; } });
-            return musfs; },
-        verifyFanDefs: function (musfs) {
-            musfs = musfs.filter((mf) => mf.dsId && mf.email && mf.firstname);
-            musfs.forEach(function (mf) {
-                mf.dispname = mf.dispname || mf.firstname;
-                mf.dhcontrib = mf.dhcontrib || 0;
-                mf.obcontrib = mf.obcontrib || 0;
-                if(mf.status !== "Active") {
-                    mf.status = "Inactive"; } });
-            return mgrs.mfnd.sortAndMax4Active(musfs); },
-        updateMusicFans: function (musfs, contf, errf) {
-            var curracc = mgrs.aaa.getAccount();
-            curracc.musfs = musfs;
-            contf = contf || function () {
-                jt.log("top.mfnd.updateMusicFans account saved."); };
-            errf = errf || function (code, errtxt) {
-                jt.log("top.mfnd.updateMusicFans account save failed " +
-                       code + ": " + errtxt); };
-            mgrs.aaa.updateCurrAcct(curracc, curracc.token, contf, errf); },
-        musfs: function () {
-            var curracc = mgrs.aaa.getAccount(); var musfs;
-            if(!curracc) {
-                jt.log("top.mfnd.musfs no curracc, returning empty array");
-                return []; }
-            if(!Array.isArray(curracc.musfs)) {
-                curracc.musfs = []; }
-            musfs = curracc.musfs;
-            if(mst.ds === "init") {
-                musfs = mgrs.mfnd.verifyFanDefs(musfs);
-                mgrs.mfnd.updateMusicFans(musfs, function () {
-                    mst.ds = "verified";
-                    mgrs.mfcm.checkContributions(); }); }
-            return musfs; },
-        noteAddRemoveFan: function () {
-            mst.ds = "init"; },  //rebuild needed fan fields
-        fansForm: function () {
-            if(!jt.byId("hubacctcontdiv")) { return; }
-            jt.out("hubacctcontdiv", jt.tac2html(
-                ["div", {id:"mfsdiv"},
-                 [["div", {id:"mfstatdiv"}],  //always visible
-                  ["div", {id:"mfscontdiv"},  //~6 lines high, scrollable
-                   [["div", {id:"mfdsdiv"}],
-                    ["div", {id:"mfaddiv"}]]]]]));
-            mgrs.mfds.redisplayFans();
-            mgrs.mfad.redisplayAddForm();
-            if(mst.ds === "verified") {
-                mgrs.mfcm.checkContributions(); } }
-    };  //end mgrs.mfnd returned functions
+                    mp.statHTML = "";
+                    jt.out(mp.dispid, "Collaboration counting failed " +
+                           code + ": " + errtxt); }); },
+        fanActionsDisplay: function (dispid, fan) {
+            noteFan(fan, dispid);
+            if(mfps[fan.dsId].status) {   //currently processing
+                return jt.out(dispid, mfps[fan.dsId].statHTML); }
+            jt.out(dispid, jt.tac2html(
+                ["div", {cla:"fanactionsdiv"}, fas.map((act, idx) =>
+                    ["button", {type:"button",
+                                title:act.d.replace(/\$FAN/g, fan.digname),
+                                onclick:mdfs("fsc." + act.a, idx)},
+                     act.n])])); },
+        updateContributions: function (acct) {
+            acct = acct || mgrs.aaa.getAccount();
+            acct.musfs.forEach(function (mf) {
+                noteFan(mf);
+                mgrs.fsc.getDefaultRatings(mf.dsId); }); }
+    };  //end mgrs.fsc returned functions
     }());
 
 
     //Fan group actions manager handles connecting with other fans
     mgrs.fga = (function () {
-        //messages and account musfs may be sorted without persisting
+        //messages and musfs can be sorted without persisting
         var messages = null;  //retrieved from server and tracked here
         var fni = null;  //current display working info
         const srch = {id:"mfsrchin", value:""};
-        const conflds = {af:"musfs", flds:[
-            {n:"digname", c:"showDelete"},
-            {n:"firstname", p:"name"},
-            {n:"added", o:"desc", f:"ts"},
-            {n:"lastheard", p:"last heard", o:"desc", f:"ts"}]};
-        const actflds = {af:"musfs", flds:[
-            {n:"digname"},
-            {n:"added", o:"desc", f:"ts"},
-            {n:"common", o:"desc", p:"cmn", f:"int"},
-            {n:"dfltin", o:"desc", p:"rcv", f:"int"},
-            {n:"dfltout", o:"desc", p:"snt", f:"int"}]};
-        const msgflds = {af:"digmsgs", flds:[
-            {n:"created", o:"desc", p:"when", f:"ts"},
-            {n:"sendername", p:"who"},
-            {n:"msgtype", p:"what", d:"getMsgTxt", c:"showReplyOptions"}]};
-        const mds = {
+        const forms = {
+            connect:{af:"musfs", flds:[
+                {n:"digname", c:"togFanActions"},
+                {n:"firstname", p:"name"},
+                {n:"added", o:"desc", f:"ts"},
+                {n:"lastheard", p:"last heard", o:"desc", f:"ts"}]},
+            activity:{af:"musfs", flds:[
+                {n:"digname", c:"togFanActions"},
+                {n:"common", o:"desc", p:"cmn", f:"int"},
+                {n:"dfltin", o:"desc", p:"rcv", f:"int"},
+                {n:"dfltout", o:"desc", p:"snt", f:"int"}]},
+            messages:{af:"digmsgs", flds:[
+                {n:"created", o:"desc", p:"when", f:"ts"},
+                {n:"sendername", p:"who"},
+                {n:"msgtype", p:"what", d:"getMsgTxt", c:"showReplyOptions"}]}};
+        const mds = {  //"push" messages only allowed if you are in their group
             suggestion:{pn:"Suggestion", desc:"$FAN recommends $SONG. $COMMENT",
                         //Thank you msg generated after rating it above average
                         alnk:"mailMeDetails"},
@@ -641,12 +381,14 @@ app.top = (function () {
                     if(sfd.o === "desc") { res *= -1; }
                     sfi += 1; }
                 return res; }); }
-        function setCurrentFieldsAndInstances (hd, curracct) {
-            fni = {flds:hd.flds, objs:curracct[hd.af] || [], acct:curracct};
+        function setCurrentFieldsAndInstances (form, curracct) {
+            const hd = forms[form];
+            fni = {formtype:form, flds:forms[form].flds, acct:curracct,
+                   objs:curracct[hd.af] || []};
             if(hd.af === "digmsgs") {
                 fni.objs = messages; }
             else {  //skip any old/bad fan defs
-                fni.objs = fni.objs.filter((mf) => mf.digname); }
+                fni.objs = fni.objs.filter((mf) => !mf.email); }
             fni.objs = fni.objs || [];
             hd.sfs = hd.sfs || hd.flds.map((fld) => fld); //copy defs array
             fni.sfs = hd.sfs;
@@ -684,8 +426,10 @@ app.top = (function () {
                              extras.empty]]])); }
             rows = rows.concat(fni.objs.map((obj, idx) =>
                 jt.tac2html(
-                    ["tr", fni.flds.map((fld) =>
-                        ["td", contentCellHTML(fld, obj, idx)])])));
+                    [["tr", fni.flds.map((fld) =>
+                        ["td", contentCellHTML(fld, obj, idx)])],
+                     ["tr", ["td", {id:"detrowtd" + idx,
+                                    colspan:fni.flds.length}]]])));
             if(extras.after) {
                 rows.push(jt.tac2html(
                     ["tr", ["td", {colspan:fni.flds.length},
@@ -698,7 +442,71 @@ app.top = (function () {
                  ["table",
                   [headerFieldsHTML(),
                    contentRowsHTML(extras)]]]); }
+        function modifyFanGroup (fanact, fandig, contf, errf) {
+            app.svc.dispatch("gen", "fanGroupAction",
+                app.svc.authdata({action:fanact, digname:fandig}),
+                function (results) {
+                    mgrs.aaa.updateCurrAcct(results[0], null,
+                        function (acct) {
+                            fni.acct = acct;
+                            contf(acct); },
+                        errf); },
+                errf); }
+        function noteUpdatedAccountAndRedisplay (acct, contrib) {
+            mgrs.aaa.updateCurrAcct(acct, null,
+                function () {
+                    fni.acct = acct;
+                    fni.objs = acct.musfs;
+                    mgrs.fga[fni.formtype + "Form"](acct);  //update display
+                    if(contrib) {
+                        mgrs.fsc.updateContributions(acct); } },
+                function (code, errtxt) {
+                    jt.err("The hub account updated but app save failed " +
+                           code + ": " + errtxt + 
+                           ". You should probably reload the app."); }); }
     return {
+        reflectUpdatedAccount: function (acct) {
+            fni.acct = acct;
+            if(fni.formtype !== "messages") {
+                fni.objs = acct.musfs;
+                sortCurrentObjects(); } },
+        redisplay: function () {
+            mgrs.fga[fni.formtype + "Form"](fni.acct); },
+        search: function (srchid) {
+            var val = jt.byId(srchid).value;
+            if(srch.status === "searching") { return; }  //ignore extra click
+            if(!val) {
+                return jt.out("mfsrchstatdiv",
+                              "Need fan's digname for search"); }
+            srch.status = "searching";
+            jt.out("mfsrchstatdiv", "Searching...");
+            modifyFanGroup("add", val,
+                function (acct) {
+                    srch.status = "";
+                    noteUpdatedAccountAndRedisplay(acct, "contrib"); },
+                function (code, errtxt) {
+                    srch.status = "";
+                    jt.out("mfsrchstatdiv", code + ": " + errtxt); }); },
+        connectme: function () {
+            jt.out("mfsrchstatdiv", "Connecting you...");
+            modifyFanGroup("add", "",
+                function (acct) {
+                    noteUpdatedAccountAndRedisplay(acct, "contrib"); },
+                function (code, errtxt) {
+                    jt.out("mfsrchstatdiv", code + ": " + errtxt); }); },
+        removeFanFromGroup: function (digname, dispid) {
+            modifyFanGroup("remove", digname,
+                function (acct) {
+                    noteUpdatedAccountAndRedisplay(acct); },
+                function (code, errtxt) {
+                    jt.out(dispid || "mfsrchstatdiv", "Remove failed " +
+                           code + ": " + errtxt); }); },
+        togFanActions: function (idx) {
+            var dtd = jt.byId("detrowtd" + idx);
+            if(dtd.innerHTML) {  //currently displayed, toggle off
+                dtd.innerHTML = "";
+                return; }
+            mgrs.fsc.fanActionsDisplay("detrowtd" + idx, fni.objs[idx]); },
         getMsgTxt: function (val, ignore /*fld*/, obj, idx) {
             var txt; var level = "Good"; var comment = obj.nt || "";
             if(obj.rv > 8) { level = "Great"; }
@@ -718,28 +526,29 @@ app.top = (function () {
             txt = txt.replace(/\$LEV/g, level);
             return txt; },
         connectForm: function (acct) {
-            setCurrentFieldsAndInstances(conflds, acct);
+            setCurrentFieldsAndInstances("connect", acct);
             jt.out("afgcontdiv", formDisplayHTML({
-                before:jt.tac2html(
+                after:jt.tac2html(
                     ["div", {id:"mfsrchdiv"},
-                     ["Find music fan &nbsp;",
-                      ["input", {type:"text", id:srch.id, size:14,
-                                 placeholder:"digname...",
-                                 value:srch.value,
-                                 oninput:mdfs("fga.search", srch.id)}],
-                      ["a", {href:"#search", title:"Search Fans",
-                             onclick:mdfs("fga.search", srch.id)},
-                       ["img", {src:"img/search.png", cla:"ico20"}]]]]),
+                     [["Find music fan &nbsp;",
+                       ["input", {type:"text", id:srch.id, size:14,
+                                  placeholder:"digname...",
+                                  value:srch.value,
+                                  onchange:mdfs("fga.search", srch.id)}],
+                       ["a", {href:"#search", title:"Search Fans",
+                              onclick:mdfs("fga.search", srch.id)},
+                        ["img", {src:"img/search.png", cla:"ico20"}]]],
+                      ["div", {id:"mfsrchstatdiv"}]]]),
                 empty:jt.tac2html(
                     ["button", {type:"button", id:"connectmeb",
                                 onclick:mdfs("fga.connectme", "connectmeb")},
                      "Connect Me"])})); },
         activityForm: function (acct) {
-            setCurrentFieldsAndInstances(actflds, acct);
+            setCurrentFieldsAndInstances("activity", acct);
             jt.out("afgcontdiv", formDisplayHTML({
                 empty:"No music fans in your group"})); },
         messagesForm: function (acct) {
-            setCurrentFieldsAndInstances(msgflds, acct);
+            setCurrentFieldsAndInstances("messages", acct);
             jt.out("afgcontdiv", formDisplayHTML({
                 empty:"No messages",
                 after:jt.tac2html(
@@ -858,6 +667,10 @@ app.top = (function () {
                 return {msg:"Need email address.", fld:"updemail"}; }
             if(!dat.updpassword) {  //let server enforce length and other reqs
                 return {msg:"Need password.", fld:"updpassword"}; } }
+        function verifyKwdefs (dat) {
+            if(!dat.kwdefs || dat.kwdefs === "{}") {
+                dat.kwdefs = JSON.stringify(
+                    mgrs.aaa.getDefaultKeywordDefinitions()); } }
         function makeHubCall (buttonid, verb, endpoint, dat, contf) {
             jt.byId(buttonid).disabled = true;
             jt.out("afgstatdiv", "Calling DiggerHub...");
@@ -876,7 +689,7 @@ app.top = (function () {
                         function (acct) {
                             jt.out("afgstatdiv", "Saved.");
                             if(app.svc.plat("hdm") === "loc") {
-                                mgrs.srs.syncToHub(); } //check if sync needed
+                                mgrs.srs.syncToHub(endpoint); }
                             contf(acct); },
                         errf); },
                 errf); }
@@ -889,7 +702,7 @@ app.top = (function () {
         newacctProc: function (buttonid) {
             const dat = formData("j");
             if(!formError(dat, [verifyEmail, verifyPwd, verifyFirst, verifyDN,
-                                verifyPriv])) {
+                                verifyPriv, verifyKwdefs])) {
                 makeHubCall(buttonid, "POST", "newacct", dat, function (acct) {
                     if(mgrs.afg.inApp()) {
                         mgrs.gen.updateHubToggleSpan(acct);
@@ -1022,7 +835,7 @@ app.top = (function () {
     //App account access manager serves as central ref for account and config
     //Update DigAcc on hub first, then reflect in local/runtime config.
     mgrs.aaa = (function () {
-        var dfltkeywords = {
+        const dfltkeywords = {
             Social: {pos: 1, sc: 0, ig: 0, dsc: "Music I might select to play when other people are listening."},
             Personal: {pos: 2, sc: 0, ig: 0, dsc: "Music I might select to play when it's just me listening."},
             Office: {pos: 3, sc: 0, ig: 0, dsc: "Music that you can listen to while you work."},
@@ -1032,9 +845,7 @@ app.top = (function () {
             Classical: {pos: 0, sc: 0, ig: 0, dsc: "However you define it for your collection."},
             Talk: {pos: 0, sc: 0, ig: 0, dsc: "Spoken word."},
             Solstice: {pos: 0, sc: 0, ig: 0, dsc: "Holiday seasonal."}};
-        var dfltigfolds = [  //Noisy folders that are typically not songs
-            "Ableton", "Audiffex", "Audio Music Apps", "GarageBand",
-            "JamKazam"];
+        var dfltigfolds = [];  //Noisy folders that are typically not songs
         var cfg = null;  //runtime config object
         var curracct = null;
         function verifyDeserialized (acct) {
@@ -1048,20 +859,22 @@ app.top = (function () {
         getAccount: function () { return curracct; },
         getConfig: function () { return cfg; },
         getAcctsInfo: function () { return cfg.acctsinfo; },
+        getDefaultKeywordDefinitions: function () { return dfltkeywords; },
         setConfig: function (config) {
             cfg = config;
-            resetCurrentAccountRef(); },
+            dfltigfolds = cfg.dfltigfolds || dfltigfolds;
+            mgrs.aaa.verifyConfig(); },
         verifyConfig: function () {
             cfg = cfg || {};
-            if(cfg.acctsinfo) { return cfg; }  //already initialized
-            cfg.acctsinfo = {currid:"", accts:[]};
-            if(!cfg.acctsinfo.accts.find((x) => x.dsId === "101")) {
-                const diggerbday = "2019-10-11T00:00:00Z";
-                cfg.acctsinfo.accts.push(
-                    {dsType:"DigAcc", dsId:"101", firstname:"Digger",
-                     created:diggerbday, modified:diggerbday + ";1",
-                     email:suppem, token:"none", kwdefs:dfltkeywords,
-                     igfolds:dfltigfolds}); }
+            if(!cfg.acctsinfo) {
+                cfg.acctsinfo = {currid:"", accts:[]};
+                if(!cfg.acctsinfo.accts.find((x) => x.dsId === "101")) {
+                    const diggerbday = "2019-10-11T00:00:00Z";
+                    cfg.acctsinfo.accts.push(
+                        {dsType:"DigAcc", dsId:"101", firstname:"Digger",
+                         created:diggerbday, modified:diggerbday + ";1",
+                         email:suppem, token:"none", kwdefs:dfltkeywords,
+                         igfolds:dfltigfolds}); } }
             if(!cfg.acctsinfo.currid) {
                 cfg.acctsinfo.currid = "101"; }
             resetCurrentAccountRef(); },
@@ -1155,7 +968,7 @@ app.top = (function () {
         updateConfig: function () {
             cdat.musicPath = jt.byId("mlibin").value;
             cdat.dbPath = jt.byId("dbfin").value;
-            app.svc.dispatch("loc", "writeConfig", cdat,
+            app.svc.dispatch("loc", "changeConfig", cdat,
                 function () { mgrs.cfg.restart(); },
                 function (code, errtxt) {
                     jt.out("configstatdiv", "Config update failed " +
@@ -1314,10 +1127,8 @@ app.top = (function () {
                     kwdefs[kw].sc += 1; }); }); },
         verifyKeywordDefinitions: function () {
             if(!kwdefs || Object.keys(kwdefs).length < 4) {
-                kwdefs = {Social: {pos:1, sc:0, ig:0, dsc:""},
-                          Personal: {pos:2, sc:0, ig:0, dsc:""},
-                          Ambient:{pos:3, sc:0, ig:0, dsc:""},
-                          Dance:{pos:4, sc:0, ig:0, dsc:""}}; } },
+                kwdefs = JSON.parse(JSON.stringify(
+                    mgrs.aaa.getDefaultKeywordDefinitions())); } },
         rebuildKeywords: function () {
             kwdefs = mgrs.aaa.getAccount().kwdefs;
             mgrs.kwd.verifyKeywordDefinitions();

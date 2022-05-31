@@ -343,9 +343,9 @@ app.svc = (function () {
         getConfig: function () { return config; },
         noteUpdatedAcctsInfo: function(acctsinfo) {
             config.acctsinfo = acctsinfo; },
-        writeConfig: function (configChangeFields, contf, errf) {
+        changeConfig: function (configChangeFields, contf, errf) {
             jt.call("POST", "/cfgchg", jt.objdata(configChangeFields),
-                    contf, errf, jt.semaphore("loc.writeConfig")); },
+                    contf, errf, jt.semaphore("loc.changeConfig")); },
         songs: function () { return dbo.songs; },
         fetchSongs: function (contf, ignore /*errf*/) {
             setTimeout(function () {
@@ -401,39 +401,12 @@ app.svc = (function () {
             var data = jt.objdata({cfg:JSON.stringify(cfg)});
             jt.call("POST", "/wrtcfg", data, contf, errf,
                     jt.semaphore("svc.loc.cfgupd")); },
-        addFan: function (mfem, contf, errf) {
-            jt.call("POST", "/addmusf", app.svc.authdata({mfaddr:mfem}),
-                    function (accts) {
-                        const ca = app.top.dispatch("aaa", "getAccount");
-                        app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
-                                         accts[0], ca.token);
-                        contf(accts); },
-                    errf, jt.semaphore("svc.loc.addFan")); },
-        createFan: function (dat, contf, errf) {
-            jt.call("POST", "/createmusf", app.svc.authdata(dat),
-                    function (results) {
-                        const ca = app.top.dispatch("aaa", "getAccount");
-                        app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
-                                         results[0], ca.token);
-                        contf(results); },
-                    errf, jt.semaphore("svc.loc.createFan")); },
-        fanContributions: function (contf, errf) {
-            jt.call("POST", "/mfcontrib", app.svc.authdata(),
-                    function (results) {
-                        const ca = app.top.dispatch("aaa", "getAccount");
-                        app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
-                                         results[0], ca.token);
-                        results.slice(1).forEach(function (song) {
-                            mgrs.loc.noteUpdatedSongData(song); });
-                        contf(results.length - 1); },
-                    errf, jt.semaphore("svc.loc.fanContributions")); },
-        clearFanRatings: function (fanid, contf, errf) {
-            jt.call("POST", "/mfclear", app.svc.authdata({mfid:fanid}),
-                    function (results) {
-                        results.forEach(function (song) {
-                            mgrs.loc.noteUpdatedSongData(song); });
-                        contf(results.length); },
-                    errf, jt.semaphore("svc.loc.clearFanRatings")); },
+        fanGroupAction: function (data, contf, errf) {
+            jt.call("POST", "/fangrpact", data, contf, errf,
+                    jt.semaphore("svc.loc.fanGroupAction")); },
+        fanCollab: function (data, contf, errf) {
+            jt.call("POST", "/fancollab", data, contf, errf,
+                    jt.semaphore("svc.loc.fanCollab")); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {
@@ -503,6 +476,12 @@ app.svc = (function () {
             var sk = mgrs.web.key(song);
             if(pool[sk]) {
                 mgrs.gen.copyUpdatedSongData(pool[sk], song); } },
+        noteUpdatedSongData: function (song) {
+            var sk = mgrs.web.key(song);
+            if(pool[sk]) {
+                mgrs.gen.copyUpdatedSongData(pool[sk], song); }
+            else {
+                pool[sk] = song; } },
         poolAvailable: function () {
             var startOfDay = Date.now() - (24 * 60 * 60 * 1000);
             startOfDay = new Date(startOfDay).toISOString();
@@ -515,12 +494,8 @@ app.svc = (function () {
                                               contf, errf); }
             return mgrs.web.fetchDeckSongs(fvsj, contf, errf); },
         fetchDeckSongs: function (fvsj, contf, errf) {
-            var mfids = app.top.dispatch("mfnd", "activeFansIdCSV");
-            if(mfids !== fvsj.fanidcsv) {  //clear fan suggested songs
-                Object.entries(pool).forEach(function ([sk, song]) {
-                    if(song.dsId.startsWith("fr")) {
-                        delete pool[sk]; } }); }
-            fvsj.fanidcsv = mfids;  //include fan suggestions in fetch
+            //not adding automatic suggestions via fvsj.fanidcsv.  Get
+            //suggestions directly from selected fan(s) in your group.
             fvsj.startsongid = app.startParams.songid || "";
             fvsj = JSON.stringify(fvsj);
             if(lastfvsj && lastfvsj === fvsj &&   //if no change in search, and
@@ -566,38 +541,12 @@ app.svc = (function () {
         writeConfig: function (cfg, contf) {
             //nothing to do, account info already saved on server
             setTimeout(function () { contf(cfg); }, 50); },
-        addFan: function (mfem, contf, errf) {
-            jt.call("POST", "/api/addmusf", app.svc.authdata({mfaddr:mfem}),
-                    function (results) {
-                        var digacc = app.refmgr.deserialize(results[0]);
-                        contf(app.login.dispatch("act", "noteUpdatedAccount",
-                                                 digacc)); },
-                    errf,
-                    jt.semaphore("mgrs.web.addFan")); },
-        createFan: function (dat, contf, errf) {
-            jt.call("POST", "/api/createmusf", app.svc.authdata(dat),
-                    function (results) {
-                        var digacc = app.refmgr.deserialize(results[0]);
-                        contf(app.login.dispatch("act", "noteUpdatedAccount",
-                                                 digacc)); },
-                    errf,
-                    jt.semaphore("mgrs.web.createFan")); },
-        fanContributions: function (contf, errf) {
-            jt.call("POST", "/api/mfcontrib", app.svc.authdata(),
-                    function (results) {
-                        var digacc = app.refmgr.deserialize(results[0]);
-                        digacc = app.login.dispatch("act", "noteUpdatedAccount",
-                                                    digacc);
-                        mgrs.web.addSongsToPool(results.slice(1));
-                        contf(results.length - 1); },
-                    errf, jt.semaphore("mgrs.web.fanContributions")); },
-        clearFanRatings: function (fanid, contf, errf) {
-            jt.call("POST", "/api/mfclear", app.svc.authdata({mfid:fanid}),
-                    function (results) {
-                        results.forEach(function (song) {
-                            mgrs.web.reflectUpdatedSongIfInPool(song); });
-                        contf(); },
-                    errf, jt.semaphore("mgrs.web.clearFanRatings")); },
+        fanGroupAction: function (data, contf, errf) {
+            jt.call("POST", "/api/fangrpact", app.svc.authdata(data),
+                    contf, errf, jt.semaphore("svc.loc.fanGroupAction")); },
+        fanCollab: function (data, contf, errf) {
+            jt.call("POST", "/api/fancollab", app.svc.authdata(data),
+                    contf, errf, jt.semaphore("svc.loc.fanCollab")); },
         getSongTotals: function (contf, errf) {
             jt.call("POST", "/api/songttls", app.svc.authdata(),
                     function (results) {
@@ -709,27 +658,25 @@ app.svc = (function () {
             songfields.forEach(function (fld) {
                 if(updsong.hasOwnProperty(fld)) {  //don't copy undefined values
                     song[fld] = updsong[fld]; } }); },
+        noteUpdatedSongData: function (song) {
+            mgrs[hdm].noteUpdatedSongData(song); },
         authdata: function (obj) { //return obj post data, with an/at added
             var digacc = app.top.dispatch("aaa", "getAccount");
             var authdat = jt.objdata({an:digacc.email, at:digacc.token});
             if(obj) {
                 authdat += "&" + jt.objdata(obj); }
             return authdat; },
-        addFan: function (mfem, contf, errf) {
-            mgrs[hdm].addFan(mfem, contf, errf); },
-        createFan: function (dat, contf, errf) {
-            mgrs[hdm].createFan(dat, contf, errf); },
-        fanContributions: function (contf, errf) {
-            mgrs[hdm].fanContributions(contf, errf); },
-        clearFanRatings: function (mfid, contf, errf) {
-            mgrs[hdm].clearFanRatings(mfid, contf, errf); },
         docContent: function (docurl, contf) {
             mgrs[hdm].docContent(docurl, contf, function (code, errtxt) {
                 contf("Doc error " + code + ": " + errtxt); }); },
         makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
             mgrs[hdm].makeHubAcctCall(verb, endpoint, data, contf, errf); },
         writeConfig: function (cfg, contf, errf) {
-            mgrs[hdm].writeConfig(cfg, contf, errf); }
+            mgrs[hdm].writeConfig(cfg, contf, errf); },
+        fanGroupAction: function (data, contf, errf) {
+            mgrs[hdm].fanGroupAction(data, contf,errf); },
+        fanCollab: function (mfid, ctype, contf, errf) {
+            mgrs[hdm].fanCollab(mfid, ctype, contf, errf); }
     };  //end mgrs.gen returned functions
     }());
 

@@ -103,6 +103,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   margin-left:2px; }
 .dachoicediv { min-width:100px; }
 #mfsrchdiv { text-align:right; font-size:small; }
+#mfsrchstatdiv { padding: 2px 5ps; }
 .fgacelldiv { display:inline-block; font-size:small; padding:0px 5px 0px 0px; }
 #fgaemptyhtmldiv { font-size:small; }
 

@@ -3,7 +3,6 @@
 const formidable = require("formidable");
 const db = require("./db.js");
 const fetch = require("node-fetch");
-const dhdefs = require("./dhdefs.js");
 
 module.exports = (function () {
     "use strict";
@@ -11,63 +10,6 @@ module.exports = (function () {
     var eec = {};  //endpoint error contexts
     //var hs = "https://diggerhub.com";
     var hs = "http://localhost:8080";
-
-
-    //!EQUIVALENT CODE IN ../docroot/js/amd/svc.js  See comments there.
-    function txSong (song) {
-        var delflds = ["mrd", "smti", "smar", "smab"];
-        var escflds = ["path", "ti", "ar", "ab", "nt"];
-        var wsrw = ["having", "select", "union", "within"];
-        song = JSON.parse(JSON.stringify(song));
-        delflds.forEach(function (fld) { delete song[fld]; });
-        escflds.forEach(function (fld) {  //replace parens with HTML chars
-            if(song[fld]) {
-                song[fld] = song[fld].replace(/\(/g, "ESCOPENPAREN");
-                song[fld] = song[fld].replace(/\)/g, "ESCCLOSEPAREN");
-                song[fld] = song[fld].replace(/'/g, "ESCSINGLEQUOTE");
-                song[fld] = song[fld].replace(/&/g, "ESCAMPERSAND");
-                wsrw.forEach(function (rw) {
-                    song[fld] = song[fld].replace(
-                        new RegExp(rw, "gi"), function (match) {
-                            const rev = match.split("").reverse().join("");
-                            return "WSRW" + rev; }); });
-            } });
-        return song;
-    }
-    //function txSongJSON (song) { return JSON.stringify(txSong(song)); }
-    function txSongsJSON (songs) {
-        songs = songs.map((song) => txSong(song));
-        return JSON.stringify(songs);
-    }
-
-
-    function getCurrentAccount () {
-        var ca = null;
-        var conf = db.conf();
-        var info = conf.acctsinfo;
-        if(info.currid) {
-            ca = info.accts.find((a) => a.dsId === info.currid); }
-        if(!ca) {  //missing currid or bad currid value
-            conf.acctsinfo.currid = "101";
-            ca = info.accts.find((a) => a.dsId === info.currid); }
-        return ca;
-    }
-
-
-    function isIgnoreDir (ws, dirname) {
-        if(!ws.curracct) {
-            ws.curracct = getCurrentAccount(); }
-        ws.curracct.igfolds = ws.curracct.igfolds || [];
-        if(!Array.isArray(ws.curracct.igfolds)) {
-            ws.curracct.igfolds = []; }
-        const igfolds = ws.curracct.igfolds;
-        if(igfolds.includes(dirname)) {
-            return true; }
-        if(!ws.wildms) {  //init wildcard ending match strings array
-            ws.wildms = igfolds.filter((ign) => ign.endsWith("*"));
-            ws.wildms = ws.wildms.map((wm) => wm.slice(0, -1)); }
-        return ws.wildms.some((wm) => dirname.startsWith(wm));
-    }
 
 
     function bodify (po) {  //parameters object
@@ -276,76 +218,17 @@ module.exports = (function () {
     }
 
 
-    function addmusf (req, res) {
-        return hubpost(req, res, "addmusf", function (hubret) {
+    function fangrpact (req, res) {
+        return hubpost(req, res, "fangrpact", function (hubret) {
+            //make sure updated account gets written in case app fails.
             noteUpdatedAccount(hubret); });
     }
 
 
-    function createmusf (req, res) {
-        return hubpost(req, res, "createmusf", function (hubret) {
-            noteUpdatedAccount(hubret); });
-    }
-
-
-    //The application wants all the local data uploaded to the hub as fast
-    //as possible, but the hub does substantial work to look up each song
-    //and then write it to the db if not found.  The array of songs being
-    //passed as an encoded parameter also has a tendency to trigger web
-    //server security rules looking for malicious penetration testing.
-    //Sending 200 songs made triggering a server rejection a near certainty
-    //01oct21.  100 is still heavy and relatively risky.  50 just emphasizes
-    //how long the uploads are taking.  Even 32 songs at a time is not
-    //enough to avoid trigggering a security rule regex match.  Once a rule
-    //has been tripped, sending the same data again is instantly rejected.
-    //The best approach seems to be to start with just a single song, then
-    //scale up to a reasonable max on continued success.
-    //03dec21: Security rules seem to be triggered by parenthetical
-    //expressions, especially two in a row e.g. "Song (Official) (1).mp3"
-    //Since uplds is an array of simple objects, escape all parens.
-    function mfcontrib (req, res) {
-        var fif = new formidable.IncomingForm();
-        eec.mfcontrib = eec.mfcontrib || {};
-        if(eec.mfcontrib.errcode) { eec.mfcontrib.cleared = 0; }
-        if(!eec.mfcontrib.cleared) { eec.mfcontrib.cleared = 0; }
-        if(!eec.mfcontrib.maxupld) { eec.mfcontrib.maxupld = 32; }
-        fif.parse(req, function (err, fields) {
-            var uplds = []; var ctx = eec.mfcontrib;
-            var maxupld = Math.min(((ctx.cleared * ctx.cleared) + 1),
-                                   ctx.maxupld);
-            if(err) {
-                return resError(res, "mfcontrib form error: " + err); }
-            ctx.cleared += 1;
-            Object.entries(db.dbo().songs).forEach(function ([p, s]) {
-                if(uplds.length < maxupld && !s.dsId &&
-                   s.ti && s.ar && (!s.fq || !(s.fq.startsWith("D") ||
-                                               s.fq.startsWith("U")))) {
-                    s.path = p;
-                    uplds.push(s); } });
-            if(uplds.length > 0) {
-                fields.uplds = txSongsJSON(uplds); }
-            return hubPostFields(res, "mfcontrib", function (hubret) {
-                    var dbo = db.dbo();
-                    noteUpdatedAccount(hubret);
-                    console.log("mfcontrib updated account");
-                    JSON.parse(hubret).slice(1).forEach(function (s) {
-                        updateLocalSong(dbo, s); });
-                    db.writeDatabaseObject(); },
-                                 fields); });
-    }
-
-
-    function mfclear (req, res) {
-        var fif = new formidable.IncomingForm();
-        fif.parse(req, function (err, fields) {
-            if(err) {
-                return resError(res, "mfclear form error: " + err); }
-            return hubPostFields(res, "mfclear", function (hubret) {
-                var dbo = db.dbo();
-                JSON.parse(hubret).forEach(function (s) {
-                    updateLocalSong(dbo, s); });
-                db.writeDatabaseObject(); },
-                                 fields); });
+    function fancollab (req, res) {
+        return hubpost(req, res, "fancollab", function (hubret) {
+            //note updated account and any songs with it
+            processReceivedSyncData(hubret); });
     }
 
 
@@ -376,7 +259,6 @@ module.exports = (function () {
 
     return {
         //server utilities
-        isIgnoreDir: function (ws, dn) { return isIgnoreDir(ws, dn); },
         verifyFanRating: function (s) { gdutil.verifyFanRating(s); },
         //server endpoints
         acctsinfo: function (req, res) { return accountsInfo(req, res); },
@@ -385,9 +267,7 @@ module.exports = (function () {
         updacc: function (req, res) { return hubpost(req, res, "updacc"); },
         mailpwr: function (pu, req, res) { return mailpwr(pu, req, res); },
         hubsync: function (req, res) { return hubsync(req, res); },
-        addmusf: function (req, res) { return addmusf(req, res); },
-        createmusf: function (req, res) { return createmusf(req, res); },
-        mfcontrib: function (req, res) { return mfcontrib(req, res); },
-        mfclear: function (req, res) { return mfclear(req, res); }
+        fangrpact: function (req, res) { return fangrpact(req, res); },
+        fancollab: function (req, res) { return fancollab(req, res); }
     };
 }());
