@@ -95,7 +95,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .formattr { font-size:small; text-align:right; }
 .cblab { font-size:small; }
 #afgtopdiv { font-size:small; padding-left:4px; }
-#afgcontdiv { padding-bottom:10px; }
+#afgcontdiv { position:relative; padding-bottom:10px; }
 #afgextradiv { font-size:small; text-align:right; padding-right:10px; }
 #privacceptlabel { font-size:small; }
 .fhselspan { color:#FFAB00; }
@@ -104,8 +104,13 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .dachoicediv { min-width:100px; }
 #mfsrchdiv { text-align:right; font-size:small; }
 #mfsrchstatdiv { padding: 2px 5ps; }
-.fgacelldiv { display:inline-block; font-size:small; padding:0px 5px 0px 0px; }
+#fgaoverlaydiv { position:absolute; top:0px; left:0px; }
+.fgacelldiv, .fgacelldivnum { display:inline-block; font-size:small;
+  padding:0px 10px 0px 0px; width:100%; }
+.fgacelldivnum { text-align:right; }
+.fgasortcoldiv { background:white; }
 #fgaemptyhtmldiv { font-size:small; }
+.donenotediv { font-size:small; }
 
 .musflinksspan { font-size:small; }
 .sepcomspan { padding:0px 5px 0px 0px; }

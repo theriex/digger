@@ -86,6 +86,8 @@ app.top = (function () {
             return Object.values(app.svc.dispatch("loc", "songs"))
                 .filter((s) => isNewlyPlayed(s) || notPostedYet(s)); }
     return {
+        countSyncOutstanding: function () {
+            return uploadableSongs().length; },
         handleSyncError: function (code, errtxt) {
             upldsongs = null;
             if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
@@ -143,7 +145,7 @@ app.top = (function () {
             if(syt.errcode) {
                 jt.out("modindspan", ""); } //turn off comms indicator
             else if(haveUnpostedNewSongs()) {
-                syt.resched = true;  //prevent interim fan suggestions.
+                mgrs.fsc.noteNewSongsPosted();
                 mgrs.srs.syncToHub("unposted"); }
             else if(syt.resched) {
                 syt.resched = false;
@@ -221,9 +223,7 @@ app.top = (function () {
             syt.pcts = "";
             syt.up = 0;
             syt.down = 0;
-            mgrs.srs.syncToHub("reset"); },
-        hubSyncStable: function () {  //ran once and not currently scheduled
-            return (syt.pcts && !syt.tmo && !syt.resched); }
+            mgrs.srs.syncToHub("reset"); }
     };  //end mgrs.srs returned functions
     }());
 
@@ -241,10 +241,11 @@ app.top = (function () {
             {a:"recomputeFanCounts", n:"Recount", m:20,
              d:"Recompute collection common/received/sent"}];
         var mfps = {}; //music fan processing status
+        var newSongsPosted = "";
         function noteFan (mf, dispid) {
             mfps[mf.dsId] = mfps[mf.dsId] || {};
             mfps[mf.dsId].fan = mf;  //always update with latest given instance
-            if(dispid) {
+            if(dispid) {  //note current status display div if given
                 mfps[mf.dsId].dispid = dispid; } }
         function callHubFanCollab (mfanid, collabtype, contf, errf) {
             app.svc.dispatch("gen", "fanCollab",
@@ -253,7 +254,9 @@ app.top = (function () {
                     mgrs.aaa.reflectAccountChangeInRuntime(hubres[0]);
                     hubres.slice(1).forEach(function (s) {
                         app.svc.dispatch("gen", "noteUpdatedSongData", s); });
-                    const acct = mgrs.saa.getAccount();
+                    if(hubres.slice(1).length) {
+                        app.deck.update("fancollab"); }
+                    const acct = mgrs.aaa.getAccount();
                     noteFan(acct.musfs.find((mf) => mf.dsId === mfanid));
                     mgrs.fga.reflectUpdatedAccount(acct);
                     contf(); },
@@ -261,6 +264,14 @@ app.top = (function () {
                     //PENDING: if API throttling error, setTimeout and retry
                     errf(code, errtxt); }); }
     return {
+        doneNote: function (dispid, msg) {
+            if(!msg) { return jt.out(dispid, ""); }
+            jt.out(dispid, jt.tac2html(
+                ["div", {cla:"donenotediv"},
+                 [msg, " ",
+                  ["a", {href:"#dismiss",
+                         onclick:mdfs("fsc.doneNote", dispid)},
+                   "Ok"]]])); },
         deleteFan: function (mfid) {
             const fan = mfps[mfid].fan;
             const digname = fan.digname;
@@ -289,7 +300,7 @@ app.top = (function () {
                 jt.out(mp.dispid, mp.statHTML);
                 mp.statHTML = "";  //clear stat in case adding back later
                 mgrs.fga.removeFanFromGroup(digname, mfps[mfid].dispid); } },
-        getDefaultRatings: function (mfid) {
+        getDefaultRatings: function (mfid, contf) {
             const mp = mfps[mfid];
             const digname = mp.fan.digname;
             const prevdrc = mp.fan.dfltrcv;
@@ -297,13 +308,18 @@ app.top = (function () {
             jt.out(mp.dispid, mp.statHTML);
             callHubFanCollab(mfid, "get",
                 function () {
-                    if(mp.fan.dfltrcv !== prevdrc) {  //more received
-                        mgrs.fsc.getDefaultRatings(mfid); }  //check again
+                    mgrs.fga.redisplay();  //show progress
+                    if(mp.fan.dfltrcv !== prevdrc) {  //received new defaults
+                        mgrs.fsc.doneNote(mp.dispid,
+                                          "Checking more default ratings...");
+                        mgrs.fsc.getDefaultRatings(mfid, contf); }  //check more
                     else {  //no more default ratings received
-                        if(!mp.fan.lastHeard) {  //haven't counted yet
+                        mgrs.fsc.doneNote(mp.dispid,
+                                          "Default ratings fetched for " +
+                                          digname);
+                        if(mp.fan.common < mp.fan.dfltrcv) {
                             mgrs.fsc.recomputeFanCounts(mfid); }
-                        else {
-                            mgrs.fga.redisplay(); } } },
+                        if(contf) { contf(mfid); } } },
                 function (code, errtxt) {
                     mp.statHTML = "";
                     jt.out(mp.dispid, "Getting default ratings failed " +
@@ -315,7 +331,9 @@ app.top = (function () {
             jt.out(mp.dispid, mp.statHTML);
             callHubFanCollab(mfid, "count",
                 function () {
-                    mgrs.fga.redisplay(); },
+                    mgrs.fga.redisplay();
+                    mgrs.fsc.doneNote(mp.dispid, "Collaborations with " +
+                                      digname + " recounted."); },
                 function (code, errtxt) {
                     mp.statHTML = "";
                     jt.out(mp.dispid, "Collaboration counting failed " +
@@ -325,16 +343,23 @@ app.top = (function () {
             if(mfps[fan.dsId].status) {   //currently processing
                 return jt.out(dispid, mfps[fan.dsId].statHTML); }
             jt.out(dispid, jt.tac2html(
-                ["div", {cla:"fanactionsdiv"}, fas.map((act, idx) =>
+                ["div", {cla:"fanactionsdiv"}, fas.map((act) =>
                     ["button", {type:"button",
                                 title:act.d.replace(/\$FAN/g, fan.digname),
-                                onclick:mdfs("fsc." + act.a, idx)},
+                                onclick:mdfs("fsc." + act.a, fan.dsId)},
                      act.n])])); },
+        noteNewSongsPosted: function () {
+            newSongsPosted = new Date().toISOString(); },
         updateContributions: function (acct) {
             acct = acct || mgrs.aaa.getAccount();
+            acct.musfs = acct.musfs || [];
             acct.musfs.forEach(function (mf) {
-                noteFan(mf);
-                mgrs.fsc.getDefaultRatings(mf.dsId); }); }
+                noteFan(mf); });
+            const ckmf = acct.musfs.find((mf) =>
+                !mf.lastpull || mf.lastpull < newSongsPosted);
+            if(ckmf) {
+                mgrs.fsc.getDefaultRatings(ckmf.dsId, function () {
+                    mgrs.fsc.updateContributions(); }); } }
     };  //end mgrs.fsc returned functions
     }());
 
@@ -353,9 +378,9 @@ app.top = (function () {
                 {n:"lastheard", p:"last heard", o:"desc", f:"ts"}]},
             activity:{af:"musfs", flds:[
                 {n:"digname", c:"togFanActions"},
-                {n:"common", o:"desc", p:"cmn", f:"int"},
-                {n:"dfltin", o:"desc", p:"rcv", f:"int"},
-                {n:"dfltout", o:"desc", p:"snt", f:"int"}]},
+                {n:"common", o:"desc", p:"common", f:"int"},
+                {n:"dfltrcv", o:"desc", p:"received", f:"int"},
+                {n:"dfltsnd", o:"desc", p:"sent", f:"int"}]},
             messages:{af:"digmsgs", flds:[
                 {n:"created", o:"desc", p:"when", f:"ts"},
                 {n:"sendername", p:"who"},
@@ -375,43 +400,52 @@ app.top = (function () {
         function sortCurrentObjects () {
             fni.objs.sort(function (a, b) {
                 var res = 0; var sfi = 0; var sfd = null;
-                while(!res && sfi < fni.sfs.length) {
-                    sfd = fni.sfs[sfi];
-                    res = a[sfd.n].localeCompare(b[sfd.n]);
+                while(!res && sfi < forms[fni.formtype].sofs.length) {
+                    sfd = forms[fni.formtype].sofs[sfi];
+                    if(sfd.f === "int") {
+                        res = a[sfd.n] - b[sfd.n]; }
+                    else {
+                        res = a[sfd.n].localeCompare(b[sfd.n]); }
                     if(sfd.o === "desc") { res *= -1; }
                     sfi += 1; }
                 return res; }); }
         function setCurrentFieldsAndInstances (form, curracct) {
-            const hd = forms[form];
+            var fd = forms[form];  //form definition
+            if(!fd.sofs) {  //init form sort order fields ref array
+                fd.sofs = fd.flds.map((fld) => fld); }
             fni = {formtype:form, flds:forms[form].flds, acct:curracct,
-                   objs:curracct[hd.af] || []};
-            if(hd.af === "digmsgs") {
-                fni.objs = messages; }
+                   objs:curracct[fd.af] || []};
+            if(fd.af === "digmsgs") {
+                fni.objs = messages || []; }
             else {  //skip any old/bad fan defs
                 fni.objs = fni.objs.filter((mf) => !mf.email); }
-            fni.objs = fni.objs || [];
-            hd.sfs = hd.sfs || hd.flds.map((fld) => fld); //copy defs array
-            fni.sfs = hd.sfs;
             sortCurrentObjects(); }
         function headerFieldsHTML () {
             const downarrow = "&#x2193;";
             const uparrow = "&#x2191;";
             const html = jt.tac2html(["tr", fni.flds.map((fld) =>
-                ["th", ["div", {cla:"fgacelldiv"},
-                        ["a", {href:"#sortby", onclick:mdfs("fga.sort", fld.n)},
-                         (fld.o === "desc"? downarrow : uparrow) +
-                         (fld.p || fld.n)]]])]);
+                ["td", 
+                 ["div", {cla:"fgasortcoldiv"},
+                  ["div", {cla:(fld.f === "int" ? "fgacelldivnum"
+                                                : "fgacelldiv")},
+                   ["a", {href:"#sortby", onclick:mdfs("fga.sort", fld.n)},
+                    (fld.o === "desc"? downarrow : uparrow) +
+                    (fld.p || fld.n)]]]])]);
             return html; }
         function contentCellHTML (fld, obj, idx) {
             var val = obj[fld.n];
+            var dispclass = "fgacelldiv";
             if(fld.f === "ts") {
-                val = jt.colloquialDate(val, true, "z2loc nodaily"); }
-            if(fld.d) {
+                val = jt.colloquialDate(val, true, "z2loc nodaily").slice(4); }
+            if(fld.f === "int") {  //display as string so zero values show up
+                dispclass = "fgacelldivnum";
+                val = String(val); }
+            if(fld.d) {  //use display function for value
                 val = mgrs.fga[fld.d](val, fld, obj, idx); }
-            if(fld.c) {
+            if(fld.c) {  //clickable value 
                 val = ["a", {href:"#" + fld.c,
                              onclick:mdfs("fga." + fld.c, idx)}, val]; }
-            return ["div", {cla:"fgacelldiv"}, val]; }
+            return ["div", {cla:dispclass}, val]; }
         function contentRowsHTML (extras) {
             var rows = [];
             if(extras.before) {
@@ -438,10 +472,12 @@ app.top = (function () {
             return jt.tac2html(rows); }
         function formDisplayHTML (extras) {
             return jt.tac2html(
-                ["div", {id:"fgadispdiv"},
-                 ["table",
-                  [headerFieldsHTML(),
-                   contentRowsHTML(extras)]]]); }
+                [["div", {id:"fgadispdiv"},
+                  ["table",
+                   [headerFieldsHTML(),
+                    contentRowsHTML(extras)]]],
+                 ["div", {id:"fgaoverlaydiv",
+                          onclick:mdfs("fga.displayOverlay")}]]); }
         function modifyFanGroup (fanact, fandig, contf, errf) {
             app.svc.dispatch("gen", "fanGroupAction",
                 app.svc.authdata({action:fanact, digname:fandig}),
@@ -466,12 +502,28 @@ app.top = (function () {
                            ". You should probably reload the app."); }); }
     return {
         reflectUpdatedAccount: function (acct) {
-            fni.acct = acct;
-            if(fni.formtype !== "messages") {
-                fni.objs = acct.musfs;
-                sortCurrentObjects(); } },
+            if(fni) {  //form currently displayed and processing
+                fni.acct = acct;
+                if(fni.formtype !== "messages") {
+                    fni.objs = acct.musfs;
+                    sortCurrentObjects(); } } },
         redisplay: function () {
-            mgrs.fga[fni.formtype + "Form"](fni.acct); },
+            if(fni) {  //form currently displayed
+                mgrs.fga[fni.formtype + "Form"](fni.acct); } },
+        sort: function (fieldname) {
+            var sofs = forms[fni.formtype].sofs;
+            if(sofs[0].n === fieldname) {  //already first, change direction
+                if(sofs[0].o === "desc") {
+                    sofs[0].o = "asc"; }
+                else {
+                    sofs[0].o = "desc"; } }
+            else {  //move field to first position in search ordering
+                const sf = sofs.find((sf) => sf.n === fieldname);
+                sofs = sofs.filter((sf) => sf.n !== fieldname);
+                sofs.unshift(sf);
+                forms[fni.formtype].sofs = sofs; }
+            //sortCurrentObjects();  called in redisplay processing
+            mgrs.fga.redisplay(); },
         search: function (srchid) {
             var val = jt.byId(srchid).value;
             if(srch.status === "searching") { return; }  //ignore extra click
@@ -491,6 +543,7 @@ app.top = (function () {
             jt.out("mfsrchstatdiv", "Connecting you...");
             modifyFanGroup("add", "",
                 function (acct) {
+                    fni.formtype = "activity";  //display collab process
                     noteUpdatedAccountAndRedisplay(acct, "contrib"); },
                 function (code, errtxt) {
                     jt.out("mfsrchstatdiv", code + ": " + errtxt); }); },
@@ -525,6 +578,21 @@ app.top = (function () {
             txt = txt.replace(/\$COMMENT/g, comment);
             txt = txt.replace(/\$LEV/g, level);
             return txt; },
+        displayOverlay: function () {
+            const ovd = jt.byId("fgaoverlaydiv");
+            if(!ovd) { return; }
+            const tosync = mgrs.srs.countSyncOutstanding();
+            const dd = jt.byId("fgadispdiv");
+            if(tosync > 100) {
+                dd.style.opacity = 0.3;
+                ovd.innerHTML = "Uploading " + tosync +
+                    " songs before collaborating...";
+                ovd.style.height = dd.offsetHeight + "px";
+                setTimeout(mgrs.fga.displayOverlay, 5000); }
+            else {
+                dd.style.opacity = 1.0;
+                ovd.innerHTML = "";
+                ovd.style.height = "0px"; } },
         connectForm: function (acct) {
             setCurrentFieldsAndInstances("connect", acct);
             jt.out("afgcontdiv", formDisplayHTML({
@@ -542,11 +610,13 @@ app.top = (function () {
                 empty:jt.tac2html(
                     ["button", {type:"button", id:"connectmeb",
                                 onclick:mdfs("fga.connectme", "connectmeb")},
-                     "Connect Me"])})); },
+                     "Connect Me"])}));
+            mgrs.fga.displayOverlay(); },
         activityForm: function (acct) {
             setCurrentFieldsAndInstances("activity", acct);
             jt.out("afgcontdiv", formDisplayHTML({
-                empty:"No music fans in your group"})); },
+                empty:"No music fans in your group"}));
+            mgrs.fga.displayOverlay(); },
         messagesForm: function (acct) {
             setCurrentFieldsAndInstances("messages", acct);
             jt.out("afgcontdiv", formDisplayHTML({
@@ -554,7 +624,8 @@ app.top = (function () {
                 after:jt.tac2html(
                     ["button", {type:"button", id:"getrecsb",
                                 onclick:mdfs("fga.getrecs", "getrecsb")},
-                     "Get Recommendations"])})); }
+                     "Get Recommendations"])}));
+            mgrs.fga.displayOverlay(); }
     };  //end mgrs.fga returned functions
     }());
 
