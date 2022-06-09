@@ -8,8 +8,8 @@ module.exports = (function () {
     "use strict";
 
     var eec = {};  //endpoint error contexts
-    //var hs = "https://diggerhub.com";
-    var hs = "http://localhost:8080";
+    var hs = "https://diggerhub.com";
+    //var hs = "http://localhost:8080";
 
 
     function bodify (po) {  //parameters object

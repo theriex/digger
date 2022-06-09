@@ -60,7 +60,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=220429");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=220609");
     },
 
 
@@ -75,7 +75,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=220429";  //updated as part of release process
+        return "v=220609";  //updated as part of release process
     },
 
 
@@ -243,7 +243,10 @@ return {
                    ["a", {href:"#close",
                           onclick:jt.fs("app.displayDoc('" + divid + "')")},
                     "X"]],
-                  ["div", {id:"docdispbodydiv"}, body]]])); });
+                  ["div", {id:"docdispbodydiv"}, body]]]));
+            const lut = jt.byId("privlut");
+            if(lut) {
+                lut.innerHTML = jt.colloquialDate(lut.innerHTML); } });
     },
 
 
