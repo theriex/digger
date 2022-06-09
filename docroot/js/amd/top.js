@@ -547,7 +547,7 @@ app.top = (function () {
                     sfi += 1; }
                 return res; }); }
         function setCurrentFieldsAndInstances (form, curracct) {
-            var fd = forms[form];  //form definition
+            const fd = forms[form];  //form definition
             if(!fd.sofs) {  //init form sort order fields ref array
                 fd.sofs = fd.flds.map((fld) => fld); }
             fni = {formtype:form, flds:forms[form].flds, acct:curracct,
@@ -996,6 +996,8 @@ app.top = (function () {
                 {h:"activity", t:"activity", oc:"fga.activityForm"},
                 {h:"messages", t:"messages", oc:"fga.messagesForm"},
                 {h:"me", t:"me", oc:"afg.personal"}]};
+        function haveProfileIssue (acct) {
+            return !acct.digname; }
     return {
         setDisplayDiv: function (divid) { tddi = divid; },  //hub site etc
         inApp: function () { return inapp; },
@@ -1009,6 +1011,9 @@ app.top = (function () {
             else { //use default display
                 if(!acct) { mode = "offline"; }
                 else { mode = "groups"; } }
+            if(haveProfileIssue(acct)) {
+                mode = "personal";
+                midx = 0; }
             if(!jt.byId("afgcontdiv") || mode !== "offline") {  //keep emailin
                 jt.out(tddi, jt.tac2html(
                     ["div", {id:"afgdiv"},
@@ -1022,7 +1027,9 @@ app.top = (function () {
                       tab.t]]))
                     .join(" &nbsp;|&nbsp ")));
             const [mgr, fun] = tabs[mode][midx].oc.split(".");
-            if(mgr === "afg") {
+            if(haveProfileIssue(acct)) {
+                mgrs.asu.profileForm(acct); }
+            else if(mgr === "afg") {
                 mgrs.afg.accountFanGroup(fun); }
             else {
                 mgrs[mgr][fun](acct); } }
