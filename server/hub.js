@@ -232,6 +232,13 @@ module.exports = (function () {
     }
 
 
+    function fanmsg (req, res) {
+        return hubpost(req, res, "fanmsg", function (msgs) {
+            msgs = JSON.parse(msgs);
+            console.log(String(msgs.length) + " messages received"); });
+    }
+
+
     const gdutil = (function () {
         var gdflds = ["el", "al", "rv", "kws"];
     return {
@@ -268,6 +275,7 @@ module.exports = (function () {
         mailpwr: function (pu, req, res) { return mailpwr(pu, req, res); },
         hubsync: function (req, res) { return hubsync(req, res); },
         fangrpact: function (req, res) { return fangrpact(req, res); },
-        fancollab: function (req, res) { return fancollab(req, res); }
+        fancollab: function (req, res) { return fancollab(req, res); },
+        fanmsg: function (req, res) { return fanmsg(req, res); }
     };
 }());

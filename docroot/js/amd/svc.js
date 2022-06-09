@@ -407,6 +407,9 @@ app.svc = (function () {
         fanCollab: function (data, contf, errf) {
             jt.call("POST", "/fancollab", data, contf, errf,
                     jt.semaphore("svc.loc.fanCollab")); },
+        fanMessage: function (data, contf, errf) {
+            jt.call("POST", "/fanmsg", data, contf, errf,
+                    jt.semaphore("svc.loc.fanMessage")); },
         loadInitialData: function (contf, errf) {
             jt.call("GET", app.cb("/startdata"), null,
                     function (startdata) {
@@ -537,16 +540,19 @@ app.svc = (function () {
                     contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
         makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
             jt.call(verb, "/api/" + endpoint, data, contf, errf,
-                    jt.semaphore("svc.loc." + endpoint)); },
+                    jt.semaphore("svc.web." + endpoint)); },
         writeConfig: function (cfg, contf) {
             //nothing to do, account info already saved on server
             setTimeout(function () { contf(cfg); }, 50); },
         fanGroupAction: function (data, contf, errf) {
             jt.call("POST", "/api/fangrpact", app.svc.authdata(data),
-                    contf, errf, jt.semaphore("svc.loc.fanGroupAction")); },
+                    contf, errf, jt.semaphore("svc.web.fanGroupAction")); },
         fanCollab: function (data, contf, errf) {
             jt.call("POST", "/api/fancollab", app.svc.authdata(data),
-                    contf, errf, jt.semaphore("svc.loc.fanCollab")); },
+                    contf, errf, jt.semaphore("svc.web.fanCollab")); },
+        fanMessage: function (data, contf, errf) {
+            jt.call("POST", "/api/fanmsg", app.svc.authdata(data),
+                    contf, errf, jt.semaphore("svc.web.fanMessage")); },
         getSongTotals: function (contf, errf) {
             jt.call("POST", "/api/songttls", app.svc.authdata(),
                     function (results) {
@@ -675,8 +681,10 @@ app.svc = (function () {
             mgrs[hdm].writeConfig(cfg, contf, errf); },
         fanGroupAction: function (data, contf, errf) {
             mgrs[hdm].fanGroupAction(data, contf,errf); },
-        fanCollab: function (mfid, ctype, contf, errf) {
-            mgrs[hdm].fanCollab(mfid, ctype, contf, errf); }
+        fanCollab: function (data, contf, errf) {
+            mgrs[hdm].fanCollab(data, contf, errf); },
+        fanMessage: function (data, contf, errf) {
+            mgrs[hdm].fanMessage(data, contf, errf); }
     };  //end mgrs.gen returned functions
     }());
 

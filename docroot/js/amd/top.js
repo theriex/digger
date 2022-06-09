@@ -12,6 +12,9 @@ app.top = (function () {
     function mdfs (mgrfname, ...args) {  //module dispatch function string
         return app.dfs("top", mgrfname, args);
     }
+    function dotDispatch (dotref, ...args) {
+        const mgrfun = dotref.split(".");
+        return mgrs[mgrfun[0]][mgrfun[1]].apply(app.top, args); }
 
 
     ////////////////////////////////////////////////////////////
@@ -232,6 +235,153 @@ app.top = (function () {
     // General Account actions
     ////////////////////////////////////////////////////////////
 
+    //Fan messaging actions manager handles collaborative messages
+    mgrs.fma = (function () {
+        const mstat = {msgs:[], ckd:new Date().toISOString()};
+        const mds = {  //message definitions
+            recommendation:{  //dismissed or auto response after adding/rating
+                pn:"Recommends", desc:"$SONG. $COMMENT",
+                actions:"emdet"},
+            recresp:{  //generated after adding a recommended song
+                pn:"Thanks", desc:"For recommending $SONG. $COMMENT",
+                actions:"reply"},
+            discovery:{  //generated after adding a new common song
+                pn:"Discovery", desc:"Just added $SONG. $COMMENT",
+                actions:"reply"},
+            pathcross:{  //generated after both played same great song recently
+                pn:"Path Cross", desc:"Just listened to $SONG.",
+                actions:"reply"},
+            share:{  //shared while listening if in each other's fan groups
+                pn:"Share", desc:"Just listened to $SONG. $COMMENT",
+                actions:"emdet,deck,reply"},
+            endthread:{  //last acknowledgment, thanks back etc
+                pn:"Cheers", desc:"$PROCNOTE", actions:""}};
+        const ads = {  //action definitions
+            dismiss:{b:"Dismiss", o:"Dismissing", t:"Remove message"},
+            emdet:{b:"Mail Details", o:"Mailing Details",
+                   t:"Email me message details"},
+            reply:{b:"Send Reply", o:"Replying",
+                   t:"Send message reply to sender"},
+            deck:{b:"Add To Deck", o:"Adding",
+                  t:"Put this song on deck to play",
+                  p:"fma.availNotQueued", c:"fma.addToDeck"}};
+        function callFanMessaging (msgaction, paramidcsv, contf, errf) {
+            app.svc.dispatch("gen", "fanMessage",
+                app.svc.authdata({action:msgaction, idcsv:paramidcsv}),
+                contf, errf); }
+        function findSong (msg) {
+            return mgrs.svc.songs().find((s) =>
+                ((s.ti === msg.ti || s.smti === msg.smti) &&
+                 (s.ar === msg.ar || s.smar === msg.smar))); }
+        function resetStaleTime () {
+            const dms = Date.now() + (60 * 1000);
+            mstat.ckd = new Date(dms).toISOString(); }
+        function rebuildWorkingMessages (msgs) {
+            msgs = msgs || mstat.msgs;
+            const musfs = mgrs.aaa.getAccount().musfs;
+            msgs.forEach(function (msg) {  //fill sendername
+                const mf = musfs.find((mf) => mf.dsId === msg.sndr);
+                if(mf) { msg.sendername = mf.digname; } });
+            msgs = msgs.filter((m) => m.sendername);  //curr fan grp msgs only
+            msgs = msgs.filter((m) => m.status === "open");
+            mstat.msgs = msgs; }
+    return {
+        messages: function () { return mstat.msgs; },
+        fetchMessagesIfStale: function (contf, errf) {
+            if(mstat.ckd < new Date().toISOString()) {
+                callFanMessaging("fetch", "",
+                    function (msgs) {
+                        resetStaleTime();
+                        rebuildWorkingMessages(msgs);
+                        contf(mstat.msgs); },
+                    errf); } },
+        redisplayMessages: function () {
+            resetStaleTime();
+            mgrs.fga.messagesForm(mgrs.aaa.getAccount()); },
+        getRecs: function (msgstatdiv) {
+            const addOrDismissMsg = "Add recommended songs to your collection" +
+                  " or dismiss them before getting more.";
+            const rs = mstat.msgs.filter((m) => m.msgtype === "recommendation");
+            if(rs.length > 4) {
+                return jt.out(msgstatdiv, addOrDismissMsg); }
+            const mfids = mgrs.aaa.getAccount().musfs
+                .filter((mf) => !rs.some((r) => r.sndr === mf.dsId))
+                .sort(function (a, b) {
+                    return b.lastheard.localeCompare(a.lastheard); })
+                .map((mf) => mf.dsId)
+                .join(",");
+            if(!mfids) {
+                if(rs.length) {
+                    return jt.out(msgstatdiv, addOrDismissMsg); }
+                return jt.out(msgstatdiv, "No fans to give recommendations."); }
+            callFanMessaging("recommend", mfids,
+                function (msgs) {
+                    rebuildWorkingMessages(msgs.concat(mstat.msgs));
+                    mgrs.fma.redisplayMessages();
+                    jt.out("msgstatdiv", "Recommendations retrieved."); },
+                function (code, errtxt) {
+                    jt.out(msgstatdiv, "Recommendations failed " + code +
+                           ": " + errtxt); }); },
+        msgTxt: function (val, ignore /*fld*/, obj, idx) {
+            var txt; var comment = obj.nt || "";
+            if(comment.length > 255) {
+                comment = jt.tac2html(
+                    ["span", {id:"expnt" + idx},
+                     ["a", {href:"#expand",
+                            onclick:mdfs("fga.expandComment", idx)},
+                      jt.ellipsis(comment, 255)]]); }
+            const md = mds[val] || {pn:val,
+                                    desc:"Unknown message type"};
+            txt = md.pn + " " + md.desc;
+            txt = txt.replace(/\$SONG/g, obj.ti + " by " + obj.ar);
+            txt = txt.replace(/\$COMMENT/g, comment);
+            txt = txt.replace(/\$PROCNOTE/g, obj.procnote);
+            return txt; },
+        availNotQueued: function (/*msg*/) {
+            //PENDING get the deck support for this option happening
+            //var song = findSong(msg);
+            //return (song && app.deck.dispatch("dk", "songQueued", song)); },
+            return false; },
+        addToDeck: function (dispid, msgid) {
+            var msg = mstat.msgs.find((m) => m.dsId === msgid);
+            var song = findSong(msg);
+            app.deck.dispatch("dk", "insertAtTop", song);
+            jt.out(dispid, "Added on deck"); },
+        hubAction: function (actdefname, dispid, msgid) {
+            jt.out(dispid, ads[actdefname].o + "...");
+            callFanMessaging(actdefname, msgid,
+                function (msgs) {
+                    const um = msgs[0];
+                    const mi = mstat.msgs.findIndex((m) => m.dsId === um.dsId);
+                    um.sendername = mstat.msgs[mi].sendername;
+                    mstat.msgs[mi] = um;
+                    if(actdefname === "dismiss") {
+                        mgrs.fma.redisplayMessages(); }
+                    else {  //emdet, reply
+                        jt.out(dispid, jt.tac2html(
+                            ["div", {cla:"donenotediv"},
+                             [msgs[0].procnote, " ",
+                              ["a", {href:"#ok",
+                                     onclick:mdfs("fma.redisplayMessages")},
+                               "Ok"]]])); } },
+                function (code, errtxt) {
+                    jt.out(dispid, ads[actdefname].b + " failed " + code +
+                           ": " + errtxt); }); },
+        msgOpts: function (dispid, msg) {
+            var actions = ["dismiss", ...mds[msg.msgtype].actions.csvarray()]
+                .map((an) => ({name:an, def:ads[an]}))
+                .filter((a) => !a.def.p || dotDispatch(a.def.p, msg));
+            jt.out(dispid, jt.tac2html(
+                ["div", {cla:"msgactionsdiv"},
+                 actions.map((a) =>
+                     ["button", {type:"button", title:a.def.t,
+                                 onclick:mdfs((a.def.c || "fma.hubAction"),
+                                              a.name, dispid, msg.dsId)},
+                      a.def.b])])); }
+    };  //end mgrs.fma returned functions
+    }());
+
+
     //Fan status calculation manager handles multi-stage server calcs
     mgrs.fsc = (function () {
         const fas = [  //fan actions
@@ -367,36 +517,23 @@ app.top = (function () {
     //Fan group actions manager handles connecting with other fans
     mgrs.fga = (function () {
         //messages and musfs can be sorted without persisting
-        var messages = null;  //retrieved from server and tracked here
         var fni = null;  //current display working info
         const srch = {id:"mfsrchin", value:""};
         const forms = {
             connect:{af:"musfs", flds:[
-                {n:"digname", c:"togFanActions"},
+                {n:"digname", c:"fsc.fanActionsDisplay"},
                 {n:"firstname", p:"name"},
                 {n:"added", o:"desc", f:"ts"},
                 {n:"lastheard", p:"last heard", o:"desc", f:"ts"}]},
             activity:{af:"musfs", flds:[
-                {n:"digname", c:"togFanActions"},
+                {n:"digname", c:"fsc.fanActionsDisplay"},
                 {n:"common", o:"desc", p:"common", f:"int"},
                 {n:"dfltrcv", o:"desc", p:"received", f:"int"},
                 {n:"dfltsnd", o:"desc", p:"sent", f:"int"}]},
             messages:{af:"digmsgs", flds:[
                 {n:"created", o:"desc", p:"when", f:"ts"},
                 {n:"sendername", p:"who"},
-                {n:"msgtype", p:"what", d:"getMsgTxt", c:"showReplyOptions"}]}};
-        const mds = {  //"push" messages only allowed if you are in their group
-            suggestion:{pn:"Suggestion", desc:"$FAN recommends $SONG. $COMMENT",
-                        //Thank you msg generated after rating it above average
-                        alnk:"mailMeDetails"},
-            response:{pn:"Response", desc:"$FAN rated $SONG. $COMMENT",
-                      repl:"Glad you liked $SONG"},
-            discovery:{pn:"Discovery", desc:"$FAN added $SONG. $COMMENT",
-                       repl:"Glad you liked $SONG"},
-            pathcross:{pn:"Path Cross", desc:"$FAN just listened to $SONG.",
-                       repl:"Listened to $SONG recently also! $LEV song."},
-            share:{pn:"Share", desc:"$FAN shared $SONG. $COMMENT",
-                   repl:"Thanks for sharing $SONG", alnk:"addToDeckOrMailMe"}};
+                {n:"msgtype", p:"what", d:"fma.msgTxt", c:"fma.msgOpts"}]}};
         function sortCurrentObjects () {
             fni.objs.sort(function (a, b) {
                 var res = 0; var sfi = 0; var sfd = null;
@@ -416,7 +553,8 @@ app.top = (function () {
             fni = {formtype:form, flds:forms[form].flds, acct:curracct,
                    objs:curracct[fd.af] || []};
             if(fd.af === "digmsgs") {
-                fni.objs = messages || []; }
+                fni.objs = mgrs.fma.messages()
+                    .filter((m) => m.status === "open"); }
             else {  //skip any old/bad fan defs
                 fni.objs = fni.objs.filter((mf) => !mf.email); }
             sortCurrentObjects(); }
@@ -441,10 +579,11 @@ app.top = (function () {
                 dispclass = "fgacelldivnum";
                 val = String(val); }
             if(fld.d) {  //use display function for value
-                val = mgrs.fga[fld.d](val, fld, obj, idx); }
+                val = dotDispatch(fld.d, val, fld, obj, idx); }
             if(fld.c) {  //clickable value 
                 val = ["a", {href:"#" + fld.c,
-                             onclick:mdfs("fga." + fld.c, idx)}, val]; }
+                             onclick:mdfs("fga.togActionsDisplay", idx, fld.c)},
+                       val]; }
             return ["div", {cla:dispclass}, val]; }
         function contentRowsHTML (extras) {
             var rows = [];
@@ -554,30 +693,12 @@ app.top = (function () {
                 function (code, errtxt) {
                     jt.out(dispid || "mfsrchstatdiv", "Remove failed " +
                            code + ": " + errtxt); }); },
-        togFanActions: function (idx) {
+        togActionsDisplay: function (idx, fscfn) {
             var dtd = jt.byId("detrowtd" + idx);
             if(dtd.innerHTML) {  //currently displayed, toggle off
                 dtd.innerHTML = "";
                 return; }
-            mgrs.fsc.fanActionsDisplay("detrowtd" + idx, fni.objs[idx]); },
-        getMsgTxt: function (val, ignore /*fld*/, obj, idx) {
-            var txt; var level = "Good"; var comment = obj.nt || "";
-            if(obj.rv > 8) { level = "Great"; }
-            if(obj.rv === 10) { level = "Awesome"; }
-            if(comment.length > 255) {
-                comment = jt.tac2html(
-                    ["span", {id:"expnt" + idx},
-                     ["a", {href:"#expand",
-                            onclick:mdfs("fga.expandComment", idx)},
-                      jt.ellipsis(comment, 255)]]); }
-            const md = mds[val] || {pn:"Unknown",
-                                    desc:"Unknown message type $VAL"};
-            txt = md.desc.replace(/\$VAL/g, val);
-            txt = txt.replace(/\$FAN/g, obj.sendername);
-            txt = txt.replace(/\$SONG/g, obj.ti + " - " + obj.ar);
-            txt = txt.replace(/\$COMMENT/g, comment);
-            txt = txt.replace(/\$LEV/g, level);
-            return txt; },
+            dotDispatch(fscfn, "detrowtd" + idx, fni.objs[idx]); },
         displayOverlay: function () {
             const ovd = jt.byId("fgaoverlaydiv");
             if(!ovd) { return; }
@@ -622,9 +743,15 @@ app.top = (function () {
             jt.out("afgcontdiv", formDisplayHTML({
                 empty:"No messages",
                 after:jt.tac2html(
-                    ["button", {type:"button", id:"getrecsb",
-                                onclick:mdfs("fga.getrecs", "getrecsb")},
-                     "Get Recommendations"])}));
+                    ["div", {id:"msgstatdiv"},
+                     ["button", {type:"button", id:"getrecsb",
+                                 onclick:mdfs("fma.getRecs", "msgstatdiv")},
+                      "Get Recommendations"]])}));
+            mgrs.fma.fetchMessagesIfStale(
+                function () { mgrs.fga.messagesForm(acct); },
+                function (code, errtxt) {
+                    jt.out("msgstatdiv", "Message fetch failed " + code + ": " +
+                           errtxt + ". Try again in a few minutes"); });
             mgrs.fga.displayOverlay(); }
     };  //end mgrs.fga returned functions
     }());
