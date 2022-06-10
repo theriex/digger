@@ -997,7 +997,7 @@ app.top = (function () {
                 {h:"messages", t:"messages", oc:"fga.messagesForm"},
                 {h:"me", t:"me", oc:"afg.personal"}]};
         function haveProfileIssue (acct) {
-            return !acct.digname; }
+            return (acct && !acct.digname); }
     return {
         setDisplayDiv: function (divid) { tddi = divid; },  //hub site etc
         inApp: function () { return inapp; },
@@ -1134,9 +1134,14 @@ app.top = (function () {
     return {
         policyAccepted: function () {
             const acct = mgrs.aaa.getAccount();
-            if(acct && acct.hubdat &&
-               acct.hubdat.privaccept > pts) {
-                return true; }
+            if(acct) {
+                if(acct.hubdat) {
+                    if(acct.hubdat.privaccept > pts) {
+                        return true; }
+                    jt.log("top.ppc.policyAccepted " +
+                           acct.hubdat.privaccept + " <= " + pts); }
+                else {
+                    jt.log("top.ppc.policyAccepted no acct.hubdat"); } }
             return false; },
         checkPrivacyPolicyTimestamp: function () {
             jt.log("checkPrivacyPolicyTimestamp callsToCheck " + callsToCheck);
