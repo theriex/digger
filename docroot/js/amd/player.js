@@ -354,6 +354,7 @@ app.player = (function () {
         switchToSpotifyTrack: function (wpso) {
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.toggleCommentDisplay("off");
+            mgrs.cmt.togSongShareDialog("off");
             const st = wpso.track_window.current_track;
             const tid = "z:" + st.id;
             stat.song = {dsId:"spotify" + tid, ti:st.name,
@@ -515,7 +516,8 @@ app.player = (function () {
             //assuming this is an anomaly and the next one will likely play.
             //Wait before skipping so it doesn't seem like "play now" just
             //played the wrong song.  Error displays in history view.
-            if(errmsg.indexOf("NotSupportedError") >= 0) {
+            if((errmsg.indexOf("NotSupportedError") >= 0) ||
+               (errmsg.indexOf("could not be decoded") >= 0)) {
                 jt.log("mgrs.aud.handlePlayerError skipping song...");
                 playerrs[stat.song.path] = errmsg;
                 setTimeout(app.player.skip, 4000); } },
@@ -1085,15 +1087,69 @@ app.player = (function () {
 
 
     //handle the song comment display and entry
-    mgrs.cmt = {
+    mgrs.cmt = (function () {
+        const sdfs = [{p:"", f:"ti"}, {p:"by: ", f:"ar"},
+                      {p:"album: ", f:"ab"}];
+        function impressionSummary () {
+            const imps = [{lab:"Keywords", val:stat.song.kws || "none"},
+                          {lab:"Energy Level", val:"Medium"},
+                          {lab:"Approachability", val:"Medium"}];
+            if(stat.song.el <= 40) { imps[1].val = "Chill"; }
+            if(stat.song.el >= 65) { imps[1].val = "Amped"; }
+            if(stat.song.al <= 40) { imps[2].val = "Easy"; }
+            if(stat.song.al >= 65) { imps[2].val = "Hard"; }
+            return imps; }
+        function commentOrPromptContent () {
+            if(stat.song.nt) { return stat.song.nt; }
+            return jt.tac2html(
+                ["button", {type:"button", onclick:mdfs("cmt.commentFirst")},
+                 "Add Comment"]); }
+        function impressionSummaryContent () {
+            const imps = impressionSummary();
+            return jt.tac2html(
+                ["div", {cla:"ssdkwdiv"},
+                 imps.map((imp) =>
+                     ["div", {cla:"implinediv"},
+                      [["span", {cla:"implabeldiv"}, imp.lab + ": "],
+                       ["span", {cla:"impvaldiv"}, imp.val]]])]); }
+        function songShareDlgContent () {
+            if(!stat.song) {
+                return jt.tac2html(
+                    ["div", {id:"sharedlgdiv"},
+                     ["No playing song to share ",
+                      ["a", {href:"#close", onclick:mdfs("cmt.closeSSD")},
+                       "ok"]]]); }
+            return jt.tac2html(
+                ["div", {id:"sharedlgdiv"},
+                 [["div", {id:"ssdtitlediv"}, "Song Details"],
+                  ["div", {id:"ssdidentdiv"},
+                   sdfs.map((df) =>
+                       ["div", {cla:"sdfdiv"},
+                        [["span", {cla:"sdfprediv"}, df.p],
+                         ["span", {cla:"sdfvaldiv"}, stat.song[df.f]]]])],
+                  ["div", {id:"ssdclosexdiv"},
+                   ["a", {href:"#close", onclick:mdfs("cmt.closeSSD")}, "X"]],
+                  ["div", {id:"ssdcommentdiv"}, commentOrPromptContent()],
+                  ["div", {id:"ssdkwdsdiv"}, impressionSummaryContent()],
+                  ["div", {id:"ssdactdiv", cla:"dlgbuttonsdiv"},
+                   [["button", {type:"button", id:"ssdclipb",
+                                onclick:mdfs("cmt.copySSD")},
+                     "Copy to Clipboard"],
+                    ["button", {type:"button", id:"sharesongb",
+                                onclick:mdfs("cmt.shareSong")},
+                     "Share Song"]]],
+                  ["div", {id:"ssdstatdiv"}]]]); }
+    return {
         toggleCommentDisplay: function (togstate) {
             var cdiv = jt.byId("commentdiv");
-            if(!stat.song || togstate === "off" || cdiv.innerHTML) {
+            if(!stat.song || togstate === "off" ||
+               (cdiv.innerHTML && togstate !== "on")) {
                 cdiv.innerHTML = "";
                 return; }
             stat.song.nt = stat.song.nt || "";
             cdiv.innerHTML = jt.tac2html(
                 ["textarea", {id:"commentta", name:"commentta", rows:2, cols:35,
+                              placeholder:"Your comment about this song",
                               oninput:mdfs("cmt.updateSongComment")},
                  stat.song.nt]); },
         updateSongComment: function () {
@@ -1105,8 +1161,56 @@ app.player = (function () {
         updateCommentIndicator: function () {
             jt.byId("togcommentimg").src = "img/comment.png";
             if(stat.song && stat.song.nt) {
-                jt.byId("togcommentimg").src = "img/commentact.png"; } }
-    };
+                jt.byId("togcommentimg").src = "img/commentact.png"; } },
+        commentFirst: function () {
+            mgrs.cmt.togSongShareDialog("off");  //close song share
+            mgrs.cmt.toggleCommentDisplay("on"); },
+        copySSD: function () {
+            var txt = "";
+            txt += sdfs.map((df) =>
+                df.p + stat.song[df.f]).join("\n");
+            if(stat.song.nt) {
+                txt += "\n" + stat.song.nt + "\n"; }
+            txt += "\n";
+            txt += impressionSummary().map((imp) =>
+                (imp.lab + ": " + imp.val)).join("\n");
+            app.svc.dispatch("gen", "copyToClipboard", txt,
+                function () {
+                    jt.out("ssdstatdiv", "Details copied to clipboard."); },
+                function () {
+                    jt.out("ssdstatdiv", "Copy to clipboard failed."); }); },
+        shareSong: function () {
+            const now = new Date().toISOString();
+            app.svc.dispatch("gen", "fanMessage",
+                app.svc.authdata({action:"share", idcsv:stat.song.dsId}),
+                function (msgs) {
+                    if(!msgs.length) {
+                        jt.out("ssdstatdiv",
+                               "No messages from hub, try again later."); }
+                    else if(msgs[0].modified >= now) {
+                        jt.out("ssdstatdiv",
+                               "Song shared with your listeners."); }
+                    else {
+                        jt.out("ssdstatdiv",
+                               "Song already shared."); } },
+                function (code, errtxt) {
+                    jt.out("ssdstatdiv", code + ": " + errtxt); }); },
+        closeSSD: function () {
+            const odiv = jt.byId("appoverlaydiv");
+            odiv.innerHTML = "";
+            odiv.style.display = "none"; },
+        togSongShareDialog: function (togstate) {
+            const odiv = jt.byId("appoverlaydiv");
+            //if odiv is displaying the share dlg content, then clear it
+            if(jt.byId("sharedlgdiv") && (odiv.innerHTML ||
+                                          togstate === "off")) {
+                odiv.innerHTML = "";  //toggle off
+                return; }
+            if(togstate !== "off") {  //not an initial clear call
+                odiv.style.display = "block";
+                odiv.innerHTML = songShareDlgContent(); } }
+    };  //end mgrs.cmt returned functions
+    }());
 
 
     //handle the sleep display and entry
@@ -1182,12 +1286,15 @@ app.player = (function () {
                  ["div", {id:"keysratdiv"},
                   [["div", {id:"kwdsdiv"}],
                    ["div", {id:"rvdiv"}],
+                   ["a", {id:"togsleeplink", href:"#sleepafter",
+                          title:"", onclick:mdfs("slp.toggleSleepDisplay")},
+                    ["img", {id:"togsleepimg", src:"img/sleep.png"}]],
                    ["a", {id:"togcommentlink", href:"#togglecomment",
                           title:"", onclick:mdfs("cmt.toggleCommentDisplay")},
                     ["img", {id:"togcommentimg", src:"img/comment.png"}]],
-                   ["a", {id:"togsleeplink", href:"#sleepafter",
-                          title:"", onclick:mdfs("slp.toggleSleepDisplay")},
-                    ["img", {id:"togsleepimg", src:"img/sleep.png"}]]]],
+                   ["a", {id:"togsharelink", href:"#share",
+                          title:"", onclick:mdfs("cmt.togSongShareDialog")},
+                    ["img", {id:"togshareimg", src:"img/share.png"}]]]],
                  ["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
                  ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
                  ["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
@@ -1209,6 +1316,7 @@ app.player = (function () {
         mgrs.aud.verifyPlayer(function () {
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.toggleCommentDisplay("off");
+            mgrs.cmt.togSongShareDialog("off");
             stat.status = "";
             if(!mgrs.slp.sleepNow()) {
                 const ns = app.deck.getNextSong();

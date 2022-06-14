@@ -177,6 +177,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .pandragdiv { position:absolute; left:0px; top:0px; cursor:pointer; }
 .pandrgbdiv { position:absolute; left:0px; top:0px; }
 
+#panplaydiv { position:relative; }
 #panplaymousingdiv { position:relative; }
 #mediaoverlaydiv { position:absolute; top:0px; left:2px; background:#ffab00;
   padding:8px 12px; font-size:medium; border-radius:14px; }
@@ -188,10 +189,23 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
-#togcommentlink { padding-left:24px; }
-#togsleepimg { max-height:16px; margin-left:14px; }
+#togsleeplink, #togcommentlink, #togsharelink { padding-left:21px; }
+#togsleepimg, #togcommentimg, #togshareimg { max-height:16px; margin-left:4px; }
 #commentta { padding:3px 5px; }
 #sleepdiv { font-size:medium; }
+
+#sharedlgdiv { position:relative; padding:12px; margin:0px auto;
+  background:#ffab00; display:table; margin:0px auto;}
+#ssdtitlediv { text-align:center; color:#9a6e16; }
+#ssdclosexdiv { position:absolute; top:8px; right:8px; }
+#ssdidentdiv { padding:5px 0px; }
+.sdfprediv { font-size:small; font-style:italic; }
+.sdfvaldiv { font-size:large; font-weight:bold; }
+#ssdkwdsdiv { padding:5px 0px; margin-top:5px; }
+.implabeldiv { font-size:small; font-style:italic; }
+.impvaldiv { font-size:medium; font-weight:bold; }
+#ssdactdiv { padding-top:5px; }
+
 
 #pluidiv { background:#333; margin:2px 0px 6px 0px; padding:10px 0px;
   max-width:290px; }

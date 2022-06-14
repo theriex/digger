@@ -684,7 +684,9 @@ app.svc = (function () {
         fanCollab: function (data, contf, errf) {
             mgrs[hdm].fanCollab(data, contf, errf); },
         fanMessage: function (data, contf, errf) {
-            mgrs[hdm].fanMessage(data, contf, errf); }
+            mgrs[hdm].fanMessage(data, contf, errf); },
+        copyToClipboard: function (txt, contf, errf) {
+            navigator.clipboard.writeText(txt).then(contf, errf); }
     };  //end mgrs.gen returned functions
     }());
 
