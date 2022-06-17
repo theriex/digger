@@ -109,7 +109,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   padding:0px 10px 0px 0px; width:100%; }
 .fgacelldivnum { text-align:right; }
 .fgasortcoldiv { background:white; }
+.fmtypespan { background: #ffce69; color: #333; font-size: x-small;
+  font-style: italic; }
 #fgaemptyhtmldiv { font-size:small; }
+.msgactionsdiv { padding:0px 0px 5px 10px; }
+.msgactionsdiv button { font-size:x-small; margin:0px 16px 0px 0px; }
 .donenotediv { font-size:small; }
 #msgstatdiv { font-size:small; padding:16px 0px 2px 0px; }
 #msgstatdiv button { background:transparent; }

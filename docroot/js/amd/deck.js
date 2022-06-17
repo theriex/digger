@@ -349,6 +349,9 @@ app.deck = (function () {
         removeFromDeck: function (song) {
             ds = ds.filter((s) => s.path !== song.path);
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
+        insertAtTop: function (song) {
+            ds = [song, ...ds.filter((s) => s.path !== song.path)];
+            mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         popSongFromDeck: function () {
             var song = null;
             if(mgrs.gen.deckinfo().di === "album") {

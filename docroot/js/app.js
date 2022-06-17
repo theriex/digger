@@ -60,7 +60,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=220614");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=220617");
     },
 
 
@@ -75,7 +75,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=220614";  //updated as part of release process
+        return "v=220617";  //updated as part of release process
     },
 
 
@@ -193,8 +193,8 @@ return {
         const bot = "@" + dom;
         const docpre = "https://" + dom + "/docs/";
         const repls = [
-            {plc:"ABOUT", txt:"About", url:docpre + "about.html"},
             {plc:"MANUAL", txt:"Manual", url:docpre + "manual.html"},
+            {plc:"TERMS", txt:"Terms", url:docpre + "terms.html"},
             {plc:"PRIVACY", txt:"Privacy", url:docpre + "privacy.html"},
             {plc:"SUPPORT", txt:"Support", url:docpre + "support.html"},
             {plc:"PRIVPOLICY", txt:"privacy policy",
@@ -234,7 +234,7 @@ return {
             if(body.indexOf("<body>") >= 0 && body.indexOf("</body>") >= 0) {
                 body = body.slice(body.indexOf("<body>") + 6,
                                   body.indexOf("</body>")); }
-            const mbp = "| ABOUT | MANUAL | PRIVACY | SUPPORT |";
+            const mbp = "| MANUAL | TERMS | PRIVACY | SUPPORT |";
             body = jt.tac2html(["div", {id:"docmenubardiv"}, mbp]) + body;
             body = app.subPlaceholders(divid, app.svc.urlOpenSupp(), body);
             jt.out(divid, jt.tac2html(

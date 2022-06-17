@@ -1180,14 +1180,14 @@ app.player = (function () {
                 function () {
                     jt.out("ssdstatdiv", "Copy to clipboard failed."); }); },
         shareSong: function () {
-            const now = new Date().toISOString();
+            const start = new Date(Date.now() - 2000).toISOString();
             app.svc.dispatch("gen", "fanMessage",
                 app.svc.authdata({action:"share", idcsv:stat.song.dsId}),
                 function (msgs) {
                     if(!msgs.length) {
                         jt.out("ssdstatdiv",
                                "No messages from hub, try again later."); }
-                    else if(msgs[0].modified >= now) {
+                    else if(msgs[0].created > start) {
                         jt.out("ssdstatdiv",
                                "Song shared with your listeners."); }
                     else {
