@@ -1,4 +1,4 @@
-/*global app, jt, confirm */
+/*global app, jt, confirm, console */
 /*jslint browser, white, long, unordered */
 
 //Top panel interface and actions
@@ -2103,6 +2103,11 @@ return {
     markIgnoreSongs: function () { mgrs.igf.markIgnoreSongs(); },
     rebuildKeywords: function () { mgrs.kwd.rebuildKeywords(); },
     dispatch: function (mgrname, fname, ...args) {
-        return mgrs[mgrname][fname].apply(app.top, args); }
+        try {
+            return mgrs[mgrname][fname].apply(app.top, args);
+        } catch(e) {
+            console.log("top.dispatch " + mgrname + "." + fname + " " + e +
+                        " " + new Error("stack trace").stack);
+        } }
 };  //end of module returned functions
 }());

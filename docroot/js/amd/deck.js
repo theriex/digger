@@ -583,6 +583,7 @@ app.deck = (function () {
                         if(togbf) {
                             togbf("", "reflectonly"); } } } });
             deckstat.disp = showing;
+            app.svc.noteUpdatedState("deck");  //restore to current view
             switch(deckstat.disp) {
             case "album": mgrs.alb.updateDisplayContent(); break;
             case "views": mgrs.vws.verifyDisplayContent(); break; } },
@@ -666,7 +667,7 @@ app.deck = (function () {
             switch(deckstat.disp) {
             case "album": di.songs = mgrs.alb.songs(); break;
             case "views": di.songs = mgrs.vws.songs(); break;
-            default: di.disp = "deck"; di.songs = mgrs.dk.songs(); }
+            default: di.disp = "songs"; di.songs = mgrs.dk.songs(); }
             return di; },
         deckstate: function (dmx) {  //interim rapid restore info (minimal data)
             var state = {disp:deckstat.disp};
@@ -683,7 +684,7 @@ app.deck = (function () {
                 deckstat.disp = "album";
                 mgrs.alb.restore(state.det); }
             else {
-                deckstat.disp = "deck";
+                deckstat.disp = "songs";
                 mgrs.dk.setSongs(state.det); } },
         getNextSong: function () {
             if(deckstat.disp === "album") {
