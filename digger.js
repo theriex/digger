@@ -114,6 +114,7 @@ db.init(function (conf) {
             case "/newacct": hub.newacct(req, rsp); break;
             case "/acctok": hub.acctok(req, rsp); break;
             case "/updacc": hub.updacc(req, rsp); break;
+            case "/deleteme": hub.deleteme(req, rsp); break;
             case "/hubsync": hub.hubsync(req, rsp); break;
             case "/fangrpact": hub.fangrpact(req, rsp); break;
             case "/fancollab": hub.fancollab(req, rsp); break;

@@ -97,6 +97,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #afgtopdiv { font-size:small; padding-left:4px; }
 #afgcontdiv { position:relative; padding-bottom:10px; }
 #afgextradiv { font-size:small; text-align:right; padding-right:10px; }
+#dmsoConfirmDiv { text-align:left; }
 #privacceptlabel { font-size:small; }
 .fhselspan { color:#FFAB00; }
 .formvalspan { font-size:medium; color:#666; font-style:italic;

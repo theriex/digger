@@ -272,6 +272,7 @@ module.exports = (function () {
         newacct: function (req, res) { return hubpost(req, res, "newacct"); },
         acctok: function (req, res) { return hubpost(req, res, "acctok"); },
         updacc: function (req, res) { return hubpost(req, res, "updacc"); },
+        deleteme: function (req, res) { return hubpost(req, res, "deleteme"); },
         mailpwr: function (pu, req, res) { return mailpwr(pu, req, res); },
         hubsync: function (req, res) { return hubsync(req, res); },
         fangrpact: function (req, res) { return fangrpact(req, res); },

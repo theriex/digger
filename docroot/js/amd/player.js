@@ -1,4 +1,4 @@
-/*global app, jt, Spotify */
+/*global app, jt, Spotify, console */
 /*jslint browser, white, for, long, unordered */
 
 app.player = (function () {
@@ -443,16 +443,16 @@ app.player = (function () {
             pbi.dur = status.dur || pbi.dur;  //song duration if provided
             mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
             debouncing = false; },
-        handlePlayFailure: function (stat, err) {
-            const odiv = jt.byId("mediaoverlaydiv");
-            odiv.style.top = (jt.byId("playertitle").offsetHeight + 2) + "px";
-            odiv.style.display = "block";
-            // odiv.innerHTML = "Playback failed, skipping song...";
-            // setTimeout(function () {
-            //     jt.out("mediaoverlaydiv", "");
-            //     jt.byId("mediaoverlaydiv").style.display = "none";
-            //     app.player.next(); }, 3000);
-            odiv.innerHTML = "Play failed: " + stat + ": " + err; },
+        handlePlayFailure: function (errstat, errtxt) {
+            //mobile does not have unsupported media types, so all media should
+            //play unless a file got deleted or the media service is broken bad.
+            //the audio player display is dead or not up yet.
+            jt.out("mediadiv", jt.tac2html(
+                [errstat + ": " + errtxt + "&nbsp; ", 
+                 ["a", {href:"#rebuild",
+                        onclick:app.dfs("svc", "loc.loadLibrary",
+                                        ["topdlgdiv", "rebuild"])},
+                  "Rebuild Library"]])); },
         ////calls from mgrs.plui
         refreshPlayState: function () {  //calls back to notePlaybackStatus
             //use timeout to yield to plui tickf processing
@@ -1344,7 +1344,11 @@ return {
     noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; },
     setState: function (state) { mgrs.mob.setState(state); },
     dispatch: function (mgrname, fname, ...args) {
-        return mgrs[mgrname][fname].apply(app.player, args); }
-
+        try {
+            return mgrs[mgrname][fname].apply(app.player, args);
+        } catch(e) {
+            console.log("player.dispatch " + mgrname + "." + fname + " " + e +
+                        " " + new Error("stack trace").stack);
+        } }
 };  //end of returned functions
 }());
