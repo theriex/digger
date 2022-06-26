@@ -801,15 +801,20 @@ app.top = (function () {
             {n:"updpassword", dn:"new password", m:"w", ty:"password"},
             {n:"firstname", dn:"first name", m:"jp", ty:"text"},
             {n:"digname", dn:"dig name", m:"jp", ty:"text"},
-            {n:"privaccept", m:"jp", ty:"checkbox", p:app.subPlaceholders(
-                "appoverlaydiv", app.svc.urlOpenSupp(),
-                "I'm ok with the PRIVPOLICY")}];
+            {n:"privaccept", m:"jp", ty:"checkbox"}];
+        function makeLabel (labname) {
+            switch(labname) {
+            case "privaccept":
+                return app.subPlaceholders(
+                    "appoverlaydiv", app.svc.urlOpenSupp(),
+                    "I'm ok with the PRIVPOLICY");
+            default: return "Unknown label type: " + labname; } }
         function makeInput (acct, aff) {
             var val = "";
             if(acct && acct[aff.n]) { val = acct[aff.n]; }
             if(jt.byId(aff.n + "in")) { val = jt.byId(aff.n + "in").value; }
             return ["input", {type:(aff.ty || "text"), id:aff.n + "in",
-                              value:val, placeholder:(aff.p || "")}]; }
+                              value:val, placeholder:(aff.plc || "")}]; }
         function formTableRow (acct, aff) {
             switch(aff.ty) {
             case "checkbox": return jt.tac2html(
@@ -817,7 +822,8 @@ app.top = (function () {
                  ["td", {colspan:2},
                   [["input", {type:"checkbox", id:aff.n + "in",
                               value:new Date().toISOString()}],
-                   ["label", {fo:aff.n + "in", id:aff.n + "label"}, aff.p]]]]);
+                   ["label", {fo:aff.n + "in", id:aff.n + "label"},
+                    makeLabel(aff.n)]]]]);
             case "readonly": return jt.tac2html(
                 ["tr",
                  [["td", {cla:"formattr"}, (aff.dn || aff.n)],
@@ -1557,22 +1563,26 @@ app.top = (function () {
 
     //Local library actions manager handles lib level actions and data.
     mgrs.locla = (function () {
-        var acts = [
-            {ty:"cfgp", oc:mdfs("cfg.confirmStart"),
-             tt:"Configure music and data file locations", 
-             p:"musicPath", n:"Music Files"},
-            {ty:"cfgp", oc:mdfs("cfg.confirmStart"),
-             tt:"Configure music and data file locations",
-             p:"dbPath", n:"Digger Data"},
-            {ty:"info", htmlfs:"hubSyncInfoHTML"},
-            {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
-             tt:"Read all files in the music folder", n:"Read Files"},
-            {ty:"btn", oc:mdfs("igf.igMusicFolders"),
-             tt:"Ignore folders when reading music files", n:"Ignore Folders"},
-            {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
-             tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
+        var acts;
         var slfrc = "";  //session library file import check
     return {
+        initialize: function () {
+            acts = [
+                {ty:"cfgp", oc:mdfs("cfg.confirmStart"),
+                 tt:"Configure music and data file locations", 
+                 p:"musicPath", n:"Music Files"},
+                {ty:"cfgp", oc:mdfs("cfg.confirmStart"),
+                 tt:"Configure music and data file locations",
+                 p:"dbPath", n:"Digger Data"},
+                {ty:"info", htmlfs:"hubSyncInfoHTML"},
+                {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
+                 tt:"Read all files in the music folder", n:"Read Files"},
+                {ty:"btn", oc:mdfs("igf.igMusicFolders"),
+                 tt:"Ignore folders when reading music files",
+                 n:"Ignore Folders"},
+                {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
+                 tt:"Choose keywords to use for filtering",
+                 n:"Choose Keywords"}]; },
         writeDlgContent: function () {
             var config = app.svc.dispatch("loc", "getConfig");
             jt.out(tddi, jt.tac2html(
@@ -1644,13 +1654,7 @@ app.top = (function () {
     //by time, so it is sufficient to check from the last known offset.
     //developer.spotify.com/documentation/web-api/reference/#category-library
     mgrs.webla = (function () {
-        var acts = [  //library actions
-            {ty:"stat", lab:"Spotify song count", id:"spscval",
-             valfname:"songCount"},
-            {ty:"stat", lab:"Spotify library", id:"splibval",
-             valfname:"splibStat"},
-            {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
-             tt:"Choose keywords to use for filtering", n:"Choose Keywords"}];
+        var acts;  //library actions
         var spip = {  //spotify import processing
             mode:"done",        //"scheduled", "albums", "tracks"
             sto: null,          //scheduling timeout
@@ -1680,6 +1684,15 @@ app.top = (function () {
             return (stat && stat.lastcheck &&
                     jt.timewithin(stat.lastcheck, "days", 1)); }
     return {
+        initialize: function () {
+            acts = [  
+                {ty:"stat", lab:"Spotify song count", id:"spscval",
+                 valfname:"songCount"},
+                {ty:"stat", lab:"Spotify library", id:"splibval",
+                 valfname:"splibStat"},
+                {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
+                 tt:"Choose keywords to use for filtering",
+                 n:"Choose Keywords"}]; },
         songCount: function () {
             var scs = app.login.getAuth().settings.songcounts;
             if(!scs || scs.posschg > scs.fetched) {
@@ -2076,8 +2089,7 @@ app.top = (function () {
     //general manager is main interface for the module
     mgrs.gen = (function () {
         var sddv = "";  //startdata digger version
-    return {
-        initDisplay: function () {
+        function initDisplay () {
             jt.out("pantopdiv", jt.tac2html(
                 [["div", {id:"titlediv"},
                   [["div", {id:"titleftdiv"},
@@ -2100,7 +2112,9 @@ app.top = (function () {
                        "RTFM"]]]]]],
                  ["div", {id:tddi, "data-mode":"empty"}],
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],
-                 ["div", {cla:"statdiv", id:"topstatdiv"}]])); },
+                 ["div", {cla:"statdiv", id:"topstatdiv"}]])); }
+    return {
+        initialize: function () { initDisplay(); },
         togtopdlg: function (mode, cmd) {
             var dlgdiv = jt.byId(tddi);
             if(cmd === "close" || (!cmd && dlgdiv.dataset.mode === mode)) {
@@ -2140,7 +2154,11 @@ app.top = (function () {
 
 
 return {
-    init: function () { mgrs.gen.initDisplay(); },
+    init: function () {
+        Object.entries(mgrs).forEach(function ([name, mgr]) {
+            if(mgr.initialize) {
+                jt.log("initializing top." + name);
+                mgr.initialize(); } }); },
     initialDataLoaded: function (sd) { mgrs.gen.initialDataLoaded(sd); },
     markIgnoreSongs: function () { mgrs.igf.markIgnoreSongs(); },
     rebuildKeywords: function () { mgrs.kwd.rebuildKeywords(); },
