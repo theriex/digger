@@ -171,10 +171,12 @@ app.player = (function () {
             prog.svco.seek(ms); },
         updatePosIndicator: function () {
             //update progress bar
-            var prw = 0;
+            var prw = 0; var progdiv = jt.byId("pluiprogdiv");
+            if(!progdiv) {
+                return jt.log("updatePosIndicator quitting since no progdiv"); }
             if(prog.dur) {
                 prw = Math.round((prog.pos / prog.dur) * prog.w); }
-            jt.byId("pluiprogdiv").style.width = prw + "px";
+            progdiv.style.width = prw + "px";
             //update time readout and position
             jt.out("pluitimeposdiv", mmss(prog.pos));
             jt.out("pluitimedurdiv", mmss(prog.dur));
