@@ -8,6 +8,10 @@ app.player = (function () {
     var ctrls = null;
     var playerrs = {};
 
+    const mgrs = {};  //general container for managers
+    function mdfs (mgrfname, ...args) {  //module dispatch function string
+        return app.dfs("player", mgrfname, args);
+    }
 
     //This could be a call where the song is no longer displayed, or an
     //interim save triggered from ongoing user interaction.  In the first
@@ -37,6 +41,8 @@ app.player = (function () {
     function noteSongModified () {
         if(!stat.song) { return; }
         stat.songModified = true;
+        jt.out("playtitletextspan",
+               app.deck.dispatch("sop", "songIdentHTML", stat.song));
         jt.out("modindspan", "mod");
         if(stat.modtimer) {
             clearTimeout(stat.modtimer); }
@@ -67,12 +73,6 @@ app.player = (function () {
         app.filter.movelisten("ratstardragdiv", ctrls.rat.stat,
                               ctrls.rat.posf);
         ctrls.rat.posf(0);  //no stars until set or changed.
-    }
-
-
-    const mgrs = {};  //general container for managers
-    function mdfs (mgrfname, ...args) {  //module dispatch function string
-        return app.dfs("player", mgrfname, args);
     }
 
 
@@ -538,7 +538,8 @@ app.player = (function () {
                     ["a", {href:"#skip", title:"Skip To Next Song",
                            onclick:jt.fs("app.player.skip()")},
                      ["img", {src:"img/skip.png", cla:"ptico"}]]]],
-                  app.deck.dispatch("sop", "songIdentHTML", stat.song)]])); },
+                  ["span", {id:"playtitletextspan"},
+                   app.deck.dispatch("sop", "songIdentHTML", stat.song)]]])); },
         updateSongDisplay: function () {
             mgrs.kwd.rebuildToggles();
             mgrs.aud.updateSongTitleDisplay();
@@ -1331,6 +1332,13 @@ app.player = (function () {
 
 
     function skip () {
+        var st = Date.now();
+        if(stat.skiptime && ((st - stat.skiptime) < 7000)) {
+            //On a phone, the skip button can be unresponsive up to several
+            //seconds if the UI is setting up binding to the music playback
+            //service.  Avoid accidental double skip from repress.
+            return; }
+        stat.skiptime = st;
         mgrs.tun.bumpCurrentIfTired();  //bumps the fq value if tired song
         next();
     }

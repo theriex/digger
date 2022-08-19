@@ -2148,7 +2148,13 @@ app.top = (function () {
         updateHubToggleSpan: function (acct) {
             jt.byId("hubtogspan").title = "Account Info (" +
                 (acct.diggerVersion || sddv) + ", p" + app.fileVersion() + ")";
-            jt.out("hubtogspan", acct.firstname); }
+            jt.out("hubtogspan", acct.firstname); },
+        dispCount: function (count, type) {
+            switch(type) {
+            case "total": count = "+" + count + "&nbsp;songs"; break;
+            case "avail": count = String(count) + "&nbsp;songs"; break;
+            default: count = String(count); }
+            jt.out("countspan", count); }
     };  //end mgrs.gen returned functions
     }());
 
@@ -2162,6 +2168,7 @@ return {
     initialDataLoaded: function (sd) { mgrs.gen.initialDataLoaded(sd); },
     markIgnoreSongs: function () { mgrs.igf.markIgnoreSongs(); },
     rebuildKeywords: function () { mgrs.kwd.rebuildKeywords(); },
+    dispCount: function (c, t) { mgrs.gen.dispCount(c, t); },
     dispatch: function (mgrname, fname, ...args) {
         try {
             return mgrs[mgrname][fname].apply(app.top, args);

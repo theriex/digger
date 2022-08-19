@@ -257,7 +257,7 @@ app.svc = (function () {
         monitorReadTotal: function () {
             jt.call("GET", app.cb("/songscount"), null,
                     function (info) {
-                        jt.out("countspan", String(info.count) + "&nbsp;songs");
+                        app.top.dispCount(info.count, "total");
                         loadproc.stat = info.status;
                         if(info.status === "reading") {  //work ongoing, monitor
                             jt.out(loadproc.divid,
@@ -279,7 +279,7 @@ app.svc = (function () {
                 app.top.dispatch("locla", "noteLibraryLoaded"); } },
         rebuildSongData: function (databaseobj) {
             dbo = databaseobj;
-            jt.out("countspan", String(dbo.songcount) + "&nbsp;songs");
+            app.top.dispCount(dbo.songcount, "total");
             Object.entries(dbo.songs).forEach(function ([path, song]) {
                 if(!song.ar) {  //missing artist, ti probably full path
                     const pes = path.split("/");
@@ -416,8 +416,7 @@ app.svc = (function () {
                         config = startdata.config;
                         dbo = startdata.songdata;
                         mgrs.gen.initialDataLoaded(startdata);
-                        jt.out("countspan", String(dbo.songcount) +
-                               "&nbsp;songs");
+                        app.top.dispCount(dbo.songcount, "total");
                         if(!dbo.scanned) {
                             setTimeout(mgrs.loc.loadLibrary, 50); }
                         contf(); },
