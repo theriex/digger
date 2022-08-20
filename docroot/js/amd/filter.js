@@ -418,6 +418,15 @@ app.filter = (function () {
         var settings = null;
         var tmofilt = null;
         var tmosave = null;
+        function verifySettingsInitialized () {
+            if(!settings) {
+                const ca = app.top.dispatch("aaa", "getAccount");
+                if(ca && ca.settings) {
+                    settings = ca.settings; }
+                else {
+                    jt.log("filter.stg settings initialized empty");
+                    settings = {}; } }
+        }
     return {
         settings: function () { return settings; },
         filterValueChanged: function () {  //waits until controls stop moving
@@ -434,6 +443,7 @@ app.filter = (function () {
                 clearTimeout(tmosave); }
             tmosave = setTimeout(function () {
                 tmosave = null;
+                verifySettingsInitialized();
                 settings.ctrls = mgrs.stg.arrayOfAllFilters()
                     .map((filt) => filt.settings());
                 const acct = app.top.dispatch("aaa", "getAccount");
@@ -460,8 +470,7 @@ app.filter = (function () {
             filts.push(ctrls.fq);
             return filts; },
         rebuildAllControls: function (ready) {
-            var ca = app.top.dispatch("aaa", "getAccount");
-            if(ca && ca.settings) { settings = ca.settings; }
+            verifySettingsInitialized();
             ctrls.filtersReady = false;  //turn off to avoid spurious events
             mgrs.rng.rebuildControls();
             mgrs.kft.rebuildControls();
