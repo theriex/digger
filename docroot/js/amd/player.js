@@ -440,6 +440,14 @@ app.player = (function () {
     return {
         ////calls from svc.mp
         notePlaybackStatus: function (status) {
+            if(status.path && stat.song && stat.song.path) {
+                status.path = jt.dec(status.path);  //undo URI encode
+                status.path = jt.dec(status.path);  //undo File encode
+                status.path = status.path.slice(7); //remove "file://" prefix
+                jt.log("notePlaybackStatus stat.song.path: " + stat.song.path);
+                jt.log("notePlaybackStatus    status.path: " + status.path);
+                if(status.path !== stat.song.path) {
+                    mgrs.mob.rebuildFromPath(status.path); } }
             pbi.state = status.state;  //"playing" or "paused"
             pbi.pos = status.pos;  //current play position ms
             pbi.dur = status.dur || pbi.dur;  //song duration if provided
@@ -487,7 +495,23 @@ app.player = (function () {
             pbi = {song:rst.song, pos:rst.pos, dur:rst.dur, state:rst.state};
             mgrs.aud.verifyPlayer(function () {
                 mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
-                mgrs.aud.updateSongDisplay(); }); }
+                mgrs.aud.updateSongDisplay(); }); },
+        rebuildFromPath: function (npp) {  //player has skipped forward
+            const nsg = app.svc.songs()[npp];  //exists. previously on deck.
+            if(!nsg) {
+                return jt.log("mgrs.mob.rebuildDisplay song not found, npp: " +
+                              npp); }
+            stat.song = nsg;
+            mgrs.cmt.resetDisplay();
+            mgrs.aud.updateSongDisplay();
+            app.deck.dispatch("ws", "rebuild", "player.mob song update"); },
+        rebuildIfSongPlaying: function (updsg) {  //song updated from hub
+            if(stat.song && stat.song.path === updsg.path) {
+                jt.log("player.mob.risp locpath: " + stat.song.path);
+                jt.log("player.mob.risp updpath: " + updsg.path);
+                stat.song = updsg;
+                mgrs.cmt.resetDisplay();
+                mgrs.aud.updateSongDisplay(); } }
     };  //end mgrs.mob returned functions
     }());
 
@@ -1211,7 +1235,11 @@ app.player = (function () {
                 return; }
             if(togstate !== "off") {  //not an initial clear call
                 odiv.style.display = "block";
-                odiv.innerHTML = songShareDlgContent(); } }
+                odiv.innerHTML = songShareDlgContent(); } },
+        resetDisplay: function () {
+            mgrs.cmt.togSongShareDialog("off");
+            mgrs.cmt.toggleCommentDisplay("off");
+            mgrs.cmt.updateCommentIndicator(); }
     };  //end mgrs.cmt returned functions
     }());
 
@@ -1269,87 +1297,104 @@ app.player = (function () {
         resume: function () {
             jt.out("mediaoverlaydiv", "");
             jt.byId("mediaoverlaydiv").style.display = "none";
-            app.player.next(); }
+            app.player.next(); },
+        limitToSleepQueueMax: function (qm) {
+            if(sc.active) {
+                return Math.min(sc.count, qm); }
+            return qm; }
     };  //end mgrs.slp returned functions
     }());
 
 
-    function initializeDisplay () {
-        stat = {status:"", song:null};
-        ctrls = {};
-        mgrs.aud.init();  //may redirect to authenticate web player
-        jt.out("panplaydiv", jt.tac2html(
-            [["div", {id:"panplaymousingdiv"},
-              [["div", {id:"mediadiv"}, "No songs on deck yet"],
-               ["div", {id:"mediaoverlaydiv", style:"display:none"}],
-               ["div", {id:"impressiondiv"},
-                [["div", {id:"panpotsdiv"},
-                  [["div", {cla:"pandiv", id:"elpandiv"}],
-                   ["div", {cla:"pandiv", id:"alpandiv"}]]],
-                 ["div", {id:"keysratdiv"},
-                  [["div", {id:"kwdsdiv"}],
-                   ["div", {id:"rvdiv"}],
-                   ["a", {id:"togsleeplink", href:"#sleepafter",
-                          title:"", onclick:mdfs("slp.toggleSleepDisplay")},
-                    ["img", {id:"togsleepimg", src:"img/sleep.png"}]],
-                   ["a", {id:"togcommentlink", href:"#togglecomment",
-                          title:"", onclick:mdfs("cmt.toggleCommentDisplay")},
-                    ["img", {id:"togcommentimg", src:"img/comment.png"}]],
-                   ["a", {id:"togsharelink", href:"#share",
-                          title:"", onclick:mdfs("cmt.togSongShareDialog")},
-                    ["img", {id:"togshareimg", src:"img/share.png"}]]]],
-                 ["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
-                 ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
-                 ["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
-                 ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
-                 ["div", {id:"elpandragdiv", cla:"pandragdiv"}],
-                 ["div", {id:"alpandragdiv", cla:"pandragdiv"}]]]]],
-             ["div", {id:"commentdiv"}],
-             ["div", {id:"sleepdiv"}]]));
-        mgrs.pan.makePanControls();
-        //toggle controls are rebuilt after data loads, not needed yet
-        makeRatingValueControl();
-    }
-
-
-    function next () {
-        saveSongDataIfModified("ignoreUpdatedSongDataReturn");
-        //player calls contf if is ready, otherwise contf is ignored and it
-        //is up to the player to start playback after it is ready.
-        mgrs.aud.verifyPlayer(function () {
-            mgrs.tun.toggleTuningOpts("off");
-            mgrs.cmt.toggleCommentDisplay("off");
-            mgrs.cmt.togSongShareDialog("off");
-            stat.status = "";
-            if(!mgrs.slp.sleepNow()) {
-                const ns = app.deck.getNextSong();
-                if(!ns) { //just stop, might be playing an album.
-                    return; }
-                stat.song = ns;
-                mgrs.cmt.updateCommentIndicator();
-                mgrs.aud.playAudio(); } });
-    }
-
-
-    function skip () {
-        var st = Date.now();
-        if(stat.skiptime && ((st - stat.skiptime) < 7000)) {
-            //On a phone, the skip button can be unresponsive up to several
-            //seconds if the UI is setting up binding to the music playback
-            //service.  Avoid accidental double skip from repress.
-            return; }
-        stat.skiptime = st;
-        mgrs.tun.bumpCurrentIfTired();  //bumps the fq value if tired song
-        next();
-    }
+    //general top level processing functions
+    mgrs.gen = (function () {
+    return {
+        initializeDisplay: function () {
+            jt.log("player.gen.initializeDisplay");
+            stat = {status:"", song:null};
+            ctrls = {};
+            mgrs.aud.init();  //may redirect to authenticate web player
+            jt.out("panplaydiv", jt.tac2html(
+                [["div", {id:"panplaymousingdiv"},
+                  [["div", {id:"mediadiv"}, "No songs on deck yet"],
+                   ["div", {id:"mediaoverlaydiv", style:"display:none"}],
+                   ["div", {id:"impressiondiv"},
+                    [["div", {id:"panpotsdiv"},
+                      [["div", {cla:"pandiv", id:"elpandiv"}],
+                       ["div", {cla:"pandiv", id:"alpandiv"}]]],
+                     ["div", {id:"keysratdiv"},
+                      [["div", {id:"kwdsdiv"}],
+                       ["div", {id:"rvdiv"}],
+                       ["a", {id:"togsleeplink", href:"#sleepafter",
+                              title:"", onclick:mdfs("slp.toggleSleepDisplay")},
+                        ["img", {id:"togsleepimg", src:"img/sleep.png"}]],
+                       ["a", {id:"togcommentlink", href:"#togglecomment",
+                              title:"",
+                              onclick:mdfs("cmt.toggleCommentDisplay")},
+                        ["img", {id:"togcommentimg", src:"img/comment.png"}]],
+                       ["a", {id:"togsharelink", href:"#share",
+                              title:"", onclick:mdfs("cmt.togSongShareDialog")},
+                        ["img", {id:"togshareimg", src:"img/share.png"}]]]],
+                     ["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
+                     ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
+                     ["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
+                     ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
+                     ["div", {id:"elpandragdiv", cla:"pandragdiv"}],
+                     ["div", {id:"alpandragdiv", cla:"pandragdiv"}]]]]],
+                 ["div", {id:"commentdiv"}],
+                 ["div", {id:"sleepdiv"}]]));
+            mgrs.pan.makePanControls();
+            //toggle controls are rebuilt after data loads, not needed yet
+            makeRatingValueControl(); },
+        next: function () {
+            saveSongDataIfModified("ignoreUpdatedSongDataReturn");
+            //player calls contf if is ready, otherwise contf is ignored and it
+            //is up to the player to start playback after it is ready.
+            mgrs.aud.verifyPlayer(function () {
+                mgrs.tun.toggleTuningOpts("off");
+                mgrs.cmt.toggleCommentDisplay("off");
+                mgrs.cmt.togSongShareDialog("off");
+                stat.status = "";
+                if(!mgrs.slp.sleepNow()) {
+                    const ns = app.deck.getNextSong();
+                    if(!ns) { //just stop, might be playing an album.
+                        return; }
+                    stat.song = ns;
+                    mgrs.gen.logCurrentlyPlaying("mgrs.gen.next");
+                    mgrs.cmt.updateCommentIndicator();
+                    mgrs.aud.playAudio(); } }); },
+        skip: function () {
+            var st = Date.now();
+            if(stat.skiptime && ((st - stat.skiptime) < 7000)) {
+                //On a phone, the skip button can be unresponsive up to several
+                //seconds if the UI is setting up binding to the music playback
+                //service.  Avoid accidental double skip from repress.
+                return; }
+            stat.skiptime = st;
+            mgrs.tun.bumpCurrentIfTired();  //bumps the fq value if tired song
+            mgrs.gen.next(); },
+        deckUpdated: function () {
+            if(!stat.song) {
+                jt.log("player.deckUpdated, calling next to start music");
+                app.player.next(); } },
+        logCurrentlyPlaying: function (prefix) {
+            prefix = prefix || "";
+            if(prefix) { prefix += " "; }
+            if(!stat || !stat.song) {
+                jt.log(prefix + "logCurrentlyPlaying: no song"); }
+            else {
+                jt.log(prefix + "logCurrentlyPlaying: " + stat.song.path); } }
+    }; //end mgrs.gen returned functions
+    }());
 
 
 return {
-    init: function () { initializeDisplay(); },
-    deckUpdated: function () { if(!stat.song) { app.player.next(); } },
-    next: function () { next(); },
-    skip: function () { skip(); },
+    init: function () { mgrs.gen.initializeDisplay(); },
+    deckUpdated: function () { mgrs.gen.deckUpdated(); },
+    next: function () { mgrs.gen.next(); },
+    skip: function () { mgrs.gen.skip(); },
     song: function () { return stat.song; },
+    logCurrentlyPlaying: function (pfx) { mgrs.gen.logCurrentlyPlaying(pfx); },
     playerr: function (path) { return playerrs[path]; },
     noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; },
     setState: function (state) { mgrs.mob.setState(state); },

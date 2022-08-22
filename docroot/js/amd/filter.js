@@ -448,7 +448,7 @@ app.filter = (function () {
                     .map((filt) => filt.settings());
                 const acct = app.top.dispatch("aaa", "getAccount");
                 acct.settings = settings;
-                app.top.dispatch("aaa", "updateAccount", acct, acct.token,
+                app.top.dispatch("aaa", "updateCurrAcct", acct, acct.token,
                     function () {
                         jt.log("stg.saveSettings completed"); },
                     function (code, errtxt) {
