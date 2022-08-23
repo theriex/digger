@@ -470,6 +470,7 @@ app.filter = (function () {
             filts.push(ctrls.fq);
             return filts; },
         rebuildAllControls: function (ready) {
+            settings = null;  //reset to force account info check
             verifySettingsInitialized();
             ctrls.filtersReady = false;  //turn off to avoid spurious events
             mgrs.rng.rebuildControls();

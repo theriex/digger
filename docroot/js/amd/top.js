@@ -1133,7 +1133,9 @@ app.top = (function () {
         function resetCurrentAccountRef () {
             curracct = cfg.acctsinfo.accts.find((x) =>
                 x.dsId === cfg.acctsinfo.currid);
-            mgrs.hcu.deserializeAccount(curracct); }
+            mgrs.hcu.deserializeAccount(curracct);
+            jt.log("aaa.resetCurrentAccountRef " + curracct.dsId +
+                   " settings: " + JSON.stringify(curracct.settings)); }
     return {
         getAccount: function () { return curracct; },
         getConfig: function () { return cfg; },
@@ -1146,8 +1148,10 @@ app.top = (function () {
         verifyConfig: function () {
             cfg = cfg || {};
             if(!cfg.acctsinfo) {
+                jt.log("aaa.verifyConfig recreating cfg.acctsinfo");
                 cfg.acctsinfo = {currid:"", accts:[]};
                 if(!cfg.acctsinfo.accts.find((x) => x.dsId === "101")) {
+                    jt.log("aaa.verifyConfig making default account");
                     const diggerbday = "2019-10-11T00:00:00Z";
                     cfg.acctsinfo.accts.push(
                         {dsType:"DigAcc", dsId:"101", firstname:"Digger",
@@ -1155,7 +1159,10 @@ app.top = (function () {
                          email:suppem, token:"none", kwdefs:dfltkeywords,
                          igfolds:dfltigfolds}); } }
             if(!cfg.acctsinfo.currid) {
+                jt.log("aaa.verifyConfig defaulting cfg.acctsinfo.currid");
                 cfg.acctsinfo.currid = "101"; }
+            jt.log("aaa.verifyConfig cfg.acctsinfo.currid: " +
+                   cfg.acctsinfo.currid);
             resetCurrentAccountRef(); },
         reflectAccountChangeInRuntime: function (acct, token) {
             mgrs.hcu.deserializeAccount(acct);  //verify deserialized
