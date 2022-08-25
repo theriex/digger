@@ -260,8 +260,7 @@ app.svc = (function () {
                         app.top.dispCount(info.count, "total");
                         loadproc.stat = info.status;
                         if(info.status === "reading") {  //work ongoing, monitor
-                            jt.out(loadproc.divid,
-                                   jt.ellipsis(info.lastrpath, 40));
+                            jt.out(loadproc.divid, info.lastrpath);
                             mgrs.loc.deckImportWorkMessage();
                             setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete

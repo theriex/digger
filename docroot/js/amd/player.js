@@ -558,10 +558,7 @@ app.player = (function () {
                    [["span", {id:"modindspan"}],
                     ["a", {href:"#tuneoptions", title:"Tune Playback Options",
                            id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
-                     ["img", {src:tunesrc, cla:"ptico", id:"tuneimg"}]],
-                    ["a", {href:"#skip", title:"Skip To Next Song",
-                           onclick:jt.fs("app.player.skip()")},
-                     ["img", {src:"img/skip.png", cla:"ptico"}]]]],
+                     ["img", {src:tunesrc, cla:"ptico", id:"tuneimg"}]]]],
                   ["span", {id:"playtitletextspan"},
                    app.deck.dispatch("sop", "songIdentHTML", stat.song)]]])); },
         updateSongDisplay: function () {
@@ -589,7 +586,12 @@ app.player = (function () {
                     ["div", {id:"playerdiv"},
                      [["div", {id:"playertitle"}, "Starting"],
                       ["div", {id:"playertuningdiv"}],
-                      ["div", {id:"audiodiv"}]]])); }
+                      ["div", {id:"audioplayerdiv"},
+                       [["div", {id:"audiodiv"}],
+                        ["div", {id:"nextsongdiv"},
+                         ["a", {href:"#skip", title:"Skip To Next Song",
+                                onclick:jt.fs("app.player.skip()")},
+                          ["img", {src:"img/skip.png", cla:"ptico"}]]]]]]])); }
             mgrs[cap].verifyPlayer(contf); }
     };  //end mgrs.aud returned functions
     }());
@@ -638,7 +640,7 @@ app.player = (function () {
                 tdiv.innerHTML = "";
                 if(timg) { timg.src = "img/tunefork.png"; }
                 ptitle.style.overflow = "hidden";
-                ptitle.style.maxHeight = "18px";
+                ptitle.style.maxHeight = "17px";  //hide top of next line
                 return; }
             if(timg) { timg.src = "img/tuneforkact.png"; }
             ptitle.style.overflow = "visible";
@@ -788,10 +790,14 @@ app.player = (function () {
             ctrls[id].knog = {x:pk.panbg.elem.offsetLeft + 21, //viz elem calc
                               y:Math.floor(ctrls[id].width / 2) + 2}; },
         positionDragOverlay: function (id) {
-            const pk = {pan:jt.byId(id + "pandiv"),
+            const pk = {pots:jt.byId("panpotsdiv"),
+                        pan:jt.byId(id + "pandiv"),
                         drag:jt.byId(id + "pandragdiv")};
+            const leftpad = parseInt(
+                window.getComputedStyle(pk.pots)
+                    .getPropertyValue("padding-left"), 10);
             const dragdims = {top:0,  //relative to impressiondiv
-                              left:pk.pan.offsetLeft,
+                              left:pk.pan.offsetLeft - leftpad,
                               width:pk.pan.offsetWidth,
                               height:pk.pan.offsetHeight};
             Object.entries(dragdims).forEach(function ([k, v]) {
@@ -1324,23 +1330,27 @@ app.player = (function () {
                        ["div", {cla:"pandiv", id:"alpandiv"}]]],
                      ["div", {id:"keysratdiv"},
                       [["div", {id:"kwdsdiv"}],
-                       ["div", {id:"rvdiv"}],
-                       ["a", {id:"togsleeplink", href:"#sleepafter",
-                              title:"", onclick:mdfs("slp.toggleSleepDisplay")},
-                        ["img", {id:"togsleepimg", src:"img/sleep.png"}]],
-                       ["a", {id:"togcommentlink", href:"#togglecomment",
-                              title:"",
-                              onclick:mdfs("cmt.toggleCommentDisplay")},
-                        ["img", {id:"togcommentimg", src:"img/comment.png"}]],
-                       ["a", {id:"togsharelink", href:"#share",
-                              title:"", onclick:mdfs("cmt.togSongShareDialog")},
-                        ["img", {id:"togshareimg", src:"img/share.png"}]]]],
-                     ["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
-                     ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
-                     ["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
-                     ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
-                     ["div", {id:"elpandragdiv", cla:"pandragdiv"}],
-                     ["div", {id:"alpandragdiv", cla:"pandragdiv"}]]]]],
+                       ["div", {id:"starsnbuttonsdiv"},
+                        [["div", {id:"rvdiv"}],
+                         ["a", {id:"togsleeplink", href:"#sleepafter",
+                                title:"",
+                                onclick:mdfs("slp.toggleSleepDisplay")},
+                          ["img", {id:"togsleepimg", src:"img/sleep.png"}]],
+                         ["a", {id:"togcommentlink", href:"#togglecomment",
+                                title:"",
+                                onclick:mdfs("cmt.toggleCommentDisplay")},
+                          ["img", {id:"togcommentimg", src:"img/comment.png"}]],
+                         ["a", {id:"togsharelink", href:"#share",
+                                title:"",
+                                onclick:mdfs("cmt.togSongShareDialog")},
+                          ["img", {id:"togshareimg", src:"img/share.png"}]]]]]],
+                     ["div", {id:"pandragcontdiv"},
+                      [["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
+                       ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
+                       ["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
+                       ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
+                       ["div", {id:"elpandragdiv", cla:"pandragdiv"}],
+                       ["div", {id:"alpandragdiv", cla:"pandragdiv"}]]]]]]],
                  ["div", {id:"commentdiv"}],
                  ["div", {id:"sleepdiv"}]]));
             mgrs.pan.makePanControls();

@@ -18,7 +18,7 @@ A:hover {text-decoration:underline; color:#00989a; }
 
 img { border:0px; vertical-align:middle; }
 
-button { color:black; background:#ccc; cursor:pointer; font-size:small;
+button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
   font-weight:normal; padding:1px 4px; margin:5px 10px 0px 0px;
   border:2px solid black; border-radius:8px; box-shadow:2px 2px 2px #666; }
 
@@ -53,17 +53,17 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 /****************************************/
 /* Hub/Library Panel */
 
-.buttonico { max-height:30px; vertical-align:middle; padding:0px 5px; }
+.buttonico { max-height:36px; vertical-align:middle; padding:0px 5px; }
 #topdlgdiv { max-height:180px; overflow:scroll; }
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
 .statdiv { font-size:small; }
-#toponelinestatdiv { max-width:280px; max-height:1em; overflow:hidden; }
+#toponelinestatdiv { max-height:1em; overflow:hidden; white-space:nowrap; }
 
-.pathdiv { font-size:small; }
-.pathlabelspan, .pathlabelgreyspan { font-size:x-small; font-style:italic; }
+.pathdiv { font-size:medium; }
+.pathlabelspan, .pathlabelgreyspan { font-size:small; font-style:italic; }
 .pathlabelgreyspan { color:#666; }
 .pathspan {}
-.infospan { font-size:x-small; margin:0px 2px; }
+.infospan { font-size:medium; margin:0px 2px; }
 .expoptdiv { font-size:medium; padding:5px 0px 5px 8px; }
 #exportfileindiv { margin-left:20px; }
 
@@ -165,8 +165,14 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #pmsgdiv { font-size:small; font-weight:bold; }
 #spotdetactdiv { font-size:small; max-width:290px; }
 #tunedetwrktable { padding:0px 0px 0px 22px; }
+#audioplayerdiv { display:flex; justify-content:center; align-items:center;
+  min-height:50px; }
+#audiodiv { display:inline-block; }
+#nextsongdiv { display:inline-block; height:20px; padding:5px; margin-left:5px;
+  border: 2px solid #777; border-radius:10px;}
 
 #impressiondiv { position:relative; }
+#panpotsdiv { position:relative; padding-left:25px; }
 .pandiv { display:inline-block; position:relative; }
 #elpandiv { margin-right:7px; }
 .pancontdiv { width:140px; height:40px; cursor:pointer;
@@ -179,6 +185,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .panrightlabdiv { right:5px; }
 .panbackimg { max-height:44px; }
 .panfaceimg { max-height:40px; }
+#pandragcontdiv { position:absolute; top:0px; left:25px; }
 .pandragdiv { position:absolute; left:0px; top:0px; cursor:pointer; }
 .pandrgbdiv { position:absolute; left:0px; top:0px; }
 
@@ -188,6 +195,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   padding:8px 12px; font-size:medium; border-radius:14px; }
 #keysratdiv { margin-left:-2px; }
 #kwdsdiv { display:inline-block; }
+#starsnbuttonsdiv { display:inline-block; padding:5px 0px 2px 22px; }
 #rvdiv { display:inline-block; padding-left:8px; }
 .kwdtogoff, .kwdtogon { color:white; background:#333; font-size:small; 
   padding:0px 2px; margin:2px; border-radius:0px; }

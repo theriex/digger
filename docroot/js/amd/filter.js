@@ -159,8 +159,8 @@ app.filter = (function () {
         addRangeSettingsFunc: function (cid) {
             ctrls[cid].settings = function () {
                 return {tp:"range", c:cid,
-                        x:ctrls[cid].setx,
-                        y:ctrls[cid].sety}; }; },
+                        x:ctrls[cid].stat.setx,
+                        y:ctrls[cid].stat.sety}; }; },
         addRangeSongMatchFunc: function (cid) {
             //Every song should have a numeric value set.
             ctrls[cid].match = function (song) {
