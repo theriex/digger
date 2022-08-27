@@ -165,11 +165,12 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #pmsgdiv { font-size:small; font-weight:bold; }
 #spotdetactdiv { font-size:small; max-width:290px; }
 #tunedetwrktable { padding:0px 0px 0px 22px; }
-#audioplayerdiv { display:flex; justify-content:center; align-items:center;
-  min-height:50px; }
+#audioplayerdiv { display:flex; justify-content:left; align-items:center;
+  min-height:50px; padding-left:25px; }
 #audiodiv { display:inline-block; }
 #nextsongdiv { display:inline-block; height:20px; padding:5px; margin-left:5px;
   border: 2px solid #777; border-radius:10px;}
+.bgtransitionfade { transition:background-color 750ms; }
 
 #impressiondiv { position:relative; }
 #panpotsdiv { position:relative; padding-left:25px; }
@@ -179,6 +180,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
   border: 2px solid #777; border-radius:10px; }
 .panbgdiv, .panfacediv { position:absolute; left:50px; top:2px;
   border-radius:22px; }
+.panleftpaddlediv { position:absolute; top:2px; left:2px; overflow:hidden; }
+.panrightpaddlediv { position:absolute; top:2px; right:-2px; overflow:hidden; }
 .panleftlabdiv, .panrightlabdiv { 
   position:absolute; bottom:6px; font-size:small; text-align:center; }
 .panleftlabdiv { left:5px; }
@@ -193,9 +196,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #panplaymousingdiv { position:relative; }
 #mediaoverlaydiv { position:absolute; top:0px; left:2px; background:#ffab00;
   padding:8px 12px; font-size:medium; border-radius:14px; }
-#keysratdiv { margin-left:-2px; }
+#keysratdiv { margin-left:-2px; margin-top:3px; }
 #kwdsdiv { display:inline-block; }
-#starsnbuttonsdiv { display:inline-block; padding:5px 0px 2px 22px; }
+#starsnbuttonsdiv { padding:6px 0px 2px 22px; }
 #rvdiv { display:inline-block; padding-left:8px; }
 .kwdtogoff, .kwdtogon { color:white; background:#333; font-size:small; 
   padding:0px 2px; margin:2px; border-radius:0px; }
@@ -203,7 +206,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
 #togsleeplink, #togcommentlink, #togsharelink { padding-left:21px; }
-#togsleepimg, #togcommentimg, #togshareimg { max-height:16px; margin-left:4px; }
+#togsleepimg, #togcommentimg, #togshareimg { max-height:20px;
+  margin-left:20px; }
 #commentta { padding:3px 5px; }
 #sleepdiv { font-size:medium; }
 

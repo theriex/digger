@@ -773,6 +773,8 @@ app.player = (function () {
             mgrs.pan.balanceLabels();
             const pk = {leftlab:{elem:jt.byId(id + "panlld")},
                         rightlab:{elem:jt.byId(id + "panrld")},
+                        lpdl:{elem:jt.byId(id + "panlpd")},
+                        rpdl:{elem:jt.byId(id + "panrpd")},
                         panbg:{elem:jt.byId(id + "panbgdiv")},
                         panface:{elem:jt.byId(id + "panfacediv")}};
             Object.keys(pk).forEach(function (key) {
@@ -780,6 +782,10 @@ app.player = (function () {
             const left = 8 + pk.leftlab.bbox.width;
             pk.panbg.elem.style.left = left + "px";
             pk.panface.elem.style.left = left + "px";
+            pk.lpdl.elem.style.width = left + 22 + "px";
+            pk.rpdl.elem.style.width = (pk.rightlab.bbox.width + 5 + 22) + "px";
+            pk.lpdl.elem.style.height = "40px";
+            pk.rpdl.elem.style.height = "40px";
             ctrls[id].width = left + 44 + pk.rightlab.bbox.width + 5;
             const pds = [jt.byId(id + "pancontdiv"), jt.byId(id + "pandiv"),
                          jt.byId(id + "pandragdiv")];
@@ -960,8 +966,10 @@ app.player = (function () {
             if(!pc.ci.active && pa) {   //new movement, figure out what kind
                 const kf = jt.byId(id + "panfacediv");
                 if(x < kf.offsetLeft - 4) {
+                    mgrs.gen.illuminateAndFade(id + "panlpd", 1800);
                     pc.ci.trg = "left"; }
                 else if(x > kf.offsetLeft + kf.offsetWidth + 4) {
+                    mgrs.gen.illuminateAndFade(id + "panrpd", 1800);
                     pc.ci.trg = "right"; }
                 else {
                     pc.ci.trg = "knob"; } }
@@ -983,7 +991,9 @@ app.player = (function () {
             ctrls[id] = pc;
             jt.out(id + "pandiv", jt.tac2html(
               ["div", {cla:"pancontdiv", id:pc.fld + "pancontdiv"},
-               [["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
+               [["div", {cla:"panleftpaddlediv", id:pc.fld + "panlpd"}],
+                ["div", {cla:"panrightpaddlediv", id:pc.fld + "panrpd"}],
+                ["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
                 ["div", {cla:"panrightlabdiv", id:pc.fld + "panrld"}, pc.high],
                 ["div", {cla:"panfacediv", id:pc.fld + "panfacediv"},
                  ["img", {cla:"panfaceimg", src:"img/panface.png"}]],
@@ -1373,13 +1383,22 @@ app.player = (function () {
                     mgrs.gen.logCurrentlyPlaying("mgrs.gen.next");
                     mgrs.cmt.updateCommentIndicator();
                     mgrs.aud.playAudio(); } }); },
+        illuminateAndFade: function (divid, ms) {
+            var elem = jt.byId(divid);
+            elem.style.backgroundColor = "#FFAB00";
+            elem.classList.add("bgtransitionfade");
+            setTimeout(function () {
+                elem.style.backgroundColor = "transparent"; }, ms);
+            setTimeout(function () {
+                elem.classList.remove("bgtransitionfade"); }, ms + 750); },
         skip: function () {
             var st = Date.now();
             if(stat.skiptime && ((st - stat.skiptime) < 7000)) {
-                //On a phone, the skip button can be unresponsive up to several
+                //On a phone, the skip button can be unresponsive for several
                 //seconds if the UI is setting up binding to the music playback
                 //service.  Avoid accidental double skip from repress.
                 return; }
+            mgrs.gen.illuminateAndFade("nextsongdiv", 5000);
             stat.skiptime = st;
             mgrs.tun.bumpCurrentIfTired();  //bumps the fq value if tired song
             mgrs.gen.next(); },
