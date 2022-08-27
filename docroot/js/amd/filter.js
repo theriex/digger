@@ -5,10 +5,10 @@ app.filter = (function () {
     "use strict";
 
     var ctrls = {activecolor:"#ffab00", movestats:[], trapdrag:true,
-                 el:{fld:"el", pn:"Energy Level",
-                     low:"Chill", high:"Amped"},
                  al:{fld:"al", pn:"Approachability", 
                      low:"Easy", high:"Hard"},
+                 el:{fld:"el", pn:"Energy Level",
+                     low:"Chill", high:"Amped"},
                  rat:{pn:"Minimum Rating"},
                  fq:{pn:"Frequency Eligible"}};
     var ranger = {dims:{x:0, y:0, w:120, h:120},
@@ -105,7 +105,7 @@ app.filter = (function () {
 
     //Range manager handles selection range window controls
     mgrs.rng = (function () {
-        var rcids = ["el", "al"];  //energy level, approachability level
+        var rcids = ["al", "el"];  //approachability level, energy level
         function verifyValue (val, dflt, min, max) {
             val = val || dflt;
             if(!Number.isInteger(val)) {
@@ -455,7 +455,7 @@ app.filter = (function () {
                         jt.log("stg.saveSettings " + code + ": " +
                                errtxt); }); }, 5 * 1000); },
         arrayOfAllFilters: function (mode) {
-            var filts = [ctrls.el, ctrls.al];
+            var filts = [ctrls.al, ctrls.el];
             if(ctrls.kts) {
                 ctrls.kts.forEach(function (kt) {
                     if(!mode) {
@@ -492,8 +492,8 @@ app.filter = (function () {
             return prefix + csv.csvarray().join(sep + prefix); }
     return {
         summarizeFiltering: function () {
-            return {elmin:ctrls.el.rgfoc.min, elmax:ctrls.el.rgfoc.max,
-                    almin:ctrls.al.rgfoc.min, almax:ctrls.al.rgfoc.max,
+            return {almin:ctrls.al.rgfoc.min, almax:ctrls.al.rgfoc.max,
+                    elmin:ctrls.el.rgfoc.min, elmax:ctrls.el.rgfoc.max,
                     poskws:buttonsCSV("pos"), negkws:buttonsCSV("neg"),
                     minrat:mgrs.mruc.minrat(),
                     tagfidx:mgrs.mruc.tagf(),
@@ -506,10 +506,10 @@ app.filter = (function () {
             var sep = "_";
             var summary = mgrs.dsc.summarizeFiltering();
             if(summary.fq === "on") {
-                if(ctrls.el.actname) {  //particularly Chill or Amped
-                    name += sep + ctrls.el.actname; }
                 if(ctrls.al.actname) {  //particularly Easy or Hard
                     name += sep + ctrls.al.actname; }
+                if(ctrls.el.actname) {  //particularly Chill or Amped
+                    name += sep + ctrls.el.actname; }
                 if(summary.poskws) {
                     name += sep + formatCSV(summary.poskws, sep); }
                 if(summary.negkws) {
@@ -521,8 +521,8 @@ app.filter = (function () {
             var sum = mgrs.dsc.summarizeFiltering();
             var desc = "Songs on deck in Digger";
             if(sum.fq === "on") {
-                desc += ", energy level " + sum.elmin + " to " + sum.elmax +
-                    ", approachability " + sum.almin + " to " + sum.almax;
+                desc += ", approachability " + sum.almin + " to " + sum.almax +
+                    ", energy level " + sum.elmin + " to " + sum.elmax;
                 if(sum.poskws) {
                     desc += ", " + formatCSV(sum.poskws, ", "); }
                 if(sum.negkws) { 
@@ -584,8 +584,8 @@ app.filter = (function () {
                      "FILTERS"]]],
                   ["div", {id:"filtpanelcontdiv"},
                    [["div", {id:"rangesdiv"},
-                     [["div", {cla:"rangectrldiv", id:"eldiv"}],
-                      ["div", {cla:"rangectrldiv", id:"aldiv"}]]],
+                     [["div", {cla:"rangectrldiv", id:"aldiv"}],
+                      ["div", {cla:"rangectrldiv", id:"eldiv"}]]],
                     ["div", {id:"kwtogsdiv"}],
                     ["div", {id:"ratdiv"}]]]]]));
             mgrs.gen.togglePanelView();

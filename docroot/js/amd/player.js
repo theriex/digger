@@ -364,7 +364,7 @@ app.player = (function () {
                          spdn:(st.disc_number || 1),
                          sptn:(st.track_number || 1), spid:tid,
                          srcid:1, //reserved value for Spotify sourced Songs
-                         el:49, al:49, kws:"", rv:5, fq:"N", nt:"", pc:1,
+                         al:49, el:49, kws:"", rv:5, fq:"N", nt:"", pc:1,
                          lp:new Date().toISOString()};
             app.svc.updateSong(stat.song, function (updsong) {
                 app.svc.dispatch("web", "addSongsToPool", [updsong]);
@@ -762,10 +762,11 @@ app.player = (function () {
         const ptir = 12;   //polar tracking inner border radius
     return {
         balanceLabels: function () {
-            const ids = ["elpanlld", "elpanrld", "alpanlld", "alpanrld"];
+            const ids = ["alpanlld", "alpanrld", "elpanlld", "elpanrld"];
             const els = ids.map((i) => jt.byId(i));
             const wds = els.map((e) => e? e.offsetWidth : 0);
-            const mw = Math.max.apply(null, wds);
+            //Hardcoded minimum width avoids overpacking and balances if space.
+            const mw = Math.max(48, Math.max.apply(null, wds));
             els.forEach(function (e) {
                 if(e) {
                     e.style.width = mw + "px"; } }); },
@@ -1004,10 +1005,10 @@ app.player = (function () {
             mgrs.pan.activateControl(id); },
         makePanControls: function () {
             var filters = app.filter.filters();
-            mgrs.pan.createControl("el", filters[0]);
-            mgrs.pan.createControl("al", filters[1]);
-            mgrs.pan.updateControl("el");
+            mgrs.pan.createControl("al", filters[0]);
+            mgrs.pan.createControl("el", filters[1]);
             mgrs.pan.updateControl("al");
+            mgrs.pan.updateControl("el");
             jt.on("impressiondiv", "mousedown", function (event) {
                 var okinids = ["kwdin", "commentta"];
                 if(!event.target || okinids.indexOf(event.target.id) < 0) {
@@ -1015,8 +1016,8 @@ app.player = (function () {
             jt.on("panplaymousingdiv", "mouseup", function (ignore /*event*/) {
                 //do not capture this event or Safari audio will capture the
                 //downclick on the position indicator and never let go.
-                ctrls.el.pointingActive = false;
                 ctrls.al.pointingActive = false;
+                ctrls.el.pointingActive = false;
                 ctrls.rat.pointingActive = false; }); },
         hex2RGB: function (hexcolor) {
             var hcs = hexcolor.match(/\S\S/g);
@@ -1135,12 +1136,12 @@ app.player = (function () {
                       {p:"album: ", f:"ab"}];
         function impressionSummary () {
             const imps = [{lab:"Keywords", val:stat.song.kws || "none"},
-                          {lab:"Energy Level", val:"Medium"},
-                          {lab:"Approachability", val:"Medium"}];
-            if(stat.song.el <= 40) { imps[1].val = "Chill"; }
-            if(stat.song.el >= 65) { imps[1].val = "Amped"; }
-            if(stat.song.al <= 40) { imps[2].val = "Easy"; }
-            if(stat.song.al >= 65) { imps[2].val = "Hard"; }
+                          {lab:"Approachability", val:"Medium"},
+                          {lab:"Energy Level", val:"Medium"}];
+            if(stat.song.al <= 40) { imps[1].val = "Easy"; }
+            if(stat.song.al >= 65) { imps[1].val = "Hard"; }
+            if(stat.song.el <= 40) { imps[2].val = "Chill"; }
+            if(stat.song.el >= 65) { imps[2].val = "Amped"; }
             return imps; }
         function commentOrPromptContent () {
             if(stat.song.nt) { return stat.song.nt; }
@@ -1336,8 +1337,8 @@ app.player = (function () {
                    ["div", {id:"mediaoverlaydiv", style:"display:none"}],
                    ["div", {id:"impressiondiv"},
                     [["div", {id:"panpotsdiv"},
-                      [["div", {cla:"pandiv", id:"elpandiv"}],
-                       ["div", {cla:"pandiv", id:"alpandiv"}]]],
+                      [["div", {cla:"pandiv", id:"alpandiv"}],
+                       ["div", {cla:"pandiv", id:"elpandiv"}]]],
                      ["div", {id:"keysratdiv"},
                       [["div", {id:"kwdsdiv"}],
                        ["div", {id:"starsnbuttonsdiv"},
@@ -1355,12 +1356,12 @@ app.player = (function () {
                                 onclick:mdfs("cmt.togSongShareDialog")},
                           ["img", {id:"togshareimg", src:"img/share.png"}]]]]]],
                      ["div", {id:"pandragcontdiv"},
-                      [["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
-                       ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
-                       ["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
+                      [["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
                        ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
-                       ["div", {id:"elpandragdiv", cla:"pandragdiv"}],
-                       ["div", {id:"alpandragdiv", cla:"pandragdiv"}]]]]]]],
+                       ["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
+                       ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
+                       ["div", {id:"alpandragdiv", cla:"pandragdiv"}],
+                       ["div", {id:"elpandragdiv", cla:"pandragdiv"}]]]]]]],
                  ["div", {id:"commentdiv"}],
                  ["div", {id:"sleepdiv"}]]));
             mgrs.pan.makePanControls();

@@ -175,7 +175,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #impressiondiv { position:relative; }
 #panpotsdiv { position:relative; padding-left:25px; }
 .pandiv { display:inline-block; position:relative; }
-#elpandiv { margin-right:7px; }
+#alpandiv { margin-right:7px; }
 .pancontdiv { width:140px; height:40px; cursor:pointer;
   border: 2px solid #777; border-radius:10px; }
 .panbgdiv, .panfacediv { position:absolute; left:50px; top:2px;
