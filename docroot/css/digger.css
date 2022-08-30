@@ -225,7 +225,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 
 
 #pluidiv { background:#333; margin:2px 0px 6px 0px; padding:10px 0px;
-  max-width:290px; }
+  min-width:290px; max-width:290px; }
 #pluibdiv { display:inline-block; padding:2px 2px 2px 6px; }
 #pluibimg { max-height:20px; max-width:20px; }
 #pluiprogdispdiv { display:inline-block; position:relative; }

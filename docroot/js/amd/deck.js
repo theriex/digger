@@ -82,8 +82,9 @@ app.deck = (function () {
             for(di = 0; di < decksongs.length && di < 7; di += 1) {
                 currsong = decksongs[di];
                 si = mgrs.ws.findSongIndex(currsong, wrk.songs);
-                //jt.log("peds " + si + ": " + currsong.ti);
                 if(si < 0) { break; }  //deck changed from this index onward
+                jt.log("peds " + si + ": " + wrk.songs[si].ti +
+                       ", lp: " + wrk.songs[si].lp);
                 wrk.prs.push(wrk.songs[si]);
                 wrk.songs.splice(si, 1); } },
         shuffleArray: function (arr, startidx, endidx) {  //Fisher-Yates shuffle

@@ -497,7 +497,8 @@ app.player = (function () {
                 mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
                 mgrs.aud.updateSongDisplay(); }); },
         rebuildFromPath: function (npp) {  //player has skipped forward
-            const nsg = app.svc.songs()[npp];  //exists. previously on deck.
+            const songs = app.svc.songs("reload");
+            const nsg = songs[npp];  //exists. previously on deck.
             if(!nsg) {
                 return jt.log("mgrs.mob.rebuildDisplay song not found, npp: " +
                               npp); }
