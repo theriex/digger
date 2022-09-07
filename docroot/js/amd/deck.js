@@ -716,6 +716,7 @@ return {
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
     getState: function (dmx) { return mgrs.gen.deckstate(dmx); },
     setState: function (state) { mgrs.gen.restore(state); },
+    excise: function (s) { mgrs.dk.removeFromDeck(s); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.deck, args); }
 };  //end of module returned functions

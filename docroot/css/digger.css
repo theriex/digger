@@ -196,17 +196,18 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #panplaymousingdiv { position:relative; }
 #mediaoverlaydiv { position:absolute; top:0px; left:2px; background:#ffab00;
   padding:8px 12px; font-size:medium; border-radius:14px; }
-#keysratdiv { margin-left:-2px; margin-top:3px; }
+#keysratdiv { margin-left:-2px; margin-top:5px; }
 #kwdsdiv { display:inline-block; }
-#starsnbuttonsdiv { padding:6px 0px 2px 22px; }
+#starsnbuttonsdiv { padding:8px 0px 2px 22px; }
 #rvdiv { display:inline-block; padding-left:8px; }
-.kwdtogoff, .kwdtogon { color:white; background:#333; font-size:small; 
-  padding:0px 2px; margin:2px; border-radius:0px; }
+#playerbuttonsdiv { display:inline-block; vertical-align:top; }
+.kwdtogoff, .kwdtogon { color:white; background:#333; font-size:medium; 
+  padding:0px 2px; margin:4px; border-radius:0px; }
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
 #togsleeplink, #togcommentlink, #togsharelink { padding-left:21px; }
-#togsleepimg, #togcommentimg, #togshareimg { max-height:20px;
+#togsleepimg, #togcommentimg, #togshareimg { max-height:24px;
   margin-left:20px; }
 #commentta { padding:3px 5px; }
 #sleepdiv { font-size:medium; }
@@ -276,12 +277,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 
 #ratdiv { margin:0px 5px 0px 0px; text-align:center; }
 .gtoreqspan { font-size:large; font-weight:bold; }
-.ratstarscontainerdiv { display:inline-block; width:85px; height:15px; }
+.ratstarscontainerdiv { display:inline-block; }
 .ratstarsanchordiv { position:relative; cursor:pointer; }
 .ratstarbgdiv { position:absolute; top:0px; left:0px; }
 .ratstarseldiv { position:absolute; top:0px; left:0px; overflow:hidden; }
-#ratstardragdiv, #filtstardragdiv { position:absolute; top:0px; left:0px;
-  width:85px; height:15px; }
+#ratstardragdiv { position:absolute; top:0px; left:0px; }
 #incluntb, #pullscopeb { background:#333; font-size:12px;
   padding:2px 6px; margin:5px 5px 0px 10px; border:0px; border-radius:0px;
   box-shadow:1px 1px 1px #666; }

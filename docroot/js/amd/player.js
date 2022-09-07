@@ -50,30 +50,40 @@ app.player = (function () {
     }
 
 
-    function makeRatingValueControl () {
-        jt.out("rvdiv", jt.tac2html(
-            ["div", {cla:"ratstarscontainerdiv", id:"playerstarsdiv"},
-             ["div", {cla:"ratstarsanchordiv", id:"playerstarsanchordiv"},
-              [["div", {cla:"ratstarbgdiv"},
-                ["img", {cla:"starsimg", src:"img/stars18ptCg.png"}]],
-               ["div", {cla:"ratstarseldiv", id:"playerstarseldiv"},
-                ["img", {cla:"starsimg", src:"img/stars18ptC.png"}]],
-               ["div", {id:"ratstardragdiv"}]]]]));
-        ctrls.rat = {stat:{pointingActive:false, maxxlim:85, roundpcnt:5},
-                     posf:function (x, ignore /*y*/, pa) {
-                         //jt.log("ctrls.rat.posf x: " + x);
-                         const nrv = Math.round((x / 17) * 2);
-                         const psw = Math.round((nrv * 17) / 2);
-                         jt.byId("playerstarseldiv").style.width = psw + "px";
-                         if(stat.song && pa) {
-                             const cv = stat.song.rv;
-                             stat.song.rv = nrv;
-                             if(cv !== stat.song.rv) {
-                                 noteSongModified(); } } } };
-        app.filter.movelisten("ratstardragdiv", ctrls.rat.stat,
-                              ctrls.rat.posf);
-        ctrls.rat.posf(0);  //no stars until set or changed.
-    }
+    mgrs.rat = (function () {
+        const imgw = 110;       //scaled width of 5 stars image
+        const imgh = 22;        //scaled height of 5 stars image
+        const stw = imgw / 5;   //width of one star
+    return {
+        adjustRatingFromPosition: function (x, ignore /*y*/, pa) {
+            //jt.log("adjustRatingFromPosition x: " + x);
+            const nrv = Math.round((x / stw) * 2);
+            const psw = Math.round((nrv * stw) / 2);
+            jt.byId("playerstarseldiv").style.width = psw + "px";
+            if(stat.song && pa) {
+                const cv = stat.song.rv;
+                stat.song.rv = nrv;
+                if(cv !== stat.song.rv) {
+                    noteSongModified(); } } },
+        adjustPositionFromRating: function (rv) {
+            mgrs.rat.adjustRatingFromPosition(Math.round((rv * stw) / 2)); },
+        makeRatingValueControl: function () {
+            const starstyle = "width:" + imgw + "px;height:" + imgh + "px;";
+            jt.out("rvdiv", jt.tac2html(
+                ["div", {cla:"ratstarscontainerdiv", style:starstyle},
+                 ["div", {cla:"ratstarsanchordiv"},
+                  [["div", {cla:"ratstarbgdiv"},
+                    ["img", {src:"img/stars425x86g.png", style:starstyle}]],
+                   ["div", {cla:"ratstarseldiv", id:"playerstarseldiv"},
+                    ["img", {src:"img/stars425x86.png", style:starstyle}]],
+                   ["div", {id:"ratstardragdiv", style:starstyle}]]]]));
+            ctrls.rat = {stat:{pointingActive:false,
+                               maxxlim:imgw, roundpcnt:5}};
+            app.filter.movelisten("ratstardragdiv", ctrls.rat.stat,
+                                  mgrs.rat.adjustRatingFromPosition);
+            mgrs.rat.adjustRatingFromPosition(0); }  //no stars until set
+    };  //end mgrs.rat returned functions
+    }());
 
 
     //local audio interface uses standard audio element
@@ -503,6 +513,7 @@ app.player = (function () {
                 return jt.log("mgrs.mob.rebuildDisplay song not found, npp: " +
                               npp); }
             stat.song = nsg;
+            app.deck.excise(stat.song);  //pull playing while waiting 4 rebuild
             mgrs.cmt.resetDisplay();
             mgrs.aud.updateSongDisplay();
             app.deck.dispatch("ws", "rebuild", "player.mob song update"); },
@@ -569,7 +580,7 @@ app.player = (function () {
             mgrs.pan.updateControl("al", stat.song.al);
             mgrs.pan.updateControl("el", stat.song.el);
             stat.song.rv = stat.song.rv || 0;  //verify numeric value
-            ctrls.rat.posf(Math.round((stat.song.rv * 17) / 2)); },
+            mgrs.rat.adjustPositionFromRating(stat.song.rv); },
         reflectPlaying: function () {
             stat.status = "playing";
             jt.log("player.aud.reflectPlaying " + JSON.stringify(stat.song));
@@ -1344,18 +1355,21 @@ app.player = (function () {
                       [["div", {id:"kwdsdiv"}],
                        ["div", {id:"starsnbuttonsdiv"},
                         [["div", {id:"rvdiv"}],
-                         ["a", {id:"togsleeplink", href:"#sleepafter",
-                                title:"",
-                                onclick:mdfs("slp.toggleSleepDisplay")},
-                          ["img", {id:"togsleepimg", src:"img/sleep.png"}]],
-                         ["a", {id:"togcommentlink", href:"#togglecomment",
-                                title:"",
-                                onclick:mdfs("cmt.toggleCommentDisplay")},
-                          ["img", {id:"togcommentimg", src:"img/comment.png"}]],
-                         ["a", {id:"togsharelink", href:"#share",
-                                title:"",
-                                onclick:mdfs("cmt.togSongShareDialog")},
-                          ["img", {id:"togshareimg", src:"img/share.png"}]]]]]],
+                         ["div", {id:"playerbuttonsdiv"},
+                          [["a", {id:"togsleeplink", href:"#sleepafter",
+                                  title:"",
+                                  onclick:mdfs("slp.toggleSleepDisplay")},
+                            ["img", {id:"togsleepimg", src:"img/sleep.png"}]],
+                           ["a", {id:"togcommentlink", href:"#togglecomment",
+                                  title:"",
+                                  onclick:mdfs("cmt.toggleCommentDisplay")},
+                            ["img", {id:"togcommentimg",
+                                     src:"img/comment.png"}]],
+                           ["a", {id:"togsharelink", href:"#share",
+                                  title:"",
+                                  onclick:mdfs("cmt.togSongShareDialog")},
+                            ["img", {id:"togshareimg",
+                                     src:"img/share.png"}]]]]]]]],
                      ["div", {id:"pandragcontdiv"},
                       [["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
                        ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
@@ -1367,7 +1381,7 @@ app.player = (function () {
                  ["div", {id:"sleepdiv"}]]));
             mgrs.pan.makePanControls();
             //toggle controls are rebuilt after data loads, not needed yet
-            makeRatingValueControl(); },
+            mgrs.rat.makeRatingValueControl(); },
         next: function () {
             saveSongDataIfModified("ignoreUpdatedSongDataReturn");
             //player calls contf if is ready, otherwise contf is ignored and it
