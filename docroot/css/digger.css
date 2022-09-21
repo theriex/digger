@@ -172,6 +172,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
   border: 2px solid #777; border-radius:10px;}
 .bgtransitionfade { transition:background-color 750ms; }
 
+#mediadiv { margin-bottom:4px; }
 #impressiondiv { position:relative; }
 #panpotsdiv { position:relative; padding-left:25px; }
 .pandiv { display:inline-block; position:relative; }
@@ -196,9 +197,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #panplaymousingdiv { position:relative; }
 #mediaoverlaydiv { position:absolute; top:0px; left:2px; background:#ffab00;
   padding:8px 12px; font-size:medium; border-radius:14px; }
-#keysratdiv { margin-left:-2px; margin-top:5px; }
+#keysratdiv { margin-left:-2px; margin-top:7px; }
 #kwdsdiv { display:inline-block; }
-#starsnbuttonsdiv { padding:8px 0px 2px 22px; }
+#starsnbuttonsdiv { padding:10px 0px 2px 22px; }
 #rvdiv { display:inline-block; padding-left:8px; }
 #playerbuttonsdiv { display:inline-block; vertical-align:top; }
 .kwdtogoff, .kwdtogon { color:white; background:#333; font-size:medium; 
@@ -206,7 +207,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
-#togsleeplink, #togcommentlink, #togsharelink { padding-left:21px; }
+#togsleeplink, #togcommentlink, #togsharelink { margin-left:21px; }
 #togsleepimg, #togcommentimg, #togshareimg { max-height:24px;
   margin-left:20px; }
 #commentta { padding:3px 5px; }
@@ -277,7 +278,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 
 #ratdiv { margin:0px 5px 0px 0px; text-align:center; }
 .gtoreqspan { font-size:large; font-weight:bold; }
-.ratstarscontainerdiv { display:inline-block; }
+.ratstarscontainerdiv { display:inline-block; margin-right:20px; }
 .ratstarsanchordiv { position:relative; cursor:pointer; }
 .ratstarbgdiv { position:absolute; top:0px; left:0px; }
 .ratstarseldiv { position:absolute; top:0px; left:0px; overflow:hidden; }
@@ -306,8 +307,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 .dinfrecnspan { font-size:small; }
 #decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckhistorydiv, #decknewestdiv {
   height:160px; min-height:160px; max-height:160px; overflow:scroll; }
-
-.songtitlediv { font-size:medium; position:relative; padding:0px 0px 4px 0px; }
+/* title font-size inherited from containing element for player layout */
+.songtitlediv { position:relative; padding:0px 0px 4px 0px; }
 .dsarspan { font-size:small; }
 .dsabspan { font-size:small; font-style:italic; }
 .decksongactdiv { position:absolute; top:0px; left:20px; z-index:1;

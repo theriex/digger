@@ -514,6 +514,7 @@ app.player = (function () {
                               npp); }
             stat.song = nsg;
             app.deck.excise(stat.song);  //pull playing while waiting 4 rebuild
+            mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.resetDisplay();
             mgrs.aud.updateSongDisplay();
             app.deck.dispatch("ws", "rebuild", "player.mob song update"); },
