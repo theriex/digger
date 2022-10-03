@@ -686,7 +686,7 @@ app.deck = (function () {
             return di; },
         deckstate: function (dmx) {  //interim rapid restore info (minimal data)
             var state = {disp:deckstat.disp};
-            dmx = dmx || 7;
+            dmx = dmx || 0;  //must be numeric, verify not undefined.
             //jt.log("deck.gen.deckstate disp: " + deckstat.disp);
             if(deckstat.disp === "album") {
                 state.det = mgrs.alb.albumstate(); }
