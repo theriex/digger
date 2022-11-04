@@ -150,8 +150,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 /****************************************/
 /* Player Panel */
 
+/* bold kanjii at 18px needs 20px containing height to not be cut off.  Matches
+   reset in player.tun.toggleTuningOpts */
 #playertitle { font-size:18px; margin-bottom:1px; padding-top:4px;
-  max-height:18px; overflow:hidden; }
+  max-height:20px; overflow:hidden; }
+.dstispan { display:inline-block; height:20px; }
 #playtitlebuttonsdiv { float:right; min-height:18px; margin-top:-4px; }
 #modindspan { color:#ffab00; padding-right:5px; font-weight:bold; }
 .indicatorlightcolor { color:#ffab00; }

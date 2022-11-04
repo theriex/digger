@@ -75,11 +75,10 @@ app.deck = (function () {
                 ((s.dsId && s.dsId === song.dsId) ||
                  (s.path && s.path === song.path))); },
         preserveExistingDeckSongs: function () {
-            //some people like to anticipate what they saw on deck, so leave
-            //the first songs intact to the extent possible
             var decksongs = mgrs.dk.songs();  var di; var si; var currsong;
+            const mxkp = 20;  //notes 14oct22
             wrk.prs = [];  //reset preserved songs
-            for(di = 0; di < decksongs.length && di < 7; di += 1) {
+            for(di = 0; di < decksongs.length && di < mxkp; di += 1) {
                 currsong = decksongs[di];
                 si = mgrs.ws.findSongIndex(currsong, wrk.songs);
                 if(si < 0) { break; }  //deck changed from this index onward

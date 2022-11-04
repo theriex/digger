@@ -665,7 +665,7 @@ app.player = (function () {
                 tdiv.innerHTML = "";
                 if(timg) { timg.src = "img/tunefork.png"; }
                 ptitle.style.overflow = "hidden";
-                ptitle.style.maxHeight = "17px";  //hide top of next line
+                ptitle.style.maxHeight = "20px";  //hide top of next line
                 return; }
             if(timg) { timg.src = "img/tuneforkact.png"; }
             ptitle.style.overflow = "visible";
