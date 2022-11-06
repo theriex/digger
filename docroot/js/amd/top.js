@@ -184,7 +184,9 @@ app.top = (function () {
             syt.down += songs.length;
             jt.log("processReceivedSyncData " + songs.length + " songs.");
             songs.forEach(function (s) {
+                app.player.dispatch("mob", "rebuildIfSongPlaying", s);
                 app.svc.dispatch("loc", "noteUpdatedSongData", s); });
+            app.deck.dispatch("ws", "rebuildIfChanged");
             const curracct = mgrs.aaa.getAccount();
             if(curracct.syncsince && curracct.syncsince < curracct.modified) {
                 mgrs.srs.syncToHub(); } },  //more to download...

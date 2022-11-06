@@ -33,6 +33,15 @@ app.deck = (function () {
                 if(!a.lp && b.lp) { return -1; }
                 if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); } }
             return 0; }
+        function filterByFilters (runcounts) {
+            if(app.filter.filteringPanelState() === "off") {
+                return; }
+            app.filter.filters("active").forEach(function (ftr) {
+                wrk.songs = wrk.songs.filter((song) => ftr.match(song));
+                if(runcounts) {
+                    mgrs.ws.appendInfoCount(ftr.actname || ftr.pn); } });
+            if(runcounts) {
+                wrk.availcount = wrk.songs.length; } }
     return {
         appendInfoCount: function (phasename, count) {
             count = count || wrk.songs.length;
@@ -58,18 +67,11 @@ app.deck = (function () {
                 mgrs.ws.appendInfoCount("Search Text"); }
             else {  //no search term present, don't show 'x'
                 jt.byId("clrsrchdiv").style.display = "none"; } },
-        filterByFilters: function () {
-            if(app.filter.filteringPanelState() === "off") {
-                return; }
-            app.filter.filters("active").forEach(function (ftr) {
-                wrk.songs = wrk.songs.filter((song) => ftr.match(song));
-                mgrs.ws.appendInfoCount(ftr.actname || ftr.pn); });
-            wrk.availcount = wrk.songs.length; },
         filterSongs: function () {
             wrk.fcs = [];  //clear filter control status messages
             mgrs.ws.appendInfoCount("Readable songs");
             mgrs.ws.filterBySearchText();
-            mgrs.ws.filterByFilters(); },
+            filterByFilters(true); },
         findSongIndex: function (song, songs) {
             return songs.findIndex((s) => 
                 ((s.dsId && s.dsId === song.dsId) ||
@@ -150,7 +152,7 @@ app.deck = (function () {
                 wrk.startsong = null;
                 app.startParams.songid = ""; }
             mgrs.dk.setSongs(wrk.songs);  //replace working set
-            if(wrk.songs.length) {  //show songs if any found
+            if(wrk.songs.length) {  //let player know songs are available
                 app.player.deckUpdated(); }
             setTimeout(function () {  //leave info up momentarily
                 mgrs.gen.showSection(wrk.selview); }, 800);
@@ -189,6 +191,11 @@ app.deck = (function () {
                 mgrs.ws.rebuild(caller); }
             else if(redisp) {  //no rebuild, caller requested refresh
                 mgrs.sop.displaySongs("dk", "decksongsdiv", wrk.songs); } },
+        rebuildIfChanged: function (caller) {
+            const wrklen = wrk.songs.length;
+            filterByFilters(false);
+            if(wrk.songs.length !== wrklen) {
+                mgrs.ws.rebuild(caller); } },
         noteUpdatedSongs: function (updatedsongs) {
             var upds = {};
             updatedsongs.forEach(function (s) { upds[s.dsId] = s; });
