@@ -186,7 +186,8 @@ app.top = (function () {
             songs.forEach(function (s) {
                 app.player.dispatch("mob", "rebuildIfSongPlaying", s);
                 app.svc.dispatch("loc", "noteUpdatedSongData", s); });
-            app.deck.dispatch("ws", "rebuildIfChanged");
+            app.deck.dispatch("ws", "rebuildIfChanged",
+                              "processReceivedSyncData");
             const curracct = mgrs.aaa.getAccount();
             if(curracct.syncsince && curracct.syncsince < curracct.modified) {
                 mgrs.srs.syncToHub(); } },  //more to download...
@@ -956,7 +957,8 @@ app.top = (function () {
                 makeHubCall(buttonid, "POST", "acctok", dat, function (acct) {
                     if(mgrs.afg.inApp()) {
                         mgrs.gen.updateHubToggleSpan(acct);
-                        mgrs.gen.togtopdlg(null, "close"); }
+                        mgrs.gen.togtopdlg(null, "close");
+                        mgrs.aaa.notifyAccountChanged(); }
                     else { //standalone account management
                         mgrs.afg.accountFanGroup("personal"); } }); } },
         emailPwdReset: function () {
