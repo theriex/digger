@@ -1449,12 +1449,13 @@ app.player = (function () {
                 jt.log("player.deckUpdated, calling next to start music");
                 app.player.next(); } },
         logCurrentlyPlaying: function (prefix) {
+            //mobile player updates when playing new song, no separate call.
             prefix = prefix || "";
             if(prefix) { prefix += " "; }
-            if(!stat || !stat.song) {
-                jt.log(prefix + "logCurrentlyPlaying: no song"); }
+            if(stat && stat.song) {
+                jt.log(prefix + "logCurrentlyPlaying: " + stat.song.path); }
             else {
-                jt.log(prefix + "logCurrentlyPlaying: " + stat.song.path); } }
+                jt.log(prefix + "logCurrentlyPlaying: no song"); } }
     }; //end mgrs.gen returned functions
     }());
 
