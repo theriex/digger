@@ -1585,6 +1585,7 @@ app.top = (function () {
                 {ty:"cfgp", oc:mdfs("cfg.confirmStart"),
                  tt:"Configure music and data file locations",
                  p:"dbPath", n:"Digger Data"},
+                {ty:"info", htmlfs:"versionInfoHTML"},
                 {ty:"info", htmlfs:"hubSyncInfoHTML"},
                 {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
                  tt:"Read all files in the music folder", n:"Read Files"},
@@ -1643,6 +1644,14 @@ app.top = (function () {
             app.deck.dispatch("dk", "removeFromDeck", song);
             app.deck.dispatch("hst", "noteSongPlayed", song);
             app.deck.dispatch("dk", "playnow", "hst", 0); },
+        versionInfoHTML: function () {
+            var versioncode = app.svc.plat("versioncode");
+            var vstr = mgrs.gen.songDataVersion() +
+                (versioncode? ", " + versioncode : "") +
+                ", " + app.fileVersion();
+            return jt.tac2html(
+                [["span", {cla:"pathlabelgreyspan"}, "Version:"],
+                 ["span", {cla:"infospan"}, vstr]]); },
         hubSyncInfoHTML: function () {
             if(mgrs.aaa.getAccount().dsId === "101") { return ""; }
             setTimeout(mgrs.srs.makeStatusDisplay, 100);
@@ -2165,7 +2174,8 @@ app.top = (function () {
             case "total": count = "+" + count + "&nbsp;songs"; break;
             case "avail": count = String(count) + "&nbsp;songs"; break;
             default: count = String(count); }
-            jt.out("countspan", count); }
+            jt.out("countspan", count); },
+        songDataVersion: function () { return sddv; }
     };  //end mgrs.gen returned functions
     }());
 
