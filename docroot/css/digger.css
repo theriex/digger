@@ -154,7 +154,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
    reset in player.tun.toggleTuningOpts */
 #playertitle { font-size:18px; margin-bottom:1px; padding-top:4px;
   max-height:20px; overflow:hidden; }
-.dstispan { display:inline-block; height:20px; }
+.dstispan { /* must be inline span for formatting flow */ }
 #playtitlebuttonsdiv { float:right; min-height:18px; margin-top:-4px; }
 #modindspan { color:#ffab00; padding-right:5px; font-weight:bold; }
 .indicatorlightcolor { color:#ffab00; }
