@@ -142,7 +142,8 @@ app.player = (function () {
         function tickf () {
             if(!prog.tickcount) {
                 prog.svco.refreshPlayState(); }
-            prog.pos = Math.min(prog.pos + 1000, prog.dur);  //tick 1 sec fwd
+            if(state === "playing") {  //tick 1 sec fwd
+                prog.pos = Math.min(prog.pos + 1000, prog.dur); }
             mgrs.plui.updatePosIndicator();  //reflect new position
             prog.tickcount = (prog.tickcount + 1) % 4;
             if(jt.byId("pluidiv")) { //interface still available
@@ -154,16 +155,15 @@ app.player = (function () {
                     prog.ticker = setTimeout(tickf, 1000); } } }
     return {
         reflectPlaybackState: function (pbs, skiptick) {
-            if(pbs === "paused") {
-                mgrs.plui.stopTicker();
+            if(pbs === "paused") {  //may be resumed via external controls
                 bimg = "img/play.png"; }
             else {  //playing
-                if(!prog.ticker && !skiptick) {
-                    prog.tickcount = 1;
-                    mgrs.plui.updatePosIndicator();  //reflect position
-                    prog.ticker = setTimeout(tickf, 1000); }
                 bimg = "img/pause.png"; }
-            jt.byId("pluibimg").src = bimg; },
+            jt.byId("pluibimg").src = bimg;
+            if(!prog.ticker && !skiptick) {  //restart heartbeat
+                prog.tickcount = 1;
+                prog.ticker = setTimeout(tickf, 1000);
+                mgrs.plui.updatePosIndicator(); } }, //reflect position
         togglePlaybackState: function () {
             if(state === "paused") {
                 prog.svco.resume();
