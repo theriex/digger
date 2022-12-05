@@ -526,6 +526,7 @@ app.player = (function () {
                               npp); }
             stat.song = nsg;
             app.deck.excise(stat.song);  //pull playing while waiting 4 rebuild
+            mgrs.slp.clearOverlayMessage();  //remove if message displayed
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.resetDisplay();
             mgrs.aud.updateSongDisplay();
@@ -1347,9 +1348,11 @@ app.player = (function () {
             //resume link.
             //app.spacebarhookfunc = mgrs.slp.resume;
             return true; },
-        resume: function () {
+        clearOverlayMessage: function () {
             jt.out("mediaoverlaydiv", "");
-            jt.byId("mediaoverlaydiv").style.display = "none";
+            jt.byId("mediaoverlaydiv").style.display = "none"; },
+        resume: function () {
+            mgrs.slp.clearOverlayMessage();
             app.player.next(); },
         limitToSleepQueueMax: function (qm) {
             if(!sc.active) {
