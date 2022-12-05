@@ -52,6 +52,8 @@ return {
                 return; } }  //stop and let the redirect happen.
         if(ox.indexOf("android") >= 0) {
             app.docroot = "https://appassets.androidplatform.net/assets/"; }
+        else if(ox.indexOf("diggerIOS.app") >= 0) {
+            app.docroot = ox.slice(0, ox.lastIndexOf("/")); }
         else {
             app.docroot = ox.split("/").slice(0, 3).join("/") + "/"; }
         if(!jtminjsDecorateWithUtilities) { //support lib not loaded yet

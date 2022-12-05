@@ -1653,7 +1653,8 @@ app.top = (function () {
                 [["span", {cla:"pathlabelgreyspan"}, "Version:"],
                  ["span", {cla:"infospan"}, vstr]]); },
         hubSyncInfoHTML: function () {
-            if(mgrs.aaa.getAccount().dsId === "101") { return ""; }
+            const acct = mgrs.aaa.getAccount();
+            if(!acct || acct.dsId === "101") { return ""; }
             setTimeout(mgrs.srs.makeStatusDisplay, 100);
             return jt.tac2html(["div", {id:"hubSyncInfoDiv"}]); },
         libimpNeeded: function () {
