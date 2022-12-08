@@ -519,18 +519,20 @@ app.player = (function () {
                 mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
                 mgrs.aud.updateSongDisplay(); }); },
         rebuildFromPath: function (npp) {  //player has skipped forward
-            const songs = app.svc.songs("reload");
-            const nsg = songs[npp];  //exists. previously on deck.
-            if(!nsg) {
-                return jt.log("mgrs.mob.rebuildDisplay song not found, npp: " +
-                              npp); }
-            stat.song = nsg;
-            app.deck.excise(stat.song);  //pull playing while waiting 4 rebuild
             mgrs.slp.clearOverlayMessage();  //remove if message displayed
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.resetDisplay();
-            mgrs.aud.updateSongDisplay();
-            app.deck.dispatch("ws", "rebuild", "player.mob song update"); },
+            jt.out("playtitletextspan", "---");
+            app.svc.loadDigDat(function (dbo) {  //other songs might have played
+                const nsg = dbo.songs[npp];  //definitely exists, playing...
+                if(!nsg) {  //if somehow fails, provide a clue
+                    return jt.err("mgrs.mob.rebuildFromPath song not found: " +
+                                  npp); }
+                stat.song = nsg;
+                app.deck.excise(stat.song);  //pull in case currently visible
+                mgrs.aud.updateSongDisplay();
+                app.deck.dispatch("ws", "rebuild",
+                                  "player.mob songs rebuild"); }); },
         rebuildIfSongPlaying: function (updsg) {  //song updated from hub
             if(stat.song && stat.song.path === updsg.path) {
                 jt.log("player.mob.risp locpath: " + stat.song.path);
