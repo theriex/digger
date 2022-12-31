@@ -252,6 +252,16 @@ return {
     },
 
 
+    copyUpdatedSongData: function (song, updsong) {
+        const songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
+                            "el", "al", "kws", "rv", "fq", "lp", "nt",
+                            "dsId", "modified"];
+        songfields.forEach(function (fld) {
+            if(updsong.hasOwnProperty(fld)) {  //don't copy undefined values
+                song[fld] = updsong[fld]; } });
+    },
+
+
     //!UNPACKED BY appdat.py unescape_song_fields
     //Even a serialized song can run afoul of web security rules due to
     //paths, titles or other fields containing parenthetical expressions or

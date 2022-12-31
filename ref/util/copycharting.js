@@ -1,7 +1,8 @@
 /*jslint node, white, long, unordered */
 
 //Copy all charting songs to the export directory
-const pcd = "/Users/theriex/general/temp/phonetunes/";
+//const pcd = "/Users/theriex/general/temp/phonetunes/";
+const pcd = "/Users/theriex/Music/MusicDiggerTest/Media.localized/Automatically Add to Music.localized/";
 
 var fs = require("fs");
 var path = require("path");
@@ -65,7 +66,7 @@ function copyFilesToExport () {
         const acc = getAccount();
         //console.log(JSON.stringify(acc));
         Object.entries(db.dbo().songs).forEach(function ([p, s]) {
-            if(s.rv >= 7 && fqOk(s) && !isIgPath(acc.igfolds, p)) {
+            if(s.rv >= 8 && fqOk(s) && !isIgPath(acc.igfolds, p)) {
                 copySong(p); } });
         console.log("Copied " + copied + " songs."); });
 }

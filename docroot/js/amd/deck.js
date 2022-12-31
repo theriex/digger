@@ -13,6 +13,7 @@ app.deck = (function () {
 
     //Working Set manager handles rebuild of eligible songs 
     mgrs.ws = (function () {
+        const mxkp = 20;  //notes 28dec22
         var wrk = {tmo:null, stat:"", resched:false, songs:[], fcs:[],
                    prs:[], wait:50};  //first wait is quick since starting up
         function compareOwnership(a, b) {  //fan songs after own songs
@@ -78,7 +79,6 @@ app.deck = (function () {
                  (s.path && s.path === song.path))); },
         preserveExistingDeckSongs: function () {
             var decksongs = mgrs.dk.songs();  var di; var si; var currsong;
-            const mxkp = 20;  //notes 14oct22
             wrk.prs = [];  //reset preserved songs
             for(di = 0; di < decksongs.length && di < mxkp; di += 1) {
                 currsong = decksongs[di];
@@ -201,11 +201,12 @@ app.deck = (function () {
             updatedsongs.forEach(function (s) { upds[s.dsId] = s; });
             wrk.songs.forEach(function (s) {
                 if(upds[s.dsId]) {  //updated
-                    app.svc.dispatch("gen", "copyUpdatedSongData",
-                                     s, upds[s.dsId]); } }); },
+                    app.copyUpdatedSongData(s, upds[s.dsId]); } }); },
         decrementAvailCount: function () {
             wrk.availcount -= 1;
-            return wrk.availcount; }
+            return wrk.availcount; },
+        stableDeckLength: function () {
+            return mxkp; }
     };  //end mgrs.ws returned functions
     }());
 
@@ -723,6 +724,7 @@ return {
     getState: function (dmx) { return mgrs.gen.deckstate(dmx); },
     setState: function (state) { mgrs.gen.restore(state); },
     excise: function (s) { mgrs.dk.removeFromDeck(s); },
+    stableDeckLength: function () { return mgrs.ws.stableDeckLength(); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.deck, args); }
 };  //end of module returned functions

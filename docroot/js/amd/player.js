@@ -461,9 +461,6 @@ app.player = (function () {
         ////calls from svc.mp
         notePlaybackStatus: function (status) {
             if(status.path && stat.song && stat.song.path) {
-                status.path = jt.dec(status.path);  //undo URI encode
-                status.path = jt.dec(status.path);  //undo File encode
-                status.path = status.path.slice(7); //remove "file://" prefix
                 jt.log("notePlaybackStatus stat.song.path: " + stat.song.path);
                 jt.log("notePlaybackStatus    status.path: " + status.path);
                 if(status.path !== stat.song.path) {
@@ -553,6 +550,7 @@ app.player = (function () {
             switch(ap) {
             case "Spotify": cap = "spa"; mgrs.spa.token(); break;
             case "Android": cap = "mob"; break;
+            case "IOS": cap = "mob"; break;
             default: cap = "loa"; } },
         handlePlayerError: function (errval) {
             //On Firefox, errval is a DOMException
@@ -1427,7 +1425,7 @@ app.player = (function () {
                     if(!ns) { //just stop, might be playing an album.
                         return; }
                     stat.song = ns;
-                    mgrs.gen.logCurrentlyPlaying("mgrs.gen.next");
+                    mgrs.gen.logCurrentlyPlaying("player.gen.next");
                     mgrs.cmt.updateCommentIndicator();
                     mgrs.aud.playAudio(); } }); },
         illuminateAndFade: function (divid, ms) {

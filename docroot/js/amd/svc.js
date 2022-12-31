@@ -371,7 +371,7 @@ app.svc = (function () {
             jt.call("POST", "/songupd", jt.objdata(song),
                     function (res)  {
                         var updsong = res[0];
-                        mgrs.gen.copyUpdatedSongData(song, updsong);
+                        app.copyUpdatedSongData(song, updsong);
                         jt.out("modindspan", "");  //turn off indicator light
                         app.top.dispatch("srs", "syncToHub");  //sched sync
                         if(contf) {
@@ -385,7 +385,7 @@ app.svc = (function () {
         noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
             var song = dbo.songs[updsong.path];
             if(song) {  //hub sync might send something not available locally
-                mgrs.gen.copyUpdatedSongData(song, updsong); } },
+                app.copyUpdatedSongData(song, updsong); } },
         updateAccount: function (acctsinfo, contf, errf) {
             var data = jt.objdata({acctsinfo:JSON.stringify(acctsinfo)});
             jt.call("POST", "/acctsinfo", data, contf, errf,
@@ -470,17 +470,17 @@ app.svc = (function () {
             songs.forEach(function (song) {
                 const sk = mgrs.web.key(song);
                 if(pool[sk]) {
-                    mgrs.gen.copyUpdatedSongData(pool[sk], song); }
+                    app.copyUpdatedSongData(pool[sk], song); }
                 else {
                     pool[sk] = song; } }); },
         reflectUpdatedSongIfInPool: function (song) {
             var sk = mgrs.web.key(song);
             if(pool[sk]) {
-                mgrs.gen.copyUpdatedSongData(pool[sk], song); } },
+                app.copyUpdatedSongData(pool[sk], song); } },
         noteUpdatedSongData: function (song) {
             var sk = mgrs.web.key(song);
             if(pool[sk]) {
-                mgrs.gen.copyUpdatedSongData(pool[sk], song); }
+                app.copyUpdatedSongData(pool[sk], song); }
             else {
                 pool[sk] = song; } },
         poolAvailable: function () {
@@ -521,7 +521,7 @@ app.svc = (function () {
             jt.call("POST", "/api/songupd", app.svc.authdata(dat),
                     function (res) {
                         var updsong = res[0];
-                        mgrs.gen.copyUpdatedSongData(song, updsong);
+                        app.copyUpdatedSongData(song, updsong);
                         //title may have had a '+' if original from fan
                         app.player.dispatch("aud", "updateSongTitleDisplay");
                         if(contf) {
@@ -598,9 +598,6 @@ app.svc = (function () {
             audsrc: "Browser"};  //audio source for music
         var dwurl = "https://diggerhub.com/digger";
         var hdm = "loc";  //host data manager.  either loc or web
-        var songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
-                          "el", "al", "kws", "rv", "fq", "lp", "nt",
-                          "dsId", "modified"];
         var stat = {idl:false};
         function isLocalDev (url) {
             return url &&
@@ -658,10 +655,6 @@ app.svc = (function () {
             mgrs[hdm].updateSong(song, contf, errf); },
         updateMultipleSongs: function (songs, contf, errf) {
             mgrs[hdm].updateMultipleSongs(songs, contf, errf); },
-        copyUpdatedSongData: function (song, updsong) {
-            songfields.forEach(function (fld) {
-                if(updsong.hasOwnProperty(fld)) {  //don't copy undefined values
-                    song[fld] = updsong[fld]; } }); },
         noteUpdatedSongData: function (song) {
             mgrs[hdm].noteUpdatedSongData(song); },
         authdata: function (obj) { //return obj post data, with an/at added
