@@ -1259,7 +1259,7 @@ app.player = (function () {
         shareSong: function () {
             const start = new Date(Date.now() - 2000).toISOString();
             app.svc.dispatch("gen", "fanMessage",
-                app.svc.authdata({action:"share", idcsv:stat.song.dsId}),
+                app.authdata({action:"share", idcsv:stat.song.dsId}),
                 function (msgs) {
                     if(!msgs.length) {
                         jt.out("ssdstatdiv",

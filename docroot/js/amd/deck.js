@@ -211,6 +211,50 @@ app.deck = (function () {
     }());
 
 
+    //hub service utility manager handles general hub communication processing
+    //in support of specific platform svc implementations.
+    mgrs.hsu = (function () {
+        function writeUpdatedAccount (updacc) {
+            var conf = app.svc.dispatch("loc", "getConfig");
+            var accts = conf.acctsinfo.accts;
+            var aidx = accts.findIndex((a) => a.dsId === updacc.dsId);
+            updacc.token = accts[aidx].token;
+            accts[aidx] = updacc;
+            app.svc.dispatch("loc", "writeConfig", conf, function () {
+                jt.log("deck.hsu.writeUpdatedAccount success"); }); }
+        function updateLocalSong (dbo, s) {
+            var ls = dbo.songs[s.path];
+            if(!ls) {  //path was from some another Digger setup, try find it
+                ls = Object.values(dbo.songs).find((x) =>
+                    x.dsId === s.dsId ||  //match id or tiarab
+                        (x.ti === s.ti && x.ar === s.ar && x.ab === s.ab)); }
+            if(!ls) {  //non-local path, no matching local song, add for ref
+                ls = {path:s.path,  //Need a path, even if no file there.
+                      fq:"DN",      //Deleted file, Newly added
+                      ti:s.ti, ar:s.ar, ab:s.ab,
+                      lp:s.lp};     //Played on other setup, keep value
+                dbo.songs[s.path] = ls; }
+            jt.log("writing updated song " + ls.path);
+            const flds = ["modified", "dsId", "rv", "al", "el", "kws", "nt"];
+            if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
+                flds.push("fq"); }  //update fq unless deleted or unreadable
+            flds.forEach(function (fld) { ls[fld] = s[fld]; }); }
+    return {
+        noteSynchronizedAccount: function (updacc) {
+            app.top.dispatch("hcu", "deserializeAccount", updacc);
+            jt.log("svc.usr.noteUpdatedAccoount musfs: " +
+                   JSON.stringify(updacc.musfs));
+            writeUpdatedAccount(updacc); },
+        updateSynchronizedSongs: function (updsongs) {
+            if(updsongs.length) {
+                const dbo = app.svc.dispatch("loc", "getDatabase");
+                updsongs.forEach(function (s) {
+                    updateLocalSong(dbo, s); });
+                app.svc.dispatch("loc", "writeSongs"); } }
+    };  //end mgrs.hsu returned functions
+    }());
+
+
     //Song options manager handles actions at the level of specific song
     mgrs.sop = (function () {
         var opts = [{id:"playnow", tt:"Play this song right now",

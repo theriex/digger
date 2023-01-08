@@ -158,6 +158,15 @@ return {
     },
 
 
+    authdata: function (obj) { //return obj post data, with an/at added
+        var digacc = app.top.dispatch("aaa", "getAccount");
+        var authdat = jt.objdata({an:digacc.email, at:digacc.token});
+        if(obj) {
+            authdat += "&" + jt.objdata(obj); }
+        return authdat;
+    },
+
+
     //app.docroot is initialized with a terminating '/' so it can be
     //concatenated directly with a relative path, but remembering and
     //relying on whether a slash is required is annoying.  Double slashes

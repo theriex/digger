@@ -223,7 +223,7 @@ app.svc = (function () {
                               return {name:t.name, tid:t.id,
                                       dn:t.disc_number, tn:t.track_number}; })};
             const dat = {abinf:JSON.stringify(cabi)};
-            jt.call("POST", app.dr("/api/spabimp"), app.svc.authdata(dat),
+            jt.call("POST", app.dr("/api/spabimp"), app.authdata(dat),
                     function (songs) {  //all songs now in hub db
                         var pool = mgrs.web.songs();
                         var merged = [];
@@ -507,7 +507,7 @@ app.svc = (function () {
                 lastfvsj = fvsj;
                 mgrs.web.callSongFetch(fvsj, contf, errf); } },
         callSongFetch: function (fvsj, contf, errf) {
-            const ps = app.svc.authdata({fvs:fvsj});
+            const ps = app.authdata({fvs:fvsj});
             jt.call("GET", app.cb(app.dr("/api/songfetch"), ps), null,
                     function (songs) {
                         mgrs.web.addSongsToPool(songs);
@@ -518,7 +518,7 @@ app.svc = (function () {
             mgrs.spab.fetchAlbum(song, contf, errf); },
         updateSong: function (song, contf, errf) {
             var dat = {songdat:txSongJSON(song)};
-            jt.call("POST", "/api/songupd", app.svc.authdata(dat),
+            jt.call("POST", "/api/songupd", app.authdata(dat),
                     function (res) {
                         var updsong = res[0];
                         app.copyUpdatedSongData(song, updsong);
@@ -534,7 +534,7 @@ app.svc = (function () {
                     jt.semaphore("mgrs.web.updateSong")); },
         updateMultipleSongs: function (updss, contf, errf) {
             var updobj = {songs:txSongsJSON(updss)};  //100 songs ~= 61k
-            jt.call("POST", "api/multiupd", app.svc.authdata(updobj),
+            jt.call("POST", "api/multiupd", app.authdata(updobj),
                     contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
         makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
             jt.call(verb, "/api/" + endpoint, data, contf, errf,
@@ -543,39 +543,21 @@ app.svc = (function () {
             //nothing to do, account info already saved on server
             setTimeout(function () { contf(cfg); }, 50); },
         fanGroupAction: function (data, contf, errf) {
-            jt.call("POST", "/api/fangrpact", app.svc.authdata(data),
+            jt.call("POST", "/api/fangrpact", app.authdata(data),
                     contf, errf, jt.semaphore("svc.web.fanGroupAction")); },
         fanCollab: function (data, contf, errf) {
-            jt.call("POST", "/api/fancollab", app.svc.authdata(data),
+            jt.call("POST", "/api/fancollab", app.authdata(data),
                     contf, errf, jt.semaphore("svc.web.fanCollab")); },
         fanMessage: function (data, contf, errf) {
-            jt.call("POST", "/api/fanmsg", app.svc.authdata(data),
+            jt.call("POST", "/api/fanmsg", app.authdata(data),
                     contf, errf, jt.semaphore("svc.web.fanMessage")); },
-        getSongTotals: function (contf, errf) {
-            jt.call("POST", "/api/songttls", app.svc.authdata(),
-                    function (results) {
-                        var digacc = app.refmgr.deserialize(results[0]);
-                        contf(app.login.dispatch("act", "noteUpdatedAccount",
-                                                 digacc)); },
-                    errf,
-                    jt.semaphore("mgrs.web.getSongTotals")); },
-        spotifyImport: function (datformat, items, contf, errf) {
-            var data = app.svc.authdata({dataformat:datformat,
-                                         items:JSON.stringify(items)});
-            jt.call("POST", "/api/impsptracks", data,
-                    function (results) {
-                        var digacc = app.refmgr.deserialize(results[0]);
-                        results[0] = app.login.dispatch(
-                            "act", "noteUpdatedAccount", digacc);
-                        contf(results); },
-                    errf, jt.semaphore("mgrs.web.impsptracks")); },
         postSupportRequest: function (subj, body, contf, errf) {
-            var data = app.svc.authdata({subj:jt.enc(subj),
+            var data = app.authdata({subj:jt.enc(subj),
                                          body:jt.enc(body)});
             jt.call("POST", "/api/emsupp", data, contf, errf,
                     jt.semaphore("mgrs.web.emsupp")); },
         playbackError: function (data) {
-            jt.call("POST", "/api/playerr", app.svc.authdata(data),
+            jt.call("POST", "/api/playerr", app.authdata(data),
                     function () {
                         jt.log("playbackError reported " +
                                JSON.stringify(data)); },
@@ -657,12 +639,6 @@ app.svc = (function () {
             mgrs[hdm].updateMultipleSongs(songs, contf, errf); },
         noteUpdatedSongData: function (song) {
             mgrs[hdm].noteUpdatedSongData(song); },
-        authdata: function (obj) { //return obj post data, with an/at added
-            var digacc = app.top.dispatch("aaa", "getAccount");
-            var authdat = jt.objdata({an:digacc.email, at:digacc.token});
-            if(obj) {
-                authdat += "&" + jt.objdata(obj); }
-            return authdat; },
         docContent: function (docurl, contf) {
             mgrs[hdm].docContent(docurl, contf, function (code, errtxt) {
                 contf("Doc error " + code + ": " + errtxt); }); },
@@ -688,7 +664,6 @@ return {
     fetchSongs: function (cf, ef) { mgrs.gen.fetchSongs(cf, ef); },
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
     updateSong: function (song, cf, ef) { mgrs.gen.updateSong(song, cf, ef); },
-    authdata: function (obj) { return mgrs.gen.authdata(obj); },
     noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
     urlOpenSupp: function () { return true; }, //ok to open urls in new tab
     docContent: function (du, cf) { mgrs.gen.docContent(du, cf); },

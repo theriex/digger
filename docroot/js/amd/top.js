@@ -83,10 +83,10 @@ app.top = (function () {
                     (!s.fq || !(s.fq.startsWith("D") ||
                                 s.fq.startsWith("U")))); }
         function haveUnpostedNewSongs () {
-            return Object.values(app.svc.dispatch("loc", "songs"))
+            return Object.values(app.svc.songs())
                 .some((s) => notPostedYet(s)); }
         function uploadableSongs () {
-            return Object.values(app.svc.dispatch("loc", "songs"))
+            return Object.values(app.svc.songs())
                 .filter((s) => isNewlyPlayed(s) || notPostedYet(s)); }
     return {
         countSyncOutstanding: function () {
@@ -281,7 +281,7 @@ app.top = (function () {
             dckrem:{dte:"fma.availNotQueued"}};
         function callFanMessaging (msgaction, paramidcsv, contf, errf) {
             app.svc.dispatch("gen", "fanMessage",
-                app.svc.authdata({action:msgaction, idcsv:paramidcsv}),
+                app.authdata({action:msgaction, idcsv:paramidcsv}),
                 contf, errf); }
         function isMatchingSong(s, msg) {
             return (s && msg &&
@@ -429,7 +429,7 @@ app.top = (function () {
                 mfps[mf.dsId].dispid = dispid; } }
         function callHubFanCollab (mfanid, collabtype, contf, errf) {
             app.svc.dispatch("gen", "fanCollab",
-                app.svc.authdata({mfid:mfanid, ctype:collabtype}),
+                app.authdata({mfid:mfanid, ctype:collabtype}),
                 function (hubres) {
                     mgrs.aaa.reflectAccountChangeInRuntime(hubres[0]);
                     hubres.slice(1).forEach(function (s) {
@@ -649,7 +649,7 @@ app.top = (function () {
                           onclick:mdfs("fga.displayOverlay")}]]); }
         function modifyFanGroup (fanact, fandig, contf, errf) {
             app.svc.dispatch("gen", "fanGroupAction",
-                app.svc.authdata({action:fanact, digname:fandig}),
+                app.authdata({action:fanact, digname:fandig}),
                 function (results) {
                     mgrs.aaa.updateCurrAcct(results[0], null,
                         function (acct) {
