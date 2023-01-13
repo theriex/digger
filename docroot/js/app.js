@@ -167,6 +167,15 @@ return {
     },
 
 
+    haveHubCredentials: function () {
+        var digacc = app.top.dispatch("aaa", "getAccount");
+        if(digacc && digacc.dsId !== "101" && digacc.token &&
+           app.top.dispatch("ppc", "policyAccepted")) {
+            return true; }
+        return false;
+    },
+
+
     //app.docroot is initialized with a terminating '/' so it can be
     //concatenated directly with a relative path, but remembering and
     //relying on whether a slash is required is annoying.  Double slashes

@@ -1,0 +1,10 @@
+Open app and verify it loads and starts playing music.
+Toggle play/pause, verify skip works.
+Open tuning options
+    ...
+Verify rating knobs work
+Verify keywords selection add and remove a keyword.
+Verify rating stars work
+Verify share dialog
+Verify sleep works
+Verify comment saved

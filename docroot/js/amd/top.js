@@ -103,10 +103,7 @@ app.top = (function () {
                 syt.errtxt = errtxt;
                 jt.log("syncToHub " + code + ": " + errtxt); } },
         syncToHub: function (context) {
-            var curracct = mgrs.aaa.getAccount();
-            if(!curracct || curracct.dsId === "101" || !curracct.token ||
-               !mgrs.ppc.policyAccepted()) {
-                return; }  //invalid account or not set up yet
+            if(!app.haveHubCredentials()) { return; }
             if(context === "cancel" && syt.tmo) {
                 clearTimeout(syt.tmo);
                 syt.tmo = null;
@@ -121,8 +118,7 @@ app.top = (function () {
             syt.tmo = setTimeout(mgrs.srs.hubSyncStart,
                                  contexts[context] || contexts.standard); },
         hubSyncStart: function () { //see ../../docs/hubsyncNotes.txt
-            var curracct = mgrs.aaa.getAccount();
-            if(curracct.dsId === "101") {
+            if(!app.haveHubCredentials()) {
                 jt.out("modindspan", ""); //turn off comms indicator
                 mgrs.srs.hubStatInfo("");
                 return jt.log("hubSyncStart aborted since not signed in"); }
@@ -280,6 +276,8 @@ app.top = (function () {
                   clk:"fma.addToDeck"},
             dckrem:{dte:"fma.availNotQueued"}};
         function callFanMessaging (msgaction, paramidcsv, contf, errf) {
+            if(!app.haveHubCredentials()) {
+                return errf(401, "Sign in to DiggerHub for music fan messaging"); }
             app.svc.dispatch("gen", "fanMessage",
                 app.authdata({action:msgaction, idcsv:paramidcsv}),
                 contf, errf); }
@@ -428,6 +426,8 @@ app.top = (function () {
             if(dispid) {  //note current status display div if given
                 mfps[mf.dsId].dispid = dispid; } }
         function callHubFanCollab (mfanid, collabtype, contf, errf) {
+            if(!app.haveHubCredentials()) {
+                return errf(401, "Sign in to DiggerHub to collaborate with other music fans"); }
             app.svc.dispatch("gen", "fanCollab",
                 app.authdata({mfid:mfanid, ctype:collabtype}),
                 function (hubres) {
@@ -648,6 +648,8 @@ app.top = (function () {
                  ["div", {id:"fgaoverlaydiv",
                           onclick:mdfs("fga.displayOverlay")}]]); }
         function modifyFanGroup (fanact, fandig, contf, errf) {
+            if(!app.haveHubCredentials()) {
+                return errf(401, "Sign in to DiggerHub to change your fans"); }
             app.svc.dispatch("gen", "fanGroupAction",
                 app.authdata({action:fanact, digname:fandig}),
                 function (results) {
@@ -1653,8 +1655,7 @@ app.top = (function () {
                 [["span", {cla:"pathlabelgreyspan"}, "Version:"],
                  ["span", {cla:"infospan"}, vstr]]); },
         hubSyncInfoHTML: function () {
-            const acct = mgrs.aaa.getAccount();
-            if(!acct || acct.dsId === "101") { return ""; }
+            if(!app.haveHubCredentials()) { return ""; }
             setTimeout(mgrs.srs.makeStatusDisplay, 100);
             return jt.tac2html(["div", {id:"hubSyncInfoDiv"}]); },
         libimpNeeded: function () {
@@ -2157,7 +2158,7 @@ app.top = (function () {
             mgrs.kwd.rebuildKeywords();  //rest of UI will be completely rebuilt
             const ca = mgrs.aaa.getAccount();
             mgrs.gen.updateHubToggleSpan(ca);
-            if(ca && ca.dsId && ca.dsId !== "101") {
+            if(app.haveHubCredentials()) {
                 setTimeout(function () {
                     mgrs.fma.fetchMessagesIfStale(
                         function () { jt.log("fma.fetchMessages completed"); },

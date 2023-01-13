@@ -43,6 +43,7 @@ cp appicon.png Digger.iconset/icon_512x512@2x.png
 iconutil -c icns Digger.iconset
 rm -R Digger.iconset
 mv Digger.icns Digger/Digger.app/Contents/Resources/
+# android and xcode projects need to be updated separately, notes 9jan23
 
 # Disk Utility | File | New Image | Image from Folder...  (./Digger)
 # Move the dmg file to the hub downloads directory

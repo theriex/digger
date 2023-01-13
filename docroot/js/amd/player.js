@@ -1257,6 +1257,9 @@ app.player = (function () {
                 function () {
                     jt.out("ssdstatdiv", "Copy to clipboard failed."); }); },
         shareSong: function () {
+            if(!app.haveHubCredentials()) {
+                jt.out("ssdstatdiv", "Sign in to DiggerHub to share songs with your fans");
+                return; }
             const start = new Date(Date.now() - 2000).toISOString();
             app.svc.dispatch("gen", "fanMessage",
                 app.authdata({action:"share", idcsv:stat.song.dsId}),
