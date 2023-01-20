@@ -1,10 +1,21 @@
+Core functionality:
+------------------
 Open app and verify it loads and starts playing music.
 Toggle play/pause, verify skip works.
-Open tuning options
-    ...
 Verify rating knobs work
-Verify keywords selection add and remove a keyword.
+Verify keywords selection
 Verify rating stars work
-Verify share dialog
+Verify share dialog (requires sign-in, should not crash)
 Verify sleep works
+
+Hub connection:
+--------------
+verify sign-in
+Open tuning options
+  verify ident field overrides
+  verify tired
 Verify comment saved
+
+Advanced app use:
+----------------
+add/remove a keyword.

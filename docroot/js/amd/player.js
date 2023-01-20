@@ -464,7 +464,11 @@ app.player = (function () {
                 jt.log("notePlaybackStatus stat.song.path: " + stat.song.path);
                 jt.log("notePlaybackStatus    status.path: " + status.path);
                 if(status.path !== stat.song.path) {
-                    mgrs.mob.rebuildFromPath(status.path); } }
+                    if(status.state === "ended") {
+                        jt.log("notePlaybackStatus ignoring path change " +
+                               "status ended (sleeping)"); }
+                    else {
+                        mgrs.mob.rebuildFromPath(status.path); } } }
             pbi.state = status.state;  //"playing"/"paused"/"ended"
             pbi.pos = status.pos;  //current play position ms
             pbi.dur = status.dur || pbi.dur;  //song duration if provided
