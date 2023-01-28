@@ -17,28 +17,29 @@ h2 { padding:10px 0px 0px 0px; }
 
 <h1>Digger Webserver App</h1>
 
-<p>Digger is a web application, so it uses a browser display as the
-interface for all platforms.  When you run Digger on your computer, it
-starts a local web server, then opens the web app in your browser.  It works
-similarly to a standard app, but it's the same code across all platforms and
-has other advantages, like running the Digger server on one computer and
-accessing it with another browser on the same LAN.  Great stuff, but your
-operating system might display some warnings.  Here are some of the things
-you might run into: </p>
+<p>Digger is a web application, and it uses a web view (browser display) for
+its interface on all platforms.  When you run Digger on your computer, it
+starts a local web server, then opens the web app in your default browser.
+Having the same interface code on all platforms helps with reliability, and
+it has other advantages like running the Digger server on one computer and
+accessing it via another computer on the same LAN.  Fun stuff, but you may
+see some warnings or need some configuration adjustments to get going.  Here
+are some common issues you might run into: </p>
 
 
 <h2>Warning about running a free app you downloaded directly:</h2>
 
-<p>Operating systems like MacOS, Windows and others prefer you run
+<p>Operating systems like MacOS, Windows, and others prefer you run
 applications purchased through their stores, which they have some control
 over.  When you run Digger, you might get a warning that it was downloaded
 directly from the internet.  If you are not already familiar with how to
 tell your computer to go ahead and open it anyway, you might have to look up
-how to do that.  Instructions vary depending on the OS and version, but
-there is always a way.</p>
+how to do that.  Instructions vary depending on the OS and version, but at
+the time of this writing you still have the freedom to run independent
+computer programs on the major personal computer platforms.</p>
 
-<p>The warning serves a purpose, which is to tell you to make sure you trust
-the program you are about to run.  Only download Digger from 
+<p>This warning does serve a purpose, which is to tell you to make sure you
+trust the program you are about to run.  Only download Digger from
 <a href="https://diggerhub.com/#files" onclick="window.open('https://diggerhub.com/#files');return false">DiggerHub.com</a>,
 or install node.js and download the source code from
 <a href="https://github.com/theriex/digger" onclick="window.open('https://github.com/theriex/digger');return false">GitHub</a>.</p>
@@ -75,10 +76,17 @@ help improve Digger, <a href="https://github.com/theriex/digger/issues" onclick=
 </ol>
 
 
+<h2>Digger doesn't find music files:</h2>
+
+<p>By default Digger looks for your music in the <em>Music</em> folder off
+your user directory.  If you've got your music somewhere else, use the
+configuration interface in Digger to set where that might be. </p>
+
+
 <h2>Anything else:</h2>
 
-<p>If you run into any other problems running
-Digger <a href="https://github.com/theriex/digger/issues" onclick="window.open('https://github.com/theriex/digger/issues');return false">add an issue</a>
+<p>If you run into any other problems running Digger,
+<a href="https://github.com/theriex/digger/issues" onclick="window.open('https://github.com/theriex/digger/issues');return false">add an issue</a>
 so the project can try fix it. </p>
 
 </body>

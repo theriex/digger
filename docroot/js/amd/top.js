@@ -805,13 +805,13 @@ app.top = (function () {
             {n:"updemail", dn:"new email", m:"w", ty:"email"},
             {n:"updpassword", dn:"new password", m:"w", ty:"password"},
             {n:"firstname", dn:"first name", m:"jp", ty:"text"},
-            {n:"digname", dn:"dig name", m:"jp", ty:"text"},
+            {n:"digname", dn:"dig name", m:"jp", ty:"text", plc:"optional"},
             {n:"privaccept", m:"jp", ty:"checkbox"}];
         function makeLabel (labname) {
             switch(labname) {
             case "privaccept":
                 return app.subPlaceholders(
-                    "appoverlaydiv", app.svc.urlOpenSupp(),
+                    app.overlaydiv, app.svc.urlOpenSupp(),
                     "I'm ok with the PRIVPOLICY");
             default: return "Unknown label type: " + labname; } }
         function makeInput (acct, aff) {
@@ -962,6 +962,7 @@ app.top = (function () {
                         mgrs.gen.togtopdlg(null, "close");
                         mgrs.aaa.notifyAccountChanged(); }
                     else { //standalone account management
+                        app.login.dispatch("ap", "save", acct);
                         mgrs.afg.accountFanGroup("personal"); } }); } },
         emailPwdReset: function () {
             const dat = formData("s");
@@ -1043,7 +1044,7 @@ app.top = (function () {
             if(app.svc.plat("hdm") === "loc") {
                 mgrs.srs.syncToHub("cancel"); }
             else { //"web"
-                app.login.dispatch("had", "signOut"); }
+                app.login.dispatch("hua", "signOut"); }
             mgrs.aaa.removeAccount(mgrs.aaa.getAccount(),
                 function () {
                     if(mgrs.afg.inApp()) {
@@ -1076,13 +1077,15 @@ app.top = (function () {
                 {h:"me", t:"me", oc:"afg.personal"}]};
         function haveProfileIssue (acct) {
             return (acct && !acct.digname); }
-    return {
-        setDisplayDiv: function (divid) { tddi = divid; },  //hub site etc
-        inApp: function () { return inapp; },
-        setInApp: function (runningInApp) { inapp = runningInApp; },
-        accountFanGroup: function (dispmode, midx) {
+        function getProfileAccount () {
             var acct = mgrs.aaa.getAccount();
-            if(acct && acct.dsId === "101") { acct = null; }
+            if(acct && acct.dsId === "101") {
+                acct = null; }
+            if(acct && !inapp) {
+                //no confirmation of signout when on web.
+                tabs.personal[2].oc = "asu.processSignOut"; }
+            return acct; }
+        function verifyModeAndIndex (acct, dispmode, midx) {
             midx = midx || 0;
             if(dispmode) {
                 mode = dispmode; }
@@ -1097,6 +1100,14 @@ app.top = (function () {
             if(haveProfileIssue(acct)) {
                 mode = "personal";
                 midx = 0; }
+            return midx; }
+    return {
+        setDisplayDiv: function (divid) { tddi = divid; },  //hub site etc
+        inApp: function () { return inapp; },
+        setInApp: function (runningInApp) { inapp = runningInApp; },
+        accountFanGroup: function (dispmode, midx) {
+            const acct = getProfileAccount();
+            midx = verifyModeAndIndex(acct, dispmode, midx);
             if(!jt.byId("afgcontdiv") || mode !== "offline") {  //keep emailin
                 jt.out(tddi, jt.tac2html(
                     ["div", {id:"afgdiv"},
@@ -2129,8 +2140,8 @@ app.top = (function () {
                     [["span", {id:"countspan"}, "Loading..."],
                      ["div", {id:"rtfmdiv"},
                       ["a", {href:"/docs/manual.html", title:"How Digger works",
-                             onclick:jt.fs("app.displayDoc('appoverlaydiv'," +
-                                           "'manual.html')")},
+                             onclick:jt.fs("app.displayDoc('" + app.overlaydiv +
+                                           "','manual.html')")},
                        "RTFM"]]]]]],
                  ["div", {id:tddi, "data-mode":"empty"}],
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],

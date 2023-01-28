@@ -43,6 +43,7 @@ var app = (function () {
     }
 
 return {
+    overlaydiv: "appoverlaydiv",
     init: function () {
         var ox = window.location.href;
         if(!diggerapp.context === "web") {
