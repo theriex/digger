@@ -169,7 +169,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #spotdetactdiv { font-size:small; max-width:290px; }
 #tunedetwrktable { padding:0px 0px 0px 22px; }
 #audioplayerdiv { display:flex; justify-content:left; align-items:center;
-  min-height:50px; padding-left:25px; }
+  min-height:50px; padding-left:25px; }  /* mobile playback UI fits with pad */
 #audiodiv { display:inline-block; }
 #nextsongdiv { display:inline-block; height:20px; padding:5px; margin-left:5px;
   border: 2px solid #777; border-radius:10px;}
@@ -252,21 +252,25 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 /* Filter Panel */
 
 .paneltitlediv { font-size:x-small; text-align:center; letter-spacing:1.2em; 
-  font-weight:bold; }
+  font-weight:bold; margin-bottom:2px; }
 #fpecspan { display:inline-block; transition:all 0.2s; }
 #rangesdiv { display:flex; justify-content:space-around; }
-.rangectrldiv { display:inline-block; position:relative;
-  border:2px solid #777;}
+.rangectrldiv { display:inline-block; position:relative; }
+.rangetopdispdiv { position:relative }
+.rangebgraddiv { position:absolute; top:0px; left:0px;
+  outline:2px solid #777; }
 .rangetitlediv { position:absolute; top:10px; left:0px; width:100%;
   text-align:center; font-size:x-small; letter-spacing:0.2em; color:#777; }
-.rangelowlabeldiv, .rangehighlabeldiv { position:absolute; top:64px;
-  font-size:medium; color:#333; }
-.rangelowlabeldiv { left:7px; }
-.rangehighlabeldiv { right:7px; }
 .rangeleftcurtdiv, .rangerightcurtdiv { position:absolute; top:0px;
   height:120px; background:black; opacity:0.3; }
 .rangeleftcurtdiv { left:0px; }
 .rangerightcurtdiv { right:0px; }
+.rangesurfdiv { position:absolute; }
+.rangelowlabeldiv, .rangehighlabeldiv { position:absolute; bottom:0px;
+  font-size:medium; color:#666; }
+.rangelowlabeldiv { left:7px; }
+.rangehighlabeldiv { right:7px; }
+.rangesurfdiv svg { position:absolute; left:0px; top:0px; }
 .vnobdiv { position:absolute; top:0px; left:0px; }
 .hnobdiv { position:absolute; top:0px; left:0px; }
 .mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer; }

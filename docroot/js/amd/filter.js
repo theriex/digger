@@ -11,9 +11,16 @@ app.filter = (function () {
                      low:"Chill", high:"Amped"},
                  rat:{pn:"Minimum Rating"},
                  fq:{pn:"Frequency Eligible"}};
-    var ranger = {dims:{x:0, y:0, w:120, h:120},
+    var ranger = {dims:{x:0, y:0, w:160, h:120},
                   dflt:{x:55, y:76},  //default values if not previously set
-                  gradient:{left:"0cd8e5", right:"faee0a"}};
+                  gradient:{left:"0cd8e5", right:"faee0a"},
+                  svg:{vb:{w:200, h:100},
+                       asw:5,  //axis stroke width
+                       hwh:6,  //half winglet height (above or below x)
+                       wsw:3,  //winglet stroke width
+                       tcr:14,  //thumb circle radius
+                       tsw:3,   //thumb stroke width
+                       dfy:75}}; //default y value
 
 
     //General container for all managers, used for dispatch
@@ -114,94 +121,191 @@ app.filter = (function () {
             val = Math.min(val, max);
             val = Math.max(val, min);
             return val; }
-    return {
-        initRangeCtrlStatus: function (rcr) {
-            var maw = Math.round(0.1 * ranger.dims.h);  //min active width
-            var stat = {pointingActive:false, roundpcnt:7,
-                        minx:ranger.dims.x, maxx:ranger.dims.w,
-                        miny:ranger.dims.y + maw, maxy:ranger.dims.h};
-            stat.thrx = Math.round((stat.roundpcnt / 100) * stat.maxx);
-            stat.thry = Math.round((stat.roundpcnt / 100) * stat.maxy);
-            rcr.stat = stat; },
-        updateRangeValues: function (x, y, cid) {
+        function initRangeCtrlStatus (rcr) {
+            var stat = {pointingActive:false,
+                        minfocpcnt:20};
+            rcr.stat = stat; }
+        function updateStatValues (xp, yp, cid) {
             const stat = ctrls[cid].stat;
-            y = stat.maxy - y;  //invert y so bottom is zero
-            if(x <= stat.thrx) { x = stat.minx; }  //round x down
-            if(x >= stat.maxx - stat.thrx) { x = stat.maxx; }  //or up
-            if(y < stat.miny) { y = stat.miny; }  //round y down
-            if(y >= stat.maxy - stat.thry) { y = stat.maxy; }  //or up
-            //jt.out(cid + "tit", x + "," + y);
-            stat.setx = x;  //value to save for settings (state restore)
-            stat.sety = y;  //settings restore reinverts when calling here
-            const wesx = Math.round(y / 2);  //width either side x
-            const cw = {lc:Math.max((x - wesx), 0),  //left curtain width
-                        rc:Math.max((stat.maxx - (x + wesx)), 0)};  //right
-            if(y === stat.maxy) { cw.lc = 0; cw.rc = 0; }  //no curtains, at max
+            stat.setx = xp;  //value to save for settings (state restore)
+            stat.sety = yp;  //restore processing unpacks values into screen
+            const ay = ranger.yp2myp(yp);
+            stat.mnpx = Math.max(0, Math.round(xp - (ay / 2)));
+            stat.mxpx = Math.min(100, Math.round(xp + (ay / 2)));
+            stat.mnrv = Math.round((stat.mnpx / 100) * 99);
+            stat.mxrv = Math.round((stat.mxpx / 100) * 99); }
+        function setCurtainWidths (xp, yp, cid) {
+            const drec = ranger.drec;
+            const cx = (xp / 100) * drec.w;   //center x
+            const ay = ranger.yp2myp(yp);
+            const wesx = ((ay / 100) * drec.w) / 2;  //act width either side x
+            const cw = {  //curtain widths
+                lc:Math.max(0, cx - wesx),
+                rc:Math.max(0, drec.w - (cx + wesx))};
             jt.byId(cid + "lcdiv").style.width = cw.lc + "px";
-            jt.byId(cid + "rcdiv").style.width = cw.rc + "px";
-            //jt.out(cid + "tit", wesx + ", " + cw.lc + "|" + cw.rc);
-            const lox = stat.minx + cw.lc;  //leftmost open x val
-            const rox = stat.maxx - cw.rc;  //rightmost open x val
-            stat.mnrv = Math.round((lox / stat.maxx) * 99);  //min rating value
-            stat.mxrv = Math.round((rox / stat.maxx) * 99);  //max rating value
-            //jt.out(cid + "tit", stat.mnrv + "<=rv=>" + stat.mxrv);
-            mgrs.stg.filterValueChanged(); },
-        attachRangeCtrlMovement: function (cid) {
+            jt.byId(cid + "rcdiv").style.width = cw.rc + "px"; }
+        function setCtrlSurfaceValues (xp, yp, cid) {
+            const stat = ctrls[cid].stat;
+            const sd = ranger.svg;
+            yp = 100 - yp;  //uninvert to get svg coordinates from % value.
+            const yval = sd.ypr2yvr(yp);
+            const xval = sd.xpr2xvr(xp);
+            const xaxis = jt.byId(cid + "horz");
+            xaxis.setAttribute("y1", yval);
+            xaxis.setAttribute("y2", yval);
+            const thumb = jt.byId(cid + "thm");
+            thumb.setAttribute("cx", xval);
+            thumb.setAttribute("cy", yval);
+            const leftWinglet = jt.byId(cid + "lw");
+            const lwx = sd.xpr2xvr(stat.mnpx);
+            leftWinglet.setAttribute("x1", lwx);
+            leftWinglet.setAttribute("x2", lwx);
+            leftWinglet.setAttribute("y1", yval - sd.hwh);
+            leftWinglet.setAttribute("y2", yval + sd.hwh);
+            const rightWinglet = jt.byId(cid + "rw");
+            const rwx = sd.xpr2xvr(stat.mxpx);
+            rightWinglet.setAttribute("x1", rwx);
+            rightWinglet.setAttribute("x2", rwx);
+            rightWinglet.setAttribute("y1", yval - sd.hwh);
+            rightWinglet.setAttribute("y2", yval + sd.hwh); }
+        function updateRangeValues (x, y, cid) {
+            const r = ranger;
+            //convert trec coordinates to working range visual coordinates
+            const vpad = Math.round((r.svg.yvr.s / r.svg.vb.h) * r.irec.h);
+            x -= r.irec.x;
+            x = Math.max(0, x);
+            x = Math.min(x, r.irec.w);
+            y -= ((r.irec.y - r.trec.y) + vpad);
+            y = Math.max(0, y);
+            y = Math.min(y, r.irec.h - (2 * vpad));
+            //convert to percentage values
+            x = Math.round((x / r.irec.w) * 100);
+            y = Math.round((y / (r.irec.h - (2 * vpad))) * 100);
+            y = 100 - y;  //invert y so bottom of rect is zero
+            //jt.out(cid + "tit", x + "," + y);  //debug output
+            updateStatValues(x, y, cid);
+            setCurtainWidths(x, y, cid);
+            setCtrlSurfaceValues(x, y, cid);
+            mgrs.stg.filterValueChanged(); }
+        function attachRangeCtrlMovement (cid) {
             const rcr = ctrls[cid];
-            ctrls.movestats.push(rcr.stat);  //catch containing div mouseup
+            ctrls.movestats.push(rcr.stat);  //catch containing div mouseups
             rcr.mpos = function (x, y, hardset) {
                 var stat = rcr.stat;
                 //jt.log("x:" + x + ", y:" + y + (hardset? " (hardset)" : ""));
                 if(stat.pointingActive || hardset) {
-                    mgrs.rng.updateRangeValues(x, y, cid); } };
+                    updateRangeValues(x, y, cid); } };
             attachMovementListeners(cid + "mousediv", rcr.stat, rcr.mpos);
-            rcr.mpos(ranger.dflt.h, ranger.dflt.v, "init"); },
-        addRangeSettingsFunc: function (cid) {
+            rcr.mpos(ranger.dflt.x, ranger.dflt.y, "init"); }
+        function addRangeSettingsFunc (cid) {
             ctrls[cid].settings = function () {
                 return {tp:"range", c:cid,
                         x:ctrls[cid].stat.setx,
-                        y:ctrls[cid].stat.sety}; }; },
-        addRangeSongMatchFunc: function (cid) {
+                        y:ctrls[cid].stat.sety}; }; }
+        function addRangeSongMatchFunc (cid) {
             //Every song should have a numeric value set.
             ctrls[cid].match = function (song) {
                 if(song[cid] >= ctrls[cid].stat.mnrv &&
                    song[cid] <= ctrls[cid].stat.mxrv) {
                     return true; }
-                return false; }; },
-        initRangeSetting: function (cid) {
-            var settings = findSetting({tp:"range", c:cid}) || ranger.dflt;
-            if(settings.x !== 0) { //have some kind of possibly invalid value
-                settings.x = verifyValue(settings.x, ranger.dflt.x,
-                                         ranger.dims.x, ranger.dims.w); }
-            if(settings.y !== 0) {
-                settings.y = verifyValue(settings.y, ranger.dflt.y,
-                                         ranger.dims.y, ranger.dims.h); }
-            //re-invert y value like it is coming from the mouse tracking
-            ctrls[cid].mpos(settings.x, ranger.dims.h - settings.y, "init"); },
-        createRangeControl: function (cid) {
+                return false; }; }
+        function initRangeSetting (cid) {
+            const settings = findSetting({tp:"range", c:cid}) || ranger.dflt;
+            const tcs = {  //convert percent settings into trec coordinates
+                x:verifyValue(settings.x, ranger.dflt.x, 0, 100),
+                y:verifyValue(settings.y, ranger.dflt.y, 0, 100)};
+            tcs.y = 100 - tcs.y;  //re-invert so top of rect is zero
+            const irec = ranger.irec;
+            tcs.x = ((tcs.x / 100) * irec.w) + irec.x;
+            tcs.y = ((tcs.y / 100) * irec.h) + irec.y;
+            ctrls[cid].mpos(tcs.x, tcs.y, "init"); }
+        function verifyRangerDefValues(cid) {  //display, tracking, interaction
+            const r = ranger;
+            r.drec = {x:0, y:0, w:r.dims.w, h:Math.round(r.dims.h * 2 / 5)};
+            r.trec = {x:0, y:Math.round(r.drec.h / 2), w:r.dims.w};
+            r.trec.h = r.dims.h - r.trec.y;
+            const sidecolw = Math.round(0.1 * r.trec.w);
+            r.irec = {x:sidecolw, y:r.drec.h + 4, w:r.drec.w - (2 * sidecolw)};
+            r.irec.h = r.trec.h - (r.irec.y - r.trec.y) - 6;
+            r.dflt = {x:Math.round(r.irec.w / 2), y:Math.round(r.irec.h / 2)};
+            const minyp = ctrls[cid].stat.minfocpcnt;
+            r.yp2myp = function (y) {
+                const ratio = (100 - minyp) / (100 - 0);
+                return (y - 0) * ratio + minyp; };
+            const sd = r.svg;
+            sd.midx = sd.vb.w / 2;
+            const htw = sd.tcr + sd.tsw;  //half thumb width
+            sd.yvr = {  //control surface y value axis start/end range
+                s:htw, e:sd.vb.h - htw};
+            sd.ypr = {s:0, e:100}; //percent y value axis start/end range
+            sd.ypr2yvr = function (y) {  //vertical range linear interpolation
+                const ratio = (sd.yvr.e - sd.yvr.s) / (sd.ypr.e - sd.ypr.s);
+                return (y - sd.ypr.s) * ratio + sd.yvr.s; };
+            sd.xvr = {  //control surface x value axis start/end range
+                s:htw, e:sd.vb.w - htw};
+            sd.xpr = {s:0, e:100};  //percent x value axis start/end range
+            sd.xpr2xvr = function (x) {  //horizontal range linear interpolation
+                const ratio = (sd.xvr.e - sd.xvr.s) / (sd.xpr.e - sd.xpr.s);
+                return (x - sd.xpr.s) * ratio + sd.xvr.s; };
+            return r; }
+        function boxPosStyle (rec) {
+            const style = ("width:" + rec.w + "px;" +
+                           "height:" + rec.h + "px;" +
+                           "left:" + rec.x + "px;" +
+                           "top:" + rec.y + "px;");
+            return style; }
+        function createControlElements (cid) {
+            const r = verifyRangerDefValues(cid);
+            const svg = r.svg;
+            jt.byId(cid + "div").style.height = r.dims.h + "px";
             jt.out(cid + "div", jt.tac2html(
-                [["img", {src:"img/ranger.png"}],
-                 ["div", {cla:"rangetitlediv", id:cid + "tit"}, ctrls[cid].pn],
-                 ["div", {cla:"rangelowlabeldiv"}, ctrls[cid].low],
-                 ["div", {cla:"rangehighlabeldiv"}, ctrls[cid].high],
-                 ["div", {cla:"rangeleftcurtdiv", id:cid + "lcdiv"}],
-                 ["div", {cla:"rangerightcurtdiv", id:cid + "rcdiv"}],
+                [["div", {cla:"rangetopdispdiv", style:boxPosStyle(r.drec)},
+                  [["div", {cla:"rangebgraddiv",
+                            style:boxPosStyle(r.drec) +
+                                  "background:linear-gradient(.25turn, #" +
+                                  r.gradient.left + ", #" + r.gradient.right}],
+                   ["div", {cla:"rangetitlediv", id:cid + "tit"},
+                    ctrls[cid].pn],
+                   ["div", {cla:"rangelowlabeldiv"}, ctrls[cid].low],
+                   ["div", {cla:"rangehighlabeldiv"}, ctrls[cid].high],
+                   ["div", {cla:"rangeleftcurtdiv", id:cid + "lcdiv",
+                            style:"height:" + r.drec.h + "px"}],
+                   ["div", {cla:"rangerightcurtdiv", id:cid + "rcdiv",
+                            style:"height:" + r.drec.h + "px"}]]],
+                 ["div", {cla:"rangesurfdiv", style:boxPosStyle(r.irec)},
+                  ["svg", {xmlns:"http://www.w3.org/2000/svg",
+                           viewBox:"0 0 " + svg.vb.w + " " + svg.vb.h,
+                           stroke:"black", fill:"#ffab00"},
+                   [["line", {id:cid + "vert", "stroke-width":svg.asw,
+                              x1:svg.midx, y1:svg.yvr.s,
+                              x2:svg.midx, y2:svg.yvr.e}],
+                    ["line", {id:cid + "horz", "stroke-width":svg.asw,
+                              x1:svg.xvr.s, y1:svg.dfy,
+                              x2:svg.xvr.e, y2:svg.dfy}],
+                    ["line", {id:cid + "lw", "stroke-width":svg.wsw,
+                              x1:75, y1:svg.dfy - svg.hwh,
+                              x2:75, y2:svg.dfy + svg.hwh}],
+                    ["line", {id:cid + "rw", "stroke-width":svg.wsw,
+                              x1:125, y1:svg.dfy - svg.hwh,
+                              x2:125, y2:svg.dfy + svg.hwh}],
+                    ["circle", {id:cid + "thm", "stroke-width":svg.tsw,
+                                cx:svg.midx, cy:svg.dfy, r:svg.tcr}]]]],
                  ["div", {cla:"mouseareadiv", id:cid + "mousediv",
-                          style:"left:" + ranger.dims.x + "px;" +
-                                "top:" + ranger.dims.y + "px;" +
-                                "width:" + ranger.dims.w + "px;" +
-                                "height:" + ranger.dims.h + "px;"}]]));
-            mgrs.rng.initRangeCtrlStatus(ctrls[cid]);
-            mgrs.rng.attachRangeCtrlMovement(cid);
-            mgrs.rng.addRangeSettingsFunc(cid);
-            mgrs.rng.addRangeSongMatchFunc(cid);
-            mgrs.rng.initRangeSetting(cid); },
+                          style:boxPosStyle(r.trec)}]])); }
+        function createRangeControl (cid) {
+            initRangeCtrlStatus(ctrls[cid]);
+            createControlElements(cid);
+            attachRangeCtrlMovement(cid);
+            addRangeSettingsFunc(cid);
+            addRangeSongMatchFunc(cid);
+            initRangeSetting(cid); }
+    return {
         rebuildControls: function () {
             rcids.forEach(function (cid) {
                 if(!jt.byId(cid + "vnd")) {  //no range control displayed yet
-                    mgrs.rng.createRangeControl(cid); }
+                    createRangeControl(cid); }
                 else {
-                    mgrs.rng.initRangeSetting(cid); } }); }
+                    initRangeSetting(cid); } }); }
     };  //end mgrs.rng returned functions
     }());
 
