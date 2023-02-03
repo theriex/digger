@@ -54,19 +54,21 @@ app.player = (function () {
         const imgw = 110;       //scaled width of 5 stars image
         const imgh = 22;        //scaled height of 5 stars image
         const stw = imgw / 5;   //width of one star
+        function adjustRatingFromPosition (x, ignore /*y*/, pa) {
+            //jt.log("adjustRatingFromPosition x: " + x + ", pa: " + pa);
+            if(pa) {
+                const nrv = Math.round((x / stw) * 2);
+                const psw = Math.round((nrv * stw) / 2);
+                jt.byId("playerstarseldiv").style.width = psw + "px";
+                if(stat.song && pa !== "reflectonly") {
+                    const cv = stat.song.rv;
+                    stat.song.rv = nrv;
+                    if(cv !== stat.song.rv) {
+                        noteSongModified(); } } } }
     return {
-        adjustRatingFromPosition: function (x, ignore /*y*/, pa) {
-            //jt.log("adjustRatingFromPosition x: " + x);
-            const nrv = Math.round((x / stw) * 2);
-            const psw = Math.round((nrv * stw) / 2);
-            jt.byId("playerstarseldiv").style.width = psw + "px";
-            if(stat.song && pa) {
-                const cv = stat.song.rv;
-                stat.song.rv = nrv;
-                if(cv !== stat.song.rv) {
-                    noteSongModified(); } } },
         adjustPositionFromRating: function (rv) {
-            mgrs.rat.adjustRatingFromPosition(Math.round((rv * stw) / 2)); },
+            adjustRatingFromPosition(Math.round((rv * stw) / 2),
+                                     0, "relectonly"); },
         makeRatingValueControl: function () {
             const starstyle = "width:" + imgw + "px;height:" + imgh + "px;";
             jt.out("rvdiv", jt.tac2html(
@@ -80,8 +82,8 @@ app.player = (function () {
             ctrls.rat = {stat:{pointingActive:false,
                                maxxlim:imgw, roundpcnt:5}};
             app.filter.movelisten("ratstardragdiv", ctrls.rat.stat,
-                                  mgrs.rat.adjustRatingFromPosition);
-            mgrs.rat.adjustRatingFromPosition(0); }  //no stars until set
+                                  adjustRatingFromPosition);
+            adjustRatingFromPosition(0, 0, "reflectonly"); }  //init empty
     };  //end mgrs.rat returned functions
     }());
 
@@ -1042,9 +1044,16 @@ app.player = (function () {
             mgrs.pan.updateControl("al");
             mgrs.pan.updateControl("el");
             jt.on("impressiondiv", "mousedown", function (event) {
-                var okinids = ["kwdin", "commentta"];
+                const okinids = ["kwdin", "commentta"];
                 if(!event.target || okinids.indexOf(event.target.id) < 0) {
                     jt.evtend(event); } });  //ignore to avoid selecting ctrls
+            jt.on("impressiondiv", "mouseup", function (event) {
+                ctrls.al.pointingActive = false;
+                ctrls.el.pointingActive = false;
+                ctrls.rat.pointingActive = false;
+                const okinids = ["kwdin", "commentta"];
+                if(!event.target || okinids.indexOf(event.target.id) < 0) {
+                    jt.evtend(event); } });  //don't update coords 
             jt.on("panplaymousingdiv", "mouseup", function (ignore /*event*/) {
                 //do not capture this event or Safari audio will capture the
                 //downclick on the position indicator and never let go.
