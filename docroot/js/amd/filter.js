@@ -12,7 +12,6 @@ app.filter = (function () {
                  rat:{pn:"Minimum Rating"},
                  fq:{pn:"Frequency Eligible"}};
     var ranger = {dims:{x:0, y:0, w:160, h:120},
-                  dflt:{x:55, y:76},  //default values if not previously set
                   gradient:{left:"0cd8e5", right:"faee0a"},
                   svg:{vb:{w:200, h:100},
                        asw:5,  //axis stroke width
@@ -93,6 +92,13 @@ app.filter = (function () {
             updateCoords(stat, posf, event);
             stat.pointingActive = false;
             updateCoords(stat, posf, event); });
+        jt.on(div, "dblclick", function (/*event*/) {
+            const dfltcoords = stat.dflt || {x:0, y:0};
+            const dfltevt = {offsetX:dfltcoords.x, offsetY:dfltcoords.y};
+            stat.pointingActive = true;
+            updateCoords(stat, posf, dfltevt);
+            stat.pointingActive = false;
+            updateCoords(stat, posf, dfltevt); });
         //Touch interfaces are essentially the same as the mouse actions.
         //They may be intermixed on devices that support both interfaces.
         jt.on(div, "touchstart", function (event) {
@@ -190,10 +196,10 @@ app.filter = (function () {
         function attachRangeCtrlMovement (cid) {
             const rcr = ctrls[cid];
             ctrls.movestats.push(rcr.stat);  //catch containing div mouseups
-            rcr.mpos = function (x, y, hardset) {
+            rcr.mpos = function (x, y, hs) {  //optional hard-set flag
                 var stat = rcr.stat;
-                //jt.log("x:" + x + ", y:" + y + (hardset? " (hardset)" : ""));
-                if(stat.pointingActive || hardset) {
+                //jt.log("x:" + x + ", y:" + y + (hs? " (" + hs + ")" : ""));
+                if(stat.pointingActive || hs) {
                     updateRangeValues(x, y, cid); } };
             attachMovementListeners(cid + "mousediv", rcr.stat, rcr.mpos);
             rcr.mpos(ranger.dflt.x, ranger.dflt.y, "init"); }
@@ -224,6 +230,8 @@ app.filter = (function () {
             r.drec = {x:0, y:0, w:r.dims.w, h:Math.round(r.dims.h * 2 / 5)};
             r.trec = {x:0, y:Math.round(r.drec.h / 2), w:r.dims.w};
             r.trec.h = r.dims.h - r.trec.y;
+            r.dflt = {x:Math.round(r.trec.w / 2), y:Math.round(r.trec.h / 2)};
+            ctrls[cid].stat.dflt = r.dflt;
             const sidecolw = Math.round(0.1 * r.trec.w);
             r.irec = {x:sidecolw, y:r.drec.h + 4, w:r.drec.w - (2 * sidecolw)};
             r.irec.h = r.trec.h - (r.irec.y - r.trec.y) - 6;
