@@ -12,6 +12,7 @@ app.filter = (function () {
                  rat:{pn:"Minimum Rating"},
                  fq:{pn:"Frequency Eligible"}};
     var ranger = {dims:{x:0, y:0, w:160, h:120},
+                  dflt:{x:50, y:65},  //pcnt values as used in account settings
                   gradient:{left:"0cd8e5", right:"faee0a"},
                   svg:{vb:{w:200, h:100},
                        asw:5,  //axis stroke width
@@ -193,6 +194,13 @@ app.filter = (function () {
             setCurtainWidths(x, y, cid);
             setCtrlSurfaceValues(x, y, cid);
             mgrs.stg.filterValueChanged(); }
+        function pcnts2Coords (pc) {
+            const tc = {x:pc.x, y:pc.y};
+            tc.y = 100 - tc.y;   //re-invert so top of rect is zero
+            const r = ranger;
+            tc.x = ((tc.x / 100) * r.irec.w) + r.irec.x;
+            tc.y = ((tc.y / 100) * r.irec.h) + (r.irec.y - r.trec.y);
+            return tc; }
         function attachRangeCtrlMovement (cid) {
             const rcr = ctrls[cid];
             ctrls.movestats.push(rcr.stat);  //catch containing div mouseups
@@ -202,7 +210,8 @@ app.filter = (function () {
                 if(stat.pointingActive || hs) {
                     updateRangeValues(x, y, cid); } };
             attachMovementListeners(cid + "mousediv", rcr.stat, rcr.mpos);
-            rcr.mpos(ranger.dflt.x, ranger.dflt.y, "init"); }
+            const coords = pcnts2Coords(ranger.dflt.x);
+            rcr.mpos(coords.x, coords.y, "attachRangeCtrlMovement"); }
         function addRangeSettingsFunc (cid) {
             ctrls[cid].settings = function () {
                 return {tp:"range", c:cid,
@@ -217,25 +226,20 @@ app.filter = (function () {
                 return false; }; }
         function initRangeSetting (cid) {
             const settings = findSetting({tp:"range", c:cid}) || ranger.dflt;
-            const tcs = {  //convert percent settings into trec coordinates
+            const coords = pcnts2Coords({
                 x:verifyValue(settings.x, ranger.dflt.x, 0, 100),
-                y:verifyValue(settings.y, ranger.dflt.y, 0, 100)};
-            tcs.y = 100 - tcs.y;  //re-invert so top of rect is zero
-            const irec = ranger.irec;
-            tcs.x = ((tcs.x / 100) * irec.w) + irec.x;
-            tcs.y = ((tcs.y / 100) * irec.h) + irec.y;
-            ctrls[cid].mpos(tcs.x, tcs.y, "init"); }
+                y:verifyValue(settings.y, ranger.dflt.y, 0, 100)});
+            ctrls[cid].mpos(coords.x, coords.y, "initRangeSetting"); }
         function verifyRangerDefValues(cid) {  //display, tracking, interaction
             const r = ranger;
             r.drec = {x:0, y:0, w:r.dims.w, h:Math.round(r.dims.h * 2 / 5)};
             r.trec = {x:0, y:Math.round(r.drec.h / 2), w:r.dims.w};
             r.trec.h = r.dims.h - r.trec.y;
-            r.dflt = {x:Math.round(r.trec.w / 2), y:Math.round(r.trec.h / 2)};
-            ctrls[cid].stat.dflt = r.dflt;
+            ctrls[cid].stat.dflt = {x:Math.round(r.trec.w / 2),
+                                    y:Math.round(r.trec.h / 2)};
             const sidecolw = Math.round(0.1 * r.trec.w);
             r.irec = {x:sidecolw, y:r.drec.h + 4, w:r.drec.w - (2 * sidecolw)};
             r.irec.h = r.trec.h - (r.irec.y - r.trec.y) - 6;
-            r.dflt = {x:Math.round(r.irec.w / 2), y:Math.round(r.irec.h / 2)};
             const minyp = ctrls[cid].stat.minfocpcnt;
             r.yp2myp = function (y) {
                 const ratio = (100 - minyp) / (100 - 0);
