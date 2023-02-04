@@ -210,9 +210,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
-#togsleeplink, #togcommentlink, #togsharelink { margin-left:21px; }
-#togsleepimg, #togcommentimg, #togshareimg { max-height:24px;
-  margin-left:20px; }
+#togsleeplink, #togcommentlink, #togsharelink { margin:0px 20px 0px 16px; }
+#togsleepimg, #togcommentimg, #togshareimg { max-height:24px; }
 #commentta { padding:3px 5px; }
 #sleepdiv { font-size:medium; }
 

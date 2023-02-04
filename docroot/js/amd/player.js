@@ -1053,7 +1053,7 @@ app.player = (function () {
                 ctrls.rat.pointingActive = false;
                 const okinids = ["kwdin", "commentta"];
                 if(!event.target || okinids.indexOf(event.target.id) < 0) {
-                    jt.evtend(event); } });  //don't update coords 
+                    jt.evtend(event); } });  //don't update coords
             jt.on("panplaymousingdiv", "mouseup", function (ignore /*event*/) {
                 //do not capture this event or Safari audio will capture the
                 //downclick on the position indicator and never let go.
@@ -1401,11 +1401,7 @@ app.player = (function () {
                        ["div", {id:"starsnbuttonsdiv"},
                         [["div", {id:"rvdiv"}],
                          ["div", {id:"playerbuttonsdiv"},
-                          [["a", {id:"togsleeplink", href:"#sleepafter",
-                                  title:"",
-                                  onclick:mdfs("slp.toggleSleepDisplay")},
-                            ["img", {id:"togsleepimg", src:"img/sleep.png"}]],
-                           ["a", {id:"togcommentlink", href:"#togglecomment",
+                          [["a", {id:"togcommentlink", href:"#togglecomment",
                                   title:"",
                                   onclick:mdfs("cmt.toggleCommentDisplay")},
                             ["img", {id:"togcommentimg",
@@ -1414,7 +1410,12 @@ app.player = (function () {
                                   title:"",
                                   onclick:mdfs("cmt.togSongShareDialog")},
                             ["img", {id:"togshareimg",
-                                     src:"img/share.png"}]]]]]]]],
+                                     src:"img/share.png"}]],
+                           ["a", {id:"togsleeplink", href:"#sleepafter",
+                                  title:"",
+                                  onclick:mdfs("slp.toggleSleepDisplay")},
+                            ["img", {id:"togsleepimg",
+                                     src:"img/sleep.png"}]]]]]]]],
                      ["div", {id:"pandragcontdiv"},
                       [["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
                        ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
