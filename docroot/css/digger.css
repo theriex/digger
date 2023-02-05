@@ -184,8 +184,12 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
   border: 2px solid #777; border-radius:10px; }
 .panbgdiv, .panfacediv { position:absolute; left:50px; top:2px;
   border-radius:22px; }
-.panleftpaddlediv { position:absolute; top:2px; left:2px; overflow:hidden; }
-.panrightpaddlediv { position:absolute; top:2px; right:-2px; overflow:hidden; }
+.panleftpaddlediv, .panrightpaddlediv { position:absolute; top:2px;
+  overflow:hidden; border-radius:10px; }
+.panleftpaddlediv { left:2px; }
+.panrightpaddlediv { right:-2px; }
+.pansurrbgdiv { position:absolute; top:2px; left:0px; height:40px;
+  border-radius:22px; }
 .panleftlabdiv, .panrightlabdiv { 
   position:absolute; bottom:6px; font-size:small; text-align:center; }
 .panleftlabdiv { left:5px; }

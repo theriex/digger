@@ -792,6 +792,7 @@ app.player = (function () {
         const drfo = 56;  //drag radius from origin (< drgdiv / 2: 57)
         const ptbr = 44 + 28;  //polar tracking border radius (outer edge)
         const ptir = 12;   //polar tracking inner border radius
+        const cmso = 12;  //click move knob spacing offsset
     return {
         balanceLabels: function () {
             const ids = ["alpanlld", "alpanrld", "elpanlld", "elpanrld"];
@@ -806,6 +807,7 @@ app.player = (function () {
             mgrs.pan.balanceLabels();
             const pk = {leftlab:{elem:jt.byId(id + "panlld")},
                         rightlab:{elem:jt.byId(id + "panrld")},
+                        surr:{elem:jt.byId(id + "pansurrbgd")},
                         lpdl:{elem:jt.byId(id + "panlpd")},
                         rpdl:{elem:jt.byId(id + "panrpd")},
                         panbg:{elem:jt.byId(id + "panbgdiv")},
@@ -815,6 +817,8 @@ app.player = (function () {
             const left = 8 + pk.leftlab.bbox.width;
             pk.panbg.elem.style.left = left + "px";
             pk.panface.elem.style.left = left + "px";
+            pk.surr.elem.style.left = (left - cmso) + "px";
+            pk.surr.elem.style.width = (40 + (2 * cmso)) + "px";
             pk.lpdl.elem.style.width = left + 22 + "px";
             pk.rpdl.elem.style.width = (pk.rightlab.bbox.width + 5 + 22) + "px";
             pk.lpdl.elem.style.height = "40px";
@@ -993,16 +997,17 @@ app.player = (function () {
                     pc.ci.tmo = null;
                     mgrs.pan.pressAndHold(id); }, 100); } },
         handleClickMove: function (id, x, y, pa) {
+            const cfms = 400;  //paddle click fade milliseconds
             //jt.log("handleClickMove " + id + " " + x + "," + y + " " + pa);
             var pc = ctrls[id];   //the pan control being manipulated
             pc.ci = pc.ci || {};  //click info container for work vars
             if(!pc.ci.active && pa) {   //new movement, figure out what kind
                 const kf = jt.byId(id + "panfacediv");
-                if(x < kf.offsetLeft - 4) {
-                    mgrs.gen.illuminateAndFade(id + "panlpd", 1800);
+                if(x < kf.offsetLeft - cmso) {
+                    mgrs.gen.illuminateAndFade(id + "panlpd", cfms);
                     pc.ci.trg = "left"; }
-                else if(x > kf.offsetLeft + kf.offsetWidth + 4) {
-                    mgrs.gen.illuminateAndFade(id + "panrpd", 1800);
+                else if(x > kf.offsetLeft + kf.offsetWidth + cmso) {
+                    mgrs.gen.illuminateAndFade(id + "panrpd", cfms);
                     pc.ci.trg = "right"; }
                 else {
                     pc.ci.trg = "knob"; } }
@@ -1028,6 +1033,7 @@ app.player = (function () {
               ["div", {cla:"pancontdiv", id:pc.fld + "pancontdiv"},
                [["div", {cla:"panleftpaddlediv", id:pc.fld + "panlpd"}],
                 ["div", {cla:"panrightpaddlediv", id:pc.fld + "panrpd"}],
+                ["div", {cla:"pansurrbgdiv", id:pc.fld + "pansurrbgd"}],
                 ["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
                 ["div", {cla:"panrightlabdiv", id:pc.fld + "panrld"}, pc.high],
                 ["div", {cla:"panfacediv", id:pc.fld + "panfacediv"},
