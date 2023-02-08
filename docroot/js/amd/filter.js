@@ -50,9 +50,11 @@ app.filter = (function () {
 
     function updateCoords (stat, posf, event) {
         if(!ctrls.filtersReady) { return; }  //still setting up
+        stat.eventType = "";
         if(event) {
             stat.lastX = event.offsetX;
             stat.lastY = event.offsetY;
+            stat.eventType = String(event.type);
             stat.roundx = Math.round(((stat.roundpcnt || 0) / 100) *
                                      (stat.maxxlim || 0));
             stat.roundy = Math.round(((stat.roundpcnt || 0) / 100) *
@@ -95,7 +97,8 @@ app.filter = (function () {
             updateCoords(stat, posf, event); });
         jt.on(div, "dblclick", function (/*event*/) {
             const dfltcoords = stat.dflt || {x:0, y:0};
-            const dfltevt = {offsetX:dfltcoords.x, offsetY:dfltcoords.y};
+            const dfltevt = {type:"dblclick",
+                             offsetX:dfltcoords.x, offsetY:dfltcoords.y};
             stat.pointingActive = true;
             updateCoords(stat, posf, dfltevt);
             stat.pointingActive = false;
@@ -210,7 +213,7 @@ app.filter = (function () {
                 if(stat.pointingActive || hs) {
                     updateRangeValues(x, y, cid); } };
             attachMovementListeners(cid + "mousediv", rcr.stat, rcr.mpos);
-            const coords = pcnts2Coords(ranger.dflt.x);
+            const coords = pcnts2Coords({x:ranger.dflt.x, y:ranger.dflt.y});
             rcr.mpos(coords.x, coords.y, "attachRangeCtrlMovement"); }
         function addRangeSettingsFunc (cid) {
             ctrls[cid].settings = function () {

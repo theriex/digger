@@ -786,15 +786,36 @@ app.player = (function () {
     }());
 
 
+    //Pan drag indicator manager handles drag decoration for the pan controls
+    mgrs.pdi = (function () {
+        function verifySVG (cid) {
+            const sid = cid + "svg";
+            if(jt.byId(sid)) { return true; }  //already set up. done.
+            jt.out(cid + "panddecdiv", jt.tac2html(
+                ["svg", {id:sid, xmlns:"http://www.w3.org/2000/svg",
+                         viewBox:"0 0 100 100", "stroke-width":3,
+                         stroke:"#ffab00", fill:"#ffab00"},
+                 [["line", {id:sid + "tl", x1:50, y1:3, x2:50, y2:35}],
+                  ["path", {d:"M50 3 L55 8 L45 8 Z"}],
+                  ["line", {id:sid + "bl", x1:50, y1:55, x2:50, y2:97}],
+                  ["path", {d:"M50 97 L55 92 L45 92 Z"}]]])); }
+    return {
+        showDragIndicators: function (cid) {
+            verifySVG(cid);
+            jt.byId(cid + "svg").style.display = "block"; },
+        hideDragIndicators: function (cid) {
+            verifySVG(cid);
+            jt.byId(cid + "svg").style.display = "none"; }
+    };  //end of mgrs.pdi returned functions
+    }());
+
+
     //handle the pan controls for energy and approachability
     mgrs.pan = (function () {
         const anglemax = 145;  //max knob rotation
-        const drfo = 56;  //drag radius from origin (< drgdiv / 2: 57)
-        const ptbr = 44 + 28;  //polar tracking border radius (outer edge)
-        const ptir = 12;   //polar tracking inner border radius
-        const cmso = 12;  //click move knob spacing offsset
-    return {
-        balanceLabels: function () {
+        const cmso = 14;  //click move knob spacing offsset
+        const kcph = 40;  //knob control panel height
+        function balanceLabels () {
             const ids = ["alpanlld", "alpanrld", "elpanlld", "elpanrld"];
             const els = ids.map((i) => jt.byId(i));
             const wds = els.map((e) => e? e.offsetWidth : 0);
@@ -802,9 +823,9 @@ app.player = (function () {
             const mw = Math.max(48, Math.max.apply(null, wds));
             els.forEach(function (e) {
                 if(e) {
-                    e.style.width = mw + "px"; } }); },
-        packControlWidthwise: function (id) {
-            mgrs.pan.balanceLabels();
+                    e.style.width = mw + "px"; } }); }
+        function packControlWidthwise (id) {
+            balanceLabels();
             const pk = {leftlab:{elem:jt.byId(id + "panlld")},
                         rightlab:{elem:jt.byId(id + "panrld")},
                         surr:{elem:jt.byId(id + "pansurrbgd")},
@@ -818,21 +839,21 @@ app.player = (function () {
             pk.panbg.elem.style.left = left + "px";
             pk.panface.elem.style.left = left + "px";
             pk.surr.elem.style.left = (left - cmso) + "px";
-            pk.surr.elem.style.width = (40 + (2 * cmso)) + "px";
+            pk.surr.elem.style.width = (kcph + (2 * cmso)) + "px";
             pk.lpdl.elem.style.width = left + 22 + "px";
             pk.rpdl.elem.style.width = (pk.rightlab.bbox.width + 5 + 22) + "px";
-            pk.lpdl.elem.style.height = "40px";
-            pk.rpdl.elem.style.height = "40px";
+            pk.lpdl.elem.style.height = kcph + "px";
+            pk.rpdl.elem.style.height = kcph + "px";
             ctrls[id].width = left + 44 + pk.rightlab.bbox.width + 5;
-            const pds = [jt.byId(id + "pancontdiv"), jt.byId(id + "pandiv"),
-                         jt.byId(id + "pandragdiv")];
-            pds.forEach(function (panel) {
+            const pds = ["pancontdiv", "pandiv", "panddecdiv", "pandragdiv"];
+            pds.forEach(function (panelid) {
+                const panel = jt.byId(id + panelid);
                 panel.style.width = ctrls[id].width + "px";
-                panel.style.height = "40px"; });
+                panel.style.height = kcph + "px"; });
             //jt.log(id + "pandragdiv width: " + ctrls[id].width);
             ctrls[id].knog = {x:pk.panbg.elem.offsetLeft + 21, //viz elem calc
-                              y:Math.floor(ctrls[id].width / 2) + 2}; },
-        positionDragOverlay: function (id) {
+                              y:Math.floor(ctrls[id].width / 2) + 2}; }
+        function positionDragOverlay (id) {
             const pk = {pots:jt.byId("panpotsdiv"),
                         pan:jt.byId(id + "pandiv"),
                         drag:jt.byId(id + "pandragdiv")};
@@ -844,188 +865,93 @@ app.player = (function () {
                               width:pk.pan.offsetWidth,
                               height:pk.pan.offsetHeight};
             Object.entries(dragdims).forEach(function ([k, v]) {
-                pk.drag.style[k] = v + "px"; }); },
-        adjustBoundaries: function (di, expanded) {
-            if(expanded === "expanded") {
-                // di.drgdiv.style.backgroundColor = "#ffab00";
-                // di.drgdiv.style.opacity = 0.3;
-                // di.drgbo.style.backgroundColor = "#ff0000";
-                // di.drgbo.style.opacity = 0.8;
-                di.drgbo.style.top = (di.knoy + di.tlift - (ptbr / 2)) + "px";
-                di.drgbo.style.left = (di.knox - (ptbr / 2)) + "px";
-                di.drgbo.style.height = ptbr + "px";
-                di.drgbo.style.width = ptbr + "px";
-                // di.drgbi.style.backgroundColor = "#0000ff";
-                // di.drgbi.style.opacity = 0.8;
-                di.drgbi.style.top = (di.knoy + di.tlift - (ptir / 3)) + "px";
-                di.drgbi.style.left = (di.knox - (ptir / 2)) + "px";
-                di.drgbi.style.height = ptir + "px";
-                di.drgbi.style.width = ptir + "px"; }
-            else {  //"contracted"
-                // di.drgdiv.style.backgroundColor = "";
-                // di.drgbo.style.backgroundColor = "";
-                // di.drgbi.style.backgroundColor = "";
-                di.drgbo.style.top = "0px";
-                di.drgbo.style.height = "10px";
-                di.drgbi.style.top = "0px";
-                di.drgbi.style.height = "5px"; } },
-        logOffsets: function (div) {
-            jt.log(div.id + " t:" + div.offsetTop + ", l:" + div.offsetLeft +
-                   ", w:" + div.offsetWidth + ", h:" + div.offsetHeight); },
-        vertiExpandOk: function (id, x, y) {  //expand|contract vert drag div
-            var pc = ctrls[id];    //pan control
-            var drgdiv = jt.byId(id + "pandragdiv");
-            if(pc.pointingActive && !pc.vexp) {  //expand the div
-                pc.maxxlim = pc.width;  //width from packControlWidthwise
-                pc.maxylim = pc.width;  //make square, then adjust top offset
-                pc.toplift = Math.round((pc.maxylim - 40) / -2);
-                drgdiv.style.height = pc.maxylim + "px";
-                drgdiv.style.top = pc.toplift + "px";
-                pc.di = {  //drag info
-                    knox:pc.knog.x,  //knob origin from packControlWidthwise
-                    knoy:pc.knog.y,
-                    tlift:pc.toplift,
-                    ckox:x,  //click origin x.  Adjust y for height expansion
-                    ckoy:(-1 * pc.toplift) + y,  //click origin y
-                    ckv:stat.song[id],  //value at click origin
-                    vt:"polar",  //for smooth movement of notch from near top
-                    drgbo:jt.byId(id + "pandrgbodiv"),
-                    drgbi:jt.byId(id + "pandrgbidiv"),
-                    drgdiv:jt.byId(id + "pandragdiv")};
-                mgrs.pan.adjustBoundaries(pc.di, "expanded");
-                pc.vexp = true;
-                return false; }  //do not process original raw coordinates
-            if(!pc.pointingActive && pc.vexp) {  //contract the div
-                drgdiv.style.height = "40px";  //reset height
-                drgdiv.style.top = "0px";      //undo vertical offset
-                mgrs.pan.adjustBoundaries(pc.di, "contracted");
-                pc.vexp = false;
-                return false; }  //do not process coordinates post close
-            return pc.pointingActive; },
-        trackExtentCoords: function (di, x, y) {
-            di.elx = Math.min((di.elx || x), x);  //extent left x
-            di.erx = Math.max((di.erx || x), x);  //extent right x
-            di.emx = di.erx - di.elx;
-            di.ety = Math.min((di.ety || y), y);  //extent top y
-            di.eby = Math.max((di.eby || y), y);  //extent bottom y
-            di.emy = di.eby - di.ety;
-            const botop = Math.abs(di.drgdiv.offsetTop - di.drgbo.offsetTop);
-            if(x < di.drgbo.offsetLeft ||
-               x > di.drgbo.offsetLeft + di.drgbo.offsetWidth ||
-               y < botop ||
-               y > botop + di.drgbo.offsetHeight) {
-                di.ptdis = "ptbrExceeded"; }
-            const bitop = Math.abs(di.drgdiv.offsetTop - di.drgbi.offsetTop);
-            if(x > di.drgbi.offsetLeft &&
-               x < di.drgbi.offsetLeft + di.drgbi.offsetWidth &&
-               y > bitop &&
-               y < bitop + di.drgbi.offsetHeight) {
-                di.ptdis = "originCross"; } },
-        valueRangeConstrain: function (v) {
+                pk.drag.style[k] = v + "px"; }); }
+        function valueRangeConstrain (v) {
             v = Math.max(v, 0);
             v = Math.min(v, 99);
-            return v; },
-        calcDelta: function (di, x, y) {
-            di.dx = x - di.ckox;  //delta x from click origin
-            di.dy = di.ckoy - y;  //delta y from click origin
-            mgrs.pan.trackExtentCoords(di, x, y);
-            di.vx = di.ckv + Math.round(di.dx * 100 / drfo);  //new value by x
-            di.vx = mgrs.pan.valueRangeConstrain(di.vx);
-            di.vy = di.ckv + Math.round(di.dy * 100 / drfo);  //new value by y
-            di.vy = mgrs.pan.valueRangeConstrain(di.vy);
-            if(di.vt !== "polar" || di.ptdis) {  //not already tracking polar
-                di.vt = "vertical";  //default to up|down movement tracking
-                di.dv = di.vy;
-                if(di.emx > di.emy) {  //more x movement
-                    di.vt = "horizontal";
-                    di.dv = di.vx; } } //go with side-to-side movement tracking
-            //With y above knob origin, just use x/y tracking.  if y is
-            //below the knob origin, and x is inside the knob edges, then they
-            //are probably trying to actually turn the knob inwards.
-            if(!di.ptdis &&  //not disabled from origin cross or outer boundary
-               (di.vt === "polar" ||
-                (y > di.knoy && ((x < di.knox && x > di.knox - 22) ||
-                                 (x > di.knox && x < di.knox + 22))))) {
-                di.vt = "polar";
-                di.dv = mgrs.pan.calcPolar(di, x - di.knox, y - di.knoy); } },
-        calcPolar: function (di, x, y) {  //x and y are diffs from origin
-            di.r = Math.sqrt((x * x) + (y * y));  //radius by pythagorean
-            di.th = Math.atan2(x, y) ;  //angle off top mid (invert axes)
-            di.dg = Math.round(di.th * 180 / Math.PI);  //angle in degrees
-            if(di.dg > 0) {  //find circle degree (0-360)
-                di.cd = 180 + 180 - di.dg;
-                if(di.cd >= 180 + anglemax) { di.cd = 360; } }
-            else if(di.dg < 0) {
-                di.cd = Math.abs(di.dg);
-                if(di.cd <= 180 - anglemax) { di.cd = 0; } }
-            else {  //at zero
-                di.cd = 180; }
-            const knobrange = 2 * anglemax;
-            di.kr = Math.round(di.cd * knobrange / 360);
-            return Math.round(di.kr * 100 / knobrange); },
-        followClickDrag: function (id, x, y) {
-            var pc = ctrls[id];  //the pan control being dragged
-            pc.di = pc.di || {}; //drag info container for work vars
-            if(mgrs.pan.vertiExpandOk(id, x, y)) {  //inits di with ckox, ckoy
-                mgrs.pan.calcDelta(pc.di, x, y);
-                // jt.out("commentdiv",
-                //        //", ckox:" + pc.di.ckox + ", ckoy:" + pc.di.ckoy +
-                //        //", ckv:" + pc.di.ckv +
-                //        //", dx:" + pc.di.dx + ", dy:" + pc.di.dy +
-                //        //", vx:" + pc.di.vx + ", vy:" + pc.di.vy +
-                //        //", elx:" + pc.di.elx + ", erx:" + pc.di.erx +
-                //        //", ewx:" + pc.di.ewx + ", ety:" + pc.di.ety +
-                //        //", eby:" + pc.di.eby + ", ehy:" + pc.di.ehy +
-                //        //", knox:" + pc.di.knox + ", knoy:" + pc.di.knoy +
-                //        ", x:" + x + ", y:" + y +
-                //        //", r:" + pc.di.r + ", th:" + pc.di.th +
-                //        //", dg:" + pc.di.dg +
-                //        ", ptdis:" + pc.di.ptdis +
-                //        ", dv:" + pc.di.dv + ", " + pc.di.vt);
-                mgrs.pan.updateControl(ctrls[id].fld, pc.di.dv); } },
-        pressAndHold: function (id) {
-            var pc = ctrls[id];
+            return v; }
+        function setTLHW (elem, dim) {
+            if(dim.t !== undefined) {
+                elem.style.top = dim.t + "px"; }
+            if(dim.l !== undefined) {
+                elem.style.left = dim.l + "px"; }
+            if(dim.h !== undefined) {
+                elem.style.height = dim.h + "px"; }
+            if(dim.w !== undefined) {
+                elem.style.width = dim.w + "px"; } }
+        function updateValueByClick (id, x/*, y*/) {
             var val = stat.song[id];
-            if(pc.ci.trg === "left") {
-                val -= 1; }
-            else { //"right"
-                val += 1; }
-            val = mgrs.pan.valueRangeConstrain(val);
-            mgrs.pan.updateControl(ctrls[id].fld, val);
-            if(pc.ci.active && !pc.ci.tmo) {
-                pc.ci.tmo = setTimeout(function () {
-                    pc.ci.tmo = null;
-                    mgrs.pan.pressAndHold(id); }, 100); } },
-        handleClickMove: function (id, x, y, pa) {
+            if(ctrls[id].eventType === "dblclick") {
+                if(val !== 49) {
+                    mgrs.pan.updateControl(id, 49); }
+                return; }
             const cfms = 400;  //paddle click fade milliseconds
-            //jt.log("handleClickMove " + id + " " + x + "," + y + " " + pa);
-            var pc = ctrls[id];   //the pan control being manipulated
-            pc.ci = pc.ci || {};  //click info container for work vars
-            if(!pc.ci.active && pa) {   //new movement, figure out what kind
-                const kf = jt.byId(id + "panfacediv");
-                if(x < kf.offsetLeft - cmso) {
-                    mgrs.gen.illuminateAndFade(id + "panlpd", cfms);
-                    pc.ci.trg = "left"; }
-                else if(x > kf.offsetLeft + kf.offsetWidth + cmso) {
-                    mgrs.gen.illuminateAndFade(id + "panrpd", cfms);
-                    pc.ci.trg = "right"; }
-                else {
-                    pc.ci.trg = "knob"; } }
-            pc.ci.active = pa;
-            if(pc.ci.trg === "knob") {
-                mgrs.pan.followClickDrag(id, x, y); }
-            else if(pc.ci.active) {
-                mgrs.pan.pressAndHold(id); } },
-        activateControl: function (id) {
+            const kf = jt.byId(id + "panfacediv");
+            if(x < kf.offsetLeft - cmso) {
+                mgrs.gen.illuminateAndFade(id + "panlpd", cfms);
+                val -= 1; }
+            else if(x > kf.offsetLeft + kf.offsetWidth + cmso) {
+                mgrs.gen.illuminateAndFade(id + "panrpd", cfms);
+                val += 1; }
+            val = valueRangeConstrain(val);
+            if(val !== stat.song[id]) {  //value has changed
+                mgrs.pan.updateControl(id, val); } }
+        function activateDragArea (id) {
+            const pc = ctrls[id];
+            const drgdiv = jt.byId(id + "pandragdiv");
+            mgrs.pdi.showDragIndicators(id);
+            pc.maxxlim = pc.width;  //width from packControlWidthwise
+            pc.maxylim = pc.width;  //make square, then adjust top offset
+            pc.toplift = Math.round((pc.maxylim - kcph) / -2);
+            setTLHW(drgdiv, {t:pc.toplift, h:pc.maxylim});
+            setTLHW(jt.byId(id + "panddecdiv"), {t:pc.toplift, h:pc.maxylim}); }
+        function deactivateDragArea (id) {
+            const drgdiv = jt.byId(id + "pandragdiv");
+            mgrs.pdi.hideDragIndicators(id);
+            setTLHW(drgdiv, {t:0, h:kcph});
+            setTLHW(jt.byId(id + "panddecdiv"), {t:0, h:kcph}); }
+        function updateValueByDragCoordinates (id, ignore/*x*/, y) {
+            var val = 49;
+            const pc = ctrls[id];
+            const vpad = pc.maxylim / 10;  //reserve 10% at top/bottom for drag
+            const ath = pc.maxylim - (2 * vpad);  //active tracking height
+            y -= vpad;  //remove bottom pad area from working y value
+            y = Math.max(0, y);
+            y = Math.min(ath, y);
+            const yp = (y / ath) * 100;  //y as percentage of height
+            const iyp = 100 - yp;  //invert so 0 at bottom and 100 at top
+            val = Math.round((iyp / 100) * 99);  //convert pcnt to 0-99 range
+            if(val !== stat.song[id]) {  //value has changed
+                mgrs.pan.updateControl(id, val); } }
+        function handleClickMove (id, x, y, pa) {
+            if(ctrls[id].eventType.indexOf("click") >= 0) {
+                if(!pa) {  //two click notices per click, choosing non-pa one
+                    if(!ctrls[id].dc.dragged) {  //value not changed by dragging
+                        jt.log(ctrls[id].eventType + " x:" + x + ", y:" + y);
+                        updateValueByClick(id, x, y); } } }
+            else {  //not a click event
+                if(pa) {  //pointing active, mouse is down
+                    if(ctrls[id].dc.status === "inactive") {
+                        activateDragArea(id);
+                        ctrls[id].dc.dragged = false;
+                        ctrls[id].dc.status = "active"; }
+                    else { //ctrls[id].dc.status === "active"
+                        updateValueByDragCoordinates(id, x, y);
+                        ctrls[id].dc.dragged = true; } }
+                else {  //not pointing, mouse is up
+                    deactivateDragArea(id);
+                    ctrls[id].dc.status = "inactive"; } } }
+        function activateControl (id) {
+            ctrls[id].dc = {status:"inactive", dragged:"false"};
             ctrls[id].posf = function (x, y, pa) {
-                mgrs.pan.handleClickMove(id, x, y, pa); };
+                handleClickMove(id, x, y, pa); };
             //double click reset not strictly necessary, and tends to
             //interfere with fat finger paddle controls on phone.
             // jt.on(jt.byId(id + "pandragdiv"), "dblclick", function (ignore) {
             //     mgrs.pan.updateControl(ctrls[id].fld, 49); });
             app.filter.movelisten(id + "pandragdiv",
-                                  ctrls[id], ctrls[id].posf); },
-        createControl: function (id, det) {
+                                  ctrls[id], ctrls[id].posf); }
+        function createControl (id, det) {
             var pc = {fld:det.fld, pn:det.pn, low:det.low, high:det.high,
                       pointingActive:false, roundpcnt:3};  //maxxlim set in pack
             ctrls[id] = pc;
@@ -1033,6 +959,7 @@ app.player = (function () {
               ["div", {cla:"pancontdiv", id:pc.fld + "pancontdiv"},
                [["div", {cla:"panleftpaddlediv", id:pc.fld + "panlpd"}],
                 ["div", {cla:"panrightpaddlediv", id:pc.fld + "panrpd"}],
+                ["div", {cla:"panddecdiv", id:pc.fld + "panddecdiv"}],
                 ["div", {cla:"pansurrbgdiv", id:pc.fld + "pansurrbgd"}],
                 ["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
                 ["div", {cla:"panrightlabdiv", id:pc.fld + "panrld"}, pc.high],
@@ -1040,13 +967,26 @@ app.player = (function () {
                  ["img", {cla:"panfaceimg", src:"img/panface.png"}]],
                 ["div", {cla:"panbgdiv", id:pc.fld + "panbgdiv"},
                  ["img", {cla:"panbackimg", src:"img/panback.png"}]]]]));
-            mgrs.pan.packControlWidthwise(id);
-            mgrs.pan.positionDragOverlay(id);
-            mgrs.pan.activateControl(id); },
+            packControlWidthwise(id);
+            positionDragOverlay(id);
+            activateControl(id); }
+        function hex2RGB (hexcolor) {
+            var hcs = hexcolor.match(/\S\S/g);
+            return {r:parseInt(hcs[0], 16),
+                    g:parseInt(hcs[1], 16),
+                    b:parseInt(hcs[2], 16)}; }
+        function updateTitle (id, songtitle) {
+            var title = "Dial-In " + ctrls[id].pn;
+            if(songtitle) {
+                title += " for " + songtitle; }
+            const div = jt.byId(id + "pandiv");
+            if(div) {
+                div.title = title; } }
+    return {
         makePanControls: function () {
             var filters = app.filter.filters();
-            mgrs.pan.createControl("al", filters[0]);
-            mgrs.pan.createControl("el", filters[1]);
+            createControl("al", filters[0]);
+            createControl("el", filters[1]);
             mgrs.pan.updateControl("al");
             mgrs.pan.updateControl("el");
             jt.on("impressiondiv", "mousedown", function (event) {
@@ -1066,18 +1006,6 @@ app.player = (function () {
                 ctrls.al.pointingActive = false;
                 ctrls.el.pointingActive = false;
                 ctrls.rat.pointingActive = false; }); },
-        hex2RGB: function (hexcolor) {
-            var hcs = hexcolor.match(/\S\S/g);
-            return {r:parseInt(hcs[0], 16),
-                    g:parseInt(hcs[1], 16),
-                    b:parseInt(hcs[2], 16)}; },
-        updateTitle: function (id, songtitle) {
-            var title = "Dial-In " + ctrls[id].pn;
-            if(songtitle) {
-                title += " for " + songtitle; }
-            const div = jt.byId(id + "pandiv");
-            if(div) {
-                div.title = title; } },
         updateControl: function (id, val) {
             if(!val && val !== 0) {
                 val = 49; }
@@ -1086,12 +1014,12 @@ app.player = (function () {
             if(stat.song) {
                 if(stat.song[id] !== val) {
                     stat.song[id] = val;
-                    mgrs.pan.updateTitle(id, stat.song.ti);
+                    updateTitle(id, stat.song.ti);
                     noteSongModified(); } }
             //set knob face color from gradient
             const gra = app.filter.gradient();
-            const grd = {f:mgrs.pan.hex2RGB(gra.left),
-                         t:mgrs.pan.hex2RGB(gra.right)};
+            const grd = {f:hex2RGB(gra.left),
+                         t:hex2RGB(gra.right)};
             const pct = (val + 1) / 100;
             const res = {r:0, g:0, b:0};
             Object.keys(res).forEach(function (key) {
@@ -1423,11 +1351,7 @@ app.player = (function () {
                             ["img", {id:"togsleepimg",
                                      src:"img/sleep.png"}]]]]]]]],
                      ["div", {id:"pandragcontdiv"},
-                      [["div", {cla:"pandrgbdiv", id:"alpandrgbodiv"}],
-                       ["div", {cla:"pandrgbdiv", id:"alpandrgbidiv"}],
-                       ["div", {cla:"pandrgbdiv", id:"elpandrgbodiv"}],
-                       ["div", {cla:"pandrgbdiv", id:"elpandrgbidiv"}],
-                       ["div", {id:"alpandragdiv", cla:"pandragdiv"}],
+                      [["div", {id:"alpandragdiv", cla:"pandragdiv"}],
                        ["div", {id:"elpandragdiv", cla:"pandragdiv"}]]]]]]],
                  ["div", {id:"commentdiv"}],
                  ["div", {id:"sleepdiv"}]]));
