@@ -538,9 +538,16 @@ app.player = (function () {
                                   "player.mob songs rebuild"); }); },
         rebuildIfSongPlaying: function (updsg) {  //song updated from hub
             if(stat.song && stat.song.path === updsg.path) {
-                jt.log("player.mob.risp locpath: " + stat.song.path);
-                jt.log("player.mob.risp updpath: " + updsg.path);
+                const chgflds = mgrs.gen.listChangedFields(stat.song, updsg);
                 stat.song = updsg;
+                if(chgflds.length) {  //have interim changes during sync
+                    try {
+                        chgflds.forEach(function (chg) {
+                            jt.log("Restoring UI " + chg.fld + ": " + chg.val);
+                            chg.uf(chg.val); });
+                    } catch(e) {
+                        jt.log("Not all UI fields restored: " + e);
+                    } }
                 mgrs.cmt.resetDisplay();
                 mgrs.aud.updateSongDisplay(); } }
     };  //end mgrs.mob returned functions
@@ -683,6 +690,10 @@ app.player = (function () {
         chgMetDat: function (fld) {
             var val = jt.byId("tdet" + fld).value;
             //jt.log("Changing " + fld + " to " + val);
+            mgrs.tun.changeTuningField(fld, val); },
+        changeTuningField: function (fld, val, toggleoff) {
+            if(toggleoff) {
+                mgrs.tun.toggleTuningOpts("off"); }
             stat.song[fld] = val;
             noteSongModified(); },
         resetClearedMetDat: function () {
@@ -1316,6 +1327,26 @@ app.player = (function () {
 
     //general top level processing functions
     mgrs.gen = (function () {
+        const uichg = [  //fields changeable in the player UI with update funcs
+            {fld:"fq", uf:function (val) {
+                mgrs.tun.changeTuningField("fq", val, true); }},
+            {fld:"ti", uf:function (val) {
+                mgrs.tun.changeTuningField("ti", val, true); }},
+            {fld:"ar", uf:function (val) {
+                mgrs.tun.changeTuningField("ar", val, true); }},
+            {fld:"ab", uf:function (val) {
+                mgrs.tun.changeTuningField("ab", val, true); }},
+            {fld:"al", uf:function (val) {
+                mgrs.pan.updateControl("al", val); }},
+            {fld:"el", uf:function (val) {
+                mgrs.pan.updateControl("el", val); }},
+            {fld:"kws", uf:function (val) {
+                stat.song.kws = val;
+                mgrs.kwd.rebuildToggles(); }},
+            {fld:"rv", uf:mgrs.rat.adjustPositionFromRating},
+            {fld:"nt", uf:function (val) {
+                stat.song.nt = val;
+                mgrs.cmt.resetDisplay(); }}];
     return {
         initializeDisplay: function () {
             jt.log("player.gen.initializeDisplay");
@@ -1405,7 +1436,12 @@ app.player = (function () {
             if(stat && stat.song) {
                 jt.log(prefix + "logCurrentlyPlaying: " + stat.song.path); }
             else {
-                jt.log(prefix + "logCurrentlyPlaying: no song"); } }
+                jt.log(prefix + "logCurrentlyPlaying: no song"); } },
+        listChangedFields: function (sa, sb) {
+            const chg = uichg.filter((uic) => sa[uic.fld] !== sb[uic.fld]);
+            const chgvals = chg.map((chg) => ({fld:chg.fld, uf:chg.uf,
+                                               val:sa[chg.fld]}));
+            return chgvals; }
     }; //end mgrs.gen returned functions
     }());
 
