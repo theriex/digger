@@ -927,7 +927,7 @@ app.player = (function () {
             if(ctrls[id].eventType.indexOf("click") >= 0) {
                 if(!pa) {  //two click notices per click, choosing non-pa one
                     if(!ctrls[id].dc.dragged) {  //value not changed by dragging
-                        jt.log(ctrls[id].eventType + " x:" + x + ", y:" + y);
+                        //jt.log(ctrls[id].eventType + " x:" + x + ", y:" + y);
                         updateValueByClick(id, x, y); } } }
             else {  //not a click event
                 if(pa) {  //pointing active, mouse is down

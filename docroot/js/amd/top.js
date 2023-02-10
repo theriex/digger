@@ -180,8 +180,8 @@ app.top = (function () {
             syt.down += songs.length;
             jt.log("processReceivedSyncData " + songs.length + " songs.");
             songs.forEach(function (s) {
-                app.player.dispatch("mob", "rebuildIfSongPlaying", s);
-                app.svc.dispatch("loc", "noteUpdatedSongData", s); });
+                s = app.svc.dispatch("loc", "noteUpdatedSongData", s);
+                app.player.dispatch("mob", "rebuildIfSongPlaying", s); });
             app.deck.dispatch("ws", "rebuildIfChanged",
                               "processReceivedSyncData");
             const curracct = mgrs.aaa.getAccount();

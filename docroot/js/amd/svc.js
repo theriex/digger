@@ -368,14 +368,16 @@ app.svc = (function () {
             else {
                 jt.err("/songupd failed " + code + ": " + errtxt); } },
         updateSong: function (song, contf, errf) {
+            if(song !== dbo.songs[song.path]) {
+                jt.log("loc.updateSong song ref different from dbo ref"); }
             jt.call("POST", "/songupd", jt.objdata(song),
                     function (res)  {
                         var updsong = res[0];
-                        app.copyUpdatedSongData(song, updsong);
+                        app.copyUpdatedSongData(dbo.songs[song.path], updsong);
                         jt.out("modindspan", "");  //turn off indicator light
                         app.top.dispatch("srs", "syncToHub");  //sched sync
                         if(contf) {
-                            contf(updsong); } },
+                            contf(dbo.songs[song.path]); } },
                     function (code, errtxt) {
                         if(!errf) {
                             mgrs.loc.majorError(code, errtxt); }
@@ -385,7 +387,8 @@ app.svc = (function () {
         noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
             var song = dbo.songs[updsong.path];
             if(song) {  //hub sync might send something not available locally
-                app.copyUpdatedSongData(song, updsong); } },
+                app.copyUpdatedSongData(song, updsong); }
+            return song || updsong; },
         updateAccount: function (acctsinfo, contf, errf) {
             var data = jt.objdata({acctsinfo:JSON.stringify(acctsinfo)});
             jt.call("POST", "/acctsinfo", data, contf, errf,
@@ -482,7 +485,8 @@ app.svc = (function () {
             if(pool[sk]) {
                 app.copyUpdatedSongData(pool[sk], song); }
             else {
-                pool[sk] = song; } },
+                pool[sk] = song; }
+            return pool[sk]; },
         poolAvailable: function () {
             var startOfDay = Date.now() - (24 * 60 * 60 * 1000);
             startOfDay = new Date(startOfDay).toISOString();
@@ -638,7 +642,7 @@ app.svc = (function () {
         updateMultipleSongs: function (songs, contf, errf) {
             mgrs[hdm].updateMultipleSongs(songs, contf, errf); },
         noteUpdatedSongData: function (song) {
-            mgrs[hdm].noteUpdatedSongData(song); },
+            return mgrs[hdm].noteUpdatedSongData(song); },
         docContent: function (docurl, contf) {
             mgrs[hdm].docContent(docurl, contf, function (code, errtxt) {
                 contf("Doc error " + code + ": " + errtxt); }); },
