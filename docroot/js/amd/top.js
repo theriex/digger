@@ -75,7 +75,7 @@ app.top = (function () {
         const syt = {tmo:null, stat:"", resched:false, up:0, down:0};
         var upldsongs = null;
         var contexts = {newacct:1800, acctok:1800, unposted:2000, reset:1200,
-                        resched:2000, standard:20 * 1000};
+                        resched:2000, standard:20 * 1000, signin:100};
         function isNewlyPlayed (s) {
             return s.lp && s.lp > (s.modified || ""); }
         function notPostedYet (s) {
@@ -915,13 +915,13 @@ app.top = (function () {
                 jt.byId(buttonid).disabled = false;
                 jt.out("afgstatdiv", code + ": " + errtxt); };
             app.svc.dispatch("gen", "makeHubAcctCall", verb, endpoint, data,
-                function (accntok) {
+                function (atk) {
                     jt.out("afgstatdiv", "Saving...");
-                    if(endpoint === "accntok") { //reset syncsince on new signin
-                        accntok[0].syncsince = accntok[0].created + ";1"; }
+                    if(endpoint === "acctok") { //reset syncsince on new signin
+                        atk[0].syncsince = atk[0].created + ";1"; }
                     if(endpoint.startsWith("mailpwr")) {
                         return contf(); }  //no account to update
-                    mgrs.aaa.updateCurrAcct(accntok[0], accntok[1],
+                    mgrs.aaa.updateCurrAcct(atk[0], atk[1],
                         function (acct) {
                             jt.out("afgstatdiv", "Saved.");
                             if(app.svc.plat("hdm") === "loc") {
@@ -957,10 +957,12 @@ app.top = (function () {
             const dat = formData("s");
             if(!formError(dat, [verifyEmail, verifyPwd])) {
                 makeHubCall(buttonid, "POST", "acctok", dat, function (acct) {
-                    if(mgrs.afg.inApp()) {
-                        mgrs.gen.updateHubToggleSpan(acct);
+                    if(mgrs.afg.inApp()) {  //running within web app
+                        mgrs.gen.updateHubToggleSpan(acct);  //UI reflect name
                         mgrs.gen.togtopdlg(null, "close");
-                        mgrs.aaa.notifyAccountChanged(); }
+                        mgrs.aaa.notifyAccountChanged();  //UI reflect settings
+                        //acct.syncsince already reset in makeHubCall
+                        mgrs.srs.syncToHub("signin"); }
                     else { //standalone account management
                         app.login.dispatch("ap", "save", acct);
                         mgrs.afg.accountFanGroup("personal"); } }); } },

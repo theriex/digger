@@ -461,11 +461,11 @@ app.svc = (function () {
             jt.byId("countspan").style.opacity = 0.6;
             app.top.dispatch("aaa", "verifyConfig");  //init a default config
             app.login.dispatch("ap", "signInUsingCookie",
-                function (accntok) {
+                function (atk) {
                     var acct = app.top.dispatch("hcu", "deserializeAccount",
-                                                accntok[0]);
+                                                atk[0]);
                     app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
-                                     acct, accntok[1]);
+                                     acct, atk[1]);
                     makeStartDataAndContinue(contf); },
                 function () {  //not signed in
                     makeStartDataAndContinue(contf); }); },
