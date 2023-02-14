@@ -932,9 +932,12 @@ app.top = (function () {
     return {
         newacctForm: function (acct) {
             accountFieldsForm(acct, "j",
-                ["button", {type:"button", id:"newacctb",
+                [["button", {type:"button", id:"cancelb",
+                             onclick:mdfs("gen.togtopdlg", null, "close")},
+                  "Cancel"],
+                 ["button", {type:"button", id:"newacctb",
                             onclick:mdfs("asu.newacctProc", "newacctb")},
-                 "Create Account"]); },
+                 "Create Account"]]); },
         newacctProc: function (buttonid) {
             const dat = formData("j");
             if(!formError(dat, [verifyEmail, verifyPwd, verifyFirst, verifyDN,
@@ -947,9 +950,12 @@ app.top = (function () {
                         mgrs.afg.accountFanGroup("personal"); } }); } },
         signinForm: function (acct) {
             accountFieldsForm(acct, "s",
-                ["button", {type:"button", id:"signinb",
-                            onclick:mdfs("asu.signinProc", "signinb")},
-                 "Sign In"],
+                [["button", {type:"button", id:"cancelb",
+                             onclick:mdfs("gen.togtopdlg", null, "close")},
+                  "Cancel"],
+                 ["button", {type:"button", id:"signinb",
+                             onclick:mdfs("asu.signinProc", "signinb")},
+                  "Sign In"]],
                 ["a", {href:"#pwdreset", title:"Send password reset email",
                        onclick:mdfs("asu.emailPwdReset")},
                  "Send password reset"]); },
