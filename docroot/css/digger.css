@@ -9,6 +9,7 @@ body {
   font-family: "Open Sans", "Helvetica", sans-serif;
   font-size:large;
   background:#000;
+  overflow:hidden;  /* vertidrag controls fail if app scrolls */
 }
 
 A:link {text-decoration:none; color:#008688; }
