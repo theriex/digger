@@ -547,14 +547,14 @@ app.svc = (function () {
             //nothing to do, account info already saved on server
             setTimeout(function () { contf(cfg); }, 50); },
         fanGroupAction: function (data, contf, errf) {
-            jt.call("POST", "/api/fangrpact", app.authdata(data),
-                    contf, errf, jt.semaphore("svc.web.fanGroupAction")); },
+            jt.call("POST", "/api/fangrpact", data, contf, errf,
+                    jt.semaphore("svc.web.fanGroupAction")); },
         fanCollab: function (data, contf, errf) {
-            jt.call("POST", "/api/fancollab", app.authdata(data),
-                    contf, errf, jt.semaphore("svc.web.fanCollab")); },
+            jt.call("POST", "/api/fancollab", data, contf, errf,
+                    jt.semaphore("svc.web.fanCollab")); },
         fanMessage: function (data, contf, errf) {
-            jt.call("POST", "/api/fanmsg", app.authdata(data),
-                    contf, errf, jt.semaphore("svc.web.fanMessage")); },
+            jt.call("POST", "/api/fanmsg", data, contf, errf,
+                    jt.semaphore("svc.web.fanMessage")); },
         postSupportRequest: function (subj, body, contf, errf) {
             var data = app.authdata({subj:jt.enc(subj),
                                          body:jt.enc(body)});

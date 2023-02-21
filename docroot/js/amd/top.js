@@ -277,7 +277,8 @@ app.top = (function () {
             dckrem:{dte:"fma.availNotQueued"}};
         function callFanMessaging (msgaction, paramidcsv, contf, errf) {
             if(!app.haveHubCredentials()) {
-                return errf(401, "Sign in to DiggerHub for music fan messaging"); }
+                return errf(401,
+                            "Sign in to DiggerHub for music fan messaging"); }
             app.svc.dispatch("gen", "fanMessage",
                 app.authdata({action:msgaction, idcsv:paramidcsv}),
                 contf, errf); }
@@ -671,6 +672,13 @@ app.top = (function () {
                     jt.err("The hub account updated but app save failed " +
                            code + ": " + errtxt + 
                            ". You should probably reload the app."); }); }
+        function recsButtonTAC (acct) {
+            var tac = "";
+            if(acct && acct.musfs && acct.musfs.length) {
+                tac = ["button", {type:"button", id:"getrecsb",
+                                  onclick:mdfs("fma.getRecs", "msgstatdiv")},
+                       "Get Recommendations"]; }
+            return tac; }
     return {
         reflectUpdatedAccount: function (acct) {
             if(fni) {  //form currently displayed and processing
@@ -775,10 +783,7 @@ app.top = (function () {
             jt.out("afgcontdiv", formDisplayHTML({
                 empty:"No messages",
                 after:jt.tac2html(
-                    ["div", {id:"msgstatdiv"},
-                     ["button", {type:"button", id:"getrecsb",
-                                 onclick:mdfs("fma.getRecs", "msgstatdiv")},
-                      "Get Recommendations"]])}));
+                    ["div", {id:"msgstatdiv"}, recsButtonTAC(acct)])}));
             mgrs.fma.fetchMessagesIfStale(
                 function () { mgrs.fga.messagesForm(acct); },
                 function (code, errtxt) {
@@ -839,6 +844,13 @@ app.top = (function () {
                   ["td", makeInput(acct, aff)]]]); } }
         function contextuallyObviated (aff) {
             return (aff.n === "privaccept" && mgrs.ppc.policyAccepted()); }
+        function clientCancelButton () {
+            var ret = "";
+            if(mgrs.afg.inApp()) {
+                ret = ["button", {type:"button", id:"cancelb",
+                                  onclick:mdfs("gen.togtopdlg", null, "close")},
+                       "Cancel"]; }
+            return ret; }
         function accountFieldsForm (acct, mode, buttons, extra) {
             curracct = acct;  //update form processing account context
             extra = extra || "";
@@ -932,9 +944,7 @@ app.top = (function () {
     return {
         newacctForm: function (acct) {
             accountFieldsForm(acct, "j",
-                [["button", {type:"button", id:"cancelb",
-                             onclick:mdfs("gen.togtopdlg", null, "close")},
-                  "Cancel"],
+                [clientCancelButton(),
                  ["button", {type:"button", id:"newacctb",
                             onclick:mdfs("asu.newacctProc", "newacctb")},
                  "Create Account"]]); },
@@ -950,15 +960,17 @@ app.top = (function () {
                         mgrs.afg.accountFanGroup("personal"); } }); } },
         signinForm: function (acct) {
             accountFieldsForm(acct, "s",
-                [["button", {type:"button", id:"cancelb",
-                             onclick:mdfs("gen.togtopdlg", null, "close")},
-                  "Cancel"],
+                [clientCancelButton(),
                  ["button", {type:"button", id:"signinb",
                              onclick:mdfs("asu.signinProc", "signinb")},
                   "Sign In"]],
                 ["a", {href:"#pwdreset", title:"Send password reset email",
                        onclick:mdfs("asu.emailPwdReset")},
-                 "Send password reset"]); },
+                 "Send password reset"]);
+            if(!mgrs.afg.inApp()) {  //allow enter key signin on website
+                jt.on("passwordin", "change", function (evt) {
+                    mgrs.asu.signinProc("signinb");
+                    jt.evtend(evt); }); } },
         signinProc: function (buttonid) {
             const dat = formData("s");
             if(!formError(dat, [verifyEmail, verifyPwd])) {
@@ -971,7 +983,7 @@ app.top = (function () {
                         mgrs.srs.syncToHub("signin"); }
                     else { //standalone account management
                         app.login.dispatch("ap", "save", acct);
-                        mgrs.afg.accountFanGroup("personal"); } }); } },
+                        mgrs.afg.accountFanGroup("groups", 2); } }); } },
         emailPwdReset: function () {
             const dat = formData("s");
             if(!formError(dat, [verifyEmail])) {
@@ -1110,7 +1122,16 @@ app.top = (function () {
                 midx = 0; }
             return midx; }
     return {
-        setDisplayDiv: function (divid) { tddi = divid; },  //hub site etc
+        setDisplayDiv: function (divid) {  //called by hub site
+            tddi = divid;
+            const tsd = jt.byId("topsectiondiv");
+            if(tsd && tsd.offsetWidth >= 2 * 360) {
+                const hacd = jt.byId("hubaccountcontentdiv");
+                if(hacd) {
+                    hacd.style.cssFloat = "right"; }
+                const widd = jt.byId("whatisdiggerdiv");
+                if(widd) {
+                    widd.style.padding = "20px"; } } },
         inApp: function () { return inapp; },
         setInApp: function (runningInApp) { inapp = runningInApp; },
         accountFanGroup: function (dispmode, midx) {

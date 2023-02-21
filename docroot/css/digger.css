@@ -1,3 +1,4 @@
+/* Minimum screen width is assumed to be 360px */
 html {
   min-height: 100%; margin:0; padding:0;
 }
@@ -36,7 +37,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #docdispxdiv { float:right; padding-left:10px; }
 #docmenubardiv { font-size:small; background:#ff9c6b; padding:5px 8px;
   display:flex; justify-content:space-between; }
-#docdispbodydiv { min-height:95vh; max-height:95vh; overflow:scroll; }
+#docdispbodydiv { min-height:95vh; max-height:95vh; overflow:scroll;
+  padding:0px 10px; }
 #docdispbodydiv h1 { text-align:center; }
 #titlediv { padding-bottom:5px; display:flex; justify-content:space-between; }
 #titleftdiv, #titcenterdiv, #titrightdiv { display:inline-block;
