@@ -110,9 +110,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #mfsrchstatdiv { padding: 2px 5ps; }
 #fgaoverlaydiv { position:absolute; top:0px; left:0px; }
 .fgacelldiv, .fgacelldivnum { display:inline-block; font-size:small;
-  padding:0px 10px 0px 0px; width:100%; }
+  padding:0px 10px 0px 0px; width:100%; font-weight:bold; }
 .fgacelldivnum { text-align:right; }
-.fgasortcoldiv { background:white; }
+.fgasortcoldiv { background:#ffab00; border-radius:6px; padding:0px 2px; }
 .fmtypespan { background: #ffce69; color: #333; font-size: x-small;
   font-style: italic; }
 #fgaemptyhtmldiv { font-size:small; }

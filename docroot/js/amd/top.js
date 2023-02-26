@@ -556,11 +556,11 @@ app.top = (function () {
                 {n:"firstname", p:"name"},
                 {n:"added", o:"desc", f:"ts"},
                 {n:"lastheard", p:"last heard", o:"desc", f:"ts"}]},
-            activity:{af:"musfs", flds:[
+            match:{af:"musfs", flds:[
                 {n:"digname", c:"fsc.fanActionsDisplay"},
                 {n:"common", o:"desc", p:"common", f:"int"},
-                {n:"dfltrcv", o:"desc", p:"received", f:"int"},
-                {n:"dfltsnd", o:"desc", p:"sent", f:"int"}]},
+                {n:"dfltrcv", o:"desc", p:"rcv", f:"int"},
+                {n:"dfltsnd", o:"desc", p:"snd", f:"int"}]},
             messages:{af:"digmsgs", flds:[
                 {n:"created", o:"desc", p:"when", f:"ts"},
                 {n:"sendername", p:"who"},
@@ -590,8 +590,8 @@ app.top = (function () {
                 fni.objs = fni.objs.filter((mf) => !mf.email); }
             sortCurrentObjects(); }
         function headerFieldsHTML () {
-            const downarrow = "&#x2193;";
-            const uparrow = "&#x2191;";
+            const downarrow = "&#x25BC;";
+            const uparrow = "&#x25B2;";
             const html = jt.tac2html(["tr", fni.flds.map((fld) =>
                 ["td", 
                  ["div", {cla:"fgasortcoldiv"},
@@ -608,7 +608,7 @@ app.top = (function () {
                 val = jt.colloquialDate(val, true, "z2loc nodaily").slice(4); }
             if(fld.f === "int") {  //display as string so zero values show up
                 dispclass = "fgacelldivnum";
-                val = String(val); }
+                val = String(val) + "&nbsp;"; }
             if(fld.d) {  //use display function for value
                 val = dotDispatch(fld.d, val, fld, obj, idx); }
             if(fld.c) {  //clickable value 
@@ -722,7 +722,7 @@ app.top = (function () {
             jt.out("mfsrchstatdiv", "Connecting you...");
             modifyFanGroup("add", "",
                 function (acct) {
-                    fni.formtype = "activity";  //display collab process
+                    fni.formtype = "match";  //display collab process
                     noteUpdatedAccountAndRedisplay(acct, "contrib"); },
                 function (code, errtxt) {
                     jt.out("mfsrchstatdiv", code + ": " + errtxt); }); },
@@ -773,8 +773,8 @@ app.top = (function () {
                                 onclick:mdfs("fga.connectme", "connectmeb")},
                      "Connect Me"])}));
             mgrs.fga.displayOverlay(); },
-        activityForm: function (acct) {
-            setCurrentFieldsAndInstances("activity", acct);
+        matchForm: function (acct) {
+            setCurrentFieldsAndInstances("match", acct);
             jt.out("afgcontdiv", formDisplayHTML({
                 empty:"No music fans in your group"}));
             mgrs.fga.displayOverlay(); },
@@ -1092,7 +1092,7 @@ app.top = (function () {
                 {h:"fans", t:"fans", oc:"afg.groups"}],
             groups: [
                 {h:"connect", t:"connect", oc:"fga.connectForm"},
-                {h:"activity", t:"activity", oc:"fga.activityForm"},
+                {h:"match", t:"match", oc:"fga.matchForm"},
                 {h:"messages", t:"messages", oc:"fga.messagesForm"},
                 {h:"me", t:"me", oc:"afg.personal"}]};
         function haveProfileIssue (acct) {
