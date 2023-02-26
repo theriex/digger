@@ -342,6 +342,9 @@ app.top = (function () {
                 return jt.out(msgstatdiv, "No fans to give recommendations."); }
             callFanMessaging("recommend", mfids,
                 function (msgs) {
+                    if(!msgs || !msgs.length) {
+                        return jt.out("msgstatdiv",
+                                   "Nobody has any recommendations today."); }
                     rebuildWorkingMessages(msgs.concat(mstat.msgs));
                     mgrs.fma.redisplayMessages();
                     jt.out("msgstatdiv", "Recommendations retrieved."); },
