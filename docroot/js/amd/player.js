@@ -1209,6 +1209,9 @@ app.player = (function () {
             txt += "\n";
             txt += impressionSummary().map((imp) =>
                 (imp.lab + ": " + imp.val)).join("\n");
+            const acct = app.top.dispatch("aaa", "getAccount");
+            if(acct && acct.digname) {
+                txt += "\nFind me on DiggerHub: " + acct.digname + "\n"; }
             app.svc.dispatch("gen", "copyToClipboard", txt,
                 function () {
                     jt.out("ssdstatdiv", "Details copied to clipboard."); },
