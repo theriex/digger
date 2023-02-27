@@ -544,6 +544,7 @@ app.player = (function () {
                                   npp); }
                 stat.song = nsg;
                 app.deck.excise(stat.song);  //pull in case currently visible
+                app.deck.dispatch("dk", "markSongPlayed", stat.song);
                 mgrs.aud.updateSongDisplay();
                 app.deck.dispatch("ws", "rebuild",
                                   "player.mob songs rebuild"); }); },
