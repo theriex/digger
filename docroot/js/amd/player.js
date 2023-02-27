@@ -30,6 +30,12 @@ app.player = (function () {
             stat.songModified = false; }
         app.svc.updateSong(stat.song,
             function (updsong) {
+                //stat.song should be up to date since that's what was saved..
+                const sfs = ["ti", "ar", "ab", "el", "al", "kws", "rv",
+                             "fq", "lp", "nt", "dsId", "modified"];
+                const diff = sfs.filter((f) => stat.song[f] !== updsong[f]);
+                if(diff.length) {  //"lp" on first play, otherwise it's a prob
+                    jt.log("stat.song and updsong diff fields: " + diff); }
                 jt.out("modindspan", "");
                 jt.log("song data updated " + JSON.stringify(updsong)); },
             function (code, errtxt) {
@@ -41,7 +47,12 @@ app.player = (function () {
     function noteSongModified () {
         if(!stat.song) { return; }
         stat.songModified = true;
-        jt.out("playtitletextspan",
+        //deck.dk.markSongPlayed has already updated lp and pc, but if the
+        //song has been been synced already, then its modified value will
+        //now be greater than lp, and it won't sync again.  Update the lp
+        //to trigger resync.  Leave the pc alone.
+        stat.song.lp = new Date().toISOString();
+        jt.out("playtitletextspan",  //ti/ar/ab might have changed
                app.deck.dispatch("sop", "songIdentHTML", stat.song));
         jt.out("modindspan", "mod");
         if(stat.modtimer) {
@@ -537,7 +548,7 @@ app.player = (function () {
                 app.deck.dispatch("ws", "rebuild",
                                   "player.mob songs rebuild"); }); },
         rebuildIfSongPlaying: function (updsg) {  //song updated from hub
-            if(stat.song && stat.song.path === updsg.path) {
+            if(updsg && stat.song && stat.song.path === updsg.path) {
                 const chgflds = mgrs.gen.listChangedFields(stat.song, updsg);
                 stat.song = updsg;
                 if(chgflds.length) {  //have interim changes during sync
@@ -763,7 +774,7 @@ app.player = (function () {
             var lastPlayed = "Never";
             if(stat.prevPlayed) {
                 lastPlayed = jt.tz2human(stat.prevPlayed); }
-            const flds = [{a:"Last Played", v:lastPlayed},
+            const flds = [{a:"Prev play", v:lastPlayed},
                           {a:"Title", v:"ti", e:true},
                           {a:"Artist", v:"ar", e:true},
                           {a:"Album", v:"ab", e:true}];

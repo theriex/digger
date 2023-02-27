@@ -163,6 +163,7 @@ app.top = (function () {
                 upldsongs = uploadableSongs();
                 upldsongs = upldsongs.slice(0, 199);
                 upldsongs = upldsongs.map((sg) => app.txSong(sg)); }
+            jt.log("makeSendSyncData uploading " + upldsongs.length + " songs");
             syt.up += upldsongs.length;
             mgrs.hcu.serializeAccount(curracct);
             const obj = {email:curracct.email, token:curracct.token,

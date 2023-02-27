@@ -271,13 +271,15 @@ return {
     },
 
 
-    copyUpdatedSongData: function (song, updsong) {
+    //copy field values from srcSong into destSong. Argument order similar
+    //to Object.assign
+    copyUpdatedSongData: function (destSong, srcSong) {
         const songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
                             "el", "al", "kws", "rv", "fq", "lp", "nt",
                             "dsId", "modified"];
         songfields.forEach(function (fld) {
-            if(updsong.hasOwnProperty(fld)) {  //don't copy undefined values
-                song[fld] = updsong[fld]; } });
+            if(srcSong.hasOwnProperty(fld)) {  //don't copy undefined values
+                destSong[fld] = srcSong[fld]; } });
     },
 
 
