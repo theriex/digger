@@ -69,6 +69,8 @@ app.deck = (function () {
             else {  //no search term present, don't show 'x'
                 jt.byId("clrsrchdiv").style.display = "none"; } },
         filterSongs: function () {
+            if(app.svc.okToPlay) {  //have plat/situation song filtering func
+                wrk.songs = wrk.songs.filter((s) => app.svc.okToPlay(s)); }
             wrk.fcs = [];  //clear filter control status messages
             mgrs.ws.appendInfoCount("Readable songs");
             mgrs.ws.filterBySearchText();

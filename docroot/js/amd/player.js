@@ -535,7 +535,7 @@ app.player = (function () {
         rebuildFromPath: function (npp) {  //player has skipped forward
             mgrs.slp.clearOverlayMessage();  //remove if message displayed
             mgrs.tun.toggleTuningOpts("off");
-            mgrs.cmt.resetDisplay();
+            mgrs.cmt.resetDisplay();  //close comment if open
             jt.out("playtitletextspan", "---");
             app.svc.loadDigDat(function (dbo) {  //other songs might have played
                 const nsg = dbo.songs[npp];  //definitely exists, playing...
@@ -545,6 +545,7 @@ app.player = (function () {
                 stat.song = nsg;
                 app.deck.excise(stat.song);  //pull in case currently visible
                 app.deck.dispatch("dk", "markSongPlayed", stat.song);
+                mgrs.cmt.resetDisplay();  //update comment indicator for song
                 mgrs.aud.updateSongDisplay();
                 app.deck.dispatch("ws", "rebuild",
                                   "player.mob songs rebuild"); }); },
