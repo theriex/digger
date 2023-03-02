@@ -6,14 +6,13 @@ previous mapping (changed title/artist/album metadata, or more than one
 account using the same local data).
 
 Within the context of a single hubsync call, "path" is preserved in the
-returned data so the local server can update it's local data from the
+returned data so the local server can update its local data from the
 returned result.  Outside of the context of a hubsync transaction, only the
-most recent path value is left in the hub data.
+most recent path value is retained in the hub db Song record.
 
-When a song has been played or modified, its "lp" (last played) timestamp is
-updated locally via the /songupd endpoint.  There is no hub interaction
-during save.  On hubsync, the local server sends the current account and
-songs where lp > modified.
+When a song is played or modified, its "lp" (last played) timestamp is
+updated locally.  There is no hub interaction during save.  On hubsync, the
+local server sends the current account and songs where lp > modified.
 
 Hub push: If the sent account information is out of date w/r/t the hub, then
 any song data sent with the hubsync call is discarded, and the hub sends
