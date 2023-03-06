@@ -1,4 +1,4 @@
-/*global app, jt, confirm, console */
+/*global app, jt, console */
 /*jslint browser, white, long, unordered */
 
 //Top panel interface and actions
@@ -144,13 +144,15 @@ app.top = (function () {
             if(syt.errcode) {
                 jt.out("modindspan", ""); } //turn off comms indicator
             else if(haveUnpostedNewSongs()) {
-                mgrs.fsc.noteNewSongsPosted();
                 mgrs.srs.syncToHub("unposted"); }
             else if(syt.resched) {
                 syt.resched = false;
                 mgrs.srs.syncToHub("resched"); }
             else {  //hub sync done
-                setTimeout(mgrs.fsc.updateContributions, 100);
+                //This can lead to significant default rating downloads with
+                //deck refreshes for every batch call and no explanation or
+                //status visible to the user.  Leave for form display.
+                //setTimeout(mgrs.fsc.updateContributions, 100);
                 jt.out("modindspan", ""); } }, //turn off comms indicator
         makeSendSyncData: function () {
             //send the current account + any songs that need sync.  If just
@@ -307,6 +309,28 @@ app.top = (function () {
                 ["div", {cla:"donenotediv"},
                  [note, " ",
                   ["a", {href:"#ok", onclick:ocstr}, "Ok"]]])); }
+        function isDupeRec(ra, rb) {
+            if(!ra || !rb || ra.msgtype !== "recommendation" ||
+               rb.msgtype !== "recommencation") {
+                return false; }  //not a rec
+            if(ra.status === "dismissed" || rb.status !== "dismissed") {
+                return false; }  //not a dupe if already dismissed
+            if((ra.sndr === rb.sndr) && (ra.songid === rb.songid)) {
+                return false; }  //same message, not dupe
+            if((ra.ti === rb.ti) && (ra.ar === rb.ar) && (ra.ab === rb.ab)) {
+                return true; }
+            return false; }
+        function dedupeRecommendations (msgstatdiv) {
+            //gets rid of one dupe per call.  User can get recs again.
+            var dupefound = false;
+            mstat.msgs.forEach(function (msg) {
+                if(!dupefound && (msg.msgtype === "recommendation" &&
+                                  msg.status === "open")) {
+                    const dupe = mstat.msgs.find((rec) => isDupeRec(rec, msg));
+                    if(dupe) {  //get rid of one dupe, user can get recs again.
+                        dupefound = true;
+                        mgrs.fma.hubAction("dismiss", msgstatdiv,
+                                           dupe.dsId); } } }); }
     return {
         messages: function () { return mstat.msgs; },
         fetchMessagesIfStale: function (contf, errf) {
@@ -348,7 +372,8 @@ app.top = (function () {
                                    "Nobody has any recommendations today."); }
                     rebuildWorkingMessages(msgs.concat(mstat.msgs));
                     mgrs.fma.redisplayMessages();
-                    jt.out("msgstatdiv", "Recommendations retrieved."); },
+                    jt.out("msgstatdiv", "Recommendations retrieved.");
+                    dedupeRecommendations(msgstatdiv); },
                 function (code, errtxt) {
                     jt.out(msgstatdiv, "Recommendations failed " + code +
                            ": " + errtxt); }); },
@@ -424,7 +449,18 @@ app.top = (function () {
             {a:"recomputeFanCounts", n:"Recount", m:20,
              d:"Recompute collection common/received/sent"}];
         var mfps = {}; //music fan processing status
-        var newSongsPosted = "";
+        var matchFormViewed = "";
+        var collabInProgress = false;
+        function isFresh(tsact, tsview) {
+            if(!tsact) {  //action never taken, so data not up to date
+                return false; }
+            if(!tsview) {  //data has not been observed, so compute not needed
+                return true; }
+            tsact = jt.isoString2Time(tsact).getTime();
+            tsview = jt.isoString2Time(tsview).getTime();
+            if(tsview - tsact < 24 * 60 * 60 * 1000) {
+                return true; }  //data has been fetched within staleness range
+            return false; }  //data needs to be refreshed
         function noteFan (mf, dispid) {
             mfps[mf.dsId] = mfps[mf.dsId] || {};
             mfps[mf.dsId].fan = mf;  //always update with latest given instance
@@ -464,8 +500,15 @@ app.top = (function () {
             if(fan.dfltrcv) {
                 confmsg = "Clear " + fan.dfltrcv + " received default " +
                     "ratings and delete " + digname + "?"; }
-            if(confirm(confmsg)) {
-                mgrs.fsc.clearAndRemove(mfid); } },
+            jt.out("fanactionsdiv", jt.tac2html(
+                [confmsg,
+                 ["div", {cla:"dlgbuttonsdiv"},
+                  [["button", {type:"button", id:"fandelnob",
+                               onclick:mdfs("fsc.fanActionsDisplay")},
+                    "No"],
+                   ["button", {type:"button", id:"fandelyesb",
+                               onclick:mdfs("fsc.clearAndRemove", mfid)},
+                    "Yes"]]]])); },
         clearAndRemove: function (mfid) {
             const mp = mfps[mfid];
             if(mp.fan.dfltrcv) {  //still more default ratings to get rid of
@@ -509,42 +552,58 @@ app.top = (function () {
                     mp.statHTML = "";
                     jt.out(mp.dispid, "Getting default ratings failed " +
                            code + ": " + errtxt); }); },
-        recomputeFanCounts: function (mfid) {
+        recomputeFanCounts: function (mfid, contf) {
             const mp = mfps[mfid];
             const digname = mp.fan.digname;
-            mp.statHTML = "Counting collaborations with " + digname + "...";
+            mp.statHTML = "Counting common ratings with " + digname + "...";
             jt.out(mp.dispid, mp.statHTML);
             callHubFanCollab(mfid, "count",
                 function () {
                     mgrs.fga.redisplay();
-                    mgrs.fsc.doneNote(mp.dispid, "Collaborations with " +
-                                      digname + " recounted."); },
+                    mgrs.fsc.doneNote(mp.dispid, "Common ratings with " +
+                                      digname + " recounted.");
+                    if(contf) { contf(mfid); } },
                 function (code, errtxt) {
                     mp.statHTML = "";
-                    jt.out(mp.dispid, "Collaboration counting failed " +
+                    jt.out(mp.dispid, "Common rating count failed " +
                            code + ": " + errtxt); }); },
         fanActionsDisplay: function (dispid, fan) {
             noteFan(fan, dispid);
             if(mfps[fan.dsId].status) {   //currently processing
                 return jt.out(dispid, mfps[fan.dsId].statHTML); }
             jt.out(dispid, jt.tac2html(
-                ["div", {cla:"fanactionsdiv"}, fas.map((act) =>
+                ["div", {id:"fanactionsdiv"}, fas.map((act) =>
                     ["button", {type:"button",
                                 title:act.d.replace(/\$FAN/g, fan.digname),
                                 onclick:mdfs("fsc." + act.a, fan.dsId)},
                      act.n])])); },
-        noteNewSongsPosted: function () {
-            newSongsPosted = new Date().toISOString(); },
-        updateContributions: function (acct) {
+        noteMatchFormViewed: function () {  //match display viewed
+            matchFormViewed = new Date().toISOString(); },
+        updateContributions: function (acct) {  //recalc common and dflt rcv
+            if(collabInProgress) {
+                return; }  //finish processing outstanding hub call
             acct = acct || mgrs.aaa.getAccount();
             acct.musfs = acct.musfs || [];
             acct.musfs.forEach(function (mf) {
-                noteFan(mf); });
-            const ckmf = acct.musfs.find((mf) =>
-                !mf.lastpull || mf.lastpull < newSongsPosted);
-            if(ckmf) {
-                mgrs.fsc.getDefaultRatings(ckmf.dsId, function () {
-                    mgrs.fsc.updateContributions(); }); } }
+                noteFan(mf); });  //update mfps with latest fan info
+            const comchkmf = acct.musfs.find((mf) =>
+                !isFresh(mf.lastcommon, matchFormViewed));
+            if(comchkmf) {  //need to recompute common ratings
+                collabInProgress = true;
+                mgrs.fsc.recomputeFanCounts(comchkmf.dsId, function () {
+                    //change sort to common desc to indicate values have changed
+                    if(mgrs.fga.formType() === "match") {
+                        mgrs.fga.sort("common", "desc"); }
+                    collabInProgress = false;
+                    mgrs.fsc.updateContributions(); }); }
+            else {  //all common calcs up to date
+                const rcvchkmf = acct.musfs.find((mf) =>
+                    !isFresh(mf.lastpull, matchFormViewed));
+                if(rcvchkmf) {
+                    collabInProgress = true;
+                    mgrs.fsc.getDefaultRatings(rcvchkmf.dsId, function () {
+                        collabInProgress = false;
+                        mgrs.fsc.updateContributions(); }); } } }
     };  //end mgrs.fsc returned functions
     }());
 
@@ -693,13 +752,16 @@ app.top = (function () {
         redisplay: function () {
             if(fni) {  //form currently displayed
                 mgrs.fga[fni.formtype + "Form"](fni.acct); } },
-        sort: function (fieldname) {
+        sort: function (fieldname, direction) {
             var sofs = forms[fni.formtype].sofs;
-            if(sofs[0].n === fieldname) {  //already first, change direction
-                if(sofs[0].o === "desc") {
-                    sofs[0].o = "asc"; }
-                else {
-                    sofs[0].o = "desc"; } }
+            if(sofs[0].n === fieldname) {  //already first
+                if(direction) {
+                    sofs[0].o = direction; }
+                else {  //change direction
+                    if(sofs[0].o === "desc") {
+                        sofs[0].o = "asc"; }
+                    else {
+                        sofs[0].o = "desc"; } } }
             else {  //move field to first position in search ordering
                 const sf = sofs.find((sf) => sf.n === fieldname);
                 sofs = sofs.filter((sf) => sf.n !== fieldname);
@@ -725,7 +787,7 @@ app.top = (function () {
         connectme: function () {
             jt.out("mfsrchstatdiv", "Connecting you...");
             modifyFanGroup("add", "",
-                function (acct) {
+                function (acct) {  //acct has new musfs with all counts zero
                     fni.formtype = "match";  //display collab process
                     noteUpdatedAccountAndRedisplay(acct, "contrib"); },
                 function (code, errtxt) {
@@ -748,16 +810,17 @@ app.top = (function () {
             if(!ovd) { return; }
             const tosync = mgrs.srs.countSyncOutstanding();
             const dd = jt.byId("fgadispdiv");
-            if(tosync > 100) {
+            if(tosync > 100) {  //block interaction while data load completes
                 dd.style.opacity = 0.3;
                 ovd.innerHTML = "Uploading " + tosync +
                     " songs before collaborating...";
                 ovd.style.height = dd.offsetHeight + "px";
-                setTimeout(mgrs.fga.displayOverlay, 5000); }
-            else {
-                dd.style.opacity = 1.0;
-                ovd.innerHTML = "";
-                ovd.style.height = "0px"; } },
+                setTimeout(mgrs.fga.displayOverlay, 5000);
+                return true; }
+            dd.style.opacity = 1.0;
+            ovd.innerHTML = "";
+            ovd.style.height = "0px";
+            return false; },
         connectForm: function (acct) {
             setCurrentFieldsAndInstances("connect", acct);
             jt.out("afgcontdiv", formDisplayHTML({
@@ -778,10 +841,12 @@ app.top = (function () {
                      "Connect Me"])}));
             mgrs.fga.displayOverlay(); },
         matchForm: function (acct) {
+            mgrs.fsc.noteMatchFormViewed();
             setCurrentFieldsAndInstances("match", acct);
             jt.out("afgcontdiv", formDisplayHTML({
                 empty:"No music fans in your group"}));
-            mgrs.fga.displayOverlay(); },
+            if(!mgrs.fga.displayOverlay()) {
+                mgrs.fsc.updateContributions(acct); } },
         messagesForm: function (acct) {
             setCurrentFieldsAndInstances("messages", acct);
             jt.out("afgcontdiv", formDisplayHTML({
@@ -793,7 +858,11 @@ app.top = (function () {
                 function (code, errtxt) {
                     jt.out("msgstatdiv", "Message fetch failed " + code + ": " +
                            errtxt + ". Try again in a few minutes"); });
-            mgrs.fga.displayOverlay(); }
+            mgrs.fga.displayOverlay(); },
+        formType: function () {
+            if(!fni) {
+                return ""; }
+            return fni.formtype || ""; }
     };  //end mgrs.fga returned functions
     }());
 
@@ -864,7 +933,7 @@ app.top = (function () {
                                         !contextuallyObviated(aff)))
                   .map((aff) => formTableRow(acct, aff))],
                  ["div", {id:"afgstatdiv"}],
-                 ["div", {cla:"dlgbuttonsdiv"}, buttons],
+                 ["div", {cla:"dlgbuttonsdiv", id:"afgbtsdiv"}, buttons],
                  ["div", {id:"afgextradiv"}, extra]])); }
         function formData (mode, dat) {
             dat = dat || {};
@@ -1011,6 +1080,7 @@ app.top = (function () {
                 makeHubCall(buttonid, "POST", "updacc", dat, function () {
                     if(mgrs.afg.inApp() && dat.privaccept) {  //checkbox done
                         mgrs.gen.togtopdlg(null, "close"); }
+                    jt.out("afgbtsdiv", "");
                     jt.out("afgstatdiv", "Profile updated."); }); } },
         credentialsForm: function (acct) {
             accountFieldsForm(acct, "w",
@@ -1023,6 +1093,7 @@ app.top = (function () {
             addAuthDataFields(dat);  //auth when resetting password
             if(!formError(dat, [verifyCred])) {
                 makeHubCall(buttonid, "POST", "updacc", dat, function () {
+                    jt.out("afgbtsdiv", "");
                     jt.out("afgstatdiv", "Credentials updated."); }); } },
         signoutForm: function (acct) {
             acct = acct || mgrs.aaa.getAccount();
@@ -1352,8 +1423,16 @@ app.top = (function () {
                                 onclick:mdfs("cfg.updateConfig")},
                     "Update"]]]]])); },
         confirmStart: function () {
-            if(confirm("Restart the app to change the location of music files or data?")) {
-                mgrs.cfg.launch(); } }
+            jt.out("topdlgdiv", jt.tac2html(
+                ["div", {cla:"confirmdiv"},
+                 ["Restart Digger into config change mode?",
+                  ["div", {cla:"dlgbuttonsdiv"},
+                   [["button", {type:"button", title:"Cancel mode change",
+                                onclick:mdfs("gen.togtopdlg", "la")},
+                     "Nevermind"],
+                    ["button", {type:"button", title:"Restart in config mode",
+                                onclick:mdfs("cfg.launch")},
+                     "Ok"]]]]])); }
     };  //end of mgrs.cfg returned functions
     }());
 

@@ -376,9 +376,10 @@ module.exports = (function () {
         ws.igfolds = conf.dfltigfolds || [];
         ws.curracct = ws.curracct || getCurrentAccount();
         if(ws.curracct) {
-            ws.igfolds = ws.curracct.igfolds || []; }
-        if(!Array.isArray(ws.igfolds)) {
-            ws.curracct.igfolds = []; }
+            ws.igfolds = ws.curracct.igfolds || conf.dlftigfolds || [];
+            if(!Array.isArray(ws.igfolds)) {  //bad config value
+                ws.igfolds = conf.dfltigfolds || [];
+                ws.curracct.igfolds = ws.igfolds; } }
         if(!ws.wildms) { //wildcard ending match strings array
             ws.wildms = ws.igfolds.filter((ign) => ign.endsWith("*"));
             ws.wildms = ws.wildms.map((wm) => wm.slice(0, -1)); }

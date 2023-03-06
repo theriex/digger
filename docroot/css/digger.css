@@ -20,7 +20,7 @@ A:hover {text-decoration:underline; color:#00989a; }
 
 img { border:0px; vertical-align:middle; }
 
-button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
+button { color:black; background:#ccc; cursor:pointer; font-size:small;
   font-weight:normal; padding:1px 4px; margin:5px 10px 0px 0px;
   border:2px solid black; border-radius:8px; box-shadow:2px 2px 2px #666; }
 
@@ -263,6 +263,12 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 /****************************************/
 /* Filter Panel */
 
+#panfiltdiv {
+  user-select: none; /* supported by Chrome and Opera */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */ }
 .paneltitlediv { font-size:x-small; text-align:center; letter-spacing:1.2em; 
   font-weight:bold; margin-bottom:2px; }
 #fpecspan { display:inline-block; transition:all 0.2s; }
@@ -290,9 +296,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:smaller;
 #kwtogsdiv { text-align:center; overflow:hidden; }
 .kwtogdiv { display:inline-block; font-size:medium; padding:5px 0px; }
 .kwtcontdiv { cursor:pointer; position:relative; width:72px; }
-.kwtoglabel { position:absolute; left:0px; top:0px; transform-origin:top left;
-  transform:rotate(90deg) translate(2%, -100%);
-  max-width:58px; overflow:hidden; }
+.kwtoglabel { position:absolute; left:6px; top:0px; transform-origin:top left;
+  transform:rotate(90deg) translate(0%, -100%);
+  max-width:58px; overflow:hidden; font-size:14px; margin-top:5px; }
 .kwtbdiv { postion:absolute; right:20px; top:0px; }
 
 #ratdiv { margin:0px 5px 0px 0px; text-align:center; }
