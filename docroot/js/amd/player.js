@@ -490,15 +490,23 @@ app.player = (function () {
                 handlePlayerEnd(); }
             debouncing = false; },
         handlePlayFailure: function (errstat, errtxt) {
-            //mobile does not have unsupported media types, so all media should
-            //play unless a file got deleted or the media service is broken bad.
-            //the audio player display is dead or not up yet.
-            jt.out("mediadiv", jt.tac2html(
+            //mobile should not encounter unsupported media types, so all
+            //media should generally play.  Could be a deleted file, or media
+            //service is bad broke or audio display is dead or whatever.
+            var dispmsg = jt.tac2html(
                 [errstat + ": " + errtxt + "&nbsp; ", 
                  ["a", {href:"#rebuild",
                         onclick:app.dfs("svc", "loc.loadLibrary",
                                         ["topdlgdiv", "rebuild"])},
-                  "Rebuild Library"]])); },
+                  "Rebuild Library"]]);
+            const perms = ["EACCES", "(Permission denied)"];
+            if(perms.some((p) => errtxt.indexOf(p) >= 0)) {
+                const dtxt = ", msg: ";
+                const ridx = errtxt.indexOf(dtxt);
+                if(ridx > 0) {  //have previous path in message
+                    dispmsg = (errtxt.slice(0, ridx + dtxt.length) +
+                               "Permission denied"); } }
+            jt.out("mediadiv", dispmsg); },
         ////calls from mgrs.plui
         refreshPlayState: function () {  //calls back to notePlaybackStatus
             //use timeout to yield to plui tickf processing

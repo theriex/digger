@@ -7,6 +7,7 @@
 #   ../../diggerhub/site/py/util.py version (string, preceding 'v')
 # Verify compiled client versions are >=:
 #   ../../diggerdroid/app/build.gradle versionName (no 'v'), bump versionCode
+#   xcode|proj nav|Versioning, and diggerIOS target General|Identity
 
 # Update the static resource cache bust flag.  Server cachev modifies app.js
 # which local will then pick up so always latest.

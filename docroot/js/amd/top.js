@@ -97,7 +97,7 @@ app.top = (function () {
                 //Credentials are no longer valid, so this is old account info
                 //and should not be attempting to sync.  To fix, the user will
                 //need to sign in again.  Sign them out to start the process.
-                mgrs.asu.signOut(mgrs.aaa.getAccount(), true); }
+                mgrs.asu.processSignOut(mgrs.aaa.getAccount(), true); }
             else {  //error condition not recovered, stop auto retry
                 syt.errcode = code;
                 syt.errtxt = errtxt;
@@ -1077,9 +1077,10 @@ app.top = (function () {
             if(app.startParams.actcode) {
                 dat.actcode = app.startParams.actcode; }
             if(!formError(dat, [verifyFirst, verifyDN, verifyPriv])) {
-                makeHubCall(buttonid, "POST", "updacc", dat, function () {
+                makeHubCall(buttonid, "POST", "updacc", dat, function (acct) {
                     if(mgrs.afg.inApp() && dat.privaccept) {  //checkbox done
                         mgrs.gen.togtopdlg(null, "close"); }
+                    mgrs.gen.updateHubToggleSpan(acct);  //UI reflect name
                     jt.out("afgbtsdiv", "");
                     jt.out("afgstatdiv", "Profile updated."); }); } },
         credentialsForm: function (acct) {

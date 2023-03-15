@@ -331,9 +331,8 @@ app.deck = (function () {
                 if(app.svc.dispatch("gen", "plat", "hdm") === "web") {
                     app.top.dispatch("webla", "spimpNeeded", "nosongs");
                     msgs.push(amfLink("Add a fan to find more music")); }
-                else { //local player
-                    msgs.push("Import more music");
-                    msgs.push(amfLink("Add a fan to help rate music")); } }
+                else { //local player, possibly permission to access files
+                    msgs.push("Get more music"); } }
             return jt.tac2html([msgs.join(". ") + ".",
                                 ["div", {id:"nomusicstatdiv"}]]); },
         displaySongs: function (mgrnm, divid, songs) {
