@@ -276,7 +276,7 @@ return {
     copyUpdatedSongData: function (destSong, srcSong) {
         const songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
                             "el", "al", "kws", "rv", "fq", "lp", "nt",
-                            "dsId", "modified"];
+                            "dsId", "modified", "locmod"];
         songfields.forEach(function (fld) {
             if(srcSong.hasOwnProperty(fld)) {  //don't copy undefined values
                 destSong[fld] = srcSong[fld]; } });

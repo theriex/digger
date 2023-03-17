@@ -477,11 +477,15 @@ app.player = (function () {
                 jt.log("notePlaybackStatus stat.song.path: " + stat.song.path);
                 jt.log("notePlaybackStatus    status.path: " + status.path);
                 if(status.path !== stat.song.path) {
+                    if(stat.stale && stat.stale.path === status.path) {
+                        jt.log("notePlaybackStatus ignoring stale update");
+                        return; }
                     if(status.state === "ended") {
                         jt.log("notePlaybackStatus ignoring path change " +
                                "status ended (sleeping)"); }
                     else {
                         mgrs.mob.rebuildFromPath(status.path); } } }
+            stat.stale = null;
             pbi.state = status.state;  //"playing"/"paused"/"ended"
             pbi.pos = status.pos;  //current play position ms
             pbi.dur = status.dur || pbi.dur;  //song duration if provided
@@ -1505,6 +1509,7 @@ app.player = (function () {
                     const ns = app.deck.getNextSong();
                     if(!ns) { //just stop, might be playing an album.
                         return; }
+                    stat.stale = stat.song;
                     stat.song = ns;
                     mgrs.gen.logCurrentlyPlaying("player.gen.next");
                     mgrs.cmt.updateCommentIndicator();
