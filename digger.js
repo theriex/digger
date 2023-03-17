@@ -107,6 +107,7 @@ db.init(function (conf) {
             switch(pu.baseurl) {
             case "/mergefile": db.mergefile(req, rsp); break;
             case "/songupd": db.songupd(req, rsp); break;
+            case "/multisongupd": db.multisongupd(req, rsp); break;
             case "/plistexp": db.plistexp(req, rsp); break;
             case "/cfgchg": db.cfgchg(req, rsp); break;
             case "/wrtcfg": db.wrtcfg(req, rsp); break;

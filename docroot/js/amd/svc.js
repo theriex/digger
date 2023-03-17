@@ -384,6 +384,24 @@ app.svc = (function () {
                         else {
                             errf(code, errtxt); } },
                     jt.semaphore("mgrs.loc.updateSong")); },
+        updateMultipleSongs: function (updss, contf, errf) {
+            const data = jt.objdata({songs:JSON.stringify(updss)});
+            jt.call("POST", "/multisongupd", data,
+                    function (res) {
+                        var merged = [];
+                        res.forEach(function (updsong) {
+                            app.copyUpdatedSongData(dbo.songs[updsong.path],
+                                                    updsong);
+                            merged.push(dbo.songs[updsong.path]); });
+                        app.top.dispatch("srs", "syncToHub");  //sched sync
+                        if(contf) {
+                            contf(merged); } },
+                    function (code, errtxt) {
+                        if(!errf) {
+                            mgrs.loc.majorError(code, errtxt); }
+                        else {
+                            errf(code, errtxt); } },
+                    jt.semaphore("mgrs.loc.updateMultipleSongs")); },
         noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
             var song = dbo.songs[updsong.path];
             if(song) {  //hub sync might send something not available locally
@@ -671,6 +689,7 @@ return {
     noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
     urlOpenSupp: function () { return true; }, //ok to open urls in new tab
     docContent: function (du, cf) { mgrs.gen.docContent(du, cf); },
+    topLibActionSupported: function () { return true; },
     writeConfig: function (cfg, cf, ef) { mgrs.gen.writeConfig(cfg, cf, ef); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }

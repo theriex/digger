@@ -76,8 +76,9 @@ app.top = (function () {
         var upldsongs = null;
         var contexts = {newacct:1800, acctok:1800, unposted:2000, reset:1200,
                         resched:2000, standard:20 * 1000, signin:100};
-        function isNewlyPlayed (s) {
-            return s.lp && s.lp > (s.modified || ""); }
+        function isUpdated (s) {
+            return ((s.lp && s.lp > (s.modified || "")) ||  //newly played
+                    (s.locmod && s.locmod > (s.modified || ""))); }  //modified
         function notPostedYet (s) {
             return (!s.dsId && s.ti && s.ar &&
                     (!s.fq || !(s.fq.startsWith("D") ||
@@ -87,7 +88,7 @@ app.top = (function () {
                 .some((s) => notPostedYet(s)); }
         function uploadableSongs () {
             return Object.values(app.svc.songs())
-                .filter((s) => isNewlyPlayed(s) || notPostedYet(s)); }
+                .filter((s) => isUpdated(s) || notPostedYet(s)); }
     return {
         countSyncOutstanding: function () {
             return uploadableSongs().length; },
@@ -1714,13 +1715,15 @@ app.top = (function () {
                 {ty:"info", htmlfs:"versionInfoHTML"},
                 {ty:"info", htmlfs:"hubSyncInfoHTML"},
                 {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
-                 tt:"Read all files in the music folder", n:"Read Files"},
+                 tt:"Read all files in the music folder",
+                 n:"Read Files", id:"readfilesbutton"},
                 {ty:"btn", oc:mdfs("igf.igMusicFolders"),
                  tt:"Ignore folders when reading music files",
-                 n:"Ignore Folders"},
+                 n:"Ignore Folders", id:"ignorefldrsbutton"},
                 {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
                  tt:"Choose keywords to use for filtering",
-                 n:"Choose Keywords"}]; },
+                 n:"Choose Keywords", id:"choosekwdsbutton"}];
+            acts = acts.filter((a) => app.svc.topLibActionSupported(a)); },
         writeDlgContent: function () {
             var config = app.svc.dispatch("loc", "getConfig");
             jt.out(tddi, jt.tac2html(

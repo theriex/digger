@@ -63,7 +63,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=230308");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=230317");
     },
 
 
@@ -78,7 +78,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=230308";  //updated as part of release process
+        return "v=230317";  //updated as part of release process
     },
 
 
@@ -289,7 +289,7 @@ return {
     //other triggering patterns.  For UPLOAD, remove any problematic temp
     //fields and escape whatever triggers security blocks.
     txSong: function (song) {
-        var delflds = ["mrd", "smti", "smar", "smab"];
+        var delflds = ["mrd", "smti", "smar", "smab", "locmod"];
         //THIS MUST MATCH appdat.py unescape_song_fields
         var escflds = ["path", "ti", "ar", "ab", "nt"];
         //Web Security Reserved Words that must be escaped to be let through

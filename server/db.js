@@ -621,16 +621,56 @@ module.exports = (function () {
     }
 
 
-    function recheckMetadata (song, res) {
+    function fullFilePath (song) {
         var rp = song.path;
         if(rp.startsWith("/")) {
             rp = rp.slice(1); }
-        //console.log("recheckMetadata " + rp);
-        readMetadata(conf.musicPath + "/" + rp, function (song) {
-            writeDatabaseObject();
-            console.log(new Date().toLocaleString() + " Updated " + song.path);
-            res.writeHead(200, {"Content-Type": "application/json"});
-            res.end(JSON.stringify([song])); });
+        return conf.musicPath + "/" + rp;
+    }
+
+
+    //srcSong is expected to be complete.  If a field value is not provided,
+    //then the default value is copied to dstSong so it is ready to write.
+    function copySongFields (destSong, srcSong) {  //like Object.assign
+        const ldfs = [
+            {f:"aid", u:"hubonly", d:""},
+            {f:"path", u:"required"},
+            {f:"ti", u:"required"},
+            {f:"ar", u:"required"},
+            {f:"ab", u:"optional", d:"Singles"},
+            {f:"smti", u:"hubonly"},
+            {f:"smar", u:"hubonly"},
+            {f:"smab", u:"hubonly"},
+            {f:"el", u:"optional", d:49},
+            {f:"al", u:"optional", d:49},
+            {f:"kws", u:"optional", d:""},
+            {f:"rv", u:"optional", d:5},
+            {f:"fq", u:"optional", d:"N"},
+            {f:"lp", u:"optional", d:""},
+            {f:"nt", u:"optional", d:""},
+            {f:"pc", u:"optional", d:0},
+            {f:"srcid", u:"optional", d:""},
+            {f:"srcrat", u:"optional", d:""},
+            {f:"spid", u:"hubonly"},
+            {f:"mrd", u:"locdbonly"},
+            {f:"locmod", u:"optional", d:""}];
+        ldfs.forEach(function (fd) {
+            switch(fd.u) {
+            case "required":
+                if(!srcSong[fd.f]) {
+                    throw new Error("Field " + fd.f + " required for " +
+                                    (srcSong.path || "unknown song")); }
+                destSong[fd.f] = srcSong[fd.f];
+                break;
+            case "optional":
+                destSong[fd.f] = srcSong[fd.f] || fd.d;
+                break;
+            case "hubonly":
+                delete destSong[fd.f];  //clean up if present
+                break; } });
+        normalizeIntegerValues(destSong);
+        //clear srcid/srcrat if user has changed rating (their song now)
+        require("./hub.js").verifyFanRating(destSong);
     }
 
 
@@ -648,25 +688,53 @@ module.exports = (function () {
             const song = dbo.songs[fields.path];
             if(!song) {
                 return resError(res, "No song " + fields.path, 404); }
-            if(fields.settings) {
-                dbo.settings = JSON.parse(fields.settings); }
-            song.fq = fields.fq;
+            copySongFields(song, fields);
             song.lp = new Date().toISOString();  //trigger hubsync, see note
-            song.rv = fields.rv;
-            song.al = fields.al;
-            song.el = fields.el;
-            song.kws = fields.kws || "";
-            song.nt = fields.nt || "";
-            song.ar = fields.ar || "";
-            song.ab = fields.ab || "";
-            song.ti = fields.ti || "";
-            song.pc = fields.pc;
-            song.srcid = fields.srcid || "";
-            song.srcrat = fields.srcrat || "";
-            normalizeIntegerValues(song);
-            require("./hub.js").verifyFanRating(song);
-            song.path = fields.path;  //note local path for hub sync
-            recheckMetadata(song, res); });
+            readMetadata(fullFilePath(song), function (updsg) {
+                writeDatabaseObject();
+                console.log(new Date().toLocaleString() + " Updated " +
+                            updsg.path);
+                res.writeHead(200, {"Content-Type": "application/json"});
+                res.end(JSON.stringify([updsg])); }); });
+    }
+
+
+    function writeUpdatedSongs (ws) {
+        var song;
+        if(ws.songs.length) {
+            song = ws.songs.pop();
+            readMetadata(fullFilePath(song), function (updsg) {
+                ws.rsgs.push(updsg);
+                console.log(new Date().toLocaleString() + " Updated " +
+                            updsg.path);
+                writeUpdatedSongs(ws); }); }
+        else {
+            writeDatabaseObject();
+            console.log("writeUpdatedSongs finished.");
+            ws.resp.writeHead(200, {"Content-Type": "application/json"});
+            ws.resp.end(JSON.stringify(ws.rsgs)); }
+    }
+
+
+    function multiSongUpdate(req, res) {
+        var updat = new formidable.IncomingForm();
+        var ws = {resp:res, songs:[], rsgs:[]};
+        updat.parse(req, function (err, fields) {
+            try {
+                if(err) {
+                    console.log("multiSongUpdate form error: " + err); }
+                const upds = JSON.parse(fields.songs);
+                upds.forEach(function (updSong) {
+                    const dbSong = dbo.songs[updSong.path];
+                    if(!dbSong) {
+                        throw new Error("Song path " + updSong.path +
+                                        " not found in dbo"); }
+                    copySongFields(dbSong, updSong);
+                    ws.songs.push(dbSong); });
+                writeUpdatedSongs(ws);
+            } catch(e) {
+                resError(res, "multiSongUpdate error: " + e, 400);
+            } });
     }
 
 
@@ -858,6 +926,7 @@ module.exports = (function () {
         mergefile: function (req, res) { return mergeFile(req, res); },
         mergestat: function (req, res) { return mergeStatus(req, res); },
         songupd: function (req, res) { return updateSong(req, res); },
+        multisongupd: function (req, res) { return multiSongUpdate(req, res); },
         plistexp: function (req, res) { return playlistExport(req, res); },
         audio: function (pu, req, res) { return serveAudio(pu, req, res); },
         version: function (req, res) { return serveVersion(req, res); },
