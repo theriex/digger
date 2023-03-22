@@ -63,7 +63,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=230317");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=230321");
     },
 
 
@@ -78,7 +78,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=230317";  //updated as part of release process
+        return "v=230321";  //updated as part of release process
     },
 
 
@@ -309,7 +309,147 @@ return {
                             return "WSRW" + rev; }); });
             } });
         return song;
-    }
+    },
+
+
+    //Demo data handler for simulator screenshots
+    scr: (function () {
+        var active = false;  //true if stubbed returns demo data
+        const dummyStatus = {state:"paused", pos:12*1000, dur:210*1000,
+                             path:"SongU.mp3"};  //oldest
+        const kwdefs = {Social: {pos: 1, sc: 0, ig: 0, dsc: ""},
+                        Personal: {pos: 0, sc: 0, ig: 0, dsc: ""},
+                        Office: {pos: 4, sc: 0, ig: 0, dsc: ""},
+                        Dance: {pos: 2, sc: 0, ig: 0, dsc: ""},
+                        Ambient: {pos: 3, sc: 0, ig: 0, dsc: ""},
+                        Jazz: {pos: 0, sc: 0, ig: 0, dsc: ""},
+                        Classical: {pos: 0, sc: 0, ig: 0, dsc: ""},
+                        Talk: {pos: 0, sc: 0, ig: 0, dsc: ""},
+                        Solstice: {pos: 0, sc: 0, ig: 0, dsc: ""}};
+        const settings = {
+            "ctrls": [{"tp": "range", "c": "al", "x": 27, "y": 62},
+                      {"tp": "range", "c": "el", "x": 49, "y": 47},
+                      {"tp": "kwbt", "k": "Social", "v": "pos"},
+                      {"tp": "kwbt", "k": "Dance", "v": "off"},
+                      {"tp": "kwbt", "k": "Ambient", "v": "neg"},
+                      {"tp": "kwbt", "k": "Office", "v": "pos"},
+                      {"tp": "minrat", "u": 0, "m": 5},
+                      {"tp": "fqb", "v": "on"}],
+            "waitcodedays": {"B": 90, "Z": 180, "O": 365}};
+        const dfltacct = {
+            "dsType": "DigAcc", "dsId": "101", "firstname": "Digger",
+            "created": "2019-10-11T00:00:00Z",
+            "modified": "2019-10-11T00:00:00Z;1",
+            "email": "support@diggerhub.com", "token": "none",
+            "hubdat": "",
+            "kwdefs": kwdefs,
+            "igfolds": ["Ableton","Audiffex","Audio Music Apps"],
+            "settings": settings,
+            "musfs": ""};
+        const demoacct = {
+            "dsType": "DigAcc", "dsId": "1234",
+            "created": "2021-01-26T17:21:11Z",
+            "modified": "2023-02-13T22:58:45Z;13139", "batchconv": "",
+            "email": "demo@diggerhub.com", "token": "faketokentoshowsignedin",
+            "hubdat": "{\"privaccept\": \"2022-06-11T14:11:14.284Z\"}",
+            "status": "Active", "firstname": "Demo", "digname": "Demo",
+            "kwdefs": kwdefs,
+            "igfolds": ["Ableton","Audiffex","Audio Music Apps"],
+            "settings": settings,
+            "musfs": [
+                {"dsId": "1235", "digname": "afriend", "firstname": "A Friend",
+                 "added": "2022-06-10T21:30:21Z",
+                 "lastpull": "2023-02-13T00:38:48Z",
+                 "lastheard": "2022-11-06T18:42:48Z",
+                 "common": 7086, "dfltrcv": 57, "dfltsnd": 5294},
+                {"dsId": "1236", "digname": "bfriend", "firstname": "B Friend",
+                 "added": "2022-07-10T21:30:21Z",
+                 "lastpull": "2023-02-20T00:38:48Z",
+                 "lastheard": "2023-02-15T18:42:48Z",
+                 "common": 556, "dfltrcv": 87, "dfltsnd": 5},
+                {"dsId": "1237", "digname": "cfriend", "firstname": "C Friend",
+                 "added": "2022-07-10T21:30:21Z",
+                 "lastpull": "2023-02-20T00:38:48Z",
+                 "lastheard": "2023-01-03T18:42:48Z",
+                 "common": 556, "dfltrcv": 87, "dfltsnd": 42},
+                {"dsId": "1238", "digname": "fabDJ", "firstname": "Fab DJ",
+                 "added": "2022-08-10T21:30:21Z",
+                 "lastpull": "2022-08-10T21:30:48Z",
+                 "lastheard": "2023-02-14T18:42:48Z",
+                 "common": 8645, "dfltrcv": 986, "dfltsnd": 0}]};
+        const rets = {
+            readConfig:{"acctsinfo": {currid:"1234",
+                                      accts:[dfltacct, demoacct]}},
+            readDigDat:{"version": "v1.1.3",
+                        "scanned": "2023-02-13T20:42:12.320Z",
+                        "songcount": 10,
+                        "songs": {
+                            "SongY.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongY.mp3","mrd": "C|Song Y|Artist Y|Album Y","ar": "Artist Y","ab": "Album Y","ti": "Song Y","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongX.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongX.mp3","mrd": "C|Song X|Artist X|Album X","ar": "Artist X","ab": "Album X","ti": "Song X","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongW.mp3": {"fq": "P","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongW.mp3","mrd": "C|Song W|Artist W|Album W","ar": "Artist W","ab": "Album W","ti": "Song W","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongV.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongV.mp3","mrd": "C|Song V|Artist V|Album V","ar": "Artist V","ab": "Album V","ti": "Song V","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongU.mp3": {"fq": "P","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongU.mp3","mrd": "C|Song U|Artist U|Album U","ar": "Artist U","ab": "Album U","ti": "Song U","lp":"","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongT.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongT.mp3","mrd": "C|Song T|Artist T|Album T","ar": "Artist T","ab": "Album T","ti": "Song T","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongS.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongS.mp3","mrd": "C|Song S|Artist S|Album S","ar": "Artist S","ab": "Album S","ti": "Song S","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongR.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongR.mp3","mrd": "C|Song R|Artist R|Album R","ar": "Artist R","ab": "Album R","ti": "Song R","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongQ.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongQ.mp3","mrd": "C|Song Q|Artist Q|Album Q","ar": "Artist Q","ab": "Album Q","ti": "Song Q","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
+                            "SongP.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongP.mp3","mrd": "C|Song P|Artist P|Album P","ar": "Artist P","ab": "Album P","ti": "Song P","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"}},
+                        "scanstart": "2023-02-13T20:42:12.274Z"},
+            requestMediaRead:[{"path": "SongY.mp3","artist": "Artist Y","album": "Album Y","title": "Song Y", "lp":"2023-02-13T20:42:12.074Z"},
+                              {"path": "SongX.mp3","artist": "Artist X","album": "Album X","title": "Song X", "lp":"2023-02-13T20:42:12.074Z"},
+                              {"path": "SongW.mp3","artist": "Artist W","album": "Album W","title": "Song W", "lp":"2023-02-13T20:42:12.074Z"},
+                              {"path": "SongV.mp3","artist": "Artist V","album": "Album V","title": "Song V", "lp":"2023-02-13T20:42:12.074Z"},
+                              {"path": "SongU.mp3","artist": "Artist U","album": "Album U","title": "Song U", "lp":""},
+                              {"path": "SongT.mp3","artist": "Artist T","album": "Album T","title": "Song T", "lp":"2023-02-13T20:42:12.074Z"},
+                              {"path": "SongS.mp3","artist": "Artist S","album": "Album S","title": "Song S", "lp":"2023-02-13T20:42:12.074Z"},
+                              {"path": "SongR.mp3","artist": "Artist R","album": "Album R","title": "Song R", "lp":"2023-02-13T20:42:12.074Z"},
+                              {"path": "SongQ.mp3","artist": "Artist Q","album": "Album Q","title": "Song Q", "lp":"2023-02-13T20:42:12.074Z"},
+                              {"path": "SongP.mp3","artist": "Artist P","album": "Album P","title": "Song P", "lp":"2023-02-13T20:42:12.074Z"}],
+            "statusSync":dummyStatus,
+            "pausePlayback":dummyStatus,
+            "resumePlayback":dummyStatus,
+            "seekToOffset":dummyStatus,
+            "startPlayback":dummyStatus,
+            "hubAcctCallacctok":[demoacct, "abcdef12345678"],
+            "hubAcctCallmessages":[
+                //bfriend thanks for sharing Song P
+                {sndr:"1236", rcvr:"1234", msgtype:"shresp",
+                 created:"2023-01-03T20:42:12.074Z", status:"open",
+                 srcmsg:"fake", songid:"fake",
+                 ti:"Song P", ar:"Artist P", ab:"Album P"},
+                //afriend great Song G - Awesome bassline
+                {sndr:"1235", rcvr:"1234", msgtype:"share",
+                 created:"2023-01-04T20:42:12.074Z", status:"open",
+                 srcmsg:"", songid:"fake",
+                 ti:"Song G", ar:"Artist G", ab:"Album G",
+                 nt:"Awesome bassline"},
+                //fabDJ recommends Song J
+                {sndr:"1238", rcvr:"1234", msgtype:"recommendation",
+                 created:"2023-01-05T20:42:12.074Z", status:"open",
+                 srcmsg:"", songid:"fake",
+                 ti:"Song J", ar:"Artist J", ab:"Album J",
+                 nt:"Super sticky original groove"},
+                //cfriend thanks for recommending Song X
+                {sndr:"1237", rcvr:"1234", msgtype:"recresp",
+                 created:"2023-01-06T20:42:12.074Z", status:"open",
+                 srcmsg:"fake", songid:"fake",
+                 ti:"Song X", ar:"Artist X", ab:"Album X"},
+                //afriend Song S - Melody gets stuck in my head every time.
+                {sndr:"1235", rcvr:"1234", msgtype:"share",
+                 created:"2023-01-07T20:42:12.074Z", status:"open",
+                 srcmsg:"", songid:"fake",
+                 ti:"Song S", ar:"Artist S", ab:"Album S",
+                 nt:"Melody gets stuck in my head every time."}],
+            "hubsync":[demoacct]};
+    return {
+        stubbed: function (callname, ignore /*param*/, callback/*, errf*/) {
+            if(active && rets[callname]) {
+                jt.log("STUBBED " + callname + " using demo data");
+                callback(rets[callname]);
+                return true; }
+            return false; }
+    };  //end scr returned functions
+    }())
 
 
 };  //end returned functions
