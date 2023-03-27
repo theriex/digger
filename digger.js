@@ -99,15 +99,14 @@ db.init(function (conf) {
     function createWebServer () {
         websrv.server = http.createServer(function (req, rsp) {
         try {
-            const quieturls = ["/songscount", "/mergestat", "/songupd"];
+            const quieturls = ["/songscount", "/mergestat", "/savesongs"];
             const pu = parsedURL(req.url);
             if(!quieturls.includes(pu.baseurl)) {
                 console.log(req.url); }
             //POST requests (with optional GET support):
             switch(pu.baseurl) {
             case "/mergefile": db.mergefile(req, rsp); break;
-            case "/songupd": db.songupd(req, rsp); break;
-            case "/multisongupd": db.multisongupd(req, rsp); break;
+            case "/savesongs": db.savesongs(req, rsp); break;
             case "/plistexp": db.plistexp(req, rsp); break;
             case "/cfgchg": db.cfgchg(req, rsp); break;
             case "/wrtcfg": db.wrtcfg(req, rsp); break;

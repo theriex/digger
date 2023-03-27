@@ -14,7 +14,6 @@ app.svc = (function () {
         jt.log(msg);
         jt.out("statspan", msg);
     }
-    function txSongJSON (song) { return JSON.stringify(app.txSong(song)); }
     function txSongsJSON (songs) {
         songs = songs.map((song) => app.txSong(song));
         return JSON.stringify(songs);
@@ -366,42 +365,16 @@ app.svc = (function () {
                 jt.out("modindspan", "offline");
                 jt.err("Digger server unavailable. Close this page and launch the Digger app."); }
             else {
-                jt.err("/songupd failed " + code + ": " + errtxt); } },
-        updateSong: function (song, contf, errf) {
-            if(song !== dbo.songs[song.path]) {
-                jt.log("loc.updateSong song ref different from dbo ref"); }
-            jt.call("POST", "/songupd", jt.objdata(song),
-                    function (res)  {
-                        var updsong = res[0];
-                        app.copyUpdatedSongData(dbo.songs[song.path], updsong);
-                        jt.out("modindspan", "");  //turn off indicator light
-                        app.top.dispatch("srs", "syncToHub");  //sched sync
-                        if(contf) {
-                            contf(dbo.songs[song.path]); } },
+                jt.err("/savesongs failed " + code + ": " + errtxt); } },
+        saveSongs: function (songs, contf, errf) {
+            const data = jt.objdata({songs:JSON.stringify(songs)});
+            jt.call("POST", "/savesongs", data, contf,
                     function (code, errtxt) {
                         if(!errf) {
                             mgrs.loc.majorError(code, errtxt); }
                         else {
                             errf(code, errtxt); } },
-                    jt.semaphore("mgrs.loc.updateSong")); },
-        updateMultipleSongs: function (updss, contf, errf) {
-            const data = jt.objdata({songs:JSON.stringify(updss)});
-            jt.call("POST", "/multisongupd", data,
-                    function (res) {
-                        var merged = [];
-                        res.forEach(function (updsong) {
-                            app.copyUpdatedSongData(dbo.songs[updsong.path],
-                                                    updsong);
-                            merged.push(dbo.songs[updsong.path]); });
-                        app.top.dispatch("srs", "syncToHub");  //sched sync
-                        if(contf) {
-                            contf(merged); } },
-                    function (code, errtxt) {
-                        if(!errf) {
-                            mgrs.loc.majorError(code, errtxt); }
-                        else {
-                            errf(code, errtxt); } },
-                    jt.semaphore("mgrs.loc.updateMultipleSongs")); },
+                    jt.semaphore("mgrs.loc.saveSongs")); },
         noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
             var song = dbo.songs[updsong.path];
             if(song) {  //hub sync might send something not available locally
@@ -538,26 +511,10 @@ app.svc = (function () {
                     jt.semaphore("mgrs.web.fetchSongs")); },
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
-        updateSong: function (song, contf, errf) {
-            var dat = {songdat:txSongJSON(song)};
-            jt.call("POST", "/api/songupd", app.authdata(dat),
-                    function (res) {
-                        var updsong = res[0];
-                        app.copyUpdatedSongData(song, updsong);
-                        //title may have had a '+' if original from fan
-                        app.player.dispatch("aud", "updateSongTitleDisplay");
-                        if(contf) {
-                            contf(updsong); } },
-                    function (code, errtxt) {
-                        if(!errf) {
-                            jt.err("songupd failed " + code + ": " + errtxt); }
-                        else {
-                            errf(code, errtxt); } },
-                    jt.semaphore("mgrs.web.updateSong")); },
-        updateMultipleSongs: function (updss, contf, errf) {
-            var updobj = {songs:txSongsJSON(updss)};  //100 songs ~= 61k
-            jt.call("POST", "api/multiupd", app.authdata(updobj),
-                    contf, errf, jt.semaphore("mgrs.web.updateMulti")); },
+        saveSongs: function (songs, contf, errf) {
+            var updobj = {songs:txSongsJSON(songs)};  //100 songs ~= 61k
+            jt.call("POST", "api/savesongs", app.authdata(updobj),
+                    contf, errf, jt.semaphore("mgrs.web.saveSongs")); },
         makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
             jt.call(verb, "/api/" + endpoint, data, contf, errf,
                     jt.semaphore("svc.web." + endpoint)); },
@@ -654,11 +611,8 @@ app.svc = (function () {
             mgrs[hdm].fetchSongs(contf, errf); },
         fetchAlbum: function (song, contf, errf) {
             mgrs[hdm].fetchAlbum(song, contf, errf); },
-        updateSong: function (song, contf, errf) {
-            jt.log("updateSong " + song.dsId + " " + song.ti);
-            mgrs[hdm].updateSong(song, contf, errf); },
-        updateMultipleSongs: function (songs, contf, errf) {
-            mgrs[hdm].updateMultipleSongs(songs, contf, errf); },
+        saveSongs: function (songs, contf, errf) {
+            mgrs[hdm].saveSongs(songs, contf, errf); },
         noteUpdatedSongData: function (song) {
             return mgrs[hdm].noteUpdatedSongData(song); },
         docContent: function (docurl, contf) {
@@ -685,7 +639,7 @@ return {
     songs: function () { return mgrs.gen.songs(); },
     fetchSongs: function (cf, ef) { mgrs.gen.fetchSongs(cf, ef); },
     fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
-    updateSong: function (song, cf, ef) { mgrs.gen.updateSong(song, cf, ef); },
+    saveSongs: function (s, cf, ef) { mgrs.gen.saveSongs(s, cf, ef); },
     noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
     urlOpenSupp: function () { return true; }, //ok to open urls in new tab
     docContent: function (du, cf) { mgrs.gen.docContent(du, cf); },

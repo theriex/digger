@@ -28,7 +28,7 @@ app.player = (function () {
             //optimistically mark as saved.  If more changes there will
             //be another save call.
             stat.songModified = false; }
-        app.svc.updateSong(stat.song,
+        app.deck.saveSongs(stat.song, true,
             function (updsong) {
                 //stat.song should be up to date since that's what was saved..
                 const sfs = ["ti", "ar", "ab", "el", "al", "kws", "rv",
@@ -393,7 +393,7 @@ app.player = (function () {
                          srcid:1, //reserved value for Spotify sourced Songs
                          al:49, el:49, kws:"", rv:5, fq:"N", nt:"", pc:1,
                          lp:new Date().toISOString()};
-            app.svc.updateSong(stat.song, function (updsong) {
+            app.deck.saveSongs(stat.song, true, function (updsong) {
                 app.svc.dispatch("web", "addSongsToPool", [updsong]);
                 app.deck.dispatch("hst", "noteSongPlayed", updsong);
                 mgrs.aud.updateSongDisplay();

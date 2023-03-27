@@ -674,31 +674,6 @@ module.exports = (function () {
     }
 
 
-    //When a song is loaded into the player, lp and pc are updated to
-    //reflect that it was played.  A secondary use of lp is comparing it to
-    //modified, to determine which songs need to be sent in hubsync.  The
-    //update of lp here is for hubsync processing, pc remains the same.
-    function updateSong (req, res) {
-        var updat = new formidable.IncomingForm();
-        updat.parse(req, function (err, fields) {
-            if(err) {
-                console.log("updateSong form error: " + err); }
-            //PENDING: error/val checking if opening up the app scope..
-            //PENDING: handle segues after there is UI for it
-            const song = dbo.songs[fields.path];
-            if(!song) {
-                return resError(res, "No song " + fields.path, 404); }
-            copySongFields(song, fields);
-            song.lp = new Date().toISOString();  //trigger hubsync, see note
-            readMetadata(fullFilePath(song), function (updsg) {
-                writeDatabaseObject();
-                console.log(new Date().toLocaleString() + " Updated " +
-                            updsg.path);
-                res.writeHead(200, {"Content-Type": "application/json"});
-                res.end(JSON.stringify([updsg])); }); });
-    }
-
-
     function writeUpdatedSongs (ws) {
         var song;
         if(ws.songs.length) {
@@ -716,13 +691,13 @@ module.exports = (function () {
     }
 
 
-    function multiSongUpdate(req, res) {
+    function saveSongs (req, res) {
         var updat = new formidable.IncomingForm();
         var ws = {resp:res, songs:[], rsgs:[]};
         updat.parse(req, function (err, fields) {
             try {
                 if(err) {
-                    console.log("multiSongUpdate form error: " + err); }
+                    console.log("saveSongs form error: " + err); }
                 const upds = JSON.parse(fields.songs);
                 upds.forEach(function (updSong) {
                     const dbSong = dbo.songs[updSong.path];
@@ -733,7 +708,7 @@ module.exports = (function () {
                     ws.songs.push(dbSong); });
                 writeUpdatedSongs(ws);
             } catch(e) {
-                resError(res, "multiSongUpdate error: " + e, 400);
+                resError(res, "saveSongs error: " + e, 400);
             } });
     }
 
@@ -925,8 +900,7 @@ module.exports = (function () {
         songscount: function (req, res) { return songCount(req, res); },
         mergefile: function (req, res) { return mergeFile(req, res); },
         mergestat: function (req, res) { return mergeStatus(req, res); },
-        songupd: function (req, res) { return updateSong(req, res); },
-        multisongupd: function (req, res) { return multiSongUpdate(req, res); },
+        savesongs: function (req, res) { return saveSongs(req, res); },
         plistexp: function (req, res) { return playlistExport(req, res); },
         audio: function (pu, req, res) { return serveAudio(pu, req, res); },
         version: function (req, res) { return serveVersion(req, res); },

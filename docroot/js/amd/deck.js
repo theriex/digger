@@ -11,6 +11,58 @@ app.deck = (function () {
     }
 
 
+    //Song dupe tracker handles persisting songs possibly with multiple copies
+    mgrs.sdt =  (function () {
+        var sbp = {};  //all songs by path
+        function simplifiedMatch (str) {
+            var sm = str;
+            //See related appdat.py standardized_colloquial_match used for
+            //equivalence matching during collaboration.
+            sm = sm.replace(/featuring.*/ig, "");
+            sm = sm.replace(/\(.*\)/g, "");
+            sm = sm.replace(/\[.*\]/g, "");
+            if(!sm) {
+                jt.log("simplifiedMatch reduced to nothing: " + str);
+                sm = str; }
+            return sm; }
+        function findDupes (songs) {
+            var swd = songs;
+            songs.forEach(function (song) {
+                swd = swd.concat(mgrs.sdt.findDupesForSong(song)); });
+            return swd; }
+    return {
+        setSongsDict: function (sd) {
+            sbp = sd; },
+        findDupesForSong: function (song) {
+            var res = [];
+            const mti = simplifiedMatch(song.ti).toLowerCase();
+            const mar = simplifiedMatch(song.ar).toLowerCase();
+            Object.entries(sbp).forEach(function ([p, s]) {
+                if(p !== song.path &&  //original song is not a dupe
+                   s.ti.toLowerCase().startsWith(mti) &&
+                   s.ar.toLowerCase().startsWith(mar)) {
+                    res.push(s); } });
+            return res; },
+        saveSongs: function (songs, trackdupes, contf, errf) {
+            if(!Array.isArray(songs)) {
+                songs = [songs]; }
+            if(trackdupes) {
+                songs = songs.concat(findDupes(songs)); }
+            app.svc.saveSongs(songs,
+                function (res) {
+                    var merged = [];
+                        res.forEach(function (updsong) {
+                            app.copyUpdatedSongData(sbp[updsong.path], updsong);
+                            merged.push(sbp[updsong.path]); });
+                        jt.out("modindspan", "");  //turn off "mod" indicator
+                        app.top.dispatch("srs", "syncToHub");  //sched sync
+                        if(contf) {
+                            contf(merged); } },
+                errf); }
+    };  //end mgrs.sdt returned functions
+    }());
+
+
     //Working Set manager handles rebuild of eligible songs 
     mgrs.ws = (function () {
         const mxkp = 20;  //notes 28dec22
@@ -137,6 +189,7 @@ app.deck = (function () {
             wrk.songs = wrk.prs.concat(wrk.songs); },  //recombine
         updateDeck: function (songs) {
             if(!songs) { return; }  //ignore spurious UI control setup calls
+            mgrs.sdt.setSongsDict(songs);
             wrk.songs = [];
             const ssid = app.startParams.songid;
             Object.entries(songs).forEach(function ([p, s]) {
@@ -395,7 +448,7 @@ app.deck = (function () {
             song.pc = (song.pc || 0) + 1;
             if(song.fq === "N") { song.fq = "P"; }
             mgrs.hst.noteSongPlayed(song);
-            app.svc.updateSong(song); },
+            app.deck.saveSongs(song, true); },
         markMultipleSongsPlayed: function (count, contf, errf) {
             count = Math.min(count, ds.length);
             const pss = ds.splice(0, count);
@@ -575,12 +628,33 @@ app.deck = (function () {
     }());
 
 
+    //Dupe display manager shows dupe songs for what is currently playing.
+    mgrs.ddv = (function () {
+        var osg = null;
+        var dupes = [];
+    return {
+        verifyDisplayContent: function () {
+            const np = app.player.song();
+            if(np !== osg) {
+                osg = np;
+                dupes = mgrs.sdt.findDupesForSong(osg); }
+            if(!osg) {
+                jt.out("deckdupesdiv", "No currently playing song"); }
+            else if(!dupes.length) {
+                jt.out("deckdupesdiv", "No dupes found for " + osg.ti +
+                       " by " + osg.ar); }
+            else {
+                mgrs.sop.displaySongs("nst", "deckdupesdiv", dupes); } }
+    };  //end mgrs.ddv returned functions
+    }());
+
 
     //Views manager handles which view is curently selected.
     mgrs.vws = (function () {
         var vi = {currv: "history",
                   tabs: {history: {title:"History", mgr:"hst"},
-                         newest: {title:"Newest", mgr:"nst"}}};
+                         newest: {title:"Newest", mgr:"nst"},
+                         dupes: {title:"Dupes", mgr:"ddv"}}};
     return {
         songs: function () {
             const currtab = vi.tabs[vi.currv];
@@ -725,7 +799,8 @@ app.deck = (function () {
                   [["div", {id:"deckvtabsdiv"}],
                    ["div", {id:"deckvcontdiv"},
                     [["div", {id:"deckhistorydiv"}],
-                     ["div", {id:"decknewestdiv"}]]]]],
+                     ["div", {id:"decknewestdiv"}],
+                     ["div", {id:"deckdupesdiv"}]]]]],
                  ["div", {id:"decksongsdiv"}, "Verifying filters..."]]));
             mgrs.gen.makeToggleControls();
             deckstat.toggles.togfiltb(true); },
@@ -770,6 +845,7 @@ return {
     setState: function (state) { mgrs.gen.restore(state); },
     excise: function (s) { mgrs.dk.removeFromDeck(s); },
     stableDeckLength: function () { return mgrs.ws.stableDeckLength(); },
+    saveSongs: function (s, d, c, f) { mgrs.sdt.saveSongs(s, d, c, f); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.deck, args); }
 };  //end of module returned functions

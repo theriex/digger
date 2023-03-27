@@ -331,7 +331,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #toginfob, #togalb, #togviewsb { margin-left:6px; }
 .dinfrecdiv { font-size:medium; }
 .dinfrecnspan { font-size:small; }
-#decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckhistorydiv, #decknewestdiv {
+#decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckviewsdiv {
   height:160px; min-height:160px; max-height:160px; overflow:scroll; }
 /* title font-size inherited from containing element for player layout */
 .songtitlediv { position:relative; padding:0px 0px 4px 0px; }
