@@ -11,7 +11,7 @@ app.deck = (function () {
     }
 
 
-    //Song dupe tracker handles persisting songs possibly with multiple copies
+    //Song dupe tracker handles persisting songs with possible copies
     mgrs.sdt =  (function () {
         var sbp = {};  //all songs by path
         function simplifiedMatch (str) {
@@ -25,15 +25,7 @@ app.deck = (function () {
                 jt.log("simplifiedMatch reduced to nothing: " + str);
                 sm = str; }
             return sm; }
-        function findDupes (songs) {
-            var swd = songs;
-            songs.forEach(function (song) {
-                swd = swd.concat(mgrs.sdt.findDupesForSong(song)); });
-            return swd; }
-    return {
-        setSongsDict: function (sd) {
-            sbp = sd; },
-        findDupesForSong: function (song) {
+        function findDupesForSong (song) {
             var res = [];
             const mti = simplifiedMatch(song.ti).toLowerCase();
             const mar = simplifiedMatch(song.ar).toLowerCase();
@@ -42,7 +34,26 @@ app.deck = (function () {
                    s.ti.toLowerCase().startsWith(mti) &&
                    s.ar.toLowerCase().startsWith(mar)) {
                     res.push(s); } });
-            return res; },
+            return res; }
+        function findDupes (songs) {
+            var swd = songs;
+            songs.forEach(function (song) {
+                swd = swd.concat(findDupesForSong(song)); });
+            return swd; }
+    return {
+        setSongsDict: function (sd) {
+            sbp = sd; },
+        verifyDisplayContent: function () {
+            //search each time display requested. metadata could be changed.
+            const np = app.player.song();
+            if(!np) {
+                return jt.out("deckdupesdiv", "No currently playing song"); }
+            const dupes = findDupesForSong(np);
+            if(!dupes.length) {
+                jt.out("deckdupesdiv", "No dupes found for " + np.ti +
+                       " by " + np.ar); }
+            else {
+                mgrs.sop.displaySongs("nst", "deckdupesdiv", dupes); } },
         saveSongs: function (songs, trackdupes, contf, errf) {
             if(!Array.isArray(songs)) {
                 songs = [songs]; }
@@ -52,8 +63,11 @@ app.deck = (function () {
                 function (res) {
                     var merged = [];
                         res.forEach(function (updsong) {
-                            app.copyUpdatedSongData(sbp[updsong.path], updsong);
-                            merged.push(sbp[updsong.path]); });
+                            var path = updsong.path;
+                            if(!sbp[path]) {  //non-local absolute path
+                                path = "/" + path; }
+                            app.copyUpdatedSongData(sbp[path], updsong);
+                            merged.push(sbp[path]); });
                         jt.out("modindspan", "");  //turn off "mod" indicator
                         app.top.dispatch("srs", "syncToHub");  //sched sync
                         if(contf) {
@@ -628,33 +642,12 @@ app.deck = (function () {
     }());
 
 
-    //Dupe display manager shows dupe songs for what is currently playing.
-    mgrs.ddv = (function () {
-        var osg = null;
-        var dupes = [];
-    return {
-        verifyDisplayContent: function () {
-            const np = app.player.song();
-            if(np !== osg) {
-                osg = np;
-                dupes = mgrs.sdt.findDupesForSong(osg); }
-            if(!osg) {
-                jt.out("deckdupesdiv", "No currently playing song"); }
-            else if(!dupes.length) {
-                jt.out("deckdupesdiv", "No dupes found for " + osg.ti +
-                       " by " + osg.ar); }
-            else {
-                mgrs.sop.displaySongs("nst", "deckdupesdiv", dupes); } }
-    };  //end mgrs.ddv returned functions
-    }());
-
-
     //Views manager handles which view is curently selected.
     mgrs.vws = (function () {
         var vi = {currv: "history",
                   tabs: {history: {title:"History", mgr:"hst"},
                          newest: {title:"Newest", mgr:"nst"},
-                         dupes: {title:"Dupes", mgr:"ddv"}}};
+                         dupes: {title:"Dupes", mgr:"sdt"}}};
     return {
         songs: function () {
             const currtab = vi.tabs[vi.currv];
