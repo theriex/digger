@@ -1,5 +1,5 @@
 /*global jtminjsDecorateWithUtilities, window, diggerapp */
-/*jslint browser, white, unordered */
+/*jslint browser, white, long, unordered */
 
 var jt = {};
 var app = (function () {
@@ -246,6 +246,19 @@ return {
     },
 
 
+    docDynamicContent: function () {
+        const lut = jt.byId("privlut");
+        if(lut) {
+            lut.innerHTML = jt.colloquialDate(lut.innerHTML); }
+        const hdm = app.svc.plat("hdm");
+        const audsrc = app.svc.plat("audsrc");
+        if(hdm !== "loc" || audsrc !== "Browser") {
+            const divs = jt.byId("docdispdiv").getElementsByClassName("pconly");
+            Array.from(divs).forEach(function (div) {
+                div.style.display = "none"; }); }
+    },
+
+
     displayDoc: function (divid, docurl) {  //full url or doc filename
         if(!docurl) {
             return jt.out(divid, ""); }
@@ -265,9 +278,7 @@ return {
                           onclick:jt.fs("app.displayDoc('" + divid + "')")},
                     "X"]],
                   ["div", {id:"docdispbodydiv"}, body]]]));
-            const lut = jt.byId("privlut");
-            if(lut) {
-                lut.innerHTML = jt.colloquialDate(lut.innerHTML); } });
+            app.docDynamicContent(); });
     },
 
 
