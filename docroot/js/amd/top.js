@@ -63,9 +63,9 @@ app.top = (function () {
                 verstat.loc = curracct.diggerVersion;
                 if(!verstat.notice && verstat.hub > verstat.loc) {
                     verstat.notice = true;
-                    jt.err("You are running " + verstat.loc +
-                           ". DiggerHub.com has " + verstat.hub +
-                           ". Download and install the new app."); } } }
+                    mgrs.gen.togtopdlg("la"); } } },
+        getVersionStatus: function () {
+            return verstat; }
     };  //end mgrs.hcu returned functions
     }());
 
@@ -154,7 +154,8 @@ app.top = (function () {
                 //deck refreshes for every batch call and no explanation or
                 //status visible to the user.  Leave for form display.
                 //setTimeout(mgrs.fsc.updateContributions, 100);
-                jt.out("modindspan", ""); } }, //turn off comms indicator
+                jt.out("modindspan", "");  //turn off comms indicator
+                mgrs.hcu.verifyClientVersion(); } },
         makeSendSyncData: function () {
             //send the current account + any songs that need sync.  If just
             //signed in, then don't send the current song or anything else
@@ -1713,6 +1714,7 @@ app.top = (function () {
                  tt:"Configure music and data file locations",
                  p:"dbPath", n:"Digger Data"},
                 {ty:"info", htmlfs:"versionInfoHTML"},
+                {ty:"info", htmlfs:"getLatestVersionHTML"},
                 {ty:"info", htmlfs:"hubSyncInfoHTML"},
                 {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
                  tt:"Read all files in the music folder",
@@ -1774,13 +1776,21 @@ app.top = (function () {
             app.deck.dispatch("hst", "noteSongPlayed", song);
             app.deck.dispatch("dk", "playnow", "hst", 0); },
         versionInfoHTML: function () {
-            var versioncode = app.svc.plat("versioncode");
-            var vstr = mgrs.gen.songDataVersion() +
-                (versioncode? ", " + versioncode : "") +
-                ", " + app.fileVersion();
+            var vstr = mgrs.gen.songDataVersion();
+            const versioncode = app.svc.plat("versioncode");  //build number
+            if(versioncode) {
+                vstr += ", " + versioncode; }
+            vstr += ", " + app.fileVersion();
             return jt.tac2html(
                 [["span", {cla:"pathlabelgreyspan"}, "Version:"],
                  ["span", {cla:"infospan"}, vstr]]); },
+        getLatestVersionHTML: function () {
+            const verstat = mgrs.hcu.getVersionStatus();
+            if(!verstat.notice) { return ""; }
+            return jt.tac2html(
+                [["span", {cla:"pathlabelgreyspan"}, "Update:"],
+                 ["span", {cla:"infospan"},
+                  verstat.hub + " is available on DiggerHub"]]); },
         hubSyncInfoHTML: function () {
             if(!app.haveHubCredentials()) { return ""; }
             setTimeout(mgrs.srs.makeStatusDisplay, 100);

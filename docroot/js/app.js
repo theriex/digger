@@ -63,7 +63,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=230321");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=230331");
     },
 
 
@@ -78,7 +78,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=230321";  //updated as part of release process
+        return "v=230331";  //updated as part of release process
     },
 
 
@@ -391,8 +391,8 @@ return {
         const rets = {
             readConfig:{"acctsinfo": {currid:"1234",
                                       accts:[dfltacct, demoacct]}},
-            readDigDat:{"version": "v1.1.3",
-                        "scanned": "2023-02-13T20:42:12.320Z",
+            readDigDat:{"version": "dE.M.O",
+                        "scanned": new Date().toISOString(),
                         "songcount": 10,
                         "songs": {
                             "SongY.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongY.mp3","mrd": "C|Song Y|Artist Y|Album Y","ar": "Artist Y","ab": "Album Y","ti": "Song Y","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
