@@ -1777,6 +1777,8 @@ app.top = (function () {
             app.deck.dispatch("dk", "playnow", "hst", 0); },
         versionInfoHTML: function () {
             var vstr = mgrs.gen.songDataVersion();
+            if(!vstr) {  //e.g. stubbed demo data
+                vstr = app.svc.plat("versioncode") || "vx.x.x"; }
             const versioncode = app.svc.plat("versioncode");  //build number
             if(versioncode) {
                 vstr += ", " + versioncode; }

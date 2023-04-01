@@ -391,8 +391,8 @@ return {
         const rets = {
             readConfig:{"acctsinfo": {currid:"1234",
                                       accts:[dfltacct, demoacct]}},
-            readDigDat:{"version": "dE.M.O",
-                        "scanned": new Date().toISOString(),
+            readDigDat:{"version": "v1.1.7",  //last screenshot update version
+                        "scanned": "2023-02-13T20:42:12.320Z",  //see modified
                         "songcount": 10,
                         "songs": {
                             "SongY.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongY.mp3","mrd": "C|Song Y|Artist Y|Album Y","ar": "Artist Y","ab": "Album Y","ti": "Song Y","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
