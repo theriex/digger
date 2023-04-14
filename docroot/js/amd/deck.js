@@ -82,21 +82,39 @@ app.deck = (function () {
         const mxkp = 20;  //notes 28dec22
         var wrk = {tmo:null, stat:"", resched:false, songs:[], fcs:[],
                    prs:[], wait:50};  //first wait is quick since starting up
-        function compareOwnership(a, b) {  //fan songs after own songs
+        function initRecentlyPlayedArtists () {
+            const memt = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000))
+                  .toISOString();
+            var mrps = Object.values(app.svc.songs());
+            mrps = mrps.filter((s) => s.lp && s.lp > memt);
+            mrps.sort(function (a, b) {  //most recent song first
+                return b.lp.localeCompare(a.lp); });
+            wrk.rpas = [];
+            mrps.forEach(function (s) {
+                if(wrk.rpas.indexOf(s.ar) < 0) {
+                    wrk.rpas.push(s.ar); } });
+            wrk.rpas.reverse();   //highest index: most recently played artist
+            jt.log("wrk.rpas: ..." + wrk.rpas.slice(-10).join(", ")); }
+        function compareOwnership (a, b) {  //fan songs after own songs
             if(a.dsId && b.dsId) {
                 if(a.dsId.startsWith("fr") && !b.dsId.startsWith("fr")) {
                     return 1; }
                 if(!a.dsId.startsWith("fr") && b.dsId.startsWith("fr")) {
                     return -1; } }
             return 0; }
-        function compareLastPlayed(a, b) {  //oldest songs first
+        function compareLastPlayed (a, b) {  //oldest songs first
             if(a.dsId && a.dsId.startsWith("fr") &&  //most recent first for
                b.dsId && b.dsId.startsWith("fr")) {  //fan recs (email thx)
                 if(a.lp && !b.lp) { return -1; }  //unplayed last
                 if(!a.lp && b.lp) { return 1; }
                 if(a.lp && b.lp) { return b.lp.localeCompare(a.lp); } }
             else {  //sorting own songs, oldest songs first
-                if(a.lp && !b.lp) { return 1; }  //unplayed first
+                if(!wrk.prs.length) {  //no previous deck state, avoid rpas
+                    const arpi = wrk.rpas.indexOf(a.ar);
+                    const brpi = wrk.rpas.indexOf(b.ar);
+                    if(arpi > brpi) { return -1; }
+                    if(arpi < brpi) { return 1; } }
+                if(a.lp && !b.lp) { return 1; }  //unplayed before played
                 if(!a.lp && b.lp) { return -1; }
                 if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); } }
             return 0; }
@@ -147,6 +165,7 @@ app.deck = (function () {
                  (s.path && s.path === song.path))); },
         preserveExistingDeckSongs: function () {
             var decksongs = mgrs.dk.songs();  var di; var si; var currsong;
+            if(!wrk.rpas) { initRecentlyPlayedArtists(); }
             wrk.prs = [];  //reset preserved songs
             for(di = 0; di < decksongs.length && di < mxkp; di += 1) {
                 currsong = decksongs[di];
