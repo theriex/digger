@@ -18,6 +18,7 @@ var app = (function () {
 
     function init2 () {
         app.amdtimer.load.end = new Date();
+        jt.log = console.log;
         jt.log("window.innerWidth/Height: " + window.innerWidth + " x " +
                window.innerHeight);
         jt.on(document, "keydown", globkey);

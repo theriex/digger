@@ -95,29 +95,37 @@ app.deck = (function () {
                     wrk.rpas.push(s.ar); } });
             wrk.rpas.reverse();   //highest index: most recently played artist
             jt.log("wrk.rpas: ..." + wrk.rpas.slice(-10).join(", ")); }
-        function compareOwnership (a, b) {  //fan songs after own songs
-            if(a.dsId && b.dsId) {
-                if(a.dsId.startsWith("fr") && !b.dsId.startsWith("fr")) {
-                    return 1; }
-                if(!a.dsId.startsWith("fr") && b.dsId.startsWith("fr")) {
-                    return -1; } }
+        function recentFirst (a, b) {
+            if(a.lp && !b.lp) { return -1; }  //unplayed last, thx first
+            if(!a.lp && b.lp) { return 1; }
+            if(a.lp && b.lp) { return b.lp.localeCompare(a.lp); }
             return 0; }
-        function compareLastPlayed (a, b) {  //oldest songs first
-            if(a.dsId && a.dsId.startsWith("fr") &&  //most recent first for
-               b.dsId && b.dsId.startsWith("fr")) {  //fan recs (email thx)
-                if(a.lp && !b.lp) { return -1; }  //unplayed last
-                if(!a.lp && b.lp) { return 1; }
-                if(a.lp && b.lp) { return b.lp.localeCompare(a.lp); } }
-            else {  //sorting own songs, oldest songs first
-                if(!wrk.prs.length) {  //no previous deck state, avoid rpas
-                    const arpi = wrk.rpas.indexOf(a.ar);
-                    const brpi = wrk.rpas.indexOf(b.ar);
-                    if(arpi > brpi) { return -1; }
-                    if(arpi < brpi) { return 1; } }
-                if(a.lp && !b.lp) { return 1; }  //unplayed before played
-                if(!a.lp && b.lp) { return -1; }
-                if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); } }
+        function oldestFirst (a, b) {
+            if(a.lp && !b.lp) { return 1; }  //unplayed before played
+            if(!a.lp && b.lp) { return -1; }
+            if(a.lp && b.lp) { return a.lp.localeCompare(b.lp); }
             return 0; }
+        function compareOwnership (a, b) {  //fan rec songs first so visible
+            const aid = a.dsId || "";
+            const bid = b.dsId || "";
+            if(aid.startsWith("fr") && !bid.startsWith("fr")) { return 1; }
+            if(!aid.startsWith("fr") && bid.startsWith("fr")) { return -1; }
+            if(aid.startsWith("fr") && bid.startsWith("fr")) {
+                return recentFirst(a, b); }
+            return 0; }
+        function compareRecentArtists (a, b) {
+            if(wrk.prs.length) {  //use preserved deck state instead of recency
+                return 0; }       //to present a reasonable set of songs
+            const arpi = wrk.rpas.indexOf(a.ar);
+            const brpi = wrk.rpas.indexOf(b.ar);
+            if(arpi >= 0 || brpi >= 0) {
+                if(arpi < brpi) { return -1; }  //higher idx artists last
+                if(arpi > brpi) { return 1; } }
+            return 0; }
+        function comparePresentation (a, b) {
+            return (compareOwnership(a, b) ||
+                    compareRecentArtists(a, b) ||
+                    oldestFirst(a, b)); }
         function filterByFilters (runcounts) {
             if(app.filter.filteringPanelState() === "off") {
                 return; }
@@ -214,8 +222,9 @@ app.deck = (function () {
             wrk.songs = first.concat(rest); },
         presentSongs: function () {
             mgrs.ws.preserveExistingDeckSongs();  //pulled into wrk.prs
-            wrk.songs.sort(function (a, b) {  //sort by last played, fr last
-                return compareOwnership(a, b) || compareLastPlayed(a, b); });
+            if(!wrk.prs.length) {
+                jt.log("Avoiding recently played artists in deck sort"); }
+            wrk.songs.sort(comparePresentation);
             mgrs.ws.shuffleUnplayed();  //avoid predictable first song 
             wrk.songs = wrk.songs.slice(0, 1000);  //truncate to reasonable len
             mgrs.ws.shuffleSongs();  //older songs first, no starvation
