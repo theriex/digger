@@ -1,0 +1,7 @@
+body { color:#ccc; }
+button { color:white; }
+#contentdiv { background-image: url('../img/panelsbginv.png'); }
+.inv { filter:invert(100%); }
+.invlow { filter:invert(34%); }
+.ratstarsanchordiv { height:22px; background:#666; }
+.rangesurfdiv { background:#333; }

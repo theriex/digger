@@ -592,9 +592,6 @@ app.svc = (function () {
             jt.err("Initial data load failed " + code + ": " + errtxt); },
         initialize: function () {
             mgrs.gen.initplat();
-            //background image fails to load after redirect Mac FF 88.0.1
-            const cssbg = "url('" + app.dr("/img/panelsbg.png") + "')";
-            jt.byId("contentdiv").style.backgroundImage = cssbg;
             //At a minimum, load the current account so settings are available.
             jt.log("svc.gen.initialize setting up for loadInitialData");
             setTimeout(function () {

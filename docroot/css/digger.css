@@ -33,7 +33,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   background-size: cover;
   background-repeat: no-repeat; }
 #appoverlaydiv { position:absolute; left:0px; top:12px; width:100%; }
-#docdispdiv { padding:5px; background:#ffc2a4;  max-width:600px; margin:auto; }
+#docdispdiv { padding:5px; background:#ffc2a4; color:#111111;
+  max-width:600px; margin:auto; }
 #docdispxdiv { float:right; padding-left:10px; }
 #docmenubardiv { font-size:small; background:#ff9c6b; padding:5px 8px;
   display:flex; justify-content:space-between; }
@@ -52,6 +53,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #pantopdiv { padding-bottom:0px; }
 #pandbdiv { padding:10px 6px 0px 6px; }
 #pandeckdiv { padding:10px 6px 4px 6px; }
+.inv { }
 
 /****************************************/
 /* Hub/Library Panel */
@@ -230,7 +232,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #sleepdiv { font-size:medium; }
 
 #sharedlgdiv { position:relative; padding:12px; margin:0px auto;
-  background:#ffab00; display:table; margin:0px auto;}
+  background:#ffab00; color:#111111; display:table; margin:0px auto;}
 #ssdtitlediv { text-align:center; color:#9a6e16; }
 #ssdclosexdiv { position:absolute; top:8px; right:8px; }
 #ssdidentdiv { padding:5px 0px; }
@@ -328,7 +330,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #srchin { margin-right:2px; }
 #clrsrchdiv { display:inline-block; margin-left:-14px; width:14px;
   overflow:hidden; vertical-align:middle; }
-#toginfob, #togalb, #togviewsb { margin-left:6px; }
+#toginfob, #togalb, #togviewsb { margin-left:12px; }
 .dinfrecdiv { font-size:medium; }
 .dinfrecnspan { font-size:small; }
 #decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckviewsdiv {

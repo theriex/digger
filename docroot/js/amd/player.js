@@ -622,7 +622,7 @@ app.player = (function () {
                    [["span", {id:"modindspan"}],
                     ["a", {href:"#tuneoptions", title:"Tune Playback Options",
                            id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
-                     ["img", {src:tunesrc, cla:"ptico", id:"tuneimg"}]]]],
+                     ["img", {src:tunesrc, cla:"ptico inv", id:"tuneimg"}]]]],
                   ["span", {id:"playtitletextspan"},
                    app.deck.dispatch("sop", "songIdentHTML", stat.song)]]])); },
         updateSongDisplay: function () {
@@ -655,7 +655,8 @@ app.player = (function () {
                         ["div", {id:"nextsongdiv"},
                          ["a", {href:"#skip", title:"Skip To Next Song",
                                 onclick:jt.fs("app.player.skip()")},
-                          ["img", {src:"img/skip.png", cla:"ptico"}]]]]]]])); }
+                          ["img", {src:"img/skip.png",
+                                   cla:"ptico inv"}]]]]]]])); }
             mgrs[cap].verifyPlayer(contf); }
     };  //end mgrs.aud returned functions
     }());
@@ -680,7 +681,7 @@ app.player = (function () {
                        title:"Associate keywords with " + pfname,
                        onclick:mdfs("tun.associateKeywords", fld, pfname)},
                  ["&nbsp;&#x21e6;", //left white arrow
-                  ["img", {cla:"tunactimg", src:"img/keys.png"}]]]); }
+                  ["img", {cla:"tunactimg inv", src:"img/keys.png"}]]]); }
         function humanReadKwds (kwdcsv) {
             const qks = kwdcsv.csvarray().map((kwd) => "\"" + kwd + "\"");
             return qks.join(", "); }
@@ -1079,7 +1080,7 @@ app.player = (function () {
                 ["div", {cla:"panleftlabdiv", id:pc.fld + "panlld"}, pc.low],
                 ["div", {cla:"panrightlabdiv", id:pc.fld + "panrld"}, pc.high],
                 ["div", {cla:"panfacediv", id:pc.fld + "panfacediv"},
-                 ["img", {cla:"panfaceimg", src:"img/panface.png"}]],
+                 ["img", {cla:"panfaceimg invlow", src:"img/panface.png"}]],
                 ["div", {cla:"panbgdiv", id:pc.fld + "panbgdiv"},
                  ["img", {cla:"panbackimg", src:"img/panback.png"}]]]]));
             packControlWidthwise(id);
@@ -1476,17 +1477,17 @@ app.player = (function () {
                           [["a", {id:"togcommentlink", href:"#togglecomment",
                                   title:"",
                                   onclick:mdfs("cmt.toggleCommentDisplay")},
-                            ["img", {id:"togcommentimg",
+                            ["img", {id:"togcommentimg", cla:"inv",
                                      src:"img/comment.png"}]],
                            ["a", {id:"togsharelink", href:"#share",
                                   title:"",
                                   onclick:mdfs("cmt.togSongShareDialog")},
-                            ["img", {id:"togshareimg",
+                            ["img", {id:"togshareimg", cla:"inv",
                                      src:"img/share.png"}]],
                            ["a", {id:"togsleeplink", href:"#sleepafter",
                                   title:"",
                                   onclick:mdfs("slp.toggleSleepDisplay")},
-                            ["img", {id:"togsleepimg",
+                            ["img", {id:"togsleepimg", cla:"inv",
                                      src:"img/sleep.png"}]]]]]]]],
                      ["div", {id:"pandragcontdiv"},
                       [["div", {id:"alpandragdiv", cla:"pandragdiv"}],

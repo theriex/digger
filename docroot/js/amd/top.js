@@ -1268,6 +1268,7 @@ app.top = (function () {
         setConfig: function (config) {
             cfg = config;
             dfltigfolds = cfg.dfltigfolds || dfltigfolds;
+            mgrs.aaa.reflectDarkMode();
             mgrs.aaa.verifyConfig(); },
         verifyConfig: function () {
             cfg = cfg || {};
@@ -1328,7 +1329,30 @@ app.top = (function () {
             if(!context || context === "igfolders") {
                 mgrs.igf.redrawIgnoreFolders(); }
             if(!context || context === "settings") {
-                app.filter.dispatch("stg", "rebuildAllControls", true); } }
+                app.filter.dispatch("stg", "rebuildAllControls", true); } },
+        getDarkMode: function () {  //returns either "dark" or "light"
+            return cfg.darkmode || "light"; },
+        reflectDarkMode: function (mode) {
+            mode = mode || mgrs.aaa.getDarkMode();
+            if(mode === "dark") {
+                jt.byId("darkmodecss").disabled = false; }
+            else {
+                jt.byId("darkmodecss").disabled = true; } },
+        toggleDarkMode: function (mode) {
+            if(!mode) {
+                mode = mgrs.aaa.getDarkMode();
+                if(mode === "light") {
+                    mode = "dark"; }
+                else {
+                    mode = "light"; } }
+            cfg.darkmode = mode;
+            app.svc.writeConfig(cfg,
+                function (writtenconf) {
+                    cfg = writtenconf;
+                    mgrs.aaa.reflectDarkMode(cfg.darkmode); },
+                function (code, errtxt) {
+                    jt.log("toggleDarkMode writeConfig call failure " + code +
+                           ": " + errtxt); }); }
     };  //end mgrs.aaa returned functions
     }());
 
@@ -1724,7 +1748,10 @@ app.top = (function () {
                  n:"Ignore Folders", id:"ignorefldrsbutton"},
                 {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
                  tt:"Choose keywords to use for filtering",
-                 n:"Choose Keywords", id:"choosekwdsbutton"}];
+                 n:"Choose Keywords", id:"choosekwdsbutton"},
+                {ty:"btn", oc:mdfs("aaa.toggleDarkMode"),
+                 tt:"Toggle dark mode display",
+                 n:"Dark", id:"darkmodebutton"}];
             acts = acts.filter((a) => app.svc.topLibActionSupported(a)); },
         writeDlgContent: function () {
             var config = app.svc.dispatch("loc", "getConfig");

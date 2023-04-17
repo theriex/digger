@@ -359,7 +359,7 @@ app.deck = (function () {
                     {id:"playnext", tt:"Play this song next",
                      img:"bumpup.png", act:"playnext"},
                     {id:"skipsong", tt:"Skip this song",
-                     img:"skip.png", act:"skip", x:"hst,nst"},
+                     img:"skipw.png", act:"skip", x:"hst,nst"},
                     {id:"tiredskip", tt:"Note song as tired and skip",
                      img:"snooze.png", act:"snooze", x:"hst,nst"}];
         function amfLink (txt) {
@@ -810,10 +810,10 @@ app.deck = (function () {
                            onclick:mdfs("gen.clearSearch")}, "x"]],
                    ["a", {href:"#search", title:"Search Songs",
                           onclick:mdfs("ws.rebuild", "srchin")},
-                    ["img", {src:"img/search.png", cla:"ico20"}]],
-                   ["div", {cla:"togbdiv", id:"toginfob"}],
-                   ["div", {cla:"togbdiv", id:"togalb"}],
-                   ["div", {cla:"togbdiv", id:"togviewsb"}]]],
+                    ["img", {src:"img/search.png", cla:"ico20 inv"}]],
+                   ["div", {cla:"togbdiv inv", id:"toginfob"}],
+                   ["div", {cla:"togbdiv inv", id:"togalb"}],
+                   ["div", {cla:"togbdiv inv", id:"togviewsb"}]]],
                  ["div", {id:"deckinfodiv", style:"display:none;"}],
                  ["div", {id:"deckalbumdiv", style:"display:none;"}],
                  ["div", {id:"deckviewsdiv", style:"display:none;"},
