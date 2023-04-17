@@ -1,6 +1,8 @@
 body { color:#ccc; }
 button { color:white; }
-#contentdiv { background-image: url('../img/panelsbginv.png'); }
+.paneldiv {
+  -webkit-backdrop-filter:invert(100%);
+  backdrop-filter:invert(100%); }
 .inv { filter:invert(100%); }
 .invlow { filter:invert(34%); }
 .ratstarsanchordiv { height:22px; background:#666; }

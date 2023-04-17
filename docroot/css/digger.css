@@ -330,7 +330,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #srchin { margin-right:2px; }
 #clrsrchdiv { display:inline-block; margin-left:-14px; width:14px;
   overflow:hidden; vertical-align:middle; }
-#toginfob, #togalb, #togviewsb { margin-left:12px; }
+#toginfob, #togalb, #togviewsb { margin-left:16px; }
 .dinfrecdiv { font-size:medium; }
 .dinfrecnspan { font-size:small; }
 #decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckviewsdiv {
