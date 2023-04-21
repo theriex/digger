@@ -38,3 +38,5 @@ Whenever you want music
 ## Status
 
 See the issues page for ongoing development.  Get in touch via email.
+
+© 2023 Eric Parker
