@@ -113,9 +113,16 @@ app.deck = (function () {
             if(aid.startsWith("fr") && bid.startsWith("fr")) {
                 return recentFirst(a, b); }
             return 0; }
+        function compareDeckArtists (a, b) {
+            const adi = wrk.prs.findIndex((s) => s.ar === a.ar);
+            const bdi = wrk.prs.findIndex((s) => s.ar === b.ar);
+            if(adi >= 0 || bdi >= 0) {
+                if(adi < bdi) { return -1; }
+                if(adi > bdi) { return 1; } }
+            return 0; }
         function compareRecentArtists (a, b) {
-            if(wrk.prs.length) {  //use preserved deck state instead of recency
-                return 0; }       //to present a reasonable set of songs
+            if(wrk.prs.length) {  //use preserved deck state instead
+                return compareDeckArtists(a, b); }
             const arpi = wrk.rpas.indexOf(a.ar);
             const brpi = wrk.rpas.indexOf(b.ar);
             if(arpi >= 0 || brpi >= 0) {
