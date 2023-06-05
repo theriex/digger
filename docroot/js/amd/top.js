@@ -1068,11 +1068,65 @@ app.top = (function () {
                     if(emsent) { msg += " Check spam folder."; }
                     emsent = new Date().toISOString();
                     jt.out("afgstatdiv", msg); }); } },
+        settingsForm: function (statmsg) {
+            const acct = mgrs.aaa.getAccount();
+            const stgs = acct.settings || {};
+            const sact = stgs.sumact || {sendon:"Wednesday"};
+            const dsow = ["Monday", "Tuesday", "Wednesday", "Thursday",
+                          "Friday", "Saturday", "Sunday"];
+            jt.out("afgcontdiv", jt.tac2html(
+                [["div", {cla:"settingsrowdiv"},
+                  [["input", {type:"checkbox", id:"wkactin", value:"active",
+                              checked:jt.toru(sact.sendon !== "Never")}],
+                   ["select", {id:"wkactdaysel", title:"Weekly report day"},
+                    dsow.map((d) =>
+                        ["option", {value:d,
+                                    selected:jt.toru(d === sact.sendon)},
+                         d])]]],
+                 ["div", {id:"afgstatdiv"}, statmsg || ""],
+                 ["div", {cla:"dlgbuttonsdiv", id:"afgbtsdiv"},
+                  [["button", {type:"button", id:"cancelb",
+                               onclick:mdfs("asu.profileForm")},
+                    "Cancel"],
+                   ["button", {type:"button", id:"saveb",
+                               onclick:mdfs("asu.settingsProc")},
+                    "Save"]]]]));
+            if(statmsg) {
+                jt.out("afgbtsdiv", jt.tac2html(
+                    ["button", {type:"button", id:"cancelb",
+                                onclick:mdfs("asu.profileForm")},
+                     "Done"])); } },
+        settingsProc: function () {
+            var dow = "Wednesday";
+            const cb = jt.byId("wkactin");
+            if(cb && !cb.checked) {
+                dow = "Never"; }
+            else {  //use selected day
+                const sel = jt.byId("wkactdaysel");
+                dow = sel.value; }
+            const acct = mgrs.aaa.getAccount();
+            acct.settings.sumact = acct.settings.sumact || {};
+            acct.settings.sumact.sendon = dow;
+            jt.out("afgstatdiv", "Saving...");
+            jt.byId("afgbtsdiv").style.display = "none";
+            mgrs.aaa.updateCurrAcct(
+                acct, acct.token,
+                function () {
+                    mgrs.asu.settingsForm("Saved."); },
+                function (code, errtxt) {
+                    jt.out("afgstatdiv", "Save failed " + code + ": " + errtxt);
+                    jt.byId("afgbtsdiv").style.display = "block"; }); },
         profileForm: function (acct) {
-            accountFieldsForm(acct, "p",
-                ["button", {type:"button", id:"updateb",
-                            onclick:mdfs("asu.profileProc", "updateb")},
-                 "Update"]); },
+            acct = acct || mgrs.aaa.getAccount();
+            accountFieldsForm(
+                acct, "p",
+                [["div", {id:"formfunctogdiv"},
+                  ["a", {href:"#settings",
+                         onclick:mdfs("asu.settingsForm")},
+                   "Settings"]],
+                 ["button", {type:"button", id:"updateb",
+                             onclick:mdfs("asu.profileProc", "updateb")},
+                  "Update"]]); },
         profileProc: function (buttonid) {
             const dat = formData("p");
             addAuthDataFields(dat);

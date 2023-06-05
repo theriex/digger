@@ -538,9 +538,11 @@ app.player = (function () {
         verifyPlayer: function (contf) {
             contf(); },  //nothing to do. plat/UI initialized as needed
         ////general funcs
-        setState: function (rst) {
+        setState: function (rst, songs) {
             stat.song = rst.song;
-            pbi = {song:rst.song, pos:rst.pos, dur:rst.dur, state:rst.state};
+            if(songs && songs[stat.song.path]) {
+                stat.song = songs[stat.song.path]; }
+            pbi = {song:stat.song, pos:rst.pos, dur:rst.dur, state:rst.state};
             mgrs.aud.verifyPlayer(function () {
                 mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
                 mgrs.aud.updateSongDisplay(); }); },
@@ -554,11 +556,13 @@ app.player = (function () {
                 if(!nsg) {  //if somehow fails, provide a clue
                     return jt.err("mgrs.mob.rebuildFromPath song not found: " +
                                   npp); }
+                jt.log("player.mob.rebuildFromPath dbo reloaded");
                 stat.song = nsg;
                 app.deck.excise(stat.song);  //pull in case currently visible
                 app.deck.dispatch("dk", "markSongPlayed", stat.song);
                 mgrs.cmt.resetDisplay();  //update comment indicator for song
                 mgrs.aud.updateSongDisplay();
+                app.deck.dispatch("ws", "refreshDeckSongRefs", dbo.songs);
                 app.deck.dispatch("ws", "rebuild",
                                   "player.mob songs rebuild"); }); },
         rebuildIfSongPlaying: function (updsg) {  //song updated from hub
@@ -1564,7 +1568,7 @@ return {
     logCurrentlyPlaying: function (pfx) { mgrs.gen.logCurrentlyPlaying(pfx); },
     playerr: function (path) { return playerrs[path]; },
     noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; },
-    setState: function (state) { mgrs.mob.setState(state); },
+    setState: function (state, songs) { mgrs.mob.setState(state, songs); },
     dispatch: function (mgrname, fname, ...args) {
         try {
             return mgrs[mgrname][fname].apply(app.player, args);

@@ -178,6 +178,11 @@ app.deck = (function () {
             return songs.findIndex((s) => 
                 ((s.dsId && s.dsId === song.dsId) ||
                  (s.path && s.path === song.path))); },
+        refreshDeckSongRefs: function (sbyp) {  //songs by path
+            var decksongs = mgrs.dk.songs();  var di;
+            for(di = 0; di < decksongs.length && di < mxkp; di += 1) {
+                if(sbyp[decksongs[di].path]) {  //use stale if no longer avail
+                    decksongs[di] = sbyp[decksongs[di].path]; } } },
         preserveExistingDeckSongs: function () {
             var decksongs = mgrs.dk.songs();  var di; var si; var currsong;
             if(!wrk.rpas) { initRecentlyPlayedArtists(); }
@@ -425,7 +430,7 @@ app.deck = (function () {
                 //modify filtering
                 const filts = app.filter.filters("active");
                 if(filts.some((f) => f.actname && f.actname.match(/[+\-]/g))) {
-                    msgs.push("Try turning off keywords"); }
+                    msgs.push("Try turning off keyword filters"); }
                 else if(filts.some((f) =>
                         f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {
                     msgs.push("Try wider energy level and approachability"); }
@@ -462,8 +467,10 @@ app.deck = (function () {
         var ds = [];  //deck songs
     return {
         songs: function () { return ds; },
-        setSongs: function (songs) {  //rebuild deck display with updated songs
+        setSongs: function (songs, upds) {  //rebuild deck display with songs
             ds = songs;
+            if(upds) {
+                ds = (ds.map((s) => upds[s.path])).filter((s) => s); }
             jt.log("dk.setSongs " + ds.slice(0, 7).map((s) => s.ti).join(", "));
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         songByIndex: function (idx) { return ds[idx]; },
@@ -585,10 +592,12 @@ app.deck = (function () {
                      mgrs.alb.makeAlbumSongDiv(song, idx))])); },
         albumstate: function () {
             return {key:cak, info:aid[cak]}; },
-        restore: function (state) {
+        restore: function (state, songs) {
             cak = state.key;
             jt.log("mgrs.alb.restore cak: " + cak);
             aid[cak] = state.info;
+            if(songs) {
+                aid[cak].songs = aid[cak].songs.map((s) => songs[s.path]); }
             jt.log("mgrs.alb.restore aid[cak]: " + JSON.stringify(aid[cak]));
             mgrs.gen.showSection("album"); },
         playnow: function (idx) {
@@ -848,14 +857,14 @@ app.deck = (function () {
             else { //might be displaying other tab, but next song is from deck
                 state.det = mgrs.dk.songs().slice(0, dmx); }
             return state; },
-        restore: function (state) {  //interim rapid restore display
+        restore: function (state, songs) {  //interim rapid restore display
             jt.log("deck.gen.restore " + state.disp);
             if(state.disp === "album") {
                 deckstat.disp = "album";
-                mgrs.alb.restore(state.det); }
+                mgrs.alb.restore(state.det, songs); }
             else {
                 deckstat.disp = "songs";
-                mgrs.dk.setSongs(state.det); } },
+                mgrs.dk.setSongs(state.det, songs); } },
         getNextSong: function () {
             if(deckstat.disp === "album") {
                 return mgrs.alb.nextSong(); }
@@ -870,7 +879,7 @@ return {
     getNextSong: function () { return mgrs.gen.getNextSong(); },
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
     getState: function (dmx) { return mgrs.gen.deckstate(dmx); },
-    setState: function (state) { mgrs.gen.restore(state); },
+    setState: function (state, songs) { mgrs.gen.restore(state, songs); },
     excise: function (s) { mgrs.dk.removeFromDeck(s); },
     stableDeckLength: function () { return mgrs.ws.stableDeckLength(); },
     saveSongs: function (s, d, c, f) { mgrs.sdt.saveSongs(s, d, c, f); },
