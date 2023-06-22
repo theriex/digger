@@ -377,8 +377,11 @@ app.svc = (function () {
                     jt.semaphore("mgrs.loc.saveSongs")); },
         noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
             var song = dbo.songs[updsong.path];
-            if(song) {  //hub sync might send something not available locally
+            if(song) {
                 app.copyUpdatedSongData(song, updsong); }
+            else {  //hub sync might send something not available locally
+                jt.log("noteUpdatedSongData ignoring non-local song: " +
+                       JSON.stringify(updsong)); }
             return song || updsong; },
         updateAccount: function (acctsinfo, contf, errf) {
             var data = jt.objdata({acctsinfo:JSON.stringify(acctsinfo)});

@@ -331,23 +331,43 @@ app.deck = (function () {
             accts[aidx] = updacc;
             app.svc.dispatch("loc", "writeConfig", conf, function () {
                 jt.log("deck.hsu.writeUpdatedAccount success"); }); }
+        function safeSongFieldValue (s, f, t) {
+            var val = s[f];
+            if(typeof val !== "string") {
+                jt.log("safeSongFieldValue correcting " + f + " field for '" +
+                       t + "' Song " + s.dsId + " ti: " + s.ti + ", ar: " +
+                       s.ar + ", ab: " + s.ab);
+                val = String(val);
+                if(val === "undefined") {
+                    const dflts = {ti:"Unknown", ar:"Unknown", ab:"Singles"};
+                    val = dflts[f] || "Bad Field"; } }
+            return val; }
+        function songFieldComp (a, b, f) {
+            var af = safeSongFieldValue(a, f, "a");
+            var bf = safeSongFieldValue(b, f, "b");
+            //Definitely need case-insensitive to match database storage.
+            //Probably best to be lenient about accents also.
+            return af.localeCompare(bf, undefined,
+                                    {sensitivity:"base"}) === 0; }
         function updateLocalSong (dbo, s) {
+            var vc = "Upd";
             var ls = dbo.songs[s.path];
-            if(!ls) {  //path was from some another Digger setup, try find it
+            if(!ls) {  //song was last updated from some other setup
+                vc = "Map";
                 ls = Object.values(dbo.songs).find((x) =>
-                    x.dsId === s.dsId ||  //match id or tiarab
-                        (x.ti === s.ti && x.ar === s.ar && x.ab === s.ab)); }
-            if(!ls) {  //non-local path, no matching local song, add for ref
-                ls = {path:s.path,  //Need a path, even if no file there.
-                      fq:"DN",      //Deleted file, Newly added
-                      ti:s.ti, ar:s.ar, ab:s.ab,
-                      lp:s.lp};     //Played on other setup, keep value
-                dbo.songs[s.path] = ls; }
-            jt.log("writing updated song " + ls.path);
+                    ((x.dsId === s.dsId) ||
+                     (songFieldComp(x, s, "ti") &&
+                      songFieldComp(x, s, "ar") &&
+                      songFieldComp(x, s, "ab")))); }
+            if(!ls) {  //new song from some other setup
+                vc = "Nmp";  //not mapped.  Deleted file or bad metadata.
+                ls = s; }
             const flds = ["modified", "dsId", "rv", "al", "el", "kws", "nt"];
             if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
-                flds.push("fq"); }  //update fq unless deleted or unreadable
-            flds.forEach(function (fld) { ls[fld] = s[fld]; }); }
+                flds.push("fq"); }
+            flds.forEach(function (fld) { ls[fld] = s[fld]; });
+            jt.log("updls " + vc + " " + ls.dsId + ": " + ls.path);
+            return ls; }
     return {
         noteSynchronizedAccount: function (updacc) {
             app.top.dispatch("hcu", "deserializeAccount", updacc);

@@ -1,4 +1,4 @@
-/*jslint node, white, long, unordered */
+/*jslint node, white, long, unordered, for */
 
 const formidable = require("formidable");
 const db = require("./db.js");
@@ -37,42 +37,72 @@ module.exports = (function () {
     }
 
 
+    function safeSongFieldValue (s, f, t) {
+        var val = s[f];
+        if(typeof val !== "string") {
+            console.log("safeSongFieldValue correcting " + f + " field for '" +
+                        t + "' Song " + s.dsId + " ti: " + s.ti + ", ar: " +
+                        s.ar + ", ab: " + s.ab);
+            val = String(val);
+            if(val === "undefined") {
+                const dflts = {ti:"Unknown", ar:"Unknown", ab:"Singles"};
+                val = dflts[f] || "Bad Field"; } }
+        return val;
+    }
+
+
+    function songFieldComp (a, b, f) {
+        var af = safeSongFieldValue(a, f, "a");
+        var bf = safeSongFieldValue(b, f, "b");
+        //Definitely need case-insensitive to match database storage.
+        //Probably best to be lenient about accents also.
+        return af.localeCompare(bf, undefined, {sensitivity:"base"}) === 0;
+    }
+
+
     function updateLocalSong (dbo, s) {
+        var vc = "Upd";
         var ls = dbo.songs[s.path];
         if(!ls) {  //song was last updated from some other setup
+            vc = "Map";
             ls = Object.values(dbo.songs).find((x) =>
-                x.dsId === s.dsId ||
-                    (x.ti === s.ti && x.ar === s.ar && x.ab === s.ab)); }
+                ((x.dsId === s.dsId) ||
+                 (songFieldComp(x, s, "ti") &&
+                  songFieldComp(x, s, "ar") &&
+                  songFieldComp(x, s, "ab")))); }
         if(!ls) {  //new song from some other setup
-            ls = {path:s.path,  //Need a path, even if no file there.
-                  fq:"DN",      //Deleted file, Newly added
-                  ti:s.ti, ar:s.ar, ab:s.ab,
-                  lp:s.lp};     //Played on other setup, but good to have value
-            dbo.songs[s.path] = ls; }
+            vc = "Nmp";  //not mapped.  Deleted file or bad metadata.
+            ls = s; }
         const flds = ["modified", "dsId", "rv", "al", "el", "kws", "nt"];
         if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
             flds.push("fq"); }
         flds.forEach(function (fld) { ls[fld] = s[fld]; });
-        console.log("writing updated song " + ls.path);
+        console.log("updls " + vc + " " + ls.dsId + ": " + ls.path);
         return ls;
     }
 
 
     function processReceivedSyncData (updates) {
+        var i;
         updates = JSON.parse(updates);
         updates[0].diggerVersion = db.diggerVersion();
-        const retval = JSON.stringify(updates);
-        const updacc = updates[0];
-        deserializeAccountFields(updacc);
+        const updacc = JSON.parse(JSON.stringify(updates[0]));
+        deserializeAccountFields(updacc);  //safely deserialize copy
         writeUpdatedAccount(updacc);  //reflect modified timestamp
-        //write any returned updated songs
-        const updsongs = updates.slice(1);  //zero or more newer songs
-        if(updsongs.length) {
+        if(updates.length > 1) {
             const dbo = db.dbo();
-            updsongs.forEach(function (s) {
-                updateLocalSong(dbo, s); });
+            for(i = 1; i < updates.length; i += 1) {
+                try {
+                    updates[i] = updateLocalSong(dbo, updates[i]);
+                } catch(e) {
+                    console.log("prsd updateLocalSong failure: " + e +
+                                " (song " + updates[i].dsId + " ti: " +
+                                updates[i].ti + ", ar: " + updates[i].ar +
+                                ", ab: " + updates[i].ab + ")"); } }
+            console.log("prsd finished writing " + (i - 1) + " songs");
             db.writeDatabaseObject(); }
-        return retval;
+        updates = JSON.stringify(updates);
+        return updates;
     }
 
 

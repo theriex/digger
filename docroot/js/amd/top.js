@@ -1053,6 +1053,8 @@ app.top = (function () {
                     if(mgrs.afg.inApp()) {  //running within web app
                         mgrs.gen.updateHubToggleSpan(acct);  //UI reflect name
                         mgrs.gen.togtopdlg(null, "close");
+                        mgrs.igf.resetIgnoreFolders(acct.igfolds);
+                        mgrs.igf.markIgnoreSongs();
                         mgrs.aaa.notifyAccountChanged();  //UI reflect settings
                         //acct.syncsince already reset in makeHubCall
                         mgrs.srs.syncToHub("signin"); }
@@ -1619,7 +1621,9 @@ app.top = (function () {
                     (pes[pes.length - 2] === f ||
                      (f.endsWith("*") &&
                       pes[pes.length  - 2].startsWith(f)))); }
-            return false; }
+            return false; },
+        resetIgnoreFolders: function (folderNamesArray) {
+            igfolds = folderNamesArray; }
     };  //end of mgrs.igf returned functions
     }());
 
