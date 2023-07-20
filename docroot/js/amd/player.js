@@ -171,6 +171,7 @@ app.player = (function () {
             if(pbs === "paused") {  //may be resumed via external controls
                 bimg = "img/play.png"; }
             else {  //playing
+                mgrs.slp.clearOverlayMessage();  //if sleep note, get rid of it
                 bimg = "img/pause.png"; }
             jt.byId("pluibimg").src = bimg;
             if(!prog.ticker && !skiptick) {  //restart heartbeat
@@ -484,7 +485,7 @@ app.player = (function () {
                         jt.log("notePlaybackStatus ignoring path change " +
                                "status ended (sleeping)"); }
                     else {
-                        mgrs.mob.rebuildFromPath(status.path); } } }
+                        mgrs.mob.popForwardOrRebuild(status.path); } } }
             stat.stale = null;
             pbi.state = status.state;  //"playing"/"paused"/"ended"
             pbi.pos = status.pos;  //current play position ms
@@ -546,25 +547,21 @@ app.player = (function () {
             mgrs.aud.verifyPlayer(function () {
                 mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
                 mgrs.aud.updateSongDisplay(); }); },
-        rebuildFromPath: function (npp) {  //player has skipped forward
+        popForwardOrRebuild: function (npp) {  //now playing path
             mgrs.slp.clearOverlayMessage();  //remove if message displayed
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.resetDisplay();  //close comment if open
-            jt.out("playtitletextspan", "---");
-            app.svc.loadDigDat(function (dbo) {  //other songs might have played
-                const nsg = dbo.songs[npp];  //definitely exists, playing...
-                if(!nsg) {  //if somehow fails, provide a clue
-                    return jt.err("mgrs.mob.rebuildFromPath song not found: " +
-                                  npp); }
-                jt.log("player.mob.rebuildFromPath dbo reloaded");
-                stat.song = nsg;
-                app.deck.excise(stat.song);  //pull in case currently visible
-                app.deck.dispatch("dk", "markSongPlayed", stat.song);
-                mgrs.cmt.resetDisplay();  //update comment indicator for song
-                mgrs.aud.updateSongDisplay();
+            jt.out("playtitletextspan", "---");  //stop showing old song title
+            app.svc.loadDigDat(function (dbo) {  //get updated lp timestamps
                 app.deck.dispatch("ws", "refreshDeckSongRefs", dbo.songs);
-                app.deck.dispatch("ws", "rebuild",
-                                  "player.mob songs rebuild"); }); },
+                if(app.deck.popForward(npp)) {
+                    stat.song = dbo.songs[npp];
+                    mgrs.cmt.resetDisplay();  //update comment indicator
+                    mgrs.aud.updateSongDisplay(); }
+                else {
+                    jt.log("Unable to popForward, song path not on deck");
+                    app.deck.dispatch("ws", "rebuild",
+                                      "player.mob songs rebuild"); } }); },
         rebuildIfSongPlaying: function (updsg) {  //song updated from hub
             if(updsg && stat.song && stat.song.path === updsg.path) {
                 const chgflds = mgrs.gen.listChangedFields(stat.song, updsg);

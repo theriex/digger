@@ -551,7 +551,14 @@ app.deck = (function () {
                 app.player.noteprevplay(song.lp);
                 mgrs.dk.markSongPlayed(song); }
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
-            return song; }
+            return song; },
+        popForward: function (npp) {  //now playing path
+            const idx = ds.findIndex((s) => s.path === npp);
+            if(idx >= 0) {
+                ds = ds.slice(idx + 1);
+                mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
+                return ds; }
+            return null; }
     };  //end of mgrs.dk returned functions
     }());
 
@@ -897,10 +904,10 @@ return {
     deckinfo: function () { return mgrs.gen.deckinfo(); },
     update: function (caller) { mgrs.ws.rebuild(caller); },
     getNextSong: function () { return mgrs.gen.getNextSong(); },
+    popForward: function (path) { return mgrs.dk.popForward(path); },
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
     getState: function (dmx) { return mgrs.gen.deckstate(dmx); },
     setState: function (state, songs) { mgrs.gen.restore(state, songs); },
-    excise: function (s) { mgrs.dk.removeFromDeck(s); },
     stableDeckLength: function () { return mgrs.ws.stableDeckLength(); },
     saveSongs: function (s, d, c, f) { mgrs.sdt.saveSongs(s, d, c, f); },
     dispatch: function (mgrname, fname, ...args) {
