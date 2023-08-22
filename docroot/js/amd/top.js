@@ -1269,7 +1269,7 @@ app.top = (function () {
                         widd.style.padding = "20px"; } }
                 else {  //pad to avoid camera notch and top/bot stat bars
                     if(hacd) {
-                        hacd.style.paddingTop = "60px"; }
+                        hacd.style.marginTop = "60px"; }
                     const dod = jt.byId("hpgoverlaydiv");
                     if(dod) {
                         dod.style.top = "60px";
