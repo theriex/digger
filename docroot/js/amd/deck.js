@@ -489,7 +489,7 @@ app.deck = (function () {
         songs: function () { return ds; },
         setSongs: function (songs, upds) {  //rebuild deck display with songs
             ds = songs;
-            if(upds) {
+            if(upds) { //make array of all deck songs in upds, remove nulls
                 ds = (ds.map((s) => upds[s.path])).filter((s) => s); }
             jt.log("dk.setSongs " + ds.slice(0, 7).map((s) => s.ti).join(", "));
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },

@@ -471,29 +471,37 @@ app.player = (function () {
             //finished due to pause/sleep.
             if(di.disp === "songs" && di.songs.length) {
                 mgrs.slp.startSleep("Sleeping..."); } }
-    return {
-        ////calls from svc.mp
-        notePlaybackStatus: function (status) {
-            if(status.path && stat.song && stat.song.path) {
-                jt.log("notePlaybackStatus stat.song.path: " + stat.song.path);
-                jt.log("notePlaybackStatus    status.path: " + status.path);
-                if(status.path !== stat.song.path) {
-                    if(stat.stale && stat.stale.path === status.path) {
-                        jt.log("notePlaybackStatus ignoring stale update");
-                        return; }
-                    if(status.state === "ended") {
-                        jt.log("notePlaybackStatus ignoring path change " +
-                               "status ended (sleeping)"); }
-                    else {
-                        mgrs.mob.popForwardOrRebuild(status.path); } } }
+        function updatePBI (status) {
             stat.stale = null;
             pbi.state = status.state;  //"playing"/"paused"/"ended"
             pbi.pos = status.pos;  //current play position ms
             pbi.dur = status.dur || pbi.dur;  //song duration if provided
             mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
+            debouncing = false; }
+        function clearSongDisplay () {
+            mgrs.slp.clearOverlayMessage();  //remove if message displayed
+            mgrs.tun.toggleTuningOpts("off");
+            mgrs.cmt.resetDisplay();  //close comment if open
+            jt.out("playtitletextspan", "---"); }
+    return {
+        ////calls from svc.mp
+        notePlaybackStatus: function (status) {
+            if(stat.stale && stat.stale.path === status.path) {
+                jt.log("mob: ignoring status update from previous song");
+                return; }
+            if(stat.song && stat.song.path === status.path) {
+                updatePBI(status); }  //displayed song still playing
+            else {  //song has changed. service has moved forward N songs
+                clearSongDisplay();
+                app.svc.loadDigDat(function (dbo) {  //load updated song(s) lp
+                    //if plat is playing foreign media, this logic will fail.
+                    //user may have to hit the skip button or relaunch.
+                    stat.song = dbo.songs[status.path];
+                    mgrs.cmt.resetDisplay();  //update comment indicator
+                    mgrs.aud.updateSongDisplay();
+                    app.deck.popForward(stat.song.path); }); }
             if(status.state === "ended") {
-                handlePlayerEnd(); }
-            debouncing = false; },
+                handlePlayerEnd(); } },
         handlePlayFailure: function (errstat, errtxt) {
             //mobile should not encounter unsupported media types, so all
             //media should generally play.  Could be a deleted file, or media
@@ -547,21 +555,6 @@ app.player = (function () {
             mgrs.aud.verifyPlayer(function () {
                 mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
                 mgrs.aud.updateSongDisplay(); }); },
-        popForwardOrRebuild: function (npp) {  //now playing path
-            mgrs.slp.clearOverlayMessage();  //remove if message displayed
-            mgrs.tun.toggleTuningOpts("off");
-            mgrs.cmt.resetDisplay();  //close comment if open
-            jt.out("playtitletextspan", "---");  //stop showing old song title
-            app.svc.loadDigDat(function (dbo) {  //get updated lp timestamps
-                app.deck.dispatch("ws", "refreshDeckSongRefs", dbo.songs);
-                if(app.deck.popForward(npp)) {
-                    stat.song = dbo.songs[npp];
-                    mgrs.cmt.resetDisplay();  //update comment indicator
-                    mgrs.aud.updateSongDisplay(); }
-                else {
-                    jt.log("Unable to popForward, song path not on deck");
-                    app.deck.dispatch("ws", "rebuild",
-                                      "player.mob songs rebuild"); } }); },
         rebuildIfSongPlaying: function (updsg) {  //song updated from hub
             if(updsg && stat.song && stat.song.path === updsg.path) {
                 const chgflds = mgrs.gen.listChangedFields(stat.song, updsg);
