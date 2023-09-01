@@ -1868,7 +1868,7 @@ app.top = (function () {
                        s.path]])])); },
         playSong: function (path) {
             var song = app.svc.dispatch("loc", "songs")[path];
-            app.deck.dispatch("dk", "removeFromDeck", song);
+            app.deck.dispatch("dk", "removeFromDeck", song.path);
             app.deck.dispatch("hst", "noteSongPlayed", song);
             app.deck.dispatch("dk", "playnow", "hst", 0); },
         versionInfoHTML: function () {

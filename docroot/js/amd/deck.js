@@ -534,8 +534,8 @@ app.deck = (function () {
             app.svc.dispatch("gen", "updateMultipleSongs", pss, function () {
                 mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
                 contf(); }, errf); },
-        removeFromDeck: function (song) {
-            ds = ds.filter((s) => s.path !== song.path);
+        removeFromDeck: function (sp) {  //song path
+            ds = ds.filter((s) => s.path !== sp);
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         insertAtTop: function (song) {
             ds = [song, ...ds.filter((s) => s.path !== song.path)];
@@ -638,7 +638,17 @@ app.deck = (function () {
                 mgrs.dk.removeFromDeck(song);
                 mgrs.alb.displayAlbum(song);
                 return song; }
-            return null; }
+            return null; },
+        popForward: function (npp) {
+            mgrs.dk.removeFromDeck(npp);  //excise from deck if in it
+            const idx = aid[cak].songs.findIndex((s) => s.path === npp);
+            if(idx < 0) {
+                mgrs.gen.showSection("songs");
+                return null; }
+            aid[cak].ci = idx;
+            const song = aid[cak].songs[idx];
+            mgrs.alb.displayAlbum(song);
+            return song; }
     };  //end of mgrs.alb returned functions
     }());
 
@@ -895,7 +905,11 @@ app.deck = (function () {
         getNextSong: function () {
             if(deckstat.disp === "album") {
                 return mgrs.alb.nextSong(); }
-            return mgrs.dk.popSongFromDeck(); }
+            return mgrs.dk.popSongFromDeck(); },
+        popForward: function (npp) { //now playing path
+            if(deckstat.disp === "album") {
+                return mgrs.alb.popForward(npp); }
+            return mgrs.dk.popForward(npp); }
     };  //end mgrs.gen returned functions
     }());
 
@@ -904,7 +918,7 @@ return {
     deckinfo: function () { return mgrs.gen.deckinfo(); },
     update: function (caller) { mgrs.ws.rebuild(caller); },
     getNextSong: function () { return mgrs.gen.getNextSong(); },
-    popForward: function (path) { return mgrs.dk.popForward(path); },
+    popForward: function (path) { return mgrs.gen.popForward(path); },
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
     getState: function (dmx) { return mgrs.gen.deckstate(dmx); },
     setState: function (state, songs) { mgrs.gen.restore(state, songs); },
