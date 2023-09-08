@@ -1,4 +1,4 @@
-/*global app, jt, console */
+/*global app, jt */
 /*jslint browser, white, long, unordered */
 
 //Top panel interface and actions
@@ -426,8 +426,8 @@ app.top = (function () {
                     jt.out(dispid, ads[actdefname].b + " failed " + code +
                            ": " + errtxt); }); },
         msgOpts: function (dispid, msg) {
-            // console.log("msgOpts msgtype: " + msg.msgtype + ", actions: " +
-            //             mds[msg.msgtype].actions);
+            // jt.log("msgOpts msgtype: " + msg.msgtype + ", actions: " +
+            //        mds[msg.msgtype].actions);
             const actions = mds[msg.msgtype].actions.csvarray()
                 .map((an) => (ads[an].dte? dotDispatch(ads[an].dte, msg) :
                                            ({name:an, def:ads[an]})));
@@ -2363,7 +2363,7 @@ app.top = (function () {
                    ["div", {id:"titrightdiv"},
                     [["span", {id:"countspan"}, "Loading..."],
                      ["div", {id:"rtfmdiv"},
-                      ["a", {href:"/docs/manual.html", title:"How Digger works",
+                      ["a", {href:"/docs/manual.html", title:"Digger manual",
                              onclick:jt.fs("app.displayDoc('" + app.overlaydiv +
                                            "','manual.html')")},
                        "RTFM"]]]]]],
@@ -2431,8 +2431,8 @@ return {
         try {
             return mgrs[mgrname][fname].apply(app.top, args);
         } catch(e) {
-            console.log("top.dispatch " + mgrname + "." + fname + " " + e +
-                        " " + new Error("stack trace").stack);
+            jt.log("top.dispatch " + mgrname + "." + fname + " " + e +
+                   " " + new Error("stack trace").stack);
         } }
 };  //end of module returned functions
 }());

@@ -664,6 +664,62 @@ app.filter = (function () {
     }());
 
 
+    //Digger console message manager handles app log messages.
+    mgrs.dcm = (function () {
+        const bufmax = 200;
+        const buf = [];
+        function timestamp () {
+            var date = new Date();
+            const h = date.getHours();
+            const m = date.getMinutes();
+            const s = date.getSeconds();
+            var ts = "";
+            if(h <= 9) { ts += "0"; }
+            ts += h;
+            ts += ":";
+            if(m <= 9) { ts += "0"; }
+            ts += m;
+            ts += ":";
+            if(s <= 9) { ts += "0"; }
+            ts += s;
+            return ts; }
+        function logMessage (text) {
+            buf.push({t:timestamp(), c:0, m:text});
+            if(buf.length > bufmax) {
+                buf.shift(); } }
+    return {
+        init: function () {
+            jt.log = logMessage;  //catch all app console output
+            window.onerror = function(msg, url, line, col, ignore /*error*/) {
+                logMessage(msg + " " + url + ":" + line + ":" + col + " " +
+                           new Error("stack trace").stack);
+                const cancelDefaultSystemErrorHandling = true;
+                return cancelDefaultSystemErrorHandling; };
+            logMessage("dcm initialized"); },
+        emFormat: function () {
+            var txt = "Describe what was happening with Digger at the time:" +
+                "\n\n\n\n----------------------------------------\n\nDigger " +
+                app.top.dispatch("gen", "songDataVersion") +
+                " excerpt of console log:\n\n" +
+                buf.map((ln) =>
+                    ln.t + " " + (ln.c? " (" + ln.c + ") " : "") + ln.m)
+                .join("\n\n");
+            return txt; },
+        showLog: function (divid) {
+            app.docStaticContent(divid, jt.tac2html(
+                ["div", {id:"logdispdiv"},
+                 [["div", {id:"logdispheaderdiv"}, "Digger " +
+                   app.top.dispatch("gen", "songDataVersion")],
+                  ["div", {id:"logdispcontdiv"},
+                   buf.map((ln) =>
+                       ["div", {cla:"logdisplinediv"},
+                        [["span", {cla:"logdisplinetspan"}, ln.t],
+                         ["span", {cla:"logdisplinecspan"}, (ln.c || "")],
+                         ["span", {cla:"logdisplinemspan"}, ln.m]]])]]])); }
+    };  //end of mgrs.dcm returned functions
+    }());
+
+
     //General panel level setup and dispatch
     mgrs.gen = (function () {
         const spte = "rotate(0deg)";
@@ -694,6 +750,7 @@ app.filter = (function () {
                 bspan.style.transform = sptc;
                 jt.byId("filtpanelcontdiv").style.display = "block"; } },
         initializeInterface: function () {
+            mgrs.dcm.init();  //override all console output
             jt.out("panfiltdiv", jt.tac2html(
                 ["div", {id:"panfiltcontentdiv"},
                  [["div", {cla:"paneltitlediv"},
@@ -723,6 +780,7 @@ return {
     filteringPanelState: function () { return mgrs.dsc.filteringPanelState(); },
     gradient: function () { return ranger.gradient; },
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
+    showLog: function (divid) { mgrs.dcm.showLog(divid); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.filter, args); }
 

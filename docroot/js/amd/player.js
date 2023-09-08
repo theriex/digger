@@ -1,4 +1,4 @@
-/*global app, jt, Spotify, console */
+/*global app, jt, Spotify */
 /*jslint browser, white, for, long, unordered */
 
 app.player = (function () {
@@ -1563,8 +1563,8 @@ return {
         try {
             return mgrs[mgrname][fname].apply(app.player, args);
         } catch(e) {
-            console.log("player.dispatch " + mgrname + "." + fname + " " + e +
-                        " " + new Error("stack trace").stack);
+            jt.log("player.dispatch " + mgrname + "." + fname + " " + e +
+                   " " + new Error("stack trace").stack);
         } }
 };  //end of returned functions
 }());

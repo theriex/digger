@@ -1,4 +1,4 @@
-/*global jtminjsDecorateWithUtilities, window, diggerapp */
+/*global jtminjsDecorateWithUtilities, window, diggerapp, console */
 /*jslint browser, white, long, unordered */
 
 var jt = {};
@@ -18,7 +18,7 @@ var app = (function () {
 
     function init2 () {
         app.amdtimer.load.end = new Date();
-        jt.log = console.log;
+        jt.log = console.log;  //overridden again in filter.dcm.init
         jt.log("window.innerWidth/Height: " + window.innerWidth + " x " +
                window.innerHeight);
         jt.on(document, "keydown", globkey);
@@ -227,10 +227,21 @@ return {
              url:"https://github.com/theriex/digger/issues"},
             {plc:"SUPPEMAIL", txt:"support" + bot,
              url:"mailto:support" + bot},
-            {plc:"EPINOVA", txt:"epinova.com", url:"https://epinova.com"}];
+            {plc:"EPINOVA", txt:"epinova.com", url:"https://epinova.com"},
+            {plc:"APPLOG", txt:"Digger App Log", aa: {
+                href:"#showlog", title:"Show Digger app exec log",
+                onclick:jt.fs("app.filter.showLog('" + app.overlaydiv +
+                              "')")}},
+            {plc:"SENDLOGSUPPLINK", txt:"Send it to support", aa: {
+                href:"mailto:support" + bot + "?subject=" +
+                    jt.dquotenc("Problem running Digger") + "&body=" +
+                    jt.dquotenc(app.filter.dispatch("dcm", "emFormat")) +
+                     "%0A%0A"}}];
         repls.forEach(function (repl) {
             var link = repl.url;
-            if(link.startsWith(docpre)) {  //internal doc url
+            if(repl.aa) { //anchor attributes provided
+                link = jt.tac2html(["a", repl.aa, repl.txt]); }
+            else if(link.startsWith(docpre)) {  //internal doc url
                 link = jt.tac2html(["a", {href:link, onclick:jt.fs(
                     "app.displayDoc('" + divid + "','" + link + "')")},
                                     repl.txt]); }
@@ -244,6 +255,17 @@ return {
                     link = repl.txt + " (" + repl.url + ")"; } }
             body = body.replace(new RegExp(repl.plc, "g"), link); });
         return body;
+    },
+
+
+    docStaticContent: function (divid, html) {
+        jt.out(divid, jt.tac2html(
+            ["div", {id:"docdispdiv"},
+             [["div", {id:"docdispxdiv"},
+               ["a", {href:"#close",
+                      onclick:jt.fs("app.displayDoc('" + divid + "')")},
+                "X"]],
+              ["div", {id:"docdispbodydiv"}, html]]]));
     },
 
 
@@ -272,13 +294,7 @@ return {
             const mbp = "| MANUAL | TERMS | PRIVACY | SUPPORT |";
             body = jt.tac2html(["div", {id:"docmenubardiv"}, mbp]) + body;
             body = app.subPlaceholders(divid, app.svc.urlOpenSupp(), body);
-            jt.out(divid, jt.tac2html(
-                ["div", {id:"docdispdiv"},
-                 [["div", {id:"docdispxdiv"},
-                   ["a", {href:"#close",
-                          onclick:jt.fs("app.displayDoc('" + divid + "')")},
-                    "X"]],
-                  ["div", {id:"docdispbodydiv"}, body]]]));
+            app.docStaticContent(divid, body);
             app.docDynamicContent(); });
     },
 
