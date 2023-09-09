@@ -82,19 +82,28 @@ app.deck = (function () {
         const mxkp = 20;  //notes 28dec22
         var wrk = {tmo:null, stat:"", resched:false, songs:[], fcs:[],
                    prs:[], wait:50};  //first wait is quick since starting up
-        function initRecentlyPlayedArtists () {
-            const memt = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000))
+        function mostRecentlyPlayedSongs () {
+            const thresh = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000))
                   .toISOString();
             var mrps = Object.values(app.svc.songs());
-            mrps = mrps.filter((s) => s.lp && s.lp > memt);
+            mrps = mrps.filter((s) => s.lp && s.lp > thresh);
             mrps.sort(function (a, b) {  //most recent song first
                 return b.lp.localeCompare(a.lp); });
+            return mrps; }
+        function initRecentlyPlayedArtists () {
             wrk.rpas = [];
-            mrps.forEach(function (s) {
+            mostRecentlyPlayedSongs().forEach(function (s) {
                 if(wrk.rpas.indexOf(s.ar) < 0) {
                     wrk.rpas.push(s.ar); } });
             wrk.rpas.reverse();   //highest index: most recently played artist
             jt.log("wrk.rpas: ..." + wrk.rpas.slice(-10).join(", ")); }
+        function initRecentlyPlayedAlbums () {
+            wrk.rpbs = [];
+            mostRecentlyPlayedSongs().forEach(function (s) {
+                if(wrk.rpbs.indexOf(s.ab) < 0) {
+                    wrk.rpbs.push(s.ab); } });
+            wrk.rpbs.reverse();   //highest index: most recently played album
+            jt.log("wrk.rpbs: ..." + wrk.rpbs.slice(-10).join(", ")); }
         function recentFirst (a, b) {
             if(a.lp && !b.lp) { return -1; }  //unplayed last, thx first
             if(!a.lp && b.lp) { return 1; }
@@ -113,25 +122,26 @@ app.deck = (function () {
             if(aid.startsWith("fr") && bid.startsWith("fr")) {
                 return recentFirst(a, b); }
             return 0; }
-        function compareDeckArtists (a, b) {
-            const adi = wrk.prs.findIndex((s) => s.ar === a.ar);
-            const bdi = wrk.prs.findIndex((s) => s.ar === b.ar);
-            if(adi >= 0 || bdi >= 0) {
+        function compareDeckRecent (fld, a, b) {
+            const adi = wrk.prs.findIndex((s) => s[fld] === a[fld]);
+            const bdi = wrk.prs.findIndex((s) => s[fld] === b[fld]);
+            if(adi >= 0 || bdi >= 0) {  //at least one found in deck state
                 if(adi < bdi) { return -1; }
                 if(adi > bdi) { return 1; } }
             return 0; }
-        function compareRecentArtists (a, b) {
-            if(wrk.prs.length) {  //use preserved deck state instead
-                return compareDeckArtists(a, b); }
-            const arpi = wrk.rpas.indexOf(a.ar);
-            const brpi = wrk.rpas.indexOf(b.ar);
-            if(arpi >= 0 || brpi >= 0) {
-                if(arpi < brpi) { return -1; }  //higher idx artists last
+        function compareRecent (fld, recents, a, b) {
+            if(wrk.prs.length) {  //use preserved deck state rather than all
+                return compareDeckRecent(fld, a, b); }
+            const arpi = recents.indexOf(a[fld]);
+            const brpi = recents.indexOf(b[fld]);
+            if(arpi >= 0 || brpi >= 0) {  //at least one found in recents
+                if(arpi < brpi) { return -1; }  //higher idx songs last
                 if(arpi > brpi) { return 1; } }
             return 0; }
         function comparePresentation (a, b) {
             return (compareOwnership(a, b) ||
-                    compareRecentArtists(a, b) ||
+                    compareRecent("ar", wrk.rpas, a, b) ||
+                    compareRecent("ab", wrk.rpbs, a, b) ||
                     oldestFirst(a, b)); }
         function filterByFilters (runcounts) {
             if(app.filter.filteringPanelState() === "off") {
@@ -186,6 +196,7 @@ app.deck = (function () {
         preserveExistingDeckSongs: function () {
             var decksongs = mgrs.dk.songs();  var di; var si; var currsong;
             if(!wrk.rpas) { initRecentlyPlayedArtists(); }
+            if(!wrk.rpbs) { initRecentlyPlayedAlbums(); }
             wrk.prs = [];  //reset preserved songs
             for(di = 0; di < decksongs.length && di < mxkp; di += 1) {
                 currsong = decksongs[di];
