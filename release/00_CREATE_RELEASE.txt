@@ -56,7 +56,7 @@ mv Digger.dmg ../../diggerhub/site/public/downloads
 # deploy the updated site and executables
 # https://play.google.com/console/
 #   - Create new release
-#   - Android Studio|Build|Create Signed Bundle, drop upload to site
+#   - Android Studio|Build|Generate Signed Bundle, drop upload to site
 #   - paste relnotes, rollout
 # https://appstoreconnect.apple.com/
 #   - xcode|Product|Archive -> upload
