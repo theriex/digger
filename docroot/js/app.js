@@ -64,7 +64,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=230914");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=230916");
     },
 
 
@@ -79,7 +79,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=230914";  //updated as part of release process
+        return "v=230916";  //updated as part of release process
     },
 
 
@@ -230,13 +230,11 @@ return {
             {plc:"EPINOVA", txt:"epinova.com", url:"https://epinova.com"},
             {plc:"APPLOG", txt:"Digger App Log", aa: {
                 href:"#showlog", title:"Show Digger app exec log",
-                onclick:jt.fs("app.filter.showLog('" + app.overlaydiv +
-                              "')")}},
-            {plc:"SENDLOGSUPPLINK", txt:"Send it to support", aa: {
-                href:"mailto:support" + bot + "?subject=" +
-                    jt.dquotenc("Problem running Digger") + "&body=" +
-                    jt.dquotenc(app.filter.dispatch("dcm", "emFormat")) +
-                     "%0A%0A"}}];
+                onclick:jt.fs("app.filter.showLog('" + app.overlaydiv + "')")}},
+            {plc:"SENDLOGSUPPLINK", txt:"Send it to support",
+             url:"mailto:support" + bot + "?subject=" +
+             jt.dquotenc("Problem running Digger") + "&body=" +
+             jt.dquotenc(app.filter.dispatch("dcm", "emFormat")) + "%0A%0A"}];
         repls.forEach(function (repl) {
             var link = repl.url;
             if(repl.aa) { //anchor attributes provided

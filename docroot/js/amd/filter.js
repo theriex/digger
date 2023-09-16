@@ -705,11 +705,26 @@ app.filter = (function () {
                     ln.t + " " + (ln.c? " (" + ln.c + ") " : "") + ln.m)
                 .join("\n\n");
             return txt; },
+        copyToClipboard: function () {
+            app.svc.dispatch("gen", "copyToClipboard", buf.map((ln) =>
+                    ln.t + " " + (ln.c? " (" + ln.c + ") " : "") + ln.m)
+                    .join("\n"),
+                function () {
+                    jt.out("c2cbutton", "Contents Copied");
+                    setTimeout(function () {
+                        jt.out("c2cbutton", "Copy Log To Clipboard"); },
+                               5000); },
+                function () {
+                    jt.log("filter.dcm.copyToClipboard failed."); }); },
         showLog: function (divid) {
             app.docStaticContent(divid, jt.tac2html(
                 ["div", {id:"logdispdiv"},
-                 [["div", {id:"logdispheaderdiv"}, "Digger " +
-                   app.top.dispatch("gen", "songDataVersion")],
+                 [["div", {id:"logdispheaderdiv"},
+                   ["Digger " + app.top.dispatch("gen", "songDataVersion"),
+                    " &nbsp; ",
+                    ["button", {type:"button", id:"c2cbutton",
+                                onclick:mdfs("dcm.copyToClipboard")},
+                     "Copy Log To Clipboard"]]],
                   ["div", {id:"logdispcontdiv"},
                    buf.map((ln) =>
                        ["div", {cla:"logdisplinediv"},
