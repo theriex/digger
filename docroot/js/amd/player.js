@@ -542,6 +542,8 @@ app.player = (function () {
         ////calls from mgrs.aud
         playSong: function (ps) {
             pbi = {song:ps, pos:0, dur:ps.duration || 0, state:"playing"};
+            //verify song playback display and kick off ticker as needed
+            mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
             app.svc.dispatch("mp", "playSong", ps.path);
             mgrs.mob.refreshPlayState(); },
         verifyPlayer: function (contf) {
