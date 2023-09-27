@@ -60,6 +60,7 @@ module.exports = (function () {
     }
 
 
+    //copy of deck.hsu.updateLocalSong as called from updateSynchronizedSongs
     function updateLocalSong (dbo, s) {
         var vc = "Upd";
         var ls = dbo.songs[s.path];
@@ -73,7 +74,12 @@ module.exports = (function () {
         if(!ls) {  //new song from some other setup
             vc = "Nmp";  //not mapped.  Deleted file or bad metadata.
             ls = s; }
-        const flds = ["modified", "dsId", "rv", "al", "el", "kws", "nt"];
+        const flds = [
+            "modified", "dsId",   //note hub db info locally for sync
+            "ti", "ar", "ab",     //if changed elsewhere, reflect here
+            "el", "al", "rv",     //update knobs and stars
+            "kws", "nt",          //update keywords and notes
+            "lp", "pc"];          //copy most recent play info
         if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
             flds.push("fq"); }
         flds.forEach(function (fld) { ls[fld] = s[fld]; });
