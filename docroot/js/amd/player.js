@@ -469,7 +469,8 @@ app.player = (function () {
             var di = app.deck.deckinfo();
             //if playing from deck and more songs available, then the player
             //finished due to pause/sleep.
-            if(di.disp === "songs" && di.songs.length) {
+            if((di.disp === "songs" && di.songs.length) ||
+               (di.disp === "album" && di.songs.length)) {
                 mgrs.slp.startSleep("Sleeping..."); } }
         function updatePBI (status) {
             stat.stale = null;

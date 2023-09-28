@@ -633,8 +633,12 @@ app.deck = (function () {
                    ["span", {cla:"dsarspan"}, np.ar]]],
                  aid[cak].songs.map((song, idx) =>
                      mgrs.alb.makeAlbumSongDiv(song, idx))])); },
-        albumstate: function () {
-            return {key:cak, info:aid[cak]}; },
+        albumstate: function (dmx) {  //dmx is >= 0
+            const abst = {key:cak, info:aid[cak]};
+            if(abst.info && abst.info.songs && dmx < abst.info.songs.length) {
+                abst.info = {ci:abst.info.ci,
+                             songs:abst.info.songs.slice(0, dmx)}; }
+            return abst; },
         restore: function (state, songs) {
             cak = state.key;
             jt.log("mgrs.alb.restore cak: " + cak);
@@ -906,7 +910,7 @@ app.deck = (function () {
             dmx = dmx || 0;  //must be numeric, verify not undefined.
             //jt.log("deck.gen.deckstate disp: " + deckstat.disp);
             if(deckstat.disp === "album") {
-                state.det = mgrs.alb.albumstate(); }
+                state.det = mgrs.alb.albumstate(dmx); }
             else { //might be displaying other tab, but next song is from deck
                 state.det = mgrs.dk.songs().slice(0, dmx); }
             return state; },
