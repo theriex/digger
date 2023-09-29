@@ -683,12 +683,88 @@ app.filter = (function () {
             if(s <= 9) { ts += "0"; }
             ts += s;
             return ts; }
+        function internalConsistencyMatch (md, rows) {
+            return rows[md.ar][md.av] === rows[md.br][md.bv]; }
+        function rowEquivalenceMatch (md, rs1, rs2) {
+            return rs1[md.r][md.v] === rs2[md.r][md.v]; }
+        function combineBufferRows (sidx, didx, numrows) {
+            var i;
+            for(i = 0; i < numrows; i += 1) {
+                buf[didx + i].c = buf[sidx + i].c + 1;
+                buf[sidx + i] = buf[didx + i]; }
+            buf.splice((-1 * numrows), numrows); }
+        function droidLogPollingDef () {
+            const def = {
+                mrxs:[/requestStatusUpdate dst.det.length: (\d+)/,
+                      /svc.mp.queueCommand (\d+): (\S+)/,
+                      /svc.mp.notePlaybackStatus stat: \{"state":"([a-z]+)","pos":\d+,"dur":\d+,"path":"([^"]+)/,
+                      /svc.mp.notePlaybackStatus finished (\d+): (\S+)/],
+                icms:[{ar:1, av:1, br:3, bv:1},   //same queue count val
+                      {ar:1, av:2, br:3, bv:2}],  //same queue command val
+                rmts:[{r:0, v:1},   //length remaining on deck
+                      {r:1, v:2},   //e.g. "status" command
+                      {r:2, v:1},   //playback state is the same
+                      {r:2, v:2},   //playback path is the same
+                      {r:3, v:2}],  //e.g. "status" command
+                samp:[
+{t:"13:47:53", c:1, m:"requestStatusUpdate dst.det.length: 200"},
+{t:"13:47:53", c:1, m:"svc.mp.queueCommand 41: status"},
+{t:"13:47:53", c:1, m:"svc.mp.notePlaybackStatus stat: {\"state\":\"playing\",\"pos\":40690,\"dur\":261642,\"path\":\"file%3A%2F%2F%2Fstorage%2Femulated%2F0%2FMusic%2F808%2520State%2Fex_el%2F13%2520Olympic.mp3\",\"cc\":41,\"dbts\":\"2023-09-29T17:45:15.567Z\"}"},
+{t:"13:47:53", c:1, m:"svc.mp.notePlaybackStatus finished 41: status"},
+{t:"13:47:57", c:1, m:"requestStatusUpdate dst.det.length: 200"},
+{t:"13:47:57", c:1, m:"svc.mp.queueCommand 42: status"},
+{t:"13:47:57", c:1, m:"svc.mp.notePlaybackStatus stat: {\"state\":\"playing\",\"pos\":44716,\"dur\":261642,\"path\":\"file%3A%2F%2F%2Fstorage%2Femulated%2F0%2FMusic%2F808%2520State%2Fex_el%2F13%2520Olympic.mp3\",\"cc\":42,\"dbts\":\"2023-09-29T17:45:15.567Z\"}"},
+{t:"13:47:57", c:1, m:"svc.mp.notePlaybackStatus finished 42: status"}]};
+            return def; }
+        function iosLogPollingDef () {
+            const def = {
+                mrxs:[/callIOS: main:(\d+):([^:]+):/,
+                      /ios.retv: main:(\d+):([^:]+):\{"state":"([a-z]+)","pos":\d+,"dur":\d+,"path":"([^"]+)/],
+                icms:[{ar:0, av:1, br:1, bv:1},   //same queue count val
+                      {ar:0, av:2, br:1, bv:2}],  //same queue command val
+                rmts:[{r:0, v:2},   //same command, e.g. statusSync
+                      {r:1, v:2},   //same command
+                      {r:1, v:3},   //same playback state
+                      {r:1, v:4}],  //same path
+                samp:[
+{t:"11:42:17", c:1, m:"callIOS: main:767:statusSync:[\"ipod-library://item/item.mp3?id=969038086138737235\",\"ipod-library://item/item.mp3?id=969038086138737483\",\"ipod-library://item/it...od-library://item/item.mp3?id=969038086138737342\"]"},
+{t:"11:42:17", c:1, m:"ios.retv: main:767:statusSync:{\"state\":\"playing\",\"pos\":22968,\"dur\":255843,\"path\":\"ipod-library://item/item.mp3?id=969038086138737235\"}"},
+{t:"11:42:21", c:1, m:"callIOS: main:768:statusSync:[\"ipod-library://item/item.mp3?id=969038086138737235\",\"ipod-library://item/item.mp3?id=969038086138737483\",\"ipod-library://item/it...od-library://item/item.mp3?id=969038086138737342\"]"},
+{t:"11:42:21", c:1, m:"ios.retv: main:768:statusSync:{\"state\":\"playing\",\"pos\":26985,\"dur\":255843,\"path\":\"ipod-library://item/item.mp3?id=969038086138737235\"}"}]};
+            return def; }
+        function collapsePolling () {
+            const cds = [droidLogPollingDef(), iosLogPollingDef()];
+            cds.forEach(function (cd) {
+                const sidx = buf.length - (2 * cd.mrxs.length);
+                if(sidx < 0) { return; }
+                const rs1 = buf.slice(sidx, sidx + cd.mrxs.length)
+                      .map((r, i) => r.m.match(cd.mrxs[i]));
+                if(!rs1.every((m) => m)) { return; }
+                const didx = buf.length - cd.mrxs.length;
+                const rs2 = buf.slice(didx, didx + cd.mrxs.length)
+                      .map((r, i) => r.m.match(cd.mrxs[i]));
+                if(!rs2.every((m) => m)) { return; }
+                if(cd.icms.every((m) => internalConsistencyMatch(m, rs1)) &&
+                   cd.icms.every((m) => internalConsistencyMatch(m, rs2)) &&
+                   cd.rmts.every((m) => rowEquivalenceMatch(m, rs1, rs2))) {
+                    combineBufferRows(sidx, didx, cd.mrxs.length); } }); }
         function logMessage (text) {
-            buf.push({t:timestamp(), c:0, m:text});
+            buf.push({t:timestamp(), c:1, m:text});
+            collapsePolling();
             if(buf.length > bufmax) {
                 buf.shift(); } }
+        function testLogCollapse () {
+            var tds = [droidLogPollingDef(), iosLogPollingDef()];
+            tds.forEach(function (td, idx) {
+                buf.splice(0, buf.length);  //clear buf
+                td.samp.forEach(function (tm) { buf.push(tm); });
+                collapsePolling();
+                jt.log("testLogCollapse " + idx + ": collapsed? " +
+                       String(buf.length === td.mrxs.length)); });
+            buf.splice(0, buf.length); }  //leave cleared
     return {
         init: function () {
+            testLogCollapse();
             jt.log = logMessage;  //catch all app console output
             window.onerror = function(msg, url, line, col, ignore /*error*/) {
                 logMessage(msg + " " + url + ":" + line + ":" + col + " " +
@@ -729,7 +805,8 @@ app.filter = (function () {
                    buf.map((ln) =>
                        ["div", {cla:"logdisplinediv"},
                         [["span", {cla:"logdisplinetspan"}, ln.t],
-                         ["span", {cla:"logdisplinecspan"}, (ln.c || "")],
+                         ["span", {cla:"logdisplinecspan"},
+                          ((ln.c > 1)? (ln.c + "&nbsp;") : "")],
                          ["span", {cla:"logdisplinemspan"}, ln.m]]])]]])); }
     };  //end of mgrs.dcm returned functions
     }());
