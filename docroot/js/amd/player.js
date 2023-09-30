@@ -500,7 +500,8 @@ app.player = (function () {
                     stat.song = dbo.songs[status.path];
                     mgrs.cmt.resetDisplay();  //update comment indicator
                     mgrs.aud.updateSongDisplay();
-                    app.deck.popForward(stat.song.path); }); }
+                    app.deck.popForward(stat.song.path);
+                    app.deck.rebuildHistory(); }); }
             if(status.state === "ended") {
                 handlePlayerEnd(); } },
         handlePlayFailure: function (errstat, errtxt) {

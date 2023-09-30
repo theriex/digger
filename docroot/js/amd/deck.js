@@ -699,7 +699,15 @@ app.deck = (function () {
                     .filter((song) => song.lp)
                     .sort(function (a, b) {
                         return b.lp.localeCompare(a.lp); })
-                    .slice(0, 100); } }
+                    .slice(0, 100); } },
+        rebuildHistory: function () {
+            var songs = [];
+            Object.entries(app.svc.songs()).forEach(function ([p, s]) {
+                if(!s.fq || !s.fq.match(/^[DUI]/)) {  //see player.tun.subcats
+                    s.path = p;  //used for lookup post update
+                    songs.push(s); } });
+            pps = [];
+            mgrs.hst.initHistoryIfNeeded(songs); }
     };  //end mgrs.hst returned functions
     }());
 
@@ -939,6 +947,7 @@ return {
     update: function (caller) { mgrs.ws.rebuild(caller); },
     getNextSong: function () { return mgrs.gen.getNextSong(); },
     popForward: function (path) { return mgrs.gen.popForward(path); },
+    rebuildHistory: function () { mgrs.hst.rebuildHistory(); },
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
     getState: function (dmx) { return mgrs.gen.deckstate(dmx); },
     setState: function (state, songs) { mgrs.gen.restore(state, songs); },
