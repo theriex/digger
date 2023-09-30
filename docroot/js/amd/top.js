@@ -124,14 +124,17 @@ app.top = (function () {
                 mgrs.srs.hubStatInfo("");
                 return jt.log("hubSyncStart aborted since not signed in"); }
             syt.stat = "executing";
-            mgrs.srs.hubStatInfo("processing...");
+            mgrs.srs.hubStatInfo("checking...");
             jt.out("modindspan", jt.tac2html(
                 ["a", {href:"#hubstatdetails", title:"Show hub work details",
                        onclick:mdfs("gen.togtopdlg", "la", "open")},
                  ["span", {cla:"indicatorlightcolor"},
                   "hub"]]));  //turn on work indicator
-            app.svc.dispatch("loc", "hubSyncDat", mgrs.srs.makeSendSyncData(),
+            const dat = mgrs.srs.makeSendSyncData();
+            mgrs.srs.hubStatInfo("sending...");
+            app.svc.dispatch("loc", "hubSyncDat", dat,
                 function (updates) {
+                    mgrs.srs.hubStatInfo("updating...");
                     mgrs.srs.processReceivedSyncData(updates);
                     mgrs.srs.hubSyncFinished(); },
                 function (code, errtxt) {
