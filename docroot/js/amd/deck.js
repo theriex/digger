@@ -415,6 +415,12 @@ app.deck = (function () {
                 ["a", {href:"#acctinfo",
                        onclick:app.dfs("top", "gen.togtopdlg", ["am", "open"])},
                  txt]); }
+        function avrLink () {
+            return jt.tac2html(
+                ["Add songs, verify app access permission, ",
+                 ["a", {href:"#reread",
+                        onclick:(app.dfs("svc", "loc.loadLibrary"))},
+                  "retry"]]); }
     return {
         optionsTAC: function (mgrnm, idx) {
             var tac = opts.filter((o) => 
@@ -471,11 +477,12 @@ app.deck = (function () {
                         f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {
                     msgs.push("Try wider energy level and approachability"); }
                 //extend library and/or add a fan to help
-                if(app.svc.dispatch("gen", "plat", "hdm") === "web") {
+                else if(app.svc.dispatch("gen", "plat", "hdm") === "web") {
                     app.top.dispatch("webla", "spimpNeeded", "nosongs");
                     msgs.push(amfLink("Add a fan to find more music")); }
-                else { //local player, possibly permission to access files
-                    msgs.push("Get more music"); } }
+                //add more local playable songs and allow access to them
+                else {
+                    msgs.push(avrLink()); } }
             return jt.tac2html([msgs.join(". ") + ".",
                                 ["div", {id:"nomusicstatdiv"}]]); },
         displaySongs: function (mgrnm, divid, songs) {
