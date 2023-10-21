@@ -397,9 +397,8 @@ app.player = (function () {
             app.deck.saveSongs(stat.song, true, function (updsong) {
                 app.svc.dispatch("web", "addSongsToPool", [updsong]);
                 app.deck.dispatch("hst", "noteSongPlayed", updsong);
-                mgrs.aud.updateSongDisplay();
-                app.deck.dispatch("gen", "redisplayCurrentSection"); });
-            mgrs.aud.reflectPlaying(); },
+                //deck should be notified and possibly rebuilt
+                mgrs.aud.updateSongDisplay(); }); },
         refreshPlayState: function () {
             swpi.getCurrentState().then(function (wpso) {
                 if(!wpso) {  //might be dead, might be still setting up
@@ -466,11 +465,7 @@ app.player = (function () {
         var pbi = null; //playback state information
         var debouncing = false;
         function handlePlayerEnd () {
-            var di = app.deck.deckinfo();
-            //if playing from deck and more songs available, then the player
-            //finished due to pause/sleep.
-            if((di.disp === "songs" && di.songs.length) ||
-               (di.disp === "album" && di.songs.length)) {
+            if(!app.deck.dispatch("gen", "moreSongsAvailable")) {
                 mgrs.slp.startSleep("Sleeping..."); } }
         function updatePBI (status) {
             stat.stale = null;
@@ -631,11 +626,6 @@ app.player = (function () {
             mgrs.pan.updateControl("el", stat.song.el);
             stat.song.rv = stat.song.rv || 0;  //verify numeric value
             mgrs.rat.adjustPositionFromRating(stat.song.rv); },
-        reflectPlaying: function () {
-            stat.status = "playing";
-            jt.log("player.aud.reflectPlaying " + JSON.stringify(stat.song));
-            mgrs.aud.updateSongDisplay();
-            app.deck.dispatch("gen", "redisplayCurrentSection"); },
         playAudio: function () {
             stat.status = "playing";
             jt.log("player.aud.playAudio " + JSON.stringify(stat.song));

@@ -196,7 +196,8 @@ app.filter = (function () {
             updateStatValues(x, y, cid);
             setCurtainWidths(x, y, cid);
             setCtrlSurfaceValues(x, y, cid);
-            mgrs.stg.filterValueChanged(); }
+            mgrs.stg.filterValueChanged();
+            app.deck.filtersChanged("range"); }
         function pcnts2Coords (pc) {
             const tc = {x:pc.x, y:pc.y};
             tc.y = 100 - tc.y;   //re-invert so top of rect is zero
@@ -290,7 +291,7 @@ app.filter = (function () {
                  ["div", {cla:"rangesurfdiv", style:boxPosStyle(r.irec)},
                   ["svg", {xmlns:"http://www.w3.org/2000/svg",
                            viewBox:"0 0 " + svg.vb.w + " " + svg.vb.h,
-                           stroke:"black", fill:"#ffab00"},
+                           stroke:"black", fill:"#555555"},
                    [["line", {id:cid + "vert", "stroke-width":svg.asw,
                               x1:svg.midx, y1:svg.yvr.s,
                               x2:svg.midx, y2:svg.yvr.e}],
@@ -334,7 +335,7 @@ app.filter = (function () {
             jt.byId("kwtbimg" + idx).src = "img/kwtog" + tog + ".png";
             if(changed) {
                 mgrs.stg.filterValueChanged();  //save updated kwtog value
-                app.deck.update("keyword filter"); } },
+                app.deck.filtersChanged("keyword filter"); } },
         togClick: function (idx) {
             const kt = ctrls.kts[idx];
             switch(kt.tog) {
@@ -406,15 +407,17 @@ app.filter = (function () {
                 {tx:"Tagged Only", ti:"Only pull songs with keywords."},
                 {tx:"Untagged Only", ti:"Only pull songs with no keywords."}],
                  idx:0, bid:"incluntb"}};
-    return {
-        writeHTML: function (divid) {
+        function writeHTML (divid) {
             var elems = Object.entries(tgds).map(function ([dn, dd]) {
                 return ["button", {type:"button", id:dd.bid,
                                    style:"color:" + ctrls.activecolor,
                                    onclick:mdfs("mruc.toggle", dn)},
                         dd.vs[dd.idx].tx]; });
+            elems.unshift(["div", {id:"toginfob"}]);  //used by deck.ddc
             elems.push(["div", {id:"fqftogdiv"}]);
-            jt.out(divid, jt.tac2html(elems)); },
+            jt.out(divid, jt.tac2html(elems));
+            app.deck.dispatch("ddc", "makeInfoToggle"); }
+    return {
         minrat2idx: function (rv) {
             var idx = 0;
             while(idx < tgds.mrf.vs.length && rv > tgds.mrf.vs[idx].v) {
@@ -436,7 +439,7 @@ app.filter = (function () {
                 button.innerHTML = tdef.vs[tdef.idx].tx;
                 button.title = tdef.vs[tdef.idx].ti;
                 mgrs.stg.filterValueChanged();  //save updated tag filter value
-                app.deck.update("pull filter " + dn); } },
+                app.deck.filtersChanged("pull filter " + dn); } },
         makeFilter: function () {
             ctrls.rat.settings = function () {
                 return {tp:"minrat", u:tgds.tgf.idx,
@@ -453,7 +456,7 @@ app.filter = (function () {
         minrat: function () { return tgds.mrf.vs[tgds.mrf.idx].v; },
         tagf: function () { return tgds.tgf.idx; },
         init: function (divid) {
-            mgrs.mruc.writeHTML(divid);
+            writeHTML(divid);
             mgrs.mruc.setFromSettings();
             mgrs.mruc.makeFilter();
             mgrs.fq.init("fqftogdiv"); }
@@ -498,7 +501,7 @@ app.filter = (function () {
                 button.title = "Song play frequency filtering disabled.";
                 button.style.background = "transparent"; }
             mgrs.stg.filterValueChanged();  //save updated freq filter value
-            app.deck.update("freq filter"); },
+            app.deck.filtersChanged("freq filter"); },
         makeFilter: function () {
             ctrls.fq.settings = function () {
                 return {tp:"fqb", v:fqb}; };
@@ -551,7 +554,7 @@ app.filter = (function () {
         filterValueChanged: function () {  //waits until controls stop moving
             if(!ctrls.filtersReady) { //ignore spurious startup events
                 return; }
-            app.deck.update("filterValueChanged");  //flag deck update needed
+            //app.deck.filtersChanged(); filters handle notifications
             if(tmofilt) {  //reset the filtering timer if currently waiting
                 clearTimeout(tmofilt); }
             tmofilt = setTimeout(function () {
@@ -596,7 +599,7 @@ app.filter = (function () {
             mgrs.kft.rebuildControls();
             mgrs.mruc.init("ratdiv");
             ctrls.filtersReady = ready;
-            app.deck.update("filters rebuilt"); }
+            app.deck.filtersChanged("filters rebuilt"); }
     };  //end of mgrs.stg returned functions
     }());
 
@@ -616,10 +619,7 @@ app.filter = (function () {
                     poskws:buttonsCSV("pos"), negkws:buttonsCSV("neg"),
                     minrat:mgrs.mruc.minrat(),
                     tagfidx:mgrs.mruc.tagf(),
-                    fq:mgrs.fq.getFrequencyFiltering(),  //on|off
-                    fpst:mgrs.dsc.filteringPanelState(),  //on|off
-                    ddst:mgrs.dsc.deckDisplayState(),  //normal|newest
-                    srchtxt:jt.byId("srchin").value || ""}; },
+                    fq:mgrs.fq.getFrequencyFiltering()}; },
         name: function () {
             var name = "Digger";  //caps sort before lowercase.
             var sep = "_";
@@ -653,13 +653,7 @@ app.filter = (function () {
             var togfiltb = jt.byId("togfiltb");
             if(togfiltb && togfiltb.dataset.togstate === "off") {
                 return "off"; }
-            return "on"; },
-        deckDisplayState: function () {
-            const view = app.deck.dispatch("vws", "getView");
-            const di = app.deck.dispatch("gen", "deckinfo");
-            if(di.disp === "views" && view === "newest") {
-                return "newest"; }
-            return "normal"; }
+            return "on"; }
     };  //end of mgrs.dsc returned functions
     }());
 
@@ -765,13 +759,14 @@ app.filter = (function () {
     return {
         init: function () {
             testLogCollapse();
-            jt.log = logMessage;  //catch all app console output
-            window.onerror = function(msg, url, line, col, ignore /*error*/) {
-                logMessage(msg + " " + url + ":" + line + ":" + col + " " +
-                           new Error("stack trace").stack);
-                const cancelDefaultSystemErrorHandling = true;
-                return cancelDefaultSystemErrorHandling; };
-            logMessage("dcm initialized"); },
+            // jt.log = logMessage;  //catch all app console output
+            // window.onerror = function(msg, url, line, col, ignore /*error*/) {
+            //     logMessage(msg + " " + url + ":" + line + ":" + col + " " +
+            //                new Error("stack trace").stack);
+            //     const cancelDefaultSystemErrorHandling = true;
+            //     return cancelDefaultSystemErrorHandling; };
+            // logMessage("dcm initialized"); },
+            logMessage("dcm NOT initialized"); },
         emFormat: function () {
             var txt = "Describe what was happening with Digger at the time:" +
                 "\n\n\n\n----------------------------------------\n\nDigger " +
@@ -814,8 +809,6 @@ app.filter = (function () {
 
     //General panel level setup and dispatch
     mgrs.gen = (function () {
-        const spte = "rotate(0deg)";
-        const sptc = "rotate(90deg) translate(25%, 25%)";
     return {
         containingDivEventHooks: function () {
             //trap and ignore clicks in the controls container div to avoid
@@ -830,33 +823,16 @@ app.filter = (function () {
                 ctrls.movestats.forEach(function (movestat) {
                     movestat.pointingActive = false; });
                 jt.evtend(event); }); },
-        togglePanelView: function () {
-            const fpeca = jt.byId("fpeca");
-            const bspan = jt.byId("fpecspan");
-            if(fpeca.href.endsWith("#collapse")) {
-                fpeca.href = "#expand";
-                bspan.style.transform = spte;
-                jt.byId("filtpanelcontdiv").style.display = "none"; }
-            else {
-                fpeca.href = "#collapse";
-                bspan.style.transform = sptc;
-                jt.byId("filtpanelcontdiv").style.display = "block"; } },
         initializeInterface: function () {
             mgrs.dcm.init();  //override all console output
             jt.out("panfiltdiv", jt.tac2html(
                 ["div", {id:"panfiltcontentdiv"},
-                 [["div", {cla:"paneltitlediv"},
-                   ["a", {id:"fpeca", href:"#init",
-                          onclick:mdfs("gen.togglePanelView")},
-                    [["span", {id:"fpecspan"}, ">"],
-                     "FILTERS"]]],
-                  ["div", {id:"filtpanelcontdiv"},
-                   [["div", {id:"rangesdiv"},
-                     [["div", {cla:"rangectrldiv", id:"aldiv"}],
-                      ["div", {cla:"rangectrldiv", id:"eldiv"}]]],
-                    ["div", {id:"kwtogsdiv"}],
-                    ["div", {id:"ratdiv"}]]]]]));
-            mgrs.gen.togglePanelView();
+                 ["div", {id:"filtpanelcontdiv"},
+                  [["div", {id:"rangesdiv"},
+                    [["div", {cla:"rangectrldiv", id:"aldiv"}],
+                     ["div", {cla:"rangectrldiv", id:"eldiv"}]]],
+                   ["div", {id:"kwtogsdiv"}],
+                   ["div", {id:"ratdiv"}]]]]));
             mgrs.gen.containingDivEventHooks();
             mgrs.stg.rebuildAllControls(); }
     };  //end of mgrs.gen returned functions
@@ -864,7 +840,8 @@ app.filter = (function () {
 
 
 return {
-    init: function () { mgrs.gen.initializeInterface(); },
+    init: function () { return; },
+    initializeInterface: function () { mgrs.gen.initializeInterface(); },
     initialDataLoaded: function () { mgrs.stg.rebuildAllControls(true); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },

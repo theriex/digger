@@ -61,7 +61,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   padding:5px 6px 10px 6px; }
 #pantopdiv { padding-bottom:0px; }
 #pandbdiv { padding:10px 6px 0px 6px; }
-#pandeckdiv { padding:10px 6px 4px 6px; }
+#pandeckdiv { padding:10px 6px 4px 6px; height:430px; max-height:430px;
+  overflow:hidden; }
 .inv { }
 
 /****************************************/
@@ -306,8 +307,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .hnobdiv { position:absolute; top:0px; left:0px; }
 .mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer; }
 .rngslidebg { position:absolute; top:0px; left:0px; }
-#kwtogsdiv { text-align:center; overflow:hidden; }
-.kwtogdiv { display:inline-block; font-size:medium; padding:5px 0px; }
+#kwtogsdiv { text-align:center; overflow:hidden; margin-top:-6px; }
+.kwtogdiv { display:inline-block; font-size:medium; padding:0px 0px 5px 0px; }
 .kwtcontdiv { cursor:pointer; position:relative; width:72px; }
 .kwtoglabel { position:absolute; left:6px; top:0px; transform-origin:top left;
   transform:rotate(90deg) translate(0%, -100%);
@@ -334,17 +335,24 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 /****************************************/
 /* Deck Panel */
 
-#deckheaderdiv { padding-bottom:5px; }
+#deckheaderdiv { padding:0px 20px 8px 20px; text-align:center;
+  margin-top:-5px; }
+.mdmbdiv, .mdmbdivact { display:inline-block;  margin:0px 30px;
+  width:20px; height:20px; border-radius:10px; }
+.mdmbdivact { background:#ffab00; }
+.mdmbimg { max-width:20px; max-height:20px; }
 .ico20 { height:20px; max-height:20px; }
 #togfiltb { margin-right:5px; }
 #srchin { margin-right:2px; }
 #clrsrchdiv { display:inline-block; margin-left:-14px; width:14px;
   overflow:hidden; vertical-align:middle; }
-#toginfob, #togalb, #togviewsb { margin-left:16px; }
+#toginfob { margin-left:-16px; margin-right:16px; }
+#fresframediv { position:absolute; top:0px; left:32px; padding:2px 16px; }
+#deckfresdiv { padding:2px 5px; background:#ffce69; color:#666; }
 .dinfrecdiv { font-size:medium; }
 .dinfrecnspan { font-size:small; }
-#decksongsdiv, #deckalbumdiv, #deckinfodiv, #deckviewsdiv {
-  height:160px; min-height:160px; max-height:160px; overflow:scroll; }
+#ddccontentdiv { position:relative; }
+#decksongsdiv { overflow:scroll; }
 /* title font-size inherited from containing element for player layout */
 .songtitlediv { position:relative; padding:0px 0px 4px 0px; }
 .dsarspan { font-size:small; }
@@ -353,11 +361,15 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   background:rgba(144, 144, 144, 0.6); padding:0px 8px; border-radius:5px; }
 .sopa { margin-left:30px; }
 .sopx, .sopfrsugdiv { color:white; background:#999; }
-
+#albdispdiv { position:relative; padding:0px 0px 0px 10px; }
+#albsuggtogdiv { position:absolute; top:0px; right:10px; }
+#albsuggsframediv { position:absolute; top:0px; left:10px; }
+#albsuggsdiv { padding:8px; background:#ffce69; color:#666; font-size:medium; }
+#albsuggstitlediv { font-size:small; text-align:center; }
+.sgalbarspan { font-style:italic; }
 .albumsongdiv { font-size:smaller; margin:5px 0px; }
 .albumsonglink { display:block; font-size:smaller; padding:0px 0px 2px 15px; }
 .albumarrow { padding-right:3px; vertical-align:middle; }
-
 .vtab, .vtabsel { display:inline-block; font-size:small; padding:2px 6px;
   margin:0px 10px 0px 0px; border-radius:5px; border:1px solid black; }
 .vtab { }

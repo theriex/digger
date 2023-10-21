@@ -2135,7 +2135,7 @@ app.top = (function () {
 
     //Export manager handles process of exporting a playlist
     mgrs.locxp = (function () {
-        var dki = null;
+        var dksongs = null;
     return {
         displayExportProgress: function (xob) {
             jt.out("exportdiv", xob.stat.state + " " + xob.stat.copied +
@@ -2149,7 +2149,7 @@ app.top = (function () {
             Object.entries(dat).forEach(function ([key, attrs]) {
                 dat[key] = jt.byId(attrs.id)[attrs.vs]; });
             dat.songs = JSON.stringify(  //array of song paths
-                dki.songs.slice(0, dat.count).map((s) => s.path));
+                dksongs.slice(0, dat.count).map((s) => s.path));
             app.svc.dispatch("cpx", "exportSongs", dat,
                 function (xob) {  //interim status display
                     mgrs.locxp.displayExportProgress(xob); },
@@ -2193,8 +2193,8 @@ app.top = (function () {
                     ["button", {type:"button", onclick:mdfs("locxp.cpxStart")},
                      "Export"]]]]])); },
         writeDlgContent: function () {
-            dki = app.deck.deckinfo();
-            if(!dki.songs.length) {
+            dksongs = app.deck.dispatch("dk", "songs");
+            if(!dksongs.length) {
                 return jt.out(tddi, "No songs on deck to export."); }
             mgrs.locxp.cpxDialog(); }
     };  //end mgrs.locxp returned functions
@@ -2205,7 +2205,7 @@ app.top = (function () {
     //developer.spotify.com/documentation/general/guides/working-with-playlists
     //developer.spotify.com/documentation/web-api/reference/#category-playlists
     mgrs.webxp = (function () {
-        var dki = null;   //deck information for export
+        var dksongs = null;
         var xpi = null;   //current persistent export information
         var xps = null;   //account settings exports info
         var xpmax = 100;  //maximum number of songs to write (PUT limit)
@@ -2255,7 +2255,7 @@ app.top = (function () {
                                  mgrs.webxp.notePlaylistWritten(); }); },
         writePlaylistContent: function () {
             stat("Writing songs to playlist...");
-            const spuris = dki.songs.slice(0, xpi.xttl).map((s) => 
+            const spuris = dksongs.slice(0, xpi.xttl).map((s) =>
                 "spotify:track:" + s.spid.slice(2));
             xpi.wrttl = spuris.length;  //deck might have had fewer
             app.svc.dispatch("spc", "sjc", `playlists/${xpi.spid}/tracks`,
@@ -2307,8 +2307,8 @@ app.top = (function () {
             else {
                 jt.out("plxpbutton", "Create"); } },
         writeDlgContent: function () {
-            dki = app.deck.deckinfo();
-            if(!dki.songs.length) {
+            dksongs = app.deck.dispatch("dk", "songs");
+            if(!dksongs.length) {
                 return jt.out(tddi, "No songs on deck to export."); }
             xps = app.login.getAuth().settings.xps || {};
             xps.sp = xps.sp || {};

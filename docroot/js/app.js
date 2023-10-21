@@ -32,7 +32,6 @@ var app = (function () {
                  ["div", {id:"contentdiv"},
                   [["div", {cla:"paneldiv", id:"pantopdiv"}],
                    ["div", {cla:"paneldiv", id:"panplaydiv"}],
-                   ["div", {cla:"paneldiv", id:"panfiltdiv"}],
                    ["div", {cla:"paneldiv", id:"pandeckdiv"}],
                    ["div", {id:"appoverlaydiv"}]]]]));
             if(app.startPath === "/digger") {  //web startup needs auth info
@@ -306,6 +305,16 @@ return {
         songfields.forEach(function (fld) {
             if(srcSong.hasOwnProperty(fld)) {  //don't copy undefined values
                 destSong[fld] = srcSong[fld]; } });
+    },
+
+
+    //common startup utility to let modules know app data now available
+    initialDataLoaded: function (startdata) {
+        const uims = ["top",      //display login name
+                      "filter",   //restore filters to previous settings
+                      "deck"];    //choose appropriate display
+        uims.forEach(function (uim) {
+            app[uim].initialDataLoaded(startdata); });
     },
 
 

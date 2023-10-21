@@ -249,10 +249,6 @@ app.svc = (function () {
         var dbo = null;
         var loadproc = null;
     return {
-        deckImportWorkMessage: function () {
-            const di = app.deck.deckinfo();
-            if(!di.songs || !di.songs.length) {
-                jt.out("decksongsdiv", "Importing music..."); } },
         monitorReadTotal: function () {
             jt.call("GET", app.cb("/songscount"), null,
                     function (info) {
@@ -260,7 +256,6 @@ app.svc = (function () {
                         loadproc.stat = info.status;
                         if(info.status === "reading") {  //work ongoing, monitor
                             jt.out(loadproc.divid, info.lastrpath);
-                            mgrs.loc.deckImportWorkMessage();
                             setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete
                             //app.deck.updateDeck(); handled by dbread return
@@ -291,7 +286,7 @@ app.svc = (function () {
             app.top.rebuildKeywords();
             if(loadproc && loadproc.divid) {  //called from full rebuild
                 jt.out(loadproc.divid, ""); }
-            app.deck.update("rebuildSongData"); },
+            app.deck.songDataChanged("rebuildSongData"); },
         readSongFiles: function () {
             jt.out("topdlgdiv", "");  //clear confirmation prompt if displayed
             if(loadproc.stat === "reading") {
@@ -583,12 +578,7 @@ app.svc = (function () {
         initialDataLoaded: function (startdata) {
             if(stat.idl) {
                 return jt.log("initial data already loaded"); }
-            //Setting the filter values triggers a call to app.deck.update
-            //which rebuilds the deck and starts the player.
-            const uims = ["top",     //reflect login name
-                          "filter"];  //reflect settings used for song retrieval
-            uims.forEach(function (uim) {
-                app[uim].initialDataLoaded(startdata); }); },
+            app.initialDataLoaded(startdata); },
         initialDataSuccess: function () {
             jt.log("Initial data loaded"); },
         initialDataFailed: function (code, errtxt) {
