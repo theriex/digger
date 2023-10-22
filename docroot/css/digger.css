@@ -364,8 +364,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #albdispdiv { position:relative; padding:0px 0px 0px 10px; }
 #albsuggtogdiv { position:absolute; top:0px; right:10px; }
 #albsuggsframediv { position:absolute; top:0px; left:10px; }
-#albsuggsdiv { padding:8px; background:#ffce69; color:#666; font-size:medium; }
-#albsuggstitlediv { font-size:small; text-align:center; }
+#albsuggsdiv { padding:8px; background:#ffce69; color:#666; font-size:medium;
+  border-radius:5px; }
+#albsuggstitlediv { font-size:small; text-align:center; margin-bottom:2px; }
+.sgalbdiv { padding:8px 5px; }
 .sgalbarspan { font-style:italic; }
 .albumsongdiv { font-size:smaller; margin:5px 0px; }
 .albumsonglink { display:block; font-size:smaller; padding:0px 0px 2px 15px; }

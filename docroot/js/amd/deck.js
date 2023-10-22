@@ -677,7 +677,8 @@ app.deck = (function () {
                 if(aid[ak].src === "asc") {  //reset all previous counts
                     aid[ak] = initialAlbumSuggestionCount(); } });
             Object.values(mgrs.sdt.getSongsDict()).forEach(function (song) {
-                if(!song.pc || !song.lp) {  //not played yet
+                if((!song.fq || !song.fq.match(/^[DUI]/)) &&  //is eligible
+                   (!song.pc || !song.lp)) {  //not played yet
                     const key = makeAlbumKey(song);
                     aid[key] = aid[key] || initialAlbumSuggestionCount();
                     aid[key].songs.push(song);
@@ -741,9 +742,9 @@ app.deck = (function () {
             cak[state.key] = state.info; },
         getSettings: function () {
             const settings = {currentAlbumKey:cak};
-            if(aid[cak] && aid[cak].info) {
-                settings.index = aid[cak].info.ci;
-                settings.song = aid[cak].info.songs[settings.index]; }
+            if(aid[cak] && aid[cak].src === "pmq") {
+                settings.index = aid[cak].ci;
+                settings.song = aid[cak].songs[settings.index]; }
             return settings; },
         restoreSettings: function (settings) {
             if(settings.currentAlbumKey && settings.song) {
@@ -754,10 +755,10 @@ app.deck = (function () {
         songs: function () { return aid[cak].songs; },
         songByIndex: function (idx) { return aid[cak].songs[idx]; },
         setAlbumSongs: function (fetchsong, albumsongs) {
-            aid[makeAlbumKey(fetchsong)] = {
-                ci:mgrs.ws.findSongIndex(fetchsong, albumsongs),
-                songs:albumsongs, src:"pmq"};  //platform media query
-            updateAlbumDisplay(); },
+            const key = makeAlbumKey(fetchsong);
+            aid[key] = { ci:mgrs.ws.findSongIndex(fetchsong, albumsongs),
+                         songs:albumsongs, src:"pmq"};  //platform media query
+            updateAlbumDisplay(aid[key].songs[aid[key].ci]); },
         albumFetchFailure: function (code, errtxt) {
             jt.out("albplaydiv", "Album fetch failed: " + code + ": " +
                    errtxt); },
@@ -807,7 +808,7 @@ app.deck = (function () {
             return null; },
         onLastTrack: function () {
             const ab = aid[cak];
-            return (!ab || ab.info.ci >= ab.info.songs.length); },
+            return (!ab || ab.ci >= ab.songs.length); },
         popForward: function (npp) {
             mgrs.dk.removeFromDeck(npp);  //excise from deck if in it
             const idx = aid[cak].songs.findIndex((s) => s.path === npp);
@@ -1008,14 +1009,13 @@ app.deck = (function () {
             {mgr:"srch", name:"Search", img:"search.png"}];
         var initialDataLoaded = false;
         var songSeqMgrName = mdms[0].mgr;
-        function saveSettings () {  //if account account available
-            const ca = app.top.dispatch("aaa", "getAccount");
-            if(ca && ca.settings) {
-                ca.settings.deck = {ssmn:songSeqMgrName};
-                mdms.forEach(function (dm) {
-                    ca.settings.deck[dm.mgr] = mgrs[dm.mgr].getSettings(); });
-                app.filter.dispatch("stg", "saveSettings"); } }
-        function restoreSettings () {
+        function saveSettings () {  //filter holds/sets all settings
+            const settings = app.filter.dispatch("stg", "settings");
+            settings.deck = {ssmn:songSeqMgrName};
+            mdms.forEach(function (dm) {
+                settings.deck[dm.mgr] = mgrs[dm.mgr].getSettings(); });
+            app.filter.dispatch("stg", "saveSettings"); }
+        function restoreSettings () {  //read from acct not filter init
             const ca = app.top.dispatch("aaa", "getAccount");
             if(ca && ca.settings && ca.settings.deck) {
                 const ds = ca.settings.deck;
@@ -1092,7 +1092,8 @@ app.deck = (function () {
                     mgrs.alb.togSuggestAlbums(true); } }
             else if((songSeqMgrName === "alb") &&
                     (mgrs.alb.onLastTrack())) {
-                mgrs.alb.togSuggestAlbums(true); } }
+                mgrs.alb.togSuggestAlbums(true); }
+            mgrs.gen.dispMode(songSeqMgrName); }
     };  //end mgrs.gen returned functions
     }());
 
