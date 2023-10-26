@@ -661,14 +661,30 @@ app.deck = (function () {
         var cak = "";  //current album key
         var aid = {};  //album info dict (idx, songs, etc by album key)
         var sacsr = null;  //suggested albums calc song ref
+        var playFromTop = false;  //flag to play whole album from the top
         var asgs = [];   //suggested albums
-        const asgmx = 5;  //album suggestion max. Fast scan. Use search for more
-        const mxdw = mgrs.ws.maxDeckWorkingSize();
+        const asgmx = 5;  //album suggestion max. Fast scan. Otheriwse search
         function makeAlbumKey (song) {
             if(!(song.ar && song.ab)) { return ""; }
             return song.ar + " - " + song.ab; }
+        function improveSuggestionsOrder () {
+            if(asgs.length && asgs[0].npsc <= 2) {  //no unplayed albums
+                asgs = asgs.slice(0, 50);
+                mgrs.ws.shuffleArray(asgs, 0, 49); }
+            const arts = {};
+            asgs.forEach(function (asc) {
+                arts[asc.songs[0].ar] = arts[asc.songs[0].ar] || {ascs:[]};
+                arts[asc.songs[0].ar].ascs.push(asc); });
+            asgs = [];
+            while(Object.keys(arts).length) {
+                Object.keys(arts).forEach(function (ar) {
+                    asgs.push(arts[ar].ascs.pop());
+                    if(!arts[ar].ascs.length) {
+                        delete arts[ar]; } }); } }
         function initialAlbumSuggestionCount() {
-            return {ci:0, songs:[], src:"asc", npsc:0, di:mxdw}; }
+            return {ci:0, songs:[], src:"asc",
+                    npsc:0,  //never played song count
+                    mrpt:"1970-01-01T00:00:00Z"}; } //most recently played time
         function getSuggestedAlbums () {
             const np = app.player.song();
             if(asgs.length && sacsr && np && sacsr.path === np.path) {
@@ -677,24 +693,26 @@ app.deck = (function () {
                 if(aid[ak].src === "asc") {  //reset all previous counts
                     aid[ak] = initialAlbumSuggestionCount(); } });
             Object.values(mgrs.sdt.getSongsDict()).forEach(function (song) {
-                if((!song.fq || !song.fq.match(/^[DUI]/)) &&  //is eligible
-                   (!song.pc || !song.lp)) {  //not played yet
+                if((!song.fq || !song.fq.match(/^[RDUI]/)) &&  //is eligible
+                   (song.rv < 3)) {  //not rated very low
                     const key = makeAlbumKey(song);
                     aid[key] = aid[key] || initialAlbumSuggestionCount();
                     aid[key].songs.push(song);
-                    aid[key].npsc += 1; } });
-            mgrs.ws.currentDeckSongs().forEach(function (song, idx) {
-                const key = makeAlbumKey(song);
-                aid[key] = aid[key] || initialAlbumSuggestionCount();
-                aid[key].songs.push(song);
-                aid[key].di = Math.min(aid[key].di, idx); });
-            asgs = Object.values(aid).filter((asg) =>
-                ((asg.src === "asc") && (asg.npsc >= 2 || asg.di < mxdw)));
+                    if(!song.pc || !song.lp) {  //not played yet
+                        aid[key].npsc += 1; }
+                    if(song.lp > aid[key].mrpt) {
+                        aid[key].mrpt = song.lp; } } });
+            asgs = Object.values(aid).filter((asg) => asg.src === "asc");
             asgs.sort(function (a, b) {
-                return ((b.npsc - a.npsc) || (a.di - b.di)); });
+                if(a.npsc > 2 && a.npsc > b.npsc) { return -1; }
+                if(b.npsc > 2 && b.npsc > a.npsc) { return 1; }
+                if(a.mrpt < b.mrpt) { return -1; }
+                if(a.mrpt > b.mrpt) { return 1; }
+                return 0; });
+            improveSuggestionsOrder();
             asgs = asgs.slice(0, asgmx);
             return asgs; }
-        function displayAlbumSuggestions () {
+        function displaySuggestedAlbums () {
             const sas = getSuggestedAlbums();
             if(!sas || !sas.length) {
                 return jt.out("albsuggsdiv", "No albums available."); }
@@ -712,6 +730,8 @@ app.deck = (function () {
                           sa.songs[0].ab]]]])]])); }
         function updateAlbumDisplay (song) {
             var np = song || app.player.song();
+            if(!np && aid[cak] && aid[cak].src === "pmq") {
+                np = aid[cak].songs[aid[cak].ci]; }
             if(!np) {
                 return jt.out("albplaydiv", "No song currently playing"); }
             cak = makeAlbumKey(np);
@@ -725,8 +745,14 @@ app.deck = (function () {
             if(!aid[cak].songs || !aid[cak].songs.length) {
                 return jt.out("albplaydiv", "No album info for song"); }
             //currently playing song may have changed via external action
-            aid[cak].ci = mgrs.ws.findSongIndex(np, aid[cak].songs);
-            mgrs.alb.displayAlbum(np); }
+            if(playFromTop) {
+                aid[cak].ci = 0; }
+            else {
+                aid[cak].ci = mgrs.ws.findSongIndex(np, aid[cak].songs); }
+            mgrs.alb.displayAlbum(np);
+            if(playFromTop) {
+                playFromTop = false;
+                mgrs.alb.playnow(0); } }
     return {
         getSaveState: function (dmx) {  //dmx is >= 0
             const abst = {key:cak, info:aid[cak]};
@@ -748,7 +774,12 @@ app.deck = (function () {
             return settings; },
         restoreSettings: function (settings) {
             if(settings.currentAlbumKey && settings.song) {
-                updateAlbumDisplay(settings.song); } },
+                updateAlbumDisplay(settings.song);  //get full album info
+                if(aid[cak].ci > 0) {  //back up to previous song so player
+                    aid[cak].ci -= 1;  //starts where it left off last time
+                    mgrs.alb.displayAlbum(aid[cak].songs[aid[cak].ci]); }
+                else {  //set up so getNextSong plays the first track
+                    aid[cak].ci = -1; } } },
         haveUnplayedAlbums: function () {
             const sa = getSuggestedAlbums();
             return (sa && sa.length && sa[0].npsc >= 2); },
@@ -765,11 +796,13 @@ app.deck = (function () {
         togSuggestAlbums: function (disp) {
             toggleButtons.togsuggb(disp); },
         playSuggestedAlbum: function (idx) {
+            mgrs.alb.togSuggestAlbums(false);
+            playFromTop = true;
             updateAlbumDisplay(asgs[idx].songs[0]); },
         songDataChanged: function (/*caller*/) {
             asgs = [];
             if(jt.byId("albsuggsdiv").style.display === "block") {
-                displayAlbumSuggestions(); } },
+                displaySuggestedAlbums(); } },
         makeAlbumSongDiv: function (song, idx) {
             if(idx === aid[cak].ci) {
                 return [["img", {src:"img/arrow12right.png",
@@ -782,7 +815,7 @@ app.deck = (function () {
                           onclick:mdfs("alb.playnow", idx)},
                     song.ti]; },
         displayAlbum: function (np) {
-            app.svc.noteUpdatedState("deck");  //enable restoring to album view
+            mgrs.gen.noteUpdatedDisplay("alb");
             jt.out("albplaydiv", jt.tac2html(
                 [["div", {cla:"albumtitlediv"},
                   [["span", {cla:"dsabspan"}, np.ab],
@@ -808,7 +841,7 @@ app.deck = (function () {
             return null; },
         onLastTrack: function () {
             const ab = aid[cak];
-            return (!ab || ab.ci >= ab.songs.length); },
+            return (!ab || ab.ci >= ab.songs.length - 1); },
         popForward: function (npp) {
             mgrs.dk.removeFromDeck(npp);  //excise from deck if in it
             const idx = aid[cak].songs.findIndex((s) => s.path === npp);
@@ -833,7 +866,7 @@ app.deck = (function () {
                     const disp = (state ? "block" : "none");
                     jt.byId("albsuggsdiv").style.display = disp;
                     if(state) {
-                        displayAlbumSuggestions(); }}}); },
+                        displaySuggestedAlbums(); }}}); },
         activateDisplay: function () {
             if(!jt.byId("albsuggtogdiv")) {
                 mgrs.alb.initDisplay(); }
@@ -846,46 +879,140 @@ app.deck = (function () {
     //Search manager handles search the search display
     mgrs.srch = (function () {
         var qstr = "";  //current query string
+        var songs = null;
+        var rslt = null;
+        var sfds = [
+            {f:"ar", pn:"Artist", ck:true},
+            {f:"ab", pn:"Album", ck:true},
+            {f:"ti", pn:"Title", ck:true},
+            {f:"nt", pn:"Notes", ck:true}];
+        function searchSongs () {
+            if(!songs) {
+                songs = Object.values(mgrs.sdt.getSongsDict())
+                    .filter((s) => !s.fq || !s.fq.match(/^[DUI]/)); }
+            const rtx = "(\\s|^)" + qstr.toLowerCase().replace("*", ".*");
+            const srx = new RegExp(rtx, "i");
+            const sfs = sfds.filter((fd) => fd.ck);
+            rslt = {};  //reset search results
+            songs.forEach(function (s, idx) {
+                const mf = sfs.find((fd) => s[fd.f].match(srx));
+                if(mf) {  //one of the fields matched, verify rslt entry
+                    rslt[s.ar] = rslt[s.ar] ||
+                        {matched:(mf.f === "ar"),
+                         t:"ar", si:idx, es:{}};
+                    const artist = rslt[s.ar];
+                    artist.es[s.ab] = artist.es[s.ab] ||
+                        {matched:(mf.f === "ab" || s.ab.match(srx)),
+                         t:"ab", si:idx, es:{}};
+                    const album = artist.es[s.ab];
+                    album.es[s.ti] = album.es[s.ti] ||  //dupe possible
+                        {matched:(mf.f === "ti" || s.ti.match(srx) ||
+                                  mf === "nt" || s.ti.match(srx)),
+                         t:"ti", si:idx}; } }); }
+        function makeResultTAC (dict, parentMatched) {
+            const sks = Object.keys(dict).sort(
+                function (a, b) { return a.localeCompare(b); });
+            return sks.map(function (fv) {
+                const det = dict[fv];
+                const dln = {xpc:"",
+                             val:["span", {cla:"srchresvspan"}, fv],
+                             esdd:"block"};
+                if(det.es) {  //need an expand/close control
+                    dln.xpc = ["a", {cla:"srchxpctoga", href:"#close",
+                                     onclick:mdfs("srch.togResExp", "event")},
+                               "-"];
+                    if(det.matched || parentMatched) {
+                        dln.esdd = "none";
+                        dln.xpc[1].href = "#expand";
+                        dln.xpc[2] = "+"; } }
+                if(det.matched) {  //bold the entry val
+                    dln.val[1].cla = "srchresmatchvspan"; }
+                if(det.t === "ab") {
+                    dln.val = ["a", {href:"#playalbum",
+                                     onclick:mdfs("srch.playAlbum", det.si)},
+                               dln.val]; }
+                if(det.t === "ti") {
+                    dln.val = ["a", {href:"playsong",
+                                     title:jt.escq(songs[det.si].path),
+                                     onclick:mdfs("srch.playSong", det.si)},
+                               dln.val]; }
+                return ["div", {cla:"rslt" + det.t + "div"},
+                        [dln.xpc,
+                         dln.val,
+                         (!det.es? "" : 
+                          ["div", {cla:"rslt" + det.t + "childrendiv",
+                                   style:"display:" + dln.esdd},
+                           makeResultTAC(det.es, det.matched)])]]; }); }
     return {
         getSaveState: function (/*dmx*/) {
-            return {searchText:qstr}; },
+            return {searchText:qstr, searchFields:sfds}; },
         restoreFromSavedState: function (state) {
-            qstr = state.searchText; },
+            qstr = state.searchText;
+            sfds = state.searchFields; },
         getSettings: function () {
             return {searchText:qstr}; },
         restoreSettings: function (settings) {
             qstr = settings.searchText; },
+        togResExp: function (event) {
+            const lnk = event.target;
+            if(lnk.href.endsWith("#close")) {
+                lnk.href = "#expand";
+                lnk.innerHTML = "+"; }
+            else {
+                lnk.href = "#close";
+                lnk.innerHTML = "-"; }
+            const rsltdiv = lnk.parentElement;
+            const rselems = Array.from(rsltdiv.children);
+            const es = rselems[rselems.length - 1];
+            if(es.style.display === "none") {
+                es.style.display = "block"; }
+            else {
+                es.style.display = "none"; }
+            jt.evtend(event); },
         updateSearchDisplay: function () {
-            var st = jt.byId("srchin").value || "";
-            st = st.toLowerCase().trim();
-            if(st) {
+            qstr = jt.byId("srchin").value || "";
+            qstr = qstr.toLowerCase().trim();
+            if(qstr) {  //show clear "x"
                 jt.byId("clrsrchdiv").style.display = "inline-block"; }
             else {
                 jt.byId("clrsrchdiv").style.display = "none"; }
-            //build from all songs, not subject to filtering
-            jt.out("srchresdiv", "Search not implemented yet"); },
+            searchSongs();
+            jt.out("srchresdiv", jt.tac2html(makeResultTAC(rslt))); },
         songDataChanged: function (/*caller*/) {
             //re-read of media lib may find metadata updates or new music
-            mgrs.srch.updateSearchDisplay();
-            return; },
+            mgrs.srch.updateSearchDisplay(); },
         clearSearch: function () {
             jt.byId("srchin").value = "";
+            mgrs.srch.updateSearchDisplay(); },
+        fcheckchg: function (idx) {
+            sfds[idx].ck = !sfds[idx].ck;
             mgrs.srch.updateSearchDisplay(); },
         initDisplay: function () {
             jt.out("srchdispdiv", jt.tac2html(
                 [["div", {id:"srchctrlsdiv"},
-                  [["input", {type:"text", id:"srchin", size:14,
+                  [["input", {type:"text", id:"srchin", size:20,
                               //placeholder:"artist/album/song...",
                               value:qstr,
                               oninput:mdfs("srch.updateSearchDisplay")}],
                    ["div", {id:"clrsrchdiv", style:"display:none"},
                     ["a", {href:"#clearsearch", title:"Clear search",
-                           onclick:mdfs("srch.clearSearch")}, "x"]]]],
-                 ["div", {id:"srchresdiv"},
-                  "search results here"]])); },
+                           onclick:mdfs("srch.clearSearch")}, "x"]],
+                   ["div", {id:"srchfieldsdiv"},
+                    sfds.map((fd, idx) =>
+                        ["div", {cla:"srchfcbdiv"},
+                         [["input", {type:"checkbox", id:"sfcb" + fd.f + "in",
+                                     value:fd.f, checked:jt.toru(fd.ck),
+                                     onchange:mdfs("srch.fcheckchg", idx)}],
+                          ["label", {fo:"sfcb" + fd.f + "in"}, fd.pn]]])]]],
+                 ["div", {id:"srchresdiv"}]])); },
         activateDisplay: function () {
             if(!jt.byId("srchctrlsdiv")) {
                 mgrs.srch.initDisplay(); }
+            const pdd = jt.byId("pandeckdiv").offsetHeight;
+            const dhd = jt.byId("deckheaderdiv").offsetHeight;
+            const avh = pdd - dhd - 20;  //14 pad and 6 margin
+            const cth = jt.byId("srchctrlsdiv").offsetHeight;
+            jt.byId("srchresdiv").style.height = (avh - cth) + "px";
             mgrs.srch.updateSearchDisplay(); }
     };  //end mgrs.srch returned functions
     }());
@@ -1009,6 +1136,7 @@ app.deck = (function () {
             {mgr:"srch", name:"Search", img:"search.png"}];
         var initialDataLoaded = false;
         var songSeqMgrName = mdms[0].mgr;
+        var dispMgrName = mdms[0].mgr;
         function saveSettings () {  //filter holds/sets all settings
             const settings = app.filter.dispatch("stg", "settings");
             settings.deck = {ssmn:songSeqMgrName};
@@ -1041,7 +1169,12 @@ app.deck = (function () {
                 jt.byId(dm.mgr + "dispdiv").style.display = "none"; });
             jt.byId(mgrname + "mdmbdiv").className = "mdmbdivact";
             jt.byId(mgrname + "dispdiv").style.display = "block";
+            dispMgrName = mgrname;
             mgrs[mgrname].activateDisplay();
+            saveSettings(); },
+        noteUpdatedDisplay: function (mgrname) {
+            if(mgrname && mgrname !== dispMgrName) {
+                return mgrs.gen.dispMode(mgrname); }
             saveSettings(); },
         initDisplay: function () {
             jt.out("pandeckdiv", jt.tac2html(
@@ -1081,8 +1214,9 @@ app.deck = (function () {
             jt.log("deck.songDataChanged: " + caller);
             mdms.forEach(function (dm) {
                 mgrs[dm.mgr].songDataChanged(caller); }); },
-        chooseActiveDisplay: function (/*startdata*/) {
+        chooseActiveDisplay: function (startdata) {
             initialDataLoaded = true;
+            mgrs.sdt.setSongsDict(startdata.songdata.songs);  //initialize
             restoreSettings();
             if(songSeqMgrName === "ddc") {
                 const mslsp = minutesSinceLastSongPlay();

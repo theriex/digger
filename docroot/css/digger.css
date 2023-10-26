@@ -337,15 +337,24 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 
 #deckheaderdiv { padding:0px 20px 8px 20px; text-align:center;
   margin-top:-5px; }
-.mdmbdiv, .mdmbdivact { display:inline-block;  margin:0px 30px;
+.mdmbdiv, .mdmbdivact { display:inline-block;  margin:0px 30px; padding:2px;
   width:20px; height:20px; border-radius:10px; }
 .mdmbdivact { background:#ffab00; }
 .mdmbimg { max-width:20px; max-height:20px; }
 .ico20 { height:20px; max-height:20px; }
 #togfiltb { margin-right:5px; }
-#srchin { margin-right:2px; }
-#clrsrchdiv { display:inline-block; margin-left:-14px; width:14px;
+#srchctrlsdiv { text-align:center; }
+.srchfcbdiv { display:inline-block; white-space:nowrap; margin:0px 12px;
+  font-size:x-small; }
+#srchin { margin-right:2px; border:2px solid #999; border-radius:5px;
+  font-size: large; }
+#clrsrchdiv { display:inline-block; margin-left:-19px; width:14px;
   overflow:hidden; vertical-align:middle; }
+#srchresdiv { overflow:scroll; padding:4px 5px 11px; }
+.srchresmatchvspan { font-weight:bold; }
+.srchxpctoga { padding-right:5px; }
+.rsltarchildrendiv { padding-left:8px; }
+.rsltabchildrendiv { padding-left:16px; }
 #toginfob { margin-left:-16px; margin-right:16px; }
 #fresframediv { position:absolute; top:0px; left:32px; padding:2px 16px; }
 #deckfresdiv { padding:2px 5px; background:#ffce69; color:#666; }
