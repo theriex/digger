@@ -414,8 +414,10 @@ app.filter = (function () {
                                    onclick:mdfs("mruc.toggle", dn)},
                         dd.vs[dd.idx].tx]; });
             elems.unshift(["div", {id:"toginfob"}]);  //used by deck.ddc
+            elems.unshift(["div", {id:"toghistb"}]);  //used by deck.ddc
             elems.push(["div", {id:"fqftogdiv"}]);
             jt.out(divid, jt.tac2html(elems));
+            app.deck.dispatch("ddc", "makeHistoryToggle");
             app.deck.dispatch("ddc", "makeInfoToggle"); }
     return {
         minrat2idx: function (rv) {

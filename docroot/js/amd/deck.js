@@ -495,11 +495,12 @@ app.deck = (function () {
             jt.log("dk.setSongs " + ds.slice(0, 7).map((s) => s.ti).join(", "));
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         songByIndex: function (idx) { return ds[idx]; },
-        playnow: function (mgrnm, idx) {
-            var song = mgrs[mgrnm].songByIndex(idx);
+        playSongNow: function (song) {
             ds = ds.filter((s) => s.path !== song.path);
             ds.unshift(song);
             app.player.next(); },
+        playnow: function (mgrnm, idx) {
+            mgrs.dk.playSongNow(mgrs[mgrnm].songByIndex(idx)); },
         playnext: function (mgrnm, idx) {
             var song = mgrs[mgrnm].songByIndex(idx);
             ds = ds.filter((s) => s.path !== song.path);
@@ -624,33 +625,46 @@ app.deck = (function () {
             return mgrs.dk.popForward(npp); },
         songDataChanged: function (caller) {
             return mgrs.ws.rebuild(caller); },
-        togInfoButton: function (activate) {
-            toggleButtons.toginfob(activate); },
-        activateDisplay: function () {
-            if(!jt.byId("panfiltdiv")) {
-                mgrs.ddc.initDisplay(); }
-            mgrs.gen.setSongSeqMgrName("ddc");
-            updateDeckDisplay(); },
-        makeInfoToggle: function () {
+        makeHistoryToggle: function () {  //created by filter
+            mgrs.util.makeToggle({
+                tfc:toggleButtons, id:"toghistb", ti:"Playback History",
+                onimg:"img/historyact.png", offimg:"img/history.png",
+                togf:function (state) {
+                    if(!state) {
+                        jt.byId("deckhistorydiv").style.display = "none";
+                        jt.byId("decksongsdiv").style.display = "block"; }
+                    else {
+                        jt.byId("deckhistorydiv").style.display = "block";
+                        jt.byId("decksongsdiv").style.display = "none";
+                        mgrs.hst.verifyDisplayContent(); } }}); },
+        makeInfoToggle: function () {  //created by filter
             mgrs.util.makeToggle({
                 tfc:toggleButtons, id:"toginfob", ti:"Filtering Information",
                 onimg:"img/infoact.png", offimg:"img/info.png",
                 togf:function (state) {
                     const disp = (state ? "block" : "none");
                     jt.byId("deckfresdiv").style.display = disp; }}); },
+        togInfoButton: function (activate) {
+            toggleButtons.toginfob(activate); },
         initDisplay: function () {
             jt.out("ddcdispdiv", jt.tac2html(
                 [["div", {id:"panfiltdiv"}],
                  ["div", {id:"ddccontentdiv"},
                   [["div", {id:"decksongsdiv"}],
+                   ["div", {id:"deckhistorydiv"}],
                    ["div", {id:"fresframediv"},
                     ["div", {id:"deckfresdiv"}]]]]]));
-            app.filter.initializeInterface();
+            app.filter.initializeInterface(); },
+        activateDisplay: function () {
+            if(!jt.byId("panfiltdiv")) {
+                mgrs.ddc.initDisplay(); }
+            mgrs.gen.setSongSeqMgrName("ddc");
             const pdd = jt.byId("pandeckdiv").offsetHeight;
             const dhd = jt.byId("deckheaderdiv").offsetHeight;
-            const avh = pdd - dhd;
+            const avh = pdd - dhd - 20;  //panel 14 pad and 6 margin
             const fph = jt.byId("panfiltdiv").offsetHeight;
-            jt.byId("decksongsdiv").style.height = (avh - fph) + "px"; }
+            jt.byId("decksongsdiv").style.height = (avh - fph) + "px";
+            updateDeckDisplay(); }
     };  //end mgrs.ddc returned functions
     }());
 
@@ -796,9 +810,11 @@ app.deck = (function () {
         togSuggestAlbums: function (disp) {
             toggleButtons.togsuggb(disp); },
         playSuggestedAlbum: function (idx) {
+            mgrs.alb.playAlbum(asgs[idx].songs[0]); },
+        playAlbum: function (song) {
             mgrs.alb.togSuggestAlbums(false);
             playFromTop = true;
-            updateAlbumDisplay(asgs[idx].songs[0]); },
+            updateAlbumDisplay(song); },
         songDataChanged: function (/*caller*/) {
             asgs = [];
             if(jt.byId("albsuggsdiv").style.display === "block") {
@@ -953,6 +969,12 @@ app.deck = (function () {
             return {searchText:qstr}; },
         restoreSettings: function (settings) {
             qstr = settings.searchText; },
+        playAlbum: function (sidx) {
+            mgrs.gen.dispMode("alb");
+            mgrs.alb.playAlbum(songs[sidx]); },
+        playSong: function (sidx) {
+            mgrs.gen.dispMode("ddc");
+            mgrs.dk.playSongNow(songs[sidx]); },
         togResExp: function (event) {
             const lnk = event.target;
             if(lnk.href.endsWith("#close")) {
@@ -979,7 +1001,7 @@ app.deck = (function () {
             searchSongs();
             jt.out("srchresdiv", jt.tac2html(makeResultTAC(rslt))); },
         songDataChanged: function (/*caller*/) {
-            //re-read of media lib may find metadata updates or new music
+            songs = null;  //re-read of media lib may new music or metadata
             mgrs.srch.updateSearchDisplay(); },
         clearSearch: function () {
             jt.byId("srchin").value = "";
@@ -1010,7 +1032,7 @@ app.deck = (function () {
                 mgrs.srch.initDisplay(); }
             const pdd = jt.byId("pandeckdiv").offsetHeight;
             const dhd = jt.byId("deckheaderdiv").offsetHeight;
-            const avh = pdd - dhd - 20;  //14 pad and 6 margin
+            const avh = pdd - dhd - 20;  //panel 14 pad and 6 margin
             const cth = jt.byId("srchctrlsdiv").offsetHeight;
             jt.byId("srchresdiv").style.height = (avh - cth) + "px";
             mgrs.srch.updateSearchDisplay(); }
@@ -1218,6 +1240,7 @@ app.deck = (function () {
             initialDataLoaded = true;
             mgrs.sdt.setSongsDict(startdata.songdata.songs);  //initialize
             restoreSettings();
+            mgrs.hst.initHistoryIfNeeded(startdata.songdata.songs);
             if(songSeqMgrName === "ddc") {
                 const mslsp = minutesSinceLastSongPlay();
                 if((mslsp < 0 || mslsp > 120) &&

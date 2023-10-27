@@ -1378,9 +1378,12 @@ app.player = (function () {
             sc.count = jt.byId("sleepcountin").value; },
         sleepNow: function () {
             jt.out("sleepdiv", "");  //clear sleep display if still up
-            if(!sc.active) { return false; }
+            if(!sc.active) {
+                mgrs.slp.clearOverlayMessage();
+                return false; }
             if(sc.count > 0) {
                 sc.count -= 1;
+                mgrs.slp.clearOverlayMessage();
                 return false; }
             return mgrs.slp.startSleep("Sleeping..."); },
         sleeping: function () {

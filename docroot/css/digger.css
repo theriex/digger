@@ -355,13 +355,16 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .srchxpctoga { padding-right:5px; }
 .rsltarchildrendiv { padding-left:8px; }
 .rsltabchildrendiv { padding-left:16px; }
+#toghistb { margin-left:-28px; margin-right:28px; }
 #toginfob { margin-left:-16px; margin-right:16px; }
+#deckhistorydiv { position:absolute; top:0px; left:0px; }
 #fresframediv { position:absolute; top:0px; left:32px; padding:2px 16px; }
 #deckfresdiv { padding:2px 5px; background:#ffce69; color:#666; }
 .dinfrecdiv { font-size:medium; }
 .dinfrecnspan { font-size:small; }
 #ddccontentdiv { position:relative; }
 #decksongsdiv { overflow:scroll; }
+#decksongsdiv, #deckhistorydiv { padding:5px; }
 /* title font-size inherited from containing element for player layout */
 .songtitlediv { position:relative; padding:0px 0px 4px 0px; }
 .dsarspan { font-size:small; }
