@@ -182,6 +182,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   font-style:italic; margin:0px 10px 0px 0px; }
 .tuneoptdetval, .spotdetval { text-align:left; font-size:small; }
 .tunactimg { max-height:22px; }
+#prevplaydiv { font-size:x-small; }
+#dupesdispdiv { padding-left:32px; }
 #pmsgdiv { font-size:small; font-weight:bold; }
 #spotdetactdiv { font-size:small; max-width:290px; }
 #tunedetwrktable { padding:0px 0px 0px 22px; }

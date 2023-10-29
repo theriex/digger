@@ -25,7 +25,7 @@ app.deck = (function () {
                 jt.log("simplifiedMatch reduced to nothing: " + str);
                 sm = str; }
             return sm; }
-        function findDupesForSong (song) {
+        function findDupesForSong (song, markplayed) {
             var res = [];
             const mti = simplifiedMatch(song.ti).toLowerCase();
             const mar = simplifiedMatch(song.ar).toLowerCase();
@@ -33,16 +33,21 @@ app.deck = (function () {
                 if(p !== song.path &&  //original song is not a dupe
                    s.ti.toLowerCase().startsWith(mti) &&
                    s.ar.toLowerCase().startsWith(mar)) {
+                    if(markplayed) {
+                        //not updating s.pc/fq since not actually played
+                        if(!s.lp || s.lp < song.lp) {
+                            s.lp = song.lp; } }
                     res.push(s); } });
             return res; }
-        function findDupes (songs) {
+        function findAllDupes (songs, markplayed) {
             var swd = songs;
             songs.forEach(function (song) {
-                swd = swd.concat(findDupesForSong(song)); });
+                swd = swd.concat(findDupesForSong(song, markplayed)); });
             return swd; }
     return {
         setSongsDict: function (sd) { sbp = sd; },
         getSongsDict: function () { return sbp; },
+        getSongDupes: function (song) { return findDupesForSong(song); },
         verifyDisplayContent: function () {
             //search each time display requested. metadata could be changed.
             const np = app.player.song();
@@ -58,7 +63,7 @@ app.deck = (function () {
             if(!Array.isArray(songs)) {
                 songs = [songs]; }
             if(trackdupes) {
-                songs = songs.concat(findDupes(songs)); }
+                songs = songs.concat(findAllDupes(songs, true)); }
             app.svc.saveSongs(songs,
                 function (res) {
                     var merged = [];
@@ -850,6 +855,7 @@ app.deck = (function () {
             if(aid[cak].ci < aid[cak].songs.length - 1) {
                 aid[cak].ci += 1;
                 const song = aid[cak].songs[aid[cak].ci];
+                app.player.noteprevplay(song.lp);
                 mgrs.dk.markSongPlayed(song);
                 mgrs.dk.removeFromDeck(song);
                 mgrs.alb.displayAlbum(song);

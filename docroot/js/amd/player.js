@@ -673,6 +673,28 @@ app.player = (function () {
         function humanReadKwds (kwdcsv) {
             const qks = kwdcsv.csvarray().map((kwd) => "\"" + kwd + "\"");
             return qks.join(", "); }
+        function prevPlayAndDupesTAC () {
+            var pp = ""; var ddct = ""; var dupesongshtml = "";
+            if(stat.prevPlayed) {
+                pp = jt.tz2human(stat.prevPlayed);
+                pp = "Previously played " + pp; }
+            const dupes = app.deck.dispatch("sdt", "getSongDupes", stat.song);
+            if(dupes && dupes.length) {
+                const dn = dupes.length;
+                ddct = jt.tac2html(
+                    [", ",
+                     ["a", {href:"#togdupedisplay",
+                            onclick:jt.fs("app.togdivdisp('dupesdispdiv')")},
+                      dn + " dupe" + ((dn > 1)? "s" : "")]]);
+                dupesongshtml = jt.tac2html(
+                    dupes.map((s) =>
+                        ["div", {cla:"dupesongdispdiv"},
+                         app.deck.dispatch("sop", "songIdentHTML", s)])); }
+            return ["div", {id:"prevplaydiv"},
+                    [["span", {id:"ppvalspan"}, pp],
+                     ddct,
+                     ["div", {id:"dupesdispdiv", style:"display:none"},
+                      dupesongshtml]]]; }
     return {
         isSubcatValue: function (cat, val) {
             return (subcats[cat] && subcats[cat].indexOf(val) >= 0); },
@@ -784,10 +806,7 @@ app.player = (function () {
                        title:"Show Spotify Track Details"},
                  stat.song.spid.slice(2)]); },
         optDetailsHTML: function () {
-            var lastPlayed = "Never";
-            if(stat.prevPlayed) {
-                lastPlayed = jt.tz2human(stat.prevPlayed); }
-            const flds = [{v:"Previously played: " + lastPlayed},
+            const flds = [{v:prevPlayAndDupesTAC()},
                           {a:"Title", v:"ti", e:true,
                            actions:"&nbsp;"},
                           {v:["div", {id:"tiactdiv"}]},
