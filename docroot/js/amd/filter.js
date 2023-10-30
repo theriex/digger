@@ -761,14 +761,13 @@ app.filter = (function () {
     return {
         init: function () {
             testLogCollapse();
-            // jt.log = logMessage;  //catch all app console output
-            // window.onerror = function(msg, url, line, col, ignore /*error*/) {
-            //     logMessage(msg + " " + url + ":" + line + ":" + col + " " +
-            //                new Error("stack trace").stack);
-            //     const cancelDefaultSystemErrorHandling = true;
-            //     return cancelDefaultSystemErrorHandling; };
-            // logMessage("dcm initialized"); },
-            logMessage("dcm NOT initialized"); },
+            jt.log = logMessage;  //catch all app console output
+            window.onerror = function(msg, url, line, col, ignore /*error*/) {
+                logMessage(msg + " " + url + ":" + line + ":" + col + " " +
+                           new Error("stack trace").stack);
+                const cancelDefaultSystemErrorHandling = true;
+                return cancelDefaultSystemErrorHandling; };
+            logMessage("dcm initialized"); },
         emFormat: function () {
             var txt = "Describe what was happening with Digger at the time:" +
                 "\n\n\n\n----------------------------------------\n\nDigger " +
