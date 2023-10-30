@@ -264,7 +264,6 @@ app.deck = (function () {
                 app.player.deckUpdated(); }
             setTimeout(function () {  //leave info up momentarily
                 mgrs.ddc.togInfoButton(false); }, 800);
-            app.top.dispCount(wrk.availcount, "avail");
             mgrs.sop.displaySongs("dk", "decksongsdiv", wrk.songs);
             wrk.tmo = null;
             wrk.stat = "";
@@ -551,7 +550,6 @@ app.deck = (function () {
             var song = null;
             if(ds.length) {
                 song = ds.shift();
-                app.top.dispCount(mgrs.ws.decrementAvailCount(), "avail");
                 if(song.bumped) { delete song.bumped; }
                 app.player.noteprevplay(song.lp);
                 mgrs.dk.markSongPlayed(song); }
@@ -1240,13 +1238,18 @@ app.deck = (function () {
             return mgrs[songSeqMgrName].popForward(npp); },
         songDataChanged: function (caller) {
             jt.log("deck.songDataChanged: " + caller);
+            const sdict = app.svc.songs();
+            mgrs.sdt.setSongsDict(sdict);  //reset with updated data
+            app.top.dispCount(Object.values(sdict).length, "avail");
             mdms.forEach(function (dm) {
                 mgrs[dm.mgr].songDataChanged(caller); }); },
         chooseActiveDisplay: function (startdata) {
             initialDataLoaded = true;
-            mgrs.sdt.setSongsDict(startdata.songdata.songs);  //initialize
+            const sdict = startdata.songdata.songs;
+            mgrs.sdt.setSongsDict(sdict);  //initialize
+            app.top.dispCount(Object.values(sdict).length, "avail");
             restoreSettings();
-            mgrs.hst.initHistoryIfNeeded(startdata.songdata.songs);
+            mgrs.hst.initHistoryIfNeeded(sdict);
             if(songSeqMgrName === "ddc") {
                 const mslsp = minutesSinceLastSongPlay();
                 if((mslsp < 0 || mslsp > 120) &&

@@ -252,9 +252,9 @@ app.svc = (function () {
         monitorReadTotal: function () {
             jt.call("GET", app.cb("/songscount"), null,
                     function (info) {
-                        app.top.dispCount(info.count, "total");
                         loadproc.stat = info.status;
                         if(info.status === "reading") {  //work ongoing, monitor
+                            app.top.dispCount(info.count, "total");
                             jt.out(loadproc.divid, info.lastrpath);
                             setTimeout(mgrs.loc.monitorReadTotal, 500); }
                         else {  //read complete
