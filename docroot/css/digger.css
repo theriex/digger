@@ -241,6 +241,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #addkwb { margin-left:0px; }
 #togsleeplink, #togcommentlink, #togsharelink { margin:0px 20px 0px 16px; }
 #togsleepimg, #togcommentimg, #togshareimg { max-height:24px; }
+#commentdiv { text-align:center; }
 #commentta { padding:3px 5px; }
 #sleepdiv { font-size:medium; }
 

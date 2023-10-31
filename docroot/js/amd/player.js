@@ -1295,7 +1295,7 @@ app.player = (function () {
                 return; }
             stat.song.nt = stat.song.nt || "";
             cdiv.innerHTML = jt.tac2html(
-                ["textarea", {id:"commentta", name:"commentta", rows:2, cols:35,
+                ["textarea", {id:"commentta", name:"commentta", rows:2, cols:40,
                               placeholder:"Your comment about this song",
                               oninput:mdfs("cmt.updateSongComment")},
                  stat.song.nt]); },
