@@ -594,7 +594,14 @@ app.deck = (function () {
                         spec.togf(false); } } };
             jt.on(div, "click", function (ignore /*event*/) {
                 var offimg = jt.byId(spec.id + "offimg");
-                spec.tfc[spec.id](offimg.style.opacity > 0); }); }
+                spec.tfc[spec.id](offimg.style.opacity > 0); }); },
+        setPanelResultHeight: function (targname, headername) {
+            const pdd = jt.byId("pandeckdiv").offsetHeight;
+            const dhd = jt.byId("deckheaderdiv").offsetHeight;
+            var avh = pdd - dhd - 20;  //panel 14 pad and 6 margin
+            if(headername) {
+                avh -= jt.byId(headername).offsetHeight; }
+            jt.byId(targname).style.height = avh + "px"; }
     };  //end mgrs.util returned functions
     }());
 
@@ -652,11 +659,7 @@ app.deck = (function () {
             if(!jt.byId("panfiltdiv")) {
                 mgrs.ddc.initDisplay(); }
             mgrs.gen.setSongSeqMgrName("ddc");
-            const pdd = jt.byId("pandeckdiv").offsetHeight;
-            const dhd = jt.byId("deckheaderdiv").offsetHeight;
-            const avh = pdd - dhd - 20;  //panel 14 pad and 6 margin
-            const fph = jt.byId("panfiltdiv").offsetHeight;
-            jt.byId("decksongsdiv").style.height = (avh - fph) + "px";
+            mgrs.util.setPanelResultHeight("decksongsdiv", "panfiltdiv");
             updateDeckDisplay(); }
     };  //end mgrs.ddc returned functions
     }());
@@ -827,7 +830,6 @@ app.deck = (function () {
                           onclick:mdfs("alb.playnow", idx)},
                     song.ti]; },
         displayAlbum: function (np) {
-            mgrs.gen.noteUpdatedDisplay("alb");
             jt.out("albplaydiv", jt.tac2html(
                 [["div", {cla:"albumtitlediv"},
                   [["span", {cla:"dsabspan"}, np.ab],
@@ -852,6 +854,7 @@ app.deck = (function () {
                 mgrs.dk.markSongPlayed(song);
                 mgrs.dk.removeFromDeck(song);
                 mgrs.alb.displayAlbum(song);
+                mgrs.gen.saveSettings();  //note updated playback position
                 return song; }
             return null; },
         onLastTrack: function () {
@@ -886,6 +889,7 @@ app.deck = (function () {
             if(!jt.byId("albsuggtogdiv")) {
                 mgrs.alb.initDisplay(); }
             mgrs.gen.setSongSeqMgrName("alb");
+            mgrs.util.setPanelResultHeight("albplaydiv");
             updateAlbumDisplay(); }
     };  //end of mgrs.alb returned functions
     }());
@@ -1029,11 +1033,7 @@ app.deck = (function () {
         activateDisplay: function () {
             if(!jt.byId("srchctrlsdiv")) {
                 mgrs.srch.initDisplay(); }
-            const pdd = jt.byId("pandeckdiv").offsetHeight;
-            const dhd = jt.byId("deckheaderdiv").offsetHeight;
-            const avh = pdd - dhd - 20;  //panel 14 pad and 6 margin
-            const cth = jt.byId("srchctrlsdiv").offsetHeight;
-            jt.byId("srchresdiv").style.height = (avh - cth) + "px";
+            mgrs.util.setPanelResultHeight("srchresdiv", "srchctrlsdiv");
             mgrs.srch.updateSearchDisplay(); }
     };  //end mgrs.srch returned functions
     }());
@@ -1085,13 +1085,6 @@ app.deck = (function () {
             {mgr:"srch", name:"Search", img:"search.png"}];
         var dataLoadCompleted = null;
         var songSeqMgrName = mdms[0].mgr;
-        var dispMgrName = mdms[0].mgr;
-        function saveSettings () {  //filter holds/sets all settings
-            const settings = app.filter.dispatch("stg", "settings");
-            settings.deck = {ssmn:songSeqMgrName};
-            mdms.forEach(function (dm) {
-                settings.deck[dm.mgr] = mgrs[dm.mgr].getSettings(); });
-            app.filter.dispatch("stg", "saveSettings"); }
         function restoreSettings () {  //read from acct not filter init
             const ca = app.top.dispatch("aaa", "getAccount");
             if(ca && ca.settings && ca.settings.deck) {
@@ -1123,19 +1116,20 @@ app.deck = (function () {
         dataLoadCompleted: function () { return dataLoadCompleted; },
         songSeqMgrName: function () { return songSeqMgrName; },
         setSongSeqMgrName: function (mgr) { songSeqMgrName = mgr; },
+        saveSettings: function () {  //filter holds/sets all settings
+            const settings = app.filter.dispatch("stg", "settings");
+            settings.deck = {ssmn:songSeqMgrName};
+            mdms.forEach(function (dm) {
+                settings.deck[dm.mgr] = mgrs[dm.mgr].getSettings(); });
+            app.filter.dispatch("stg", "saveSettings"); },
         dispMode: function (mgrname) {
             mdms.forEach(function (dm) {
                 jt.byId(dm.mgr + "mdmbdiv").className = "mdmbdiv";
                 jt.byId(dm.mgr + "dispdiv").style.display = "none"; });
             jt.byId(mgrname + "mdmbdiv").className = "mdmbdivact";
             jt.byId(mgrname + "dispdiv").style.display = "block";
-            dispMgrName = mgrname;
             mgrs[mgrname].activateDisplay();
-            saveSettings(); },
-        noteUpdatedDisplay: function (mgrname) {
-            if(mgrname && mgrname !== dispMgrName) {
-                return mgrs.gen.dispMode(mgrname); }
-            saveSettings(); },
+            mgrs.gen.saveSettings(); },
         initDisplay: function () {
             jt.out("pandeckdiv", jt.tac2html(
                 [["div", {id:"deckheaderdiv"},

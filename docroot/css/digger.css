@@ -382,6 +382,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #albsuggsdiv { padding:8px; background:#ffce69; color:#666; font-size:medium;
   border-radius:5px; }
 #albsuggstitlediv { font-size:small; text-align:center; margin-bottom:2px; }
+#albplaydiv { overflow:scroll; }
 .sgalbdiv { padding:8px 5px; }
 .sgalbarspan { font-style:italic; }
 .albumsongdiv { font-size:smaller; margin:5px 0px; }
