@@ -310,6 +310,7 @@ return {
 
     //common startup utility to let modules know app data now available
     initialDataLoaded: function (startdata) {
+        startdata.songdata.dbts = new Date().toISOString();  //stale data flag
         const uims = ["top",      //display login name
                       "filter",   //restore filters to previous settings
                       "deck"];    //choose appropriate display

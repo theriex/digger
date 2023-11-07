@@ -619,6 +619,16 @@ app.deck = (function () {
             mgrs.dk.setSongs(state.det, songs); },
         getSettings: function () { return {}; },
         restoreSettings: function () { return; },
+        getQueuedSongs: function (includeContextSongs, sqmax) {
+            var songs = mgrs.dk.songs().slice(0, sqmax);
+            if(includeContextSongs) {  //include currently playing song
+                const nowplayingsong = app.player.song();
+                if(nowplayingsong) {
+                    songs.unshift(nowplayingsong);
+                    songs = songs.slice(0, songs.length - 1); } }
+            return songs; },
+        endedDueToSleep: function () {  //can click to resume if more songs
+            return mgrs.dk.songs().length; },
         getNextSong: function () {
             return mgrs.dk.popSongFromDeck(); },
         popForward: function (npp) {
@@ -796,6 +806,18 @@ app.deck = (function () {
         haveUnplayedAlbums: function () {
             const sa = getSuggestedAlbums();
             return (sa && sa.length && sa[0].npsc >= 2); },
+        getQueuedSongs: function (includeContextSongs, sqmax) {
+            var songs = [];
+            if(aid[cak] && aid[cak].src === "pmq") {
+                songs = aid[cak].songs;
+                sqmax += aid[cak].ci + 1;  //sleep count relative to curr song
+                songs = songs.slice(0, sqmax);
+                if(!includeContextSongs) {
+                    songs = songs.slice(aid[cak].ci + 1); } }
+            return songs; },
+        endedDueToSleep: function () {  //can click to resume if more alb tracks
+            return (aid[cak] && aid[cak].src === "pmq" &&
+                    aid[cak].ci < aid[cak].songs.length - 2); },
         songs: function () { return aid[cak].songs; },
         songByIndex: function (idx) { return aid[cak].songs[idx]; },
         setAlbumSongs: function (fetchsong, albumsongs) {
@@ -1112,6 +1134,8 @@ app.deck = (function () {
                     (mgrs.alb.onLastTrack())) {
                 mgrs.alb.togSuggestAlbums(true); }
             mgrs.gen.dispMode(songSeqMgrName); }
+        function simplifiedSongInfo (song) {
+            return {ti:song.ti, ar:song.ar, path:song.path}; }
     return {
         dataLoadCompleted: function () { return dataLoadCompleted; },
         songSeqMgrName: function () { return songSeqMgrName; },
@@ -1147,17 +1171,27 @@ app.deck = (function () {
                 if(mgrs[dm.mgr].initDisplay) { mgrs[dm.mgr].initDisplay(); }});
             mgrs.gen.songSeqMgrName(mdms[0].mgr); //interim until data loaded
             mgrs.gen.dispMode(mdms[0].mgr); },    //interim until data loaded
-        moreSongsAvailable: function () {
-            return mgrs[songSeqMgrName].songs().length; },
-        getQueuedSongPaths: function () {
-            return mgrs[songSeqMgrName].songs().map((s) => s.path); },
+        getPlaybackState: function (includeContextSongs, fmt) {
+            var sqmax = 200;  //approximately 6+ hrs of songs to queue up
+            sqmax = app.player.dispatch("slp", "limitToSleepQueueMax", sqmax);
+            const songs = mgrs[songSeqMgrName].getQueuedSongs(
+                includeContextSongs, sqmax);
+            //copy needed song info to avoid any interaction with live data
+            const ret = {dbts:app.svc.dispatch("loc", "getDatabase").dbts,
+                         qsi:songs.map((s) => simplifiedSongInfo(s))};
+            if(fmt !== "ssd") {  //return paths if not simplified song details
+                ret.qsi = ret.qsi.map((s) => s.path); }
+            return ret; },
+        endedDueToSleep: function () {
+            //guess if app independent mobile playback stopped due to sleep
+            return mgrs[songSeqMgrName].endedDueToSleep(); },
         deckstate: function (dmx) {  //interim rapid restore info (minimal data)
             var state = {ssmn:songSeqMgrName};
             dmx = dmx || 0;  //must be numeric, verify not undefined.
             mdms.forEach(function (dm) {
                 state[dm.mgr] = mgrs[dm.mgr].getSaveState(dmx); });
             return state; },
-        restore: function (state, songs) {  //state is rapid restore state
+        restore: function (state, songs) {  //state is rapid restore state,
             mdms.forEach(function (dm) {    //optional songs are dbo.songs
                 mgrs[dm.mgr].restoreFromSavedState(state[dm.mgr], songs); }); },
         getNextSong: function () {
@@ -1185,19 +1219,20 @@ app.deck = (function () {
     }());
 
 return {
-    init: function () { mgrs.gen.initDisplay(); },
-    initialDataLoaded: function (sd) { mgrs.gen.initialDataLoaded(sd); },
-    filtersChanged: function (caller) { mgrs.ws.rebuild(caller); },
-    songDataChanged: function (caller) { mgrs.gen.songDataChanged(caller); },
-    getNextSong: function () { return mgrs.gen.getNextSong(); },
-    popForward: function (path) { return mgrs.gen.popForward(path); },
-    rebuildHistory: function () { mgrs.hst.rebuildHistory(); },
+    init: mgrs.gen.initDisplay,
+    initialDataLoaded: mgrs.gen.initialDataLoaded,
+    filtersChanged: mgrs.ws.rebuild,
+    songDataChanged: mgrs.gen.songDataChanged,
+    getNextSong: mgrs.gen.getNextSong,
+    popForward: mgrs.gen.popForward,
+    rebuildHistory: mgrs.hst.rebuildHistory,
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
-    getQueuedSongPaths: function () { return mgrs.gen.getQueuedSongPaths(); },
-    getState: function (dmx) { return mgrs.gen.deckstate(dmx); },
-    setState: function (state, songs) { mgrs.gen.restore(state, songs); },
-    stableDeckLength: function () { return mgrs.ws.stableDeckLength(); },
-    saveSongs: function (s, d, c, f) { mgrs.sdt.saveSongs(s, d, c, f); },
+    getPlaybackState: mgrs.gen.getPlaybackState,
+    endedDueToSleep: mgrs.gen.endedDueToSleep,
+    getState: mgrs.gen.deckstate,
+    setState: mgrs.gen.restore,
+    stableDeckLength: mgrs.ws.stableDeckLength,
+    saveSongs: mgrs.sdt.saveSongs,
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.deck, args); }
 };  //end of module returned functions

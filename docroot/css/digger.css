@@ -340,10 +340,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 
 #deckheaderdiv { padding:0px 20px 8px 20px; text-align:center;
   margin-top:-5px; }
-.mdmbdiv, .mdmbdivact { display:inline-block;  margin:0px 30px; padding:2px;
-  width:20px; height:20px; border-radius:10px; }
+.mdmbimg { height:20px; width:20px; margin:2px; }
+.mdmbdiv, .mdmbdivact { display:inline-block;  margin:0px 30px;
+  width:24px; height:24px; border-radius:12px; cursor:pointer; }
 .mdmbdivact { background:#ffab00; }
-.mdmbimg { max-width:20px; max-height:20px; }
 .ico20 { height:20px; max-height:20px; }
 #togfiltb { margin-right:5px; }
 #srchctrlsdiv { text-align:center; }

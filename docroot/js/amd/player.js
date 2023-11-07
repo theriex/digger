@@ -465,7 +465,7 @@ app.player = (function () {
         var pbi = null; //playback state information
         var debouncing = false;
         function handlePlayerEnd () {
-            if(!app.deck.dispatch("gen", "moreSongsAvailable")) {
+            if(app.deck.endedDueToSleep()) {
                 mgrs.slp.startSleep("Sleeping..."); } }
         function updatePBI (status) {
             stat.stale = null;
@@ -490,6 +490,7 @@ app.player = (function () {
             else {  //song has changed. service has moved forward N songs
                 clearSongDisplay();
                 app.svc.loadDigDat(function (dbo) {  //load updated song(s) lp
+                    dbo.dbts = new Date().toISOString();  //for stale data chk
                     //if plat is playing foreign media, this logic will fail.
                     //user may have to hit the skip button or relaunch.
                     stat.song = dbo.songs[status.path];
