@@ -664,17 +664,17 @@ app.player = (function () {
                             "I",   //Ignore, song is in an ignore folder
                             "D",   //Deleted, media file no longer available
                             "U"]}; //Unreadable, no metadata, corrupted etc.
-        function keywordActions (fld, pfname) {
+        function keywordsToAlbumHTML () {
             return jt.tac2html(
-                ["a", {href:"#keysto" + fld,
-                       title:"Associate keywords with " + pfname,
-                       onclick:mdfs("tun.associateKeywords", fld, pfname)},
-                 ["&nbsp;&#x21e6;", //left white arrow
-                  ["img", {cla:"tunactimg inv", src:"img/keys.png"}]]]); }
+                ["a", {href:"#keystoAlbum",
+                       title:"Add currently selected keywords to Album songs",
+                       onclick:mdfs("tun.associateKeywordsWithAlbum")},
+                 [["img", {cla:"tunactimg inv", src:"img/keys.png"}],
+                  "&nbsp;&#x21e8;&nbsp;Album"]]); } //rightwards white arrow
         function humanReadKwds (kwdcsv) {
             const qks = kwdcsv.csvarray().map((kwd) => "\"" + kwd + "\"");
             return qks.join(", "); }
-        function prevPlayAndDupesTAC () {
+        function prevPlayAndDupesHTML () {
             var pp = ""; var ddct = ""; var dupesongshtml = "";
             if(stat.prevPlayed) {
                 pp = jt.tz2human(stat.prevPlayed);
@@ -691,11 +691,12 @@ app.player = (function () {
                     dupes.map((s) =>
                         ["div", {cla:"dupesongdispdiv"},
                          app.deck.dispatch("sop", "songIdentHTML", s)])); }
-            return ["div", {id:"prevplaydiv"},
-                    [["span", {id:"ppvalspan"}, pp],
-                     ddct,
-                     ["div", {id:"dupesdispdiv", style:"display:none"},
-                      dupesongshtml]]]; }
+            return jt.tac2html(
+                ["div", {id:"prevplaydiv"},
+                 [["span", {id:"ppvalspan"}, pp],
+                  ddct,
+                  ["div", {id:"dupesdispdiv", style:"display:none"},
+                   dupesongshtml]]]); }
     return {
         isSubcatValue: function (cat, val) {
             return (subcats[cat] && subcats[cat].indexOf(val) >= 0); },
@@ -734,10 +735,6 @@ app.player = (function () {
             tdiv.innerHTML = jt.tac2html(
                 [["div", {id:"frequencyoptionsdiv"}, mgrs.tun.fqOptsHTML()],
                  ["div", {id:"tuningdetdiv"}, mgrs.tun.optDetailsHTML()]]); },
-        chgMetDat: function (fld) {
-            var val = jt.byId("tdet" + fld).value;
-            //jt.log("Changing " + fld + " to " + val);
-            mgrs.tun.changeTuningField(fld, val); },
         changeTuningField: function (fld, val, toggleoff) {
             if(toggleoff) {
                 mgrs.tun.toggleTuningOpts("off"); }
@@ -801,56 +798,29 @@ app.player = (function () {
                     ["a", {href:"openspotify", title:"Open in Spotify",
                            onclick:jt.fs("window.open('" + spurl + "')")},
                      "Open in Spotify"]]]]])); },
-        spidlink: function () {
-            return jt.tac2html(
-                ["a", {href:"#spotifydetails", onclick:mdfs("tun.spotDetails"),
-                       title:"Show Spotify Track Details"},
-                 stat.song.spid.slice(2)]); },
         optDetailsHTML: function () {
-            const flds = [{v:prevPlayAndDupesTAC()},
-                          {a:"Title", v:"ti", e:true,
-                           actions:"&nbsp;"},
-                          {v:["div", {id:"tiactdiv"}]},
-                          {a:"Artist", v:"ar", e:true,
-                           actions:keywordActions("ar", "Artist")},
-                          {v:["div", {id:"aractdiv"}]},
-                          {a:"Album", v:"ab", e:true,
-                           actions:keywordActions("ab", "Album")},
-                          {v:["div", {id:"abactdiv"}]}];
-            switch(app.svc.dispatch("gen", "plat", "hdm")) {
-            case "web": flds.push({a:"Spotify", v:mgrs.tun.spidlink()}); break;
-            default: flds.push({a:"File", v:stat.song.path}); }
-            flds.forEach(function (fld) {
-                if(fld.e) {
-                    fld.v = jt.tac2html(
-                        [["input", {type:"text", id:"tdet" + fld.v,
-                                    oninput:mdfs("tun.chgMetDat", fld.v),
-                                    value:jt.ndq(stat.song[fld.v])}],
-                         fld.actions || ""]); } });
             return jt.tac2html(
-                [["table", flds.map((fld) =>
-                    ["tr", {cla:"tuneoptdettr"},
-                     [["td", {cla:"tuneoptdetattr"}, fld.a || ""],
-                      ["td", {cla:"tuneoptdetval"}, fld.v || ""]]])],
-                 ["div", {id:"tunedetwrkdiv"}]]); },
-        associateKeywords: function (fld) {
+                ["div", {id:"tunedetdiv"},
+                 [["div", {id:"prevplaydupesdiv"}, prevPlayAndDupesHTML()],
+                  ["div", {id:"songurldiv"}, "Source: " + stat.song.path],
+                  ["div", {id:"kwds2albumdiv"}, keywordsToAlbumHTML()],
+                  ["div", {id:"abactdiv"}]]]); }, //conf dialog for kwd assoc
+        associateKeywordsWithAlbum: function () {
             //Not worth extending to remove all keywords. Use a marker kw.
-            const divid = fld + "actdiv";
+            const divid = "abactdiv";
             const div = jt.byId(divid);
             if(div.innerHTML) {  //already displayed, toggle off
                 div.innerHTML = "";
                 return; }
-            const flds = ["ar", "ab"];
-            flds.forEach(function (fld) { jt.out(fld + "actdiv", ""); });
             if(!stat.song.kws) {
                 jt.out(divid, "No keywords selected");
                 return; }
-            const ropts = [{v:"overwrite", t:"Overwrite", c:"checked"},
-                           {v:"addifmiss", t:"Add if not already set"}];
+            const ropts = [{v:"overwrite", t:"Overwrite"},
+                           {v:"addifmiss", t:"Add if not already set",
+                            c:"checked"}];
             jt.out(divid, jt.tac2html(
                 ["Associate " + humanReadKwds(stat.song.kws) +
-                 " with all songs " + ((fld === "ab")? "on" : "by") +
-                 " " + stat.song[fld] + "?",
+                 " with all songs on \"" + stat.song.ab + "\"?",
                  ["div", {id:"keyassocoptsdiv"},
                   [ropts.map((ao) =>
                       ["div", {cla:"tuneoptiondiv"},
@@ -859,7 +829,7 @@ app.player = (function () {
                                    checked:jt.toru(ao.c)}],
                         ["label", {fo:"assocrad" + ao.v}, ao.t]]]),
                    ["button", {type:"button",
-                               onclick:mdfs("tun.assocKwdProc",fld)},
+                               onclick:mdfs("tun.assocKwdProc", "ab")},
                     "Update Songs"]]]])); },
         assocKwdProc: function (fld) {
             var merge = jt.byId("assocradaddifmiss");
@@ -884,7 +854,9 @@ app.player = (function () {
                     jt.out("keyassocoptsdiv", "Updating " + updsongs.length +
                            " songs...");
                     app.svc.dispatch("gen", "updateMultipleSongs", updsongs,
-                        function () {
+                        function (upds) {
+                            app.deck.dispatch("alb", "noteUpdatedAlbumSongs",
+                                              upds);
                             jt.out(fld + "actdiv", String(updsongs.length) +
                                    " songs updated."); },
                         function (code, errtxt) {
@@ -1449,12 +1421,6 @@ app.player = (function () {
         const uichg = [  //fields changeable in the player UI with update funcs
             {fld:"fq", uf:function (val) {
                 mgrs.tun.changeTuningField("fq", val, true); }},
-            {fld:"ti", uf:function (val) {
-                mgrs.tun.changeTuningField("ti", val, true); }},
-            {fld:"ar", uf:function (val) {
-                mgrs.tun.changeTuningField("ar", val, true); }},
-            {fld:"ab", uf:function (val) {
-                mgrs.tun.changeTuningField("ab", val, true); }},
             {fld:"al", uf:function (val) {
                 mgrs.pan.updateControl("al", val); }},
             {fld:"el", uf:function (val) {

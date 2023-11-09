@@ -575,6 +575,8 @@ app.svc = (function () {
                     platconf.hdm = "loc"; } }
             hdm = platconf.hdm; },
         plat: function (key) { return platconf[key]; },
+        updateMultipleSongs: function (songs, contf, errf) {
+            return mgrs.loc.saveSongs(songs, contf, errf); },
         initialDataLoaded: function (startdata) {
             if(stat.idl) {
                 return jt.log("initial data already loaded"); }

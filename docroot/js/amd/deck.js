@@ -827,6 +827,20 @@ app.deck = (function () {
         albumFetchFailure: function (code, errtxt) {
             jt.out("albplaydiv", "Album fetch failed: " + code + ": " +
                    errtxt); },
+        noteUpdatedAlbumSongs: function (upds) {
+            if(!upds || !upds.length) {
+                return jt.log("noteUpdatedAlbumSongs: no updated songs"); }
+            const usbp = {};  //updated songs by path
+            upds.forEach(function (s) {
+                s = app.svc.dispatch("loc", "noteUpdatedSongData", s);
+                usbp[s.path] = s; });
+            const key = makeAlbumKey(upds[0]);
+            if(!aid[key] || aid[key].src !== "pmq") { 
+                return jt.log("noteUpdatedAlbumSongs: album not fetched yet"); }
+            aid[key].songs.forEach(function (s) {
+                const updsong = usbp[s.path];
+                if(updsong) {
+                    app.copyUpdatedSongData(s, updsong); } }); },
         togSuggestAlbums: function (disp) {
             toggleButtons.togsuggb(disp); },
         playSuggestedAlbum: function (idx) {
