@@ -400,3 +400,18 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #deckvtabsdiv { padding:0px 0px 6px 0px; letter-spacing:0.2em; }
 #deckvcontdiv { }
 
+/****************************************/
+/* Manual */
+
+code { font-size:medium; }
+.nobullul { list-style-type:none; }
+.manimg, .manimginv { max-height:20px; margin:0px 5px; }
+.manimginv { filter:invert(100%); }
+.mansmimg { max-height:20px; }
+.manmdimg { max-height:25px; }
+.manlgimg { max-height:40px; }
+.manicotable { font-size:medium; }
+.topicdiv h2 { margin-bottom:4px; }
+.platseldiv { font-size:medium; }
+.platseloptdiv { display:inline-block; padding:0px 12px; }
+.expansionindicatordiv { display:inline-block; }

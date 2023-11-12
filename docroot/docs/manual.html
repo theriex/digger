@@ -7,10 +7,10 @@
   <meta name="description" content="What Digger is an how to use it." />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Digger Manual</title>
+  <link href="../css/digger.css" rel="stylesheet">
 <style type="text/css">
-body { background:AntiqueWhite; padding:0px 10px; font-size:large; }
-h1 { text-align:center; }
-h2 { padding:10px 0px 0px 0px; }
+body { background: #ffc2a4; padding:0px 10px; font-size:large;
+       overflow:scroll; }
 </style>
 </head>
 <body>
@@ -19,223 +19,322 @@ h2 { padding:10px 0px 0px 0px; }
   * No links. On mobile platforms, external links definitely crash and
     internal links are suspect.
   * Minimal styling: On mobile platforms, only the body content is 
-    retained so any head styling would need to be duplicated.
+    retained, so any head styling will need to be duplicated.
 -->
 
 <h1>The Digger Manual</h1>
 
-<p>Digger is a music library tool for retrieval and collaboration.  It works
-like a mixer for your music collection. </p>
+<div class="taglinediv">Getting the most from your annotated music
+collection. </div>
 
+<div class="topicdiv">
+  <h2>Where Digger finds your music</h2>
+  <div class="platoptsdiv">
+    <div class="ios">
 
-<h2>Getting started</h2>
+<p>After you grant permission to access your music, Digger uses an
+<code>MPMediaQuery</code> to ask iOS for all songs available for apps on
+your device.  To copy songs onto your device, use <em>Apple Music</em> to
+sync all or part of your collection from your computer. </p>
 
-<p>When you first start Digger, it reads and saves song information from
-your library and starts playing music.  Digger does not modify your music
-files or library.  If you sign in, song impressions you save in Digger will
-be synchronized across your devices. </p>
+    </div>
+    <div class="droid">
 
+<p>After you grant permission to access your music, Digger queries the
+Android <code>MediaStore</code> for available music audio.  To copy songs
+onto your device, use the <em>Android File Transfer</em> app from your
+computer. </p>
 
-<h2>The Player Panel</h2>
+    </div>
+    <div class="node">
 
-<p>The player panel holds transport control and song tuning options.  The
-main controls are the <em>Energy Level</em> and <em>Approachability</em> pan
-knobs.  Whether you think of "Amped" as heads-down-amps-on-10, high BPM,
-massive technical prowess, fireworks and/or whatever else, that's how you
-think of it.  Likewise whether "Chill" means sleep, relaxation, meditation
-or whatever, that's what you think of that.  You might think of "Hard" as
-dissonance, harsh sounds, tough lyrics or other challenging aspects.  By
-contrast "Easy" might be consonance, familiar sounds, general
-approachability.  Whatever you feel.</p>
+<p>Digger creates <code>.digger_config.json</code> in your home directory
+with a default <code>musicPath</code> set to the <code>Music</code> folder
+off your home directory.  To change where Digger should find music, click
+the library button (<img class="manimg" src="../img/recordcrate.png"/>) at
+the top center of the app, then choose <em>"Music Files"</em> to set where
+Digger should look.  If there are folders Digger should avoid, use
+the <em>"Ignore Folders"</em> button under the library options to tell
+Digger what to skip over. Folder names can end with an asterisk ('*')
+wildcard. </p>
 
-<p>Everything in your collection is already above average or you wouldn't
-have bothered collecting it, but some songs are a bit better or worse
-relative to the rest.  Adjust the rating stars above or below 3 if you want
-to capture that. </p>
+<p>Digger relies on song file metadata for search and sync.  While it may be
+able to guess missing metadata from an <code>Artist/Album/Song</code> file
+organization, any missing metadata in your collection should be fixed using
+a tool for that purpose.  Each song must have a title and artist.  Digger
+does not modify your song files. </p>
 
-<p>Keyword toggles let you mark the song for retrieval, either by situation or
-category.  Keywords combine with energy level and approachability when
-digging for music to play.  For example you might select "Social" for songs
-you are comfortable playing when having people over, then adjust energy
-level and approachability as appropriate for the situation.  Click the '+'
-button to the left to expand all keywords and/or add more. </p>
-
-<p>Use the comment button to save a statement about the song.  The share
-button copies song details to share with other music fans.  The snooze
-button will pause playback after the song finishes.</p>
-
-<p>The skip button in the upper right skips to the next song.  Generally a
-song is eligible to play once every 24hrs, but the tuning fork to the left
-of skip brings up additional song details and playback options.  If you find
-a song is being suggested too often, select "Tired" under the tuning options
-to reduce the eligibility to once every 3 months.  If you click skip again
-after that, eligibility moves to every 6 months.  Skip it again and it's
-once a year.  By design, Digger always grabs oldest stuff first, so you
-might not need this, but it can be handy for overplayed classic songs. </p>
-
-<p>In the tuning options, you can fix incorrect Title, Artist, or Album
-values.  Any changes are saved with your rating and do not affect the
-original song file metadata. </p>
-
-<p>You can click the keys next to the Album or Artist fields to associate
-the current song keywords with all songs on the album or by the artist. </p>
-
-
-<h2>The Filters Panel</h2>
-
-<p>Filters control how Digger pulls songs from your collection.  First among
-these are the Approachability and Energy Level range selectors.  Watch the
-bright part of each display to see the acceptable range of what you want to
-listen to.  All unrated songs are in the middle. </p>
-
-<p>Keyword toggles allow you to specify whether songs being retrieved
-should, or should not, include the given keyword.  Off is neutral.  Four
-selection keywords can be active at any time.  You can select which ones in
-the top panel library actions.</p>
-
-<p>"Standard" retrieval means songs that are 2.5 stars (the default rating)
-or higher.  Toggle this setting to pull higher rated or include more depth.
-The default "Include Untagged" keyword filtering should work for most
-situations.  Change this if you want to explicitely look for songs without
-any associated keywords, or for songs with at least one associated
-keyword.</p>
-
-<p>By default, frequency filtering "Fq" is on.  If you want to retrieve
-songs regardless of when they were last played, you can switch this off.  Be
-aware songs might repeat weirdly.  You can also completely switch off all
-filtering in the deck panel to search everything without filtering.</p>
-
-
-<h2>The Deck Panel</h2>
-
-<p>The deck panel shows matching songs ready to play next.  If you change
-filter settings, the songs on deck get rebuilt.  Search matches all song
-text and your comments.  If you don't find what you are searching for,
-temporarily bypass all filtering using the filter toggle to the left of the
-search box. </p>
-
-<p>To the right of search, there are three display toggles: The Info button
-gives details on how songs are being filtered.  The Album button switches to
-play all available songs from the album in sequence regardless of filtering.
-The Views button shows History (previously played songs), Newest (most
-recently added to your collection), and Dupes (other copies of the currently
-playing song). </p>
-
-<p>Clicking a song on deck brings up contextual deck transport controls.
-You can play the song immediately, move it to the top of the deck, skip it,
-or snooze it (mark as tired and skip). </p>
-
-
-<h2 id="toppanel">The Top Panel</h2>
-
-<p>The top panel provides DiggerHub access and library actions. </p>
-
-<h3>DiggerHub</h3>
-
-<p>Connecting to DiggerHub synchronizes your song ratings and enables
-structured collaboration with fellow music fans you select.  When you join,
-your ratings are kept in sync across multiple devices.  Any time you want,
-you can check what you have in common, get recommendations for music you
-don't have, and even fill default ratings, from people whose musical
-listening interests and reactions you respect and enjoy. </p>
-
-<p>When you first sign in, the initial synchronization process can sometimes
-take a while, depending on how much song data you have.  After the initial
-sync is done, hub sync is generally very quick.  The "hub" indicator light
-is displayed on the player panel while sync is ongoing.  Clicking the
-indicator link will open the library actions where the "Hub Sync" line shows
-how many songs have been uploaded and downloaded.  The status display shows
-"init", "processing", "scheduled", or (hopefully not) an error message.  The
-"Reset" link can be used to restart hubsync if you suspect it might have
-hung up due to network issues or whatever.</p>
-
-<p>DiggerHub is all about the music and your reactions to it.  Everything
-you need you've already entered into Digger while you were listening. </p>
-
-
-<h3>Library Actions</h3>
-
-<p>The library actions display shows general info and actions related to the
-songs you currently have on the device you are currently using. </p>
-
-<p>"Read Files" will re-read all the music you have available.  Digger does
-this automatically when it starts up to check if music has been added or
-removed since last time, but you can re-read anytime if something
-changed. </p>
-
-<div class="pconly">
-<p>"Ignore Folders" are names of folders in your music collection folder
-that Digger should skip when reading files.  A few common folders are
-already provided, but you can add more as needed.  Folder names can end with
-an end with an asterisk ('*') wildcard to save typing. </p>
+    </div>
+  </div>
 </div>
 
-<p>"Choose Keywords" to select which keywords to use for filtering and in
-what order they should be displayed.  You can remove keywords you don't want
-to use anymore.</p>
+<div class="topicdiv">
+  <h2>Where Digger saves your annotations</h2>
+  <div class="platoptsdiv">
+    <div class="ios">
+
+<p>Digger saves your annotations in the app. You can sync your annotations
+to DiggerHub for backup and access from multiple devices. Click the "Digger"
+link in the upper left of the app to sign in and enable sync.</p>
+
+    </div>
+    <div class="droid">
+
+<p>Digger saves your annotations in the app. You can sync your annotations
+to DiggerHub for backup and access from multiple devices. Click the "Digger"
+link in the upper left of the app to sign in and enable sync.</p>
+
+    </div>
+    <div class="node">
+
+<p>Digger saves your annotations as <code>digdat.json</code> in your home
+folder. To change where Digger saves your annotations, click the library
+button at the top center of the app, then choose <code>Digger Data</code> to
+set where Digger should save your annotations.  You can sync your
+annotations to DiggerHub for backup and access from multiple devices. Click
+the "Digger" link in the upper left of the app to sign in and enable
+sync.</p>
+
+    </div>
+  </div>
+</div>
+
+
+<div class="topicdiv">
+  <h2>Autoplay, Albums and Search</h2>
+  <div>
+
+<p>On first launch, Digger starts with the <img class="manimg"
+src="../img/album.png"/> (Album) display and provides suggestions.  If
+you have something else in mind, use the <img class="manimg"
+src="../img/search.png"/> (Search) display.  To play individual songs, use
+the <img class="manimg" src="../img/deck.png"/> (Deck) display.  After
+initial launch, the app resumes whichever display you were last in.  The
+song to play next follows the display you have active. </p>
+
+<p>Digger always prefers what you have least recently heard, so it will dig
+through the stacks in your collection and pull things you might want to hear
+next.  As you listen, you can annotate what's playing, then you can reference
+your annotations for selecting songs. </p>
+
+  </div>
+</div>
+
+
+<div class="topicdiv">
+  <h2>Annotating a song</h2>
+  <div>
+
+<p>Digger annotations capture an almost complete picture of your impression
+of a song, saving a rating that can be used for music retrieval.  You record
+your impression using the feel knobs, keyword toggles, star bar and comment
+entry. </p>
+
+<p><img class="manlgimg" src="../docs/illuKnob.png"/> Feel knobs let you
+position a song along a dimension of the music universe.  Digger supports
+two dimensions: <em>Approachability</em> and <em>Energy Level</em>.  How you
+position each of these knobs depends entirely on your feelings and what the
+values mean to you.  Perhaps <em>"Easy"</em> might reflect soothing,
+consonance, or simplicity whereas <em>"Hard"</em> might indicate
+challenging, dissonance, or complexity.  Perhaps <em>"Chill"</em> might
+reflect slow, quiet, or relaxing, whereas <em>"Amped"</em> might indicate
+fast, loud, or activating.  Whatever you feel. </p>
+
+<p><img class="mansmimg" src="../docs/illuKwToggles.png"/> Keyword toggles
+let you mark a song for retrieval using categorical and situational tags.
+The default tags have been chosen through trials to yield excellent
+selection power for minimum data entry.  As an example
+the <code>"Social"</code> keyword, with a feel knob value, can mark
+presentation music from a low key brunch to an energetic party.  Expand the
+keyword toggles to see or add more. </p>
+
+<p><img class="manmdimg" src="../docs/illuStars.png"/> The star bar lets you
+reflect if a song is better or less than average for your collection.  The
+expectation is everything in your collection was worth keeping, so lower
+rated songs are typically less impressive tracks from otherwise notable
+albums, and top rated songs could be personal anthems. </p>
+
+<p>The <img class="manimg" src="../img/comment.png"/> comment button opens
+text input for your notes about a song or what it means to you.  Digger
+comments are a sentence or short paragraph, if a song merits a longer
+discussion or story, that's best posted separately.  You can include a URL
+in your comment, but it may not be clickable in the app.  All text in
+comments is available to search, so words and phrases you write work for
+search. </p>
+
+<p>The <img class="manimg" src="../img/share.png"/> share button copies all
+information about the song, including your annotations, to DiggerHub or to
+the clipboard for sharing using whatever social tech you like.  The
+<img class="manimg" src="../img/sleep.png"/> sleep button is an extended
+transport control allowing you to pause playback after a song finishes. </p>
+
+<div class="expandiv">
+  <h3><img class="manimg" src="../img/tunefork.png"/> Tuning Options</h3>
+  <div>
+
+<p>Digger won't generally play a song that was previously played within 24
+hours, but some songs might still feel like they get pulled too often.  By
+marking a song as <code>Tired</code>, the playback frequency switches from
+<code>'P'</code> (playable) to <code>'B'</code> (backburner) meaning it will
+be played at most once every 90 days.  If you skip a backburner song it
+automatically moves to <code>'Z'</code> (sleeper) and plays at most once
+every 180 days.  If you skip a sleeper song it moves to <code>'O'</code>
+(overplayed) and is eligible to play once a year. </p>
+
+<p>If a song has autoplayed enough for a lifetime, or if it doesn't stand on
+its own outside of its album context, <code>"Don't Suggest"</code> will
+disqualify it from autoplay selection.</p>
+
+<p>If the keywords you've selected for the currently playing song can be
+applied to all songs on the album, <img class="manimg"
+src="../img/keys.png"/>&#x21e8;&nbsp;<em>Album</em> will add or overwrite
+those keywords across all album songs. </p>
+
+<p>The tuning display also shows the source of the currently playing song,
+the last playback time (if previously played), and a dupes count (if dupes
+are found).  Digger marks duplicate songs as played so you don't get the
+same song repeatedly suggested from a compilation, the original album, and
+wherever else.  Dupe tracking works off matching song metadata, so Digger
+might still pull the remix version of a song even if you played the
+original. </p>
+
+  </div>
+</div> <!-- epandiv -->
+  </div>
+</div> <!-- topicdiv -->
+
+
+<div class="topicdiv">
+  <h2>Filtering songs for playback</h2>
+  <div>
+
+<p>In Deck playback mode, Digger shows the song retrieval filters and the
+selected songs "on deck" for playback.  The retrieval filters determine
+currently acceptable knob values, keywords, and rating stars across songs in
+your collection. </p>
+
+<p><img class="manlgimg" src="../docs/illuRangeCtrl.png"/> 2D range
+selectors allow you to specify an acceptable Feel Knob range and bounding
+using a single motion.  All songs that have not been feel adjusted are in
+the center. </p>
+
+<p><img class="manlgimg" src="../docs/illuKwFilters.png"/> You can filter on
+up to 4 active keywords at once.  To select which keywords are currently
+active for retrieval, click <em>"Choose Keywords"</em> under the library
+actions (<img class="manimg" src="../img/recordcrate.png"/>) at the top
+center of the app.  Each active keyword has an associated 3-way toggle
+allowing you to specify if matching songs <em>must</em> have the keyword,
+must <em>not</em> have the keyword, or off (may or may not have the
+keyword). </p>
+
+<div class="expandiv">
+  <h3><img class="manimg" src="../img/keys.png"/> Default Keywords</h3>
+  <div>
+
+<p>"Choose Keywords" under the library actions lets you select which
+keywords to use for filtering and in what order they should be displayed.
+You can also remove keywords you don't want to use anymore. </p>
 
 <p>The default keywords have been chosen and tested over a period of years
-to provide positive and negative selection power in a wide variety of
-situations.  The goal is to minimize the number of keywords you have to fill
-out while rating music, but maintain excellent retrieval capabilities
-covering most common music playing situations.  The default keywords are:</p>
+to provide excellent retrieval capabilities with minimum required tagging.
+The default keywords are: </p>
 
 <ul>
-<li><em>Social</em>: Music I might select to play when other people are listening.
-<li><em>Personal</em>: Music I might select to play when it's just me listening.
-<li><em>Office</em>: Songs I listen to while working.
+<li><em>Social</em>: Playable in gatherings with other people.
+<li><em>Personal</em>: Special to you.
+<li><em>Office</em>: Appropriate while working.
 <li><em>Dance</em>: Music to move to.
-<li><em>Ambient</em>: Music that can be listened to from zero to full attention, transitioning from and to silence.
-<li><em>Jazz</em>: However you define it for your collection.
-<li><em>Classical</em>: However you define it for your collection.
-<li><em>Talk</em>: Spoken word.
-<li><em>Solstice</em>: Winter holiday seasonal.  Whatever you celebrate.
+<li><em>Ambient</em>: Transitionable from or to silence. Listenable at various attention levels.
+<li><em>Jazz</em>: As applied to your collection.
+<li><em>Classical</em>: As applied to your collection.
+<li><em>Talk</em>: Spoken word, conversational attention.
+<li><em>Solstice</em>: Seasonal holiday.  Whatever you celebrate.
 </ul>
 
-<p>As an example of how these work, you can synthesize "Party" from
-"Social", matching the Approachability and Energy Level as appropriate for
-the situation and perhaps switching on "Dance" later.  Keywords like
-"Morning", "Workout", "Commute" etc have fallen by the wayside over time in
-favor of range controls and more generally useful keys.  Genre categories in
-particular can get seriously tedious if there are too many, so go broad for
-maximum leverage. </p>
+<p>Many other keywords such
+as <em>"Morning"</em>, <em>"Workout"</em>, <em>"Commute"</em> etc have
+fallen by the wayside over time in favor of range controls and more
+generally useful keys.  Highly specific genre categories usually got
+tedious to maintain but may be useful for specific collections. </p>
+
+  </div>
+</div> <!-- epandiv -->
+
+<p><img class="manmdimg" src="../docs/illuStarFilter.png"/> Star values are
+filtered using a 5-way toggle button.  <em>"Standard"</em> means 2.5 stars
+or higher, so it includes all songs that have not had their rating value
+adjusted from the default initial value.  If you want to play just your
+favorite hits, or delve into the depths, click to adjust accordingly.
+Digger prefers songs you've least recently listened to, so you'll get
+fullest possible coverage of your collection at whatever rating level you
+select.</p>
+
+<p><img class="manmdimg" src="../docs/illuTagFilter.png"/> The normal
+setting for keyword tag access is <em>"Allow Untagged"</em> which means
+keyword tag filtering works as you would probably expect.  If you only want
+to play songs that have no associated keywords at all, you can change this
+to
+<em>"Untagged Only"</em>.  The opposite of that is <em>"Tagged Only"</em>.
+Unless you are currently obsessed with tagging all songs in your
+collection, <em>"Allow Untagged"</em> is probably what you want. </p>
+
+<p><img class="manmdimg" src="../docs/illuFq.png"/> The frequency filtering
+button is normally on, meaning that Digger will not suggest a song if it was
+played in the past 24hrs, or longer if it was marked as tired.  If you've
+run out of songs on deck due to frequency filtering, this toggle lets you
+see which songs would otherwise have been eligible to play. </p>
+
+  </div>
+</div>
 
 
-<div class="pconly">
-<h2 id="digcfg">Local Files Configuration</h2>
+<div class="topicdiv">
+  <h2>Viewing and tuning songs on deck</h2>
+  <div>
 
-<p>Digger runs as a web app communicating with a local webserver accessed at
-http://localhost:6980 by default.  You can configure this, and where to find
-your music files by clicking "Music Files" or "Digger Data" links to restart
-Digger in config mode.  In config mode, you can set where to find your music
-files, and/or put your Digger database file somewhere other than your home
-folder.  Since browsers are not generally allowed to access your local file
-system, you'll have to modify these paths directly as text.</p>
+<p>The info (<img class="manimg" src="../img/info.png"/>) button gives a
+short summary of how many songs in your collection passed each of the
+filters.  The history (<img class="manimg" src="../img/history.png"/>)
+button shows songs you've played before.  Clicking any deck song overlays an
+action bar where you can </p>
 
-<p>To change other details of how Digger runs, modify .digger_config.json in
-your home folder.  The configuration settings are:</p>
+<table class="manicotable">
+  <tr><td><img class="manimginv" src="../img/play.png"/></td>
+    <td>Play this song right now.</td></tr>
+  <tr><td><img class="manimginv" src="../img/bumpup.png"/></td>
+    <td>Play this song next, or after the last song previously bumped to
+    play next. </td></tr>
+  <tr><td><img class="manimginv" src="../img/skipw.png"/></td>
+    <td>Skip playing this song.</td></tr>
+  <tr><td><img class="manimginv" src="../img/snooze.png"/></td>
+    <td>Verify marked as tired and skip.</td></tr>
+</table>
 
-<ul>
-<li><em>port</em>: Which port the local server should run on.
-<li><em>musicPath</em>: The directory where your music files can be found.
-<li><em>dbPath</em>: The file to store your Digger data.
-<li><em>exPath</em>: The directory to write playlists to.
-</ul>
+  </div>
+</div>
 
-<p>The "spawn" section contains contains information about the command to
-open a browser when Digger starts up.  The subsections are organized based
-on the platform key as returned by
-<code>node require("os").platform();</code> - e.g. "darwin" for MacOS.  You
-can change the startup command that gets run if you understand the
-structure, for example to open a specific browser or run a script.</p>
+<div class="topicdiv">
+  <h2>DiggerHub</h2>
+  <div>
 
-<p>The "acctsinfo" contains your account information after you have signed
-in to DiggerHub from local Digger.  It's best not to modify this part
-directly.  Do not share your <em>.digger_config.json</em> with others since
-it has your email address and access token.</p>
+<p>Click <em>Digger</em> in the upper left of the app to sign in for backup,
+sync, and optional structured collaboration. </p>
 
-<p>If you ever need to reset Digger to its default settings, delete this
-file and Digger will recreate it from its default setup. </p>
+<p>Digger saves song annotations and playback times to the hub as you
+listen.  If you ever need to install Digger from scratch, just sign in to
+pull down all your previously synchronized annotation and playback data.  If
+you have a lot of song ratings, you might see the "hub" indicator light
+staying lit for a little while.  Click it to view progress details.  A full
+restore can take a minute or more, but after initial sync, incremental sync
+operations typically take under a second. </p>
+
+<p>If you like, you can try structured interactions with fellow music fans
+to find music you have in common, get recommendations for songs you don't
+have, or fill default info for songs you haven't annotated yet. </p>
+
+<p>Visit DiggerHub for more info. </p>
+
+  </div>
 </div>
 
 

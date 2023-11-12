@@ -5,6 +5,10 @@ var jt = {};
 var app = (function () {
     "use strict";
 
+    const pdis = [{cn:"ios", pn:"iOS", aud:"IOS"},
+                  {cn:"droid", pn:"Android", aud:"Android"},
+                  {cn:"node", pn:"Mac/Win/*nix", aud:"Browser"}];
+
     function globkey (e) {
         //jt.log("globkey charCode: " + e.charCode + ", keyCode: " + e.keyCode);
         if(e && (e.charCode === 32 || e.keyCode === 32)) {  //space bar
@@ -13,6 +17,44 @@ var app = (function () {
             if(tname && edtags.indexOf(tname.toLowerCase()) < 0) {
                 if(app.spacebarhookfunc) {
                     app.spacebarhookfunc(); } } }
+    }
+
+
+    function activatePlatformSpecificDivs (docdiv) {
+        const audsrc = app.svc.plat("audsrc");
+        const actp = pdis.find((pdi) => pdi.aud === audsrc);
+        const pods = docdiv.getElementsByClassName("platoptsdiv");
+        Array.from(pods).forEach(function (pod, podi) {
+            Array.from(pod.children).forEach(function (pd) {
+                pd.id=pd.className + podi; });
+            const seldiv = document.createElement("div");
+            seldiv.className = "platselcontdiv";
+            seldiv.innerHTML = jt.tac2html(
+                ["div", {cla:"platseldiv"},
+                 pdis.map((pdi) =>
+                     ["div", {cla:"platseloptdiv"},
+                      ["a", {href:"#" + pdi.cn,
+                             onclick:jt.fs("app.displayPlat('" + pdi.cn + "'" +
+                                           "," + podi + ")")},
+                       pdi.pn]])]);
+            pod.prepend(seldiv);
+            app.displayPlat(actp.cn, podi); });
+    }
+
+
+    function activateExpansionDivs (docdiv) {
+        const xpds = docdiv.getElementsByClassName("expandiv");
+        Array.from(xpds).forEach(function (xpd, xpdi) {
+            const h3 = xpd.children.item(0);
+            const xd = xpd.children.item(1);
+            xd.id = "expandiv" + xpdi;
+            h3.innerHTML = jt.tac2html(
+                [["div", {cla:"expansionindicatordiv", id:"expidiv" + xpdi},
+                  ["a", {href:"#expand", id:"xptoga" + xpdi,
+                         onclick:jt.fs("app.togexp(" + xpdi + ")")},
+                   "+"]],
+                 h3.innerHTML]);
+            xd.style.display = "none"; });
     }
 
 
@@ -79,6 +121,18 @@ return {
 
     fileVersion: function () {
         return "v=230930";  //updated as part of release process
+    },
+
+
+    togexp: function (idx) {  //offset index within document
+        const ta = jt.byId("xptoga" + idx);
+        const xd = jt.byId("expandiv" + idx);
+        if(ta.innerHTML.indexOf("+") >= 0) {
+            ta.innerHTML = "-";
+            xd.style.display = "block"; }
+        else {
+            ta.innerHTML = "+";
+            xd.style.display = "none"; }
     },
 
 
@@ -270,12 +324,19 @@ return {
         const lut = jt.byId("privlut");
         if(lut) {
             lut.innerHTML = jt.colloquialDate(lut.innerHTML); }
-        const hdm = app.svc.plat("hdm");
-        const audsrc = app.svc.plat("audsrc");
-        if(hdm !== "loc" || audsrc !== "Browser") {
-            const divs = jt.byId("docdispdiv").getElementsByClassName("pconly");
-            Array.from(divs).forEach(function (div) {
-                div.style.display = "none"; }); }
+        const docdiv = jt.byId("docdispdiv");
+        activatePlatformSpecificDivs(docdiv);
+        activateExpansionDivs(docdiv);
+    },
+
+
+    displayPlat: function (selcn, idx) {
+        pdis.forEach(function (pdi) {
+            const div = jt.byId(pdi.cn + idx);
+            if(pdi.cn === selcn) {
+                div.style.display = "block"; }
+            else {
+                div.style.display = "none"; } });
     },
 
 
