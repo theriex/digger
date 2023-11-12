@@ -69,7 +69,15 @@ db.init(function (conf) {
             if(sd) {
                 launchNow(sd, plat); }
             else {
-                console.log("Open a browser and go to " + websrv.digurl); } });
+                console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                console.log("!!");
+                console.log("!!  B R O W S E R  L A U N C H  F A I L E D ! ");
+                console.log("!! ");
+                console.log("!! :-(  but the server's running... :-)");
+                console.log("!! Open a browser with this URL for Digger:");
+                console.log("");
+                console.log(websrv.digurl);
+                console.log(""); } });
     }
 
 
