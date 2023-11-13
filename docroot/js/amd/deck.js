@@ -573,9 +573,11 @@ app.deck = (function () {
             const imgstyle = "position:absolute;top:0px;left:0px;" +
                 "width:" + spec.w + "px;" + "height:" + spec.h + "px;";
             div.innerHTML = jt.tac2html(
-                [["img", {cla:"ico20", id:spec.id + "onimg", src:spec.onimg,
+                [["img", {cla:"ico20 inv", id:spec.id + "onimg",
+                          src:spec.onimg,
                           style:imgstyle + "opacity:" + opas.onimg}],
-                 ["img", {cla:"ico20", id:spec.id + "offimg", src:spec.offimg,
+                 ["img", {cla:"ico20 inv", id:spec.id + "offimg",
+                          src:spec.offimg,
                           style:imgstyle + "opacity:" + opas.offimg}]]);
             spec.tfc[spec.id] = function (activate, reflectonly) {
                 var onimg = jt.byId(spec.id + "onimg");
@@ -1173,7 +1175,7 @@ app.deck = (function () {
                   mdms.map((dm) =>
                       ["div", {cla:"mdmbdiv", id:dm.mgr + "mdmbdiv",
                                onclick:mdfs("gen.dispMode", dm.mgr)},
-                       ["img", {cla:"mdmbimg", title:dm.name,
+                       ["img", {cla:"mdmbimg inv", title:dm.name,
                                 src:"img/" + dm.img,
                                 onclick:mdfs("gen.dispMode", dm.mgr)}]])],
                  ["div", {id:"deckcontentdiv"},
