@@ -91,14 +91,14 @@ app.deck = (function () {
                 if(wrk.rpas.indexOf(s.ar) < 0) {
                     wrk.rpas.push(s.ar); } });
             wrk.rpas.reverse();   //highest index: most recently played artist
-            jt.log("wrk.rpas: ..." + wrk.rpas.slice(-10).join(", ")); }
+            jt.log("deck.ws wrk.rpas: ..." + wrk.rpas.slice(-10).join(", ")); }
         function initRecentlyPlayedAlbums () {
             wrk.rpbs = [];
             mostRecentlyPlayedSongs().forEach(function (s) {
                 if(wrk.rpbs.indexOf(s.ab) < 0) {
                     wrk.rpbs.push(s.ab); } });
             wrk.rpbs.reverse();   //highest index: most recently played album
-            jt.log("wrk.rpbs: ..." + wrk.rpbs.slice(-10).join(", ")); }
+            jt.log("deck.ws wrk.rpbs: ..." + wrk.rpbs.slice(-10).join(", ")); }
         function recentFirst (a, b) {
             if(a.lp && !b.lp) { return -1; }  //unplayed last, thx first
             if(!a.lp && b.lp) { return 1; }
@@ -165,21 +165,16 @@ app.deck = (function () {
             return songs.findIndex((s) => 
                 ((s.dsId && s.dsId === song.dsId) ||
                  (s.path && s.path === song.path))); },
-        refreshDeckSongRefs: function (sbyp) {  //songs by path
-            var decksongs = mgrs.dk.songs();  var di;
-            for(di = 0; di < decksongs.length && di < mxkp; di += 1) {
-                if(sbyp[decksongs[di].path]) {  //use stale if no longer avail
-                    decksongs[di] = sbyp[decksongs[di].path]; } } },
         preserveExistingDeckSongs: function () {
+            //avoid deck churn for first mxkp deck songs that filtered ok
             var decksongs = mgrs.dk.songs();  var di; var si; var currsong;
-            if(!wrk.rpas) { initRecentlyPlayedArtists(); }
-            if(!wrk.rpbs) { initRecentlyPlayedAlbums(); }
+            jt.log("preserveExistingDeckSongs: " + decksongs.length);
             wrk.prs = [];  //reset preserved songs
             for(di = 0; di < decksongs.length && di < mxkp; di += 1) {
                 currsong = decksongs[di];
                 si = mgrs.ws.findSongIndex(currsong, wrk.songs);
                 if(si < 0) { break; }  //deck changed from this index onward
-                jt.log("peds " + si + ": " + wrk.songs[si].ti +
+                jt.log("peds " + di + ": " + wrk.songs[si].ti +
                        ", lp: " + wrk.songs[si].lp);
                 wrk.prs.push(wrk.songs[si]);
                 wrk.songs.splice(si, 1); } },
@@ -221,9 +216,9 @@ app.deck = (function () {
             mgrs.ws.shuffleArray(rest, 1, rest.length -1);
             wrk.songs = first.concat(rest); },
         presentSongs: function () {
+            if(!wrk.rpas) { initRecentlyPlayedArtists(); }
+            if(!wrk.rpbs) { initRecentlyPlayedAlbums(); }
             mgrs.ws.preserveExistingDeckSongs();  //pulled into wrk.prs
-            if(!wrk.prs.length) {
-                jt.log("Avoiding recently played artists in deck sort"); }
             wrk.songs.sort(comparePresentation);
             mgrs.ws.shuffleUnplayed();  //avoid predictable first song 
             wrk.songs = wrk.songs.slice(0, mxdw);  //truncate to reasonable len

@@ -411,9 +411,13 @@ return {
 
     //Demo data handler for simulator screenshots
     scr: (function () {
-        var active = false;  //true if stubbed returns demo data
-        const dummyStatus = {state:"paused", pos:12*1000, dur:210*1000,
-                             path:"SongU.mp3"};  //oldest
+        var active = false;  //true if stubbed calls should return demo data
+        var initialized = false;  //initial data setup flag
+        var songdat = null;  //working space for song data
+        var ratedSongs = false;
+        var idctr = 1001;
+        const dummyStatus = {state:"playing", pos:12*1000, dur:210*1000,
+                             path:"whatever"};  //set by startPlayback
         const kwdefs = {Social: {pos: 1, sc: 0, ig: 0, dsc: ""},
                         Personal: {pos: 0, sc: 0, ig: 0, dsc: ""},
                         Office: {pos: 4, sc: 0, ig: 0, dsc: ""},
@@ -441,7 +445,7 @@ return {
             "hubdat": "",
             "kwdefs": kwdefs,
             "igfolds": ["Ableton","Audiffex","Audio Music Apps"],
-            "settings": settings,
+            //"settings": "";
             "musfs": ""};
         const demoacct = {
             "dsType": "DigAcc", "dsId": "1234",
@@ -474,75 +478,297 @@ return {
                  "lastpull": "2022-08-10T21:30:48Z",
                  "lastheard": "2023-02-14T18:42:48Z",
                  "common": 8645, "dfltrcv": 986, "dfltsnd": 0}]};
+        const albdat = {
+            "Brian Eno":{
+                "Ambient 1: Music for Airports":{
+                    kwds:"Social,Office,Ambient", songs:[
+                        "1/1",
+                        "2/1",
+                        "1/2",
+                        "2/2"]}},
+            "Kraftwerk":{
+                "Autobahn":{
+                    kwds:"Social,Office", songs:[
+                        "Autobahn",
+                        "Kometenmelodie 1",
+                        "Kometenmelodie 2",
+                        "Mitternacht",
+                        "Morgenspaziergang"]}},
+            "Cocteau Twins":{
+                "Blue Bell Knoll":{
+                    kwds:"Social,Office", songs:[
+                        "Blue Bell Knoll",
+                        "Athol-Brose",
+                        "Carolyn's Fingers",
+                        "For Phoebe Still a Baby",
+                        "The Itchy Glowbo Blow",
+                        "Cico Buff",
+                        "Suckling the Mender",
+                        "Spooning Good Singing Gum",
+                        "A Kissed Out Red Floatboat",
+                        "Ella Megalast Burls Forever"]}},
+            "Deep Forest":{
+                "Deep Forest":{
+                    kwds:"Social,Office", songs:[
+                        "Deep Forest",
+                        "Sweet Lullaby",
+                        "Hunting",
+                        "Night Bird",
+                        "The First Twilight",
+                        "Savana Dance",
+                        "Desert Walk",
+                        "White Whisper",
+                        "The Second Twilight",
+                        "Sweet Lullaby (Ambient Mix)",
+                        "Forest Hymn"]}},
+            "Talking Heads":{
+                "Remain In Light":{
+                    kwds:"Social,Office", songs:[
+                        "Born Under Punches (The Heat Goes On)",
+                        "Crosseyed And Painless",
+                        "The Great Curve",
+                        "Once In A Lifetime",
+                        "Houses In Motion",
+                        "Seen And Not Seen",
+                        "Listening Wind",
+                        "The Overload"]}},
+            "Miles Davis":{
+                "Star People":{
+                    kwds:"Social,Office", songs:[
+                        "Come Get It",
+                        "It Gets Better",
+                        "Speak",
+                        "Star People",
+                        "U'n'I",
+                        "Star On Cicely"]}},
+            "Kate Bush":{
+                "Hounds of Love":{
+                    kwds:"Social", songs:[
+                        "Running Up That Hill (A Deal With God)",
+                        "Hounds Of Love",
+                        "The Big Sky",
+                        "Mother Stands For Comfort",
+                        "Cloudbusting",
+                        "And Dream Of Sheep",
+                        "Under Ice",
+                        "Waking The Witch",
+                        "Watching You Without Me",
+                        "Jig Of Life",
+                        "Hello Earth",
+                        "The Morning Fog"]}},
+            "Ozomatli":{
+                "Street Signs":{
+                    kwds:"Social,Office", songs:[
+                        "Believe",
+                        "Love And Hope",
+                        "Street Signs",
+                        "(Who Discovered) America?",
+                        "Who's To Blame",
+                        "Te Estoy Buscando",
+                        "Saturday Night",
+                        "Déjame En Paz",
+                        "Santiago",
+                        "Ya Viene El Sol [The Beatle Bob Remix]",
+                        "Doña Isabelle",
+                        "Nadie Te Tira",
+                        "Cuando Canto"]}},
+            "Gil Scott-Heron":{
+                "The Revolution Will Not Be Televised":{
+                    kwds:"Social", songs:[
+                        "The Revolution Will Not Be Televised",
+                        "Sex Education_ Ghetto Style",
+                        "The Get Out of the Ghetto Blues",
+                        "No Knock",
+                        "Lady Day and John Coltrane",
+                        "Pieces of a Man",
+                        "Home Is Where the Hatred Is",
+                        "Brother",
+                        "Save the Children",
+                        "Whitey on the Moon [Explicit]",
+                        "Did You Hear What They Said?"]}},
+            "Joan Armatrading":{
+                "Walk Under Ladders":{
+                    kwds:"Social,Office", songs:[
+                        "I'm Lucky",
+                        "When I Get It Right",
+                        "Romancers",
+                        "I Wanna Hold You",
+                        "The Weakness In Me",
+                        "No Love",
+                        "At The Hop",
+                        "I Can't Lie To Myself",
+                        "Eating The Bear",
+                        "Only One"]}},
+            "Pizzicato Five":{
+                "女性上位時代":{
+                    kwds:"Social,Office", songs:[
+                        "女性上位時代#4",
+                        "私のすべて",
+                        "お早よう",
+                        "サンキュー",
+                        // "大人になりましょう",
+                        // "女性上位時代#5",
+                        // "ベイビィ・ラヴ・チャイルド",
+                        // "トゥイギー・トゥイギー",
+                        // "トゥイギー対ジェイムズボンド",
+                        // "神様がくれたもの",
+                        // "パーティー",
+                        // "しりとりをする恋人たち",
+                        // "マーブル・インデックス",
+                        // "きみになりたい",
+                        // "むずかしい人",
+                        "TOKYO'S COOLEST SOUND",
+                        "クールの誕生",
+                        "女性上位時代#6"]}},
+            "The KLF":{
+                "Chill Out":{
+                    kwds:"Social,Office,Ambient", songs:[
+                        "Brownsville Turnaround on the Tex-Mex Border",
+                        "Pulling Out of Ricardo and the Dusk Is Falling Fast",
+                        "Six Hours to Louisiana, Black Coffee Going Cold",
+                        "Dream Time in Lake Jackson",
+                        "Madrugada Eterna",
+                        "Justfied and Ancient Seems a Long Time Ago",
+                        "Elvis on the Radio, Steel Guitar in My Soul",
+                        "3 A.M. Somewhere Out of Beaumont",
+                        "Wichita Lineman Was a Song I Once Heard",
+                        "Trancentral Lost in My Mind",
+                        "The Lights of Baton Rouge Pass By",
+                        "A Melody from a Past Life Keeps Pulling Me Back",
+                        "Alone Again With the Dawn Coming Up"]}}};
+        const acctmsgs = [
+            //bfriend thanks for sharing Song P
+            {sndr:"1236", rcvr:"1234", msgtype:"shresp",
+             created:"2023-01-03T20:42:12.074Z", status:"open",
+             srcmsg:"fake", songid:"fake",
+             ti:"Song P", ar:"Artist P", ab:"Album P"},
+            //afriend great Song G - Awesome bassline
+            {sndr:"1235", rcvr:"1234", msgtype:"share",
+             created:"2023-01-04T20:42:12.074Z", status:"open",
+             srcmsg:"", songid:"fake",
+             ti:"Song G", ar:"Artist G", ab:"Album G",
+             nt:"Awesome bassline"},
+            //fabDJ recommends Song J
+            {sndr:"1238", rcvr:"1234", msgtype:"recommendation",
+             created:"2023-01-05T20:42:12.074Z", status:"open",
+             srcmsg:"", songid:"fake",
+             ti:"Song J", ar:"Artist J", ab:"Album J",
+             nt:"Super sticky original groove"},
+            //cfriend thanks for recommending Song X
+            {sndr:"1237", rcvr:"1234", msgtype:"recresp",
+             created:"2023-01-06T20:42:12.074Z", status:"open",
+             srcmsg:"fake", songid:"fake",
+             ti:"Song X", ar:"Artist X", ab:"Album X"},
+            //afriend Song S - Melody gets stuck in my head every time.
+            {sndr:"1235", rcvr:"1234", msgtype:"share",
+             created:"2023-01-07T20:42:12.074Z", status:"open",
+             srcmsg:"", songid:"fake",
+             ti:"Song S", ar:"Artist S", ab:"Album S",
+             nt:"Melody gets stuck in my head every time."}];
         const rets = {
-            readConfig:{"acctsinfo": {currid:"1234",
-                                      accts:[dfltacct, demoacct]}},
-            readDigDat:{"version": "v1.1.7",  //last screenshot update version
-                        "scanned": "2023-02-13T20:42:12.320Z",  //see modified
-                        "songcount": 10,
-                        "songs": {
-                            "SongY.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongY.mp3","mrd": "C|Song Y|Artist Y|Album Y","ar": "Artist Y","ab": "Album Y","ti": "Song Y","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongX.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongX.mp3","mrd": "C|Song X|Artist X|Album X","ar": "Artist X","ab": "Album X","ti": "Song X","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongW.mp3": {"fq": "P","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongW.mp3","mrd": "C|Song W|Artist W|Album W","ar": "Artist W","ab": "Album W","ti": "Song W","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongV.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongV.mp3","mrd": "C|Song V|Artist V|Album V","ar": "Artist V","ab": "Album V","ti": "Song V","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongU.mp3": {"fq": "P","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongU.mp3","mrd": "C|Song U|Artist U|Album U","ar": "Artist U","ab": "Album U","ti": "Song U","lp":"","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongT.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongT.mp3","mrd": "C|Song T|Artist T|Album T","ar": "Artist T","ab": "Album T","ti": "Song T","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongS.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongS.mp3","mrd": "C|Song S|Artist S|Album S","ar": "Artist S","ab": "Album S","ti": "Song S","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongR.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongR.mp3","mrd": "C|Song R|Artist R|Album R","ar": "Artist R","ab": "Album R","ti": "Song R","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongQ.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongQ.mp3","mrd": "C|Song Q|Artist Q|Album Q","ar": "Artist Q","ab": "Album Q","ti": "Song Q","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"},
-                            "SongP.mp3": {"fq": "N","al": 40,"el": 70,"kws": "Office,Social","rv": 8,"path": "SongP.mp3","mrd": "C|Song P|Artist P|Album P","ar": "Artist P","ab": "Album P","ti": "Song P","lp":"2023-02-13T20:42:12.074Z","dsId":"fakedbid","modified":"2023-02-16T00:00:00.000Z"}},
-                        "scanstart": "2023-02-13T20:42:12.274Z"},
-            requestMediaRead:[{"path": "SongY.mp3","artist": "Artist Y","album": "Album Y","title": "Song Y", "lp":"2023-02-13T20:42:12.074Z"},
-                              {"path": "SongX.mp3","artist": "Artist X","album": "Album X","title": "Song X", "lp":"2023-02-13T20:42:12.074Z"},
-                              {"path": "SongW.mp3","artist": "Artist W","album": "Album W","title": "Song W", "lp":"2023-02-13T20:42:12.074Z"},
-                              {"path": "SongV.mp3","artist": "Artist V","album": "Album V","title": "Song V", "lp":"2023-02-13T20:42:12.074Z"},
-                              {"path": "SongU.mp3","artist": "Artist U","album": "Album U","title": "Song U", "lp":""},
-                              {"path": "SongT.mp3","artist": "Artist T","album": "Album T","title": "Song T", "lp":"2023-02-13T20:42:12.074Z"},
-                              {"path": "SongS.mp3","artist": "Artist S","album": "Album S","title": "Song S", "lp":"2023-02-13T20:42:12.074Z"},
-                              {"path": "SongR.mp3","artist": "Artist R","album": "Album R","title": "Song R", "lp":"2023-02-13T20:42:12.074Z"},
-                              {"path": "SongQ.mp3","artist": "Artist Q","album": "Album Q","title": "Song Q", "lp":"2023-02-13T20:42:12.074Z"},
-                              {"path": "SongP.mp3","artist": "Artist P","album": "Album P","title": "Song P", "lp":"2023-02-13T20:42:12.074Z"}],
-            "statusSync":dummyStatus,
-            "pausePlayback":dummyStatus,
-            "resumePlayback":dummyStatus,
-            "seekToOffset":dummyStatus,
-            "startPlayback":dummyStatus,
-            "hubAcctCallacctok":[demoacct, "abcdef12345678"],
-            "hubAcctCallmessages":[
-                //bfriend thanks for sharing Song P
-                {sndr:"1236", rcvr:"1234", msgtype:"shresp",
-                 created:"2023-01-03T20:42:12.074Z", status:"open",
-                 srcmsg:"fake", songid:"fake",
-                 ti:"Song P", ar:"Artist P", ab:"Album P"},
-                //afriend great Song G - Awesome bassline
-                {sndr:"1235", rcvr:"1234", msgtype:"share",
-                 created:"2023-01-04T20:42:12.074Z", status:"open",
-                 srcmsg:"", songid:"fake",
-                 ti:"Song G", ar:"Artist G", ab:"Album G",
-                 nt:"Awesome bassline"},
-                //fabDJ recommends Song J
-                {sndr:"1238", rcvr:"1234", msgtype:"recommendation",
-                 created:"2023-01-05T20:42:12.074Z", status:"open",
-                 srcmsg:"", songid:"fake",
-                 ti:"Song J", ar:"Artist J", ab:"Album J",
-                 nt:"Super sticky original groove"},
-                //cfriend thanks for recommending Song X
-                {sndr:"1237", rcvr:"1234", msgtype:"recresp",
-                 created:"2023-01-06T20:42:12.074Z", status:"open",
-                 srcmsg:"fake", songid:"fake",
-                 ti:"Song X", ar:"Artist X", ab:"Album X"},
-                //afriend Song S - Melody gets stuck in my head every time.
-                {sndr:"1235", rcvr:"1234", msgtype:"share",
-                 created:"2023-01-07T20:42:12.074Z", status:"open",
-                 srcmsg:"", songid:"fake",
-                 ti:"Song S", ar:"Artist S", ab:"Album S",
-                 nt:"Melody gets stuck in my head every time."}],
-            "hubsync":[demoacct]};
+            readConfig:{"acctsinfo": {currid:"101",
+                                      //accts:[dfltacct, demoacct]}},
+                                      accts:[dfltacct]}},
+            readDigDat:"Set in init",
+            requestMediaRead:"Set in init",
+            "statusSync":dummyStatus,  //lint thinks prop name is weird
+            pausePlayback:dummyStatus,
+            resumePlayback:dummyStatus,
+            seekToOffset:dummyStatus,
+            startPlayback:function (path) {
+                return app.scr.fakePlaySong(path); },
+            hubAcctCallacctok:[demoacct, "abcdef12345678"],
+            hubAcctCallmessages:acctmsgs,
+            hubsync:[demoacct]};
+        function timestampMinusSeconds (secs) {
+            const tms = Date.now() - (secs * 1000);
+            return new Date(tms).toISOString(); }
+        function fakeLastPlayed (s) {
+            const daysecs = 24 * 60 * 60;
+            const rndsecs = Math.floor(Math.random() * 31) * daysecs;
+            //set modified later to avoid trying to write it to hub
+            s.lp = timestampMinusSeconds(rndsecs);  //modified is later
+            s.modified = timestampMinusSeconds(rndsecs - 2); }
+        function nextFakeDbId () {
+            const retval = "fkdb" + idctr;
+            idctr += 1;
+            return retval; }
+        function addDemoSong (ar, ab, ti, idx, kwds) {
+            var tn = idx + 1;
+            if(tn < 10) {
+                tn = "0" + tn; }
+            const path = ar + "/" + ab + "/" + tn + " " + ti + ".mp3";
+            const mrd = ["C", ti, ar, ab].join("|");
+            songdat[path] = {
+                "fq":"N", "al":49, "el":49, "rv":5, "kws": "",
+                "path":path, "mrd":mrd, "ar":ar, "ab":ab, "ti":ti };
+            if(ratedSongs) {
+                songdat[path].al = 40;
+                songdat[path].el = 70;
+                songdat[path].rv = 8;
+                songdat[path].kws = kwds;
+                fakeLastPlayed(songdat[path]);
+                songdat[path].dsId = nextFakeDbId(); } }
+        function getSongData () {
+            if(songdat) { return songdat; }
+            jt.log("building fake song data, ratedSongs: " + ratedSongs);
+            songdat = {};
+            Object.entries(albdat).forEach(function ([ar, albobj]) {
+                Object.entries(albobj).forEach(function ([ab, detobj]) {
+                    detobj.songs.forEach(function (ti, idx) {
+                        addDemoSong(ar, ab, ti, idx, detobj.kwds); }); }); });
+            return songdat; }
+        function makeDigDat () {
+            const sd = getSongData();
+            const scantsecs = 32 * 24 * 60 * 60;  //max modified is 31 days ago
+            rets.readDigDat = {
+                "version": "v1.2.5",  //last screenshot update version
+                "scanned": timestampMinusSeconds(scantsecs),  //< modified
+                "songcount": Object.keys(sd).length,
+                "songs": sd,
+                "scanstart": timestampMinusSeconds(scantsecs + 2)}; }
+        function makeMediaRead () {
+            const sd = getSongData();
+            var mr = [];
+            Object.values(sd).forEach(function (s) {
+                const si = {path:s.path, artist:s.ar, album:s.ab, title:s.ti};
+                si.data = s.path;  //android wants path in 'data' field
+                if(!si.lp && ratedSongs) {
+                    fakeLastPlayed(s); }
+                mr.push(si); });
+            rets.requestMediaRead = JSON.stringify(mr); }
+        function updateSvcDataSongs (sd) {
+            const dbo = app.svc.dispatch("loc", "getDatabase");
+            Object.entries(dbo.songs).forEach(function ([p, s]) {
+                app.copyUpdatedSongData(s, sd[p]); });
+            jt.log("dbo: " + JSON.stringify(dbo).slice(0,3000)); }
     return {
-        stubbed: function (callname, ignore /*param*/, callback/*, errf*/) {
-            if(active && rets[callname]) {
+        fakePlaySong: function (path) {
+            ratedSongs = true;
+            songdat = null;  //force rebuild
+            const sd = getSongData();  //rebuild with ratings
+            sd[path].lp = new Date().toISOString();  //current song lp now
+            makeDigDat();  //reset readDigDat data
+            makeMediaRead();  //reset requestMediaRead data
+            jt.log("fakePlaySong updating svc dbo");
+            updateSvcDataSongs(sd);
+            jt.log("fakePlaySong svc dbo updated");
+            dummyStatus.path = path;  //update status with playing song
+            return dummyStatus; },
+        stubbed: function (callname, param, callback/*, errf*/) {
+            var result = "";
+            if(!active) { return false; }
+            if(!initialized) {
+                makeDigDat();
+                makeMediaRead();
+                initialized = true; }
+            if(rets[callname]) {
+                result = rets[callname];
+                if(typeof rets[callname] === "function") {
+                    result = rets[callname](param); }
                 jt.log("STUBBED " + callname + " using demo data");
-                callback(rets[callname]);
+                if(callback) {
+                    callback(result); }
                 return true; }
             return false; }
     };  //end scr returned functions

@@ -238,12 +238,14 @@ app.player = (function () {
             prog.divs.forEach(function (divid) {
                 jt.byId(divid).style.width = prog.w + "px"; });
             mgrs.plui.updatePosIndicator(); },
+        verifyInterface: function () {
+            if(!jt.byId("pluidiv")) { //interface not set up yet
+                mgrs.plui.initInterface(); } },
         updateDisplay: function (svco, pbstate, position, duration) {
             prog.svco = svco;
             prog.pos = position;
             prog.dur = duration;
-            if(!jt.byId("pluidiv")) { //interface not set up yet
-                mgrs.plui.initInterface(); }
+            mgrs.plui.verifyInterface();
             app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             //ticker may have stopped if playing new song
             if(state !== pbstate || (state === "playing" && !prog.ticker)) {
@@ -545,7 +547,8 @@ app.player = (function () {
             app.svc.dispatch("mp", "playSong", ps.path);
             mgrs.mob.refreshPlayState(); },
         verifyPlayer: function (contf) {
-            contf(); },  //nothing to do. plat/UI initialized as needed
+            mgrs.plui.verifyInterface();
+            contf(); },
         ////general funcs
         setState: function (rst, songs) {
             stat.song = rst.song;
