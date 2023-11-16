@@ -1260,26 +1260,7 @@ app.top = (function () {
             return midx; }
     return {
         setDisplayDiv: function (divid) {  //called by hub site
-            tddi = divid;
-            const tsd = jt.byId("topsectiondiv");
-            if(tsd) {
-                const hacd = jt.byId("hubaccountcontentdiv");
-                if(tsd.offsetWidth >= 2 * 360) {  //wide screen
-                    if(hacd) {
-                        hacd.style.cssFloat = "right"; }
-                    const widd = jt.byId("whatisdiggerdiv");
-                    if(widd) {
-                        widd.style.padding = "20px"; } }
-                else {  //pad to avoid camera notch and top/bot stat bars
-                    if(hacd) {
-                        hacd.style.marginTop = "60px"; }
-                    const dod = jt.byId("hpgoverlaydiv");
-                    if(dod) {
-                        dod.style.top = "60px";
-                        dod.style.maxHeight = "86vh"; }
-                    const bottomdiv = jt.byId("contactdiv");
-                    if(bottomdiv) {
-                        bottomdiv.style.marginBottom = "60px"; } } } },
+            tddi = divid; },
         inApp: function () { return inapp; },
         setInApp: function (runningInApp) { inapp = runningInApp; },
         accountFanGroup: function (dispmode, midx) {
