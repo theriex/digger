@@ -803,13 +803,12 @@ app.deck = (function () {
         haveUnplayedAlbums: function () {
             const sa = getSuggestedAlbums();
             return (sa && sa.length && sa[0].npsc >= 2); },
-        getQueuedSongs: function (ignore /*includeContextSongs*/, sqmax) {
+        getQueuedSongs: function (includeContextSongs, sqmax) {
             var songs = [];
             if(aid[cak] && aid[cak].src === "pmq") {
-                songs = aid[cak].songs;
-                sqmax += aid[cak].ci + 1;  //sleep count relative to curr song
-                songs = songs.slice(0, sqmax);
-                songs = songs.slice(aid[cak].ci + 1); }
+                songs = aid[cak].songs.slice(aid[cak].ci, sqmax);
+                if(!includeContextSongs) {  //don't include current song
+                    songs = songs.slice(1); } }
             return songs; },
         endedDueToSleep: function () {  //can click to resume if more alb tracks
             return (aid[cak] && aid[cak].src === "pmq" &&
