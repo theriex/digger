@@ -852,7 +852,7 @@ app.deck = (function () {
         makeAlbumSongDiv: function (song, idx) {
             if(idx === aid[cak].ci) {
                 return [["img", {src:"img/arrow12right.png",
-                                 cla:"albumarrow"}],
+                                 cla:"albumarrow inv"}],
                         song.ti]; }
             const tn = idx + 1;  //track number
             return ["a", {href:"#playsong" + tn, title:"Play track " + tn,
