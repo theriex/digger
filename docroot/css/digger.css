@@ -27,11 +27,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #contentframingdiv { background:black; height:100vh; }
 #contentdiv { margin:0px auto; width:100vw; max-width:512px;
   border-top:3px solid #363636;
-  border-bottom:6px solid #363636;
-  background-image: url('../img/panelsbg.png');
-  background-attachment: fixed;
-  background-size: cover;
-  background-repeat: no-repeat; }
+  border-bottom:6px solid #363636; }
 #appoverlaydiv { position:absolute; left:0px; top:12px; width:100%; }
 #docdispdiv { padding:5px; background:#ffc2a4; color:#111111;
   max-width:600px; margin:auto; }
@@ -57,12 +53,16 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .logdisplinecspan { font-size:small; font-weight:bold; }
 .logdisplinemspan { font-size:medium; }
 #statspan { font-size:small; padding-left:10px; }
-.paneldiv { border:3px solid #333; border-radius:0px;
-  padding:5px 6px 10px 6px; }
-#pantopdiv { padding-bottom:0px; }
+.paneldiv { border:3px solid #333; border-radius:5px;
+  padding:5px 6px 10px 6px;
+  background-image: url('../img/panelsbg.png');
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat; }
+#pantopdiv { padding-bottom:0px; border-radius:0px 0px 30px 30px; }
 #pandbdiv { padding:10px 6px 0px 6px; }
 #pandeckdiv { padding:10px 6px 4px 6px; height:430px; max-height:430px;
-  overflow:hidden; }
+  overflow:hidden; border-radius:30px 30px 0px 0px; }
 .inv { }
 
 /****************************************/
@@ -73,6 +73,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
 .statdiv { font-size:small; }
 #toponelinestatdiv { max-height:1em; overflow:hidden; white-space:nowrap; }
+#toponelinestatdiv, #topstatdiv { padding:0px 15px; }
 
 .pathdiv { font-size:medium; }
 .pathlabelspan, .pathlabelgreyspan { font-size:small; font-style:italic; }
