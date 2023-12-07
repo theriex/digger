@@ -244,8 +244,8 @@ app.deck = (function () {
                 wrk.startsong = null;
                 app.startParams.songid = ""; }
             mgrs.dk.setSongs(wrk.songs);  //replace working set
-            if(wrk.songs.length) {  //let player know songs are available
-                app.player.deckUpdated(); }
+            if(wrk.songs.length) { //have songs to play if not playing
+                app.player.deckUpdated(mgrs.gen.songSeqMgrName()); }
             setTimeout(function () {  //leave info up momentarily
                 mgrs.ddc.togInfoButton(false); }, 800);
             mgrs.sop.displaySongs("dk", "decksongsdiv", wrk.songs);
@@ -608,7 +608,9 @@ app.deck = (function () {
         var toggleButtons = {};
         function updateDeckDisplay () {
             if(!mgrs.gen.dataLoadCompleted()) {
-                jt.out("deckfresdiv", "Waiting on initial data load"); } }
+                jt.out("deckfresdiv", "Waiting on initial data load"); }
+            else if(!app.player.song()) {
+                app.player.deckUpdated(); } }
     return {
         getSaveState: function (dmx) {  //dmx is >= 0
             return {det:mgrs.dk.songs().slice(0, dmx)}; },
@@ -627,9 +629,12 @@ app.deck = (function () {
         endedDueToSleep: function () {  //can click to resume if more songs
             return mgrs.dk.songs().length; },
         getNextSong: function () {
+            jt.log("getNextSong from deck");
             return mgrs.dk.popSongFromDeck(); },
         popForward: function (npp) {
             return mgrs.dk.popForward(npp); },
+        playbackStatus: function () {
+            return; },
         songDataChanged: function (caller) {
             return mgrs.ws.rebuild(caller); },
         makeHistoryToggle: function () {  //created by filter
@@ -749,27 +754,31 @@ app.deck = (function () {
                          ["span", {cla:"sgalbabspan"},
                           sa.songs[0].ab]]]])]])); }
         function updateAlbumDisplay (song) {
-            var np = song || app.player.song();
-            if(!np && aid[cak] && aid[cak].src === "pmq") {
-                np = aid[cak].songs[aid[cak].ci]; }
-            if(!np) {
-                return jt.out("albplaydiv", "No song currently playing"); }
-            cak = makeAlbumKey(np);
+            var asg = song || app.player.song();
+            if(!asg && aid[cak] && aid[cak].src === "pmq") {
+                asg = aid[cak].songs[0];
+                if(aid[cak].ci >= 0) {
+                    asg = aid[cak].songs[aid[cak].ci]; } }
+            if(!asg) {
+                return jt.out("albplaydiv", "Album song not found."); }
+            cak = makeAlbumKey(asg);
             if(!cak) {
-                return jt.out("albplaydiv", "Album info not available"); }
+                return jt.out("albplaydiv", "No album lookup key."); }
             if(!aid[cak] || aid[cak].src !== "pmq") {
-                //get platform song order and included songs in case different
+                //get platform song order and included songs
                 jt.out("albplaydiv", "Fetching album info...");
-                return app.svc.fetchAlbum(np, mgrs.alb.setAlbumSongs,
+                return app.svc.fetchAlbum(asg, mgrs.alb.setAlbumSongs,
                                           mgrs.alb.albumFetchFailure); }
             if(!aid[cak].songs || !aid[cak].songs.length) {
                 return jt.out("albplaydiv", "No album info for song"); }
-            //currently playing song may have changed via external action
             if(playFromTop) {
                 aid[cak].ci = 0; }
-            else {
-                aid[cak].ci = mgrs.ws.findSongIndex(np, aid[cak].songs); }
-            mgrs.alb.displayAlbum(np);
+            else {  //currently playing song may have changed
+                aid[cak].ci = -1;
+                const np = app.player.song();
+                if(np) {
+                    aid[cak].ci = mgrs.ws.findSongIndex(np, aid[cak].songs); } }
+            mgrs.alb.displayAlbum(asg);
             if(playFromTop) {
                 playFromTop = false;
                 mgrs.alb.playnow(0); } }
@@ -785,7 +794,8 @@ app.deck = (function () {
             if(songs) {  //make array of all given songs in upds, remove nulls
                 upds = (upds.map((s) => upds[s.path])).filter((s) => s); }
             state.info.songs = upds;
-            cak[state.key] = state.info; },
+            cak[state.key] = state.info;
+            cak[state.key].ci = -1; },  //likely not on same track anymore
         getSettings: function () {
             const settings = {currentAlbumKey:cak};
             if(aid[cak] && aid[cak].src === "pmq") {
@@ -794,12 +804,7 @@ app.deck = (function () {
             return settings; },
         restoreSettings: function (settings) {
             if(settings.currentAlbumKey && settings.song) {
-                updateAlbumDisplay(settings.song);  //get full album info
-                if(aid[cak].ci > 0) {  //back up to previous song so player
-                    aid[cak].ci -= 1;  //starts where it left off last time
-                    mgrs.alb.displayAlbum(aid[cak].songs[aid[cak].ci]); }
-                else {  //set up so getNextSong plays the first track
-                    aid[cak].ci = -1; } } },
+                updateAlbumDisplay(settings.song); } },
         haveUnplayedAlbums: function () {
             const sa = getSuggestedAlbums();
             return (sa && sa.length && sa[0].npsc >= 2); },
@@ -872,6 +877,7 @@ app.deck = (function () {
             aid[cak].ci = idx - 1;
             app.player.next(); },
         getNextSong: function () {
+            jt.log("getNextSong from album");
             if(!aid[cak] && asgs.length) {  //starting up from scratch,
                 return null; }              //choose and album to start.
             if(!aid[cak]) {  //most likely a failed restore at startup
@@ -883,7 +889,7 @@ app.deck = (function () {
                 const song = aid[cak].songs[aid[cak].ci];
                 app.player.noteprevplay(song.lp);
                 mgrs.dk.markSongPlayed(song);
-                mgrs.dk.removeFromDeck(song);
+                mgrs.dk.removeFromDeck(song.path);
                 mgrs.alb.displayAlbum(song);
                 mgrs.gen.saveSettings();  //note updated playback position
                 return song; }
@@ -901,6 +907,13 @@ app.deck = (function () {
             const song = aid[cak].songs[idx];
             mgrs.alb.displayAlbum(song);
             return song; },
+        playbackStatus: function (status) {
+            const ab = aid[cak];
+            if(ab && ab.ci >= 0 && ab.ci < ab.songs.length) {
+                const np = ab[ab.ci];
+                if(np.path === status.path) {
+                    return np; } }  //already positioned properly
+            return mgrs.alb.popForward(status.path); },
         initDisplay: function () {
             jt.out("albdispdiv", jt.tac2html(
                 [["div", {id:"albsuggsframediv"},
@@ -1207,6 +1220,8 @@ app.deck = (function () {
             return mgrs[songSeqMgrName].getNextSong(); },
         popForward: function (npp) { //now playing path
             return mgrs[songSeqMgrName].popForward(npp); },
+        playbackStatus: function (status) {
+            return mgrs[songSeqMgrName].playbackStatus(status); },
         songDataChanged: function (caller) {
             jt.log("deck.songDataChanged: " + caller);
             const sdict = app.svc.songs();
@@ -1234,6 +1249,7 @@ return {
     songDataChanged: mgrs.gen.songDataChanged,
     getNextSong: mgrs.gen.getNextSong,
     popForward: mgrs.gen.popForward,
+    playbackStatus: mgrs.gen.playbackStatus,
     rebuildHistory: mgrs.hst.rebuildHistory,
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
     getPlaybackState: mgrs.gen.getPlaybackState,

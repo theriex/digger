@@ -73,7 +73,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
 .statdiv { font-size:small; }
 #toponelinestatdiv { max-height:1em; overflow:hidden; white-space:nowrap; }
-#toponelinestatdiv, #topstatdiv { padding:0px 15px; }
+#toponelinestatdiv, #topstatdiv, #topdlgdiv { padding:0px 15px; }
 
 .pathdiv { font-size:medium; }
 .pathlabelspan, .pathlabelgreyspan { font-size:small; font-style:italic; }

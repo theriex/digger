@@ -466,6 +466,7 @@ app.player = (function () {
     mgrs.mob = (function () {
         var pbi = null; //playback state information
         var debouncing = false;
+        var pscf = null;  //playback status callback func
         function handlePlayerEnd () {
             if(app.deck.endedDueToSleep()) {
                 mgrs.slp.startSleep("Sleeping..."); } }
@@ -474,21 +475,42 @@ app.player = (function () {
             pbi.state = status.state;  //"playing"/"paused"/"ended"
             pbi.pos = status.pos;  //current play position ms
             pbi.dur = status.dur || pbi.dur;  //song duration if provided
-            mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
             debouncing = false; }
         function clearSongDisplay () {
             mgrs.slp.clearOverlayMessage();  //remove if message displayed
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.resetDisplay();  //close comment if open
             jt.out("playtitletextspan", "---"); }
+        function handleStatusQueryCallback (status) {
+            const cbf = pscf;
+            pscf = null;
+            if(status.path && !status.song) {  //discovered a playing song
+                jt.log("handleStatusQueryCallback finding " + status.path);
+                const sd = app.deck.dispatch("sdt", "getSongsDict");
+                if(sd && sd[status.path]) {
+                    jt.log("handleStatusQueryCallback song found");
+                    status.song = sd[status.path];
+                    stat.song = status.song;  //needed for playback display
+                    app.deck.dispatch("dk", "removeFromDeck", status.path);
+                    pbi = {song:status.song};  //init or reset to current song
+                    updatePBI(status);
+                    mgrs.aud.verifyPlayer(function () {
+                        mgrs.aud.updateSongDisplay();
+                        mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos,
+                                                pbi.dur);
+                        app.deck.playbackStatus(status); }); } }
+            cbf(status); }  //call back whether song found or not
     return {
         ////calls from svc.mp
         notePlaybackStatus: function (status) {
+            if(pscf) {
+                return handleStatusQueryCallback(status); }
             if(stat.stale && stat.stale.path === status.path) {
-                jt.log("mob: ignoring status update from previous song");
-                return; }
+                return jt.log("mob: ignoring status from previous song"); }
             if(stat.song && stat.song.path === status.path) {
-                updatePBI(status); }  //displayed song still playing
+                updatePBI(status);  //displayed song still playing
+                mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
+                app.deck.playbackStatus(status); }
             else {  //song has changed. service has moved forward N songs
                 clearSongDisplay();
                 app.svc.loadDigDat(function (dbo) {  //load updated song(s) lp
@@ -549,9 +571,12 @@ app.player = (function () {
         verifyPlayer: function (contf) {
             mgrs.plui.verifyInterface();
             contf(); },
+        setPlaybackStatusCallback: function (contf) {
+            pscf = contf; },
         ////general funcs
         setState: function (rst, songs) {
             stat.song = rst.song;
+            stat.status = rst.state;  //unreliable status when state last saved.
             if(songs && songs[stat.song.path]) {
                 stat.song = songs[stat.song.path]; }
             pbi = {song:stat.song, pos:rst.pos, dur:rst.dur, state:rst.state};
@@ -636,6 +661,13 @@ app.player = (function () {
             mgrs.aud.verifyPlayer(function () {
                 mgrs.aud.updateSongDisplay();
                 mgrs[cap].playSong(stat.song); }); },
+        checkIfPlaying: function (contf) {  //contf
+            if(cap === "mob") {  //possible to be playing prior to app start
+                jt.log("checkIfPlaying calling for player status");
+                mgrs.mob.setPlaybackStatusCallback(contf);
+                mgrs.mob.refreshPlayState(); }
+            else {  //no need to check, just call through immediately
+                contf(stat); } },
         verifyPlayer: function (contf) {
             if(!jt.byId("playerdiv")) {
                 jt.out("mediadiv", jt.tac2html(
@@ -1514,10 +1546,11 @@ app.player = (function () {
             stat.skiptime = st;
             mgrs.tun.bumpCurrentIfTired();  //bumps the fq value if tired song
             mgrs.gen.next(); },
-        deckUpdated: function () {
-            if(!stat.song) {
-                jt.log("player.deckUpdated, calling next to start music");
-                app.player.next(); } },
+        deckUpdated: function (mgrname) {
+            mgrs.aud.checkIfPlaying(function (pinfo) {
+                if(!pinfo.song && mgrname === "ddc") {  //no song playing
+                    jt.log("player.deckUpdated, calling next to start music");
+                    app.player.next(); } }); },
         logCurrentlyPlaying: function (prefix) {
             //mobile player updates when playing new song, no separate call.
             prefix = prefix || "";
@@ -1536,15 +1569,15 @@ app.player = (function () {
 
 
 return {
-    init: function () { mgrs.gen.initializeDisplay(); },
-    deckUpdated: function () { mgrs.gen.deckUpdated(); },
-    next: function () { mgrs.gen.next(); },
-    skip: function () { mgrs.gen.skip(); },
+    init: mgrs.gen.initializeDisplay,
+    deckUpdated: mgrs.gen.deckUpdated,
+    next: mgrs.gen.next,
+    skip: mgrs.gen.skip,
     song: function () { return stat.song; },
-    logCurrentlyPlaying: function (pfx) { mgrs.gen.logCurrentlyPlaying(pfx); },
+    logCurrentlyPlaying: mgrs.gen.logCurrentlyPlaying,
     playerr: function (path) { return playerrs[path]; },
     noteprevplay: function (tstamp) { stat.prevPlayed = tstamp; },
-    setState: function (state, songs) { mgrs.mob.setState(state, songs); },
+    setState: mgrs.mob.setState,
     dispatch: function (mgrname, fname, ...args) {
         try {
             return mgrs[mgrname][fname].apply(app.player, args);
