@@ -910,8 +910,8 @@ app.deck = (function () {
         playbackStatus: function (status) {
             const ab = aid[cak];
             if(ab && ab.ci >= 0 && ab.ci < ab.songs.length) {
-                const np = ab[ab.ci];
-                if(np.path === status.path) {
+                const np = ab.songs[ab.ci];
+                if(np && np.path === status.path) {
                     return np; } }  //already positioned properly
             return mgrs.alb.popForward(status.path); },
         initDisplay: function () {
