@@ -908,7 +908,7 @@ app.deck = (function () {
             mgrs.alb.displayAlbum(song);
             return song; },
         playbackStatus: function (status) {
-            if(cak !== makeAlbumKey(status.song)) {
+            if(status.song && cak !== makeAlbumKey(status.song)) {
                 jt.byId("albsuggsdiv").style.display = "none";
                 return updateAlbumDisplay(status.song); }
             const ab = aid[cak];
