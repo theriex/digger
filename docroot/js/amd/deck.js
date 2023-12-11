@@ -879,7 +879,7 @@ app.deck = (function () {
         getNextSong: function () {
             jt.log("getNextSong from album");
             if(!aid[cak] && asgs.length) {  //starting up from scratch,
-                return null; }              //choose and album to start.
+                return null; }              //choose an album to start.
             if(!aid[cak]) {  //most likely a failed restore at startup
                 jt.log("mgrs.alb.getNextSong no album so switching to ddc");
                 mgrs.gen.dispMode("ddc");
@@ -908,10 +908,11 @@ app.deck = (function () {
             mgrs.alb.displayAlbum(song);
             return song; },
         playbackStatus: function (status) {
+            if(status.song) {  //if on a specific song, hide start suggestions
+                jt.byId("albsuggsdiv").style.display = "none"; }
             if(status.song && cak !== makeAlbumKey(status.song)) {
-                jt.byId("albsuggsdiv").style.display = "none";
-                return updateAlbumDisplay(status.song); }
-            const ab = aid[cak];
+                return updateAlbumDisplay(status.song); }  //full redraw
+            const ab = aid[cak];  //have info, reposition appropriately
             if(ab && ab.ci >= 0 && ab.ci < ab.songs.length) {
                 const np = ab.songs[ab.ci];
                 if(np && np.path === status.path) {
