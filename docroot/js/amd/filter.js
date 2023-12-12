@@ -691,26 +691,22 @@ app.filter = (function () {
             buf.splice((-1 * numrows), numrows); }
         function droidLogPollingDef () {
             const def = {
-                mrxs:[/requestStatusUpdate dst.det.length: (\d+)/,
-                      /svc.mp.queueCommand (\d+): (\S+)/,
+                mrxs:[/svc.mp.queueCommand (\d+): (\S+)/,
                       /svc.mp.notePlaybackStatus stat: \{"state":"([a-z]+)","pos":\d+,"dur":\d+,"path":"([^"]+)/,
-                      /svc.mp.notePlaybackStatus finished (\d+): (\S+)/],
-                icms:[{ar:1, av:1, br:3, bv:1},   //same queue count val
-                      {ar:1, av:2, br:3, bv:2}],  //same queue command val
-                rmts:[{r:0, v:1},   //length remaining on deck
-                      {r:1, v:2},   //e.g. "status" command
-                      {r:2, v:1},   //playback state is the same
-                      {r:2, v:2},   //playback path is the same
-                      {r:3, v:2}],  //e.g. "status" command
+                      /svc.mp.commandCompleted finished (\d+): (\S+)/],
+                icms:[{ar:0, av:1, br:2, bv:1},   //same queue count val
+                      {ar:0, av:2, br:2, bv:2}],  //same queue command val
+                rmts:[{r:0, v:2},   //e.g. "status" command
+                      {r:1, v:1},   //playback state is the same
+                      {r:1, v:2},   //playback path is the same
+                      {r:2, v:2}],  //e.g. "status" command
                 samp:[
-{t:"13:47:53", c:1, m:"requestStatusUpdate dst.det.length: 200"},
-{t:"13:47:53", c:1, m:"svc.mp.queueCommand 41: status"},
-{t:"13:47:53", c:1, m:"svc.mp.notePlaybackStatus stat: {\"state\":\"playing\",\"pos\":40690,\"dur\":261642,\"path\":\"file%3A%2F%2F%2Fstorage%2Femulated%2F0%2FMusic%2F808%2520State%2Fex_el%2F13%2520Olympic.mp3\",\"cc\":41,\"dbts\":\"2023-09-29T17:45:15.567Z\"}"},
-{t:"13:47:53", c:1, m:"svc.mp.notePlaybackStatus finished 41: status"},
-{t:"13:47:57", c:1, m:"requestStatusUpdate dst.det.length: 200"},
-{t:"13:47:57", c:1, m:"svc.mp.queueCommand 42: status"},
-{t:"13:47:57", c:1, m:"svc.mp.notePlaybackStatus stat: {\"state\":\"playing\",\"pos\":44716,\"dur\":261642,\"path\":\"file%3A%2F%2F%2Fstorage%2Femulated%2F0%2FMusic%2F808%2520State%2Fex_el%2F13%2520Olympic.mp3\",\"cc\":42,\"dbts\":\"2023-09-29T17:45:15.567Z\"}"},
-{t:"13:47:57", c:1, m:"svc.mp.notePlaybackStatus finished 42: status"}]};
+{t:"10:11:42", c:1, m:"svc.mp.queueCommand 77: status"},
+{t:"10:11:42", c:1, m:"svc.mp.notePlaybackStatus stat: {\"state\":\"paused\",\"pos\":5562,\"dur\":168229,\"path\":\"file%3A%2F%2F%2Fstorage%2Femulated%2F0%2FMusic%2FLene%2520Lovich%2FStateless%2F08%2520-%2520Telepathy.mp3\",\"cc\":77,\"dbts\":\"2023-12-12T15:06:30.858Z\"}"},
+{t:"10:11:42", c:1, m:"svc.mp.commandCompleted finished 77: status"},
+{t:"10:11:46", c:1, m:"svc.mp.queueCommand 78: status"},
+{t:"10:11:46", c:1, m:"svc.mp.notePlaybackStatus stat: {\"state\":\"paused\",\"pos\":5562,\"dur\":168229,\"path\":\"file%3A%2F%2F%2Fstorage%2Femulated%2F0%2FMusic%2FLene%2520Lovich%2FStateless%2F08%2520-%2520Telepathy.mp3\",\"cc\":78,\"dbts\":\"2023-12-12T15:06:30.858Z\"}"},
+{t:"10:11:46", c:1, m:"svc.mp.commandCompleted finished 78: status"}]};
             return def; }
         function iosLogPollingDef () {
             const def = {

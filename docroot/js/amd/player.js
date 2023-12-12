@@ -485,10 +485,10 @@ app.player = (function () {
             mgrs.cmt.resetDisplay();  //close comment if open
             jt.out("playtitletextspan", "---"); }
         function handleStatusQueryCallback (status) {
+            jt.log("handleStatusQueryCallback status.path: " + status.path);
             const cbf = pscf;
             pscf = null;
             if(status.path && !status.song) {  //discovered a playing song
-                jt.log("handleStatusQueryCallback finding " + status.path);
                 const sd = app.deck.dispatch("sdt", "getSongsDict");
                 if(sd && sd[status.path]) {
                     jt.log("handleStatusQueryCallback song found");
