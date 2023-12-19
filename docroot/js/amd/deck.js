@@ -948,11 +948,21 @@ app.deck = (function () {
         var qstr = "";  //current query string
         var songs = null;
         var rslt = null;
+        var counts = null;
         var sfds = [
             {f:"ar", pn:"Artist", ck:true},
             {f:"ab", pn:"Album", ck:true},
             {f:"ti", pn:"Title", ck:true},
             {f:"nt", pn:"Notes", ck:true}];
+        function updateCounts (ignore /*artist*/, album/*, title*/) {
+            //A compilation with lots of artists on one album should be
+            //counted as one album.  This might collapse "Greatest Hits"
+            //from two different artists, but that's preferable.
+            counts.abs[album] = true;
+            //Func is called once for each matching song, so just increment.
+            //This total may differ from the countspan total in the upper
+            //right of the app if there are ignore folders.  That's ok.
+            counts.sc += 1; }
         function searchSongs () {
             if(!songs) {
                 songs = Object.values(mgrs.sdt.getSongsDict())
@@ -961,6 +971,7 @@ app.deck = (function () {
             const srx = new RegExp(rtx, "i");
             const sfs = sfds.filter((fd) => fd.ck);
             rslt = {};  //reset search results
+            counts = {abs:{}, sc:0};
             songs.forEach(function (s, idx) {
                 const mf = sfs.find((fd) => s[fd.f] && s[fd.f].match(srx));
                 if(mf) {  //one of the fields matched, verify rslt entry
@@ -975,7 +986,9 @@ app.deck = (function () {
                     album.es[s.ti] = album.es[s.ti] ||  //dupe possible
                         {matched:(mf.f === "ti" || s.ti.match(srx) ||
                                   mf === "nt" || s.ti.match(srx)),
-                         t:"ti", si:idx}; } }); }
+                         t:"ti", si:idx};
+                    //const title = album.es[s.ti];
+                    updateCounts(s.ar, s.ab, s.ti); } }); }
         function makeResultTAC (dict, parentMatched) {
             const sks = Object.keys(dict).sort(
                 function (a, b) { return a.localeCompare(b); });
@@ -1050,6 +1063,9 @@ app.deck = (function () {
             else {
                 jt.byId("clrsrchdiv").style.display = "none"; }
             searchSongs();
+            jt.out("srchcountsdiv", jt.tac2html(
+                [Object.entries(counts.abs).length, " albums, ",
+                 counts.sc, " songs"]));
             jt.out("srchresdiv", jt.tac2html(makeResultTAC(rslt))); },
         songDataChanged: function (/*caller*/) {
             songs = null;  //re-read of media lib may new music or metadata
@@ -1063,7 +1079,8 @@ app.deck = (function () {
         initDisplay: function () {
             jt.out("srchdispdiv", jt.tac2html(
                 [["div", {id:"srchctrlsdiv"},
-                  [["input", {type:"text", id:"srchin", size:20,
+                  [["div", {id:"srchcountsdiv"}],
+                   ["input", {type:"text", id:"srchin", size:20,
                               //placeholder:"artist/album/song...",
                               value:qstr,
                               oninput:mdfs("srch.updateSearchDisplay")}],

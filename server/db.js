@@ -318,6 +318,7 @@ module.exports = (function () {
     //updated tag info always takes precedence
     function updateMetadata (song, tags) {
         if(!tags || !tags.title || !tags.artist) {
+            console.log("guessing metadata from path " + song.path);
             tags = mdtagsFromPath(song.path); }
         if(!tags || !tags.title || !tags.artist) {
             console.log("missing metadata " + song.path);
@@ -333,6 +334,7 @@ module.exports = (function () {
                 if(pmrd && song.lp) {  //song is not new and has been played
                     //bump lp to include updated song data in hubsync
                     song.lp = new Date().toISOString(); } } }
+        return song;
     }
 
 
@@ -341,8 +343,9 @@ module.exports = (function () {
     function readMetadata (ffp, contf) {
         mm.parseFile(ffp)
             .then(function (md) {
-                //console.log(JSON.stringify(md, null, 2));
+                //console.log("rmd md: " + JSON.stringify(md.common, null, 2));
                 var song = findOrAddDbSong(ffp);
+                //console.log("rmd song: " + JSON.stringify(song, null, 2));
                 song = updateMetadata(song, md.common);
                 contf(song); })
             .catch(function (err) {

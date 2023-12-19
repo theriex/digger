@@ -352,6 +352,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .mdmbdivact { background:#ffab00; }
 .ico20 { height:20px; max-height:20px; }
 #togfiltb { margin-right:5px; }
+#srchcountsdiv { font-size:small; }
 #srchctrlsdiv { text-align:center; }
 .srchfcbdiv { display:inline-block; white-space:nowrap; margin:0px 12px;
   font-size:x-small; }

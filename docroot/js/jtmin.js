@@ -988,10 +988,16 @@ const jtminjsDecorateWithUtilities = function (utilityObject) {
         if (lockobj && lockobj.critsec === "processing") {
             uo.log(method + " " + url + " already in progress...");
             setTimeout(function () {
-                uo.log(method + " " + url + " retry...");
+                lockobj.retries = lockobj.retries || 0;
+                lockobj.retries += 1;
+                if(lockobj.retries > 20) {
+                    uo.log(method + " " + url + " max retries exceeded.");
+                    lockobj.critsec = "maxretryexceeded";
+                    return; }
+                uo.log(method + " " + url + " retry " + lockobj.retries + "..");
                 uo.request(method, url, data, success, failure,
                            lockobj, setup, timeoutms);
-            }, 200);
+            }, 200 * lockobj.retries);
             return;
         }
         if (lockobj) {
