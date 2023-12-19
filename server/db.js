@@ -300,8 +300,10 @@ module.exports = (function () {
     }
 
 
-    function makeMetadataRef (tags, complete) {
-        var mrd = (complete? "C": "I");
+    function makeMetadataRef (tags) {
+        var mrd = "I";    //incomplete identification
+        if(tags && tags.title && tags.artist && tags.album) {
+            mrd = "C";  } //complete identifying info
         const flds = ["title", "artist", "album"];
         flds.forEach(function (fld) {
             var val = tags[fld] || "";
@@ -311,32 +313,26 @@ module.exports = (function () {
     }
 
 
-    //tags: title, artist, album. min req metadata: title + artist
+    //if given, tags parameter has "title", "artist", "album" fields
+    //a song must have at least title and artist specified to be identified.
+    //updated tag info always takes precedence
     function updateMetadata (song, tags) {
-        var pmrd = song.mrd || "";
-        var complete = false;
-        if(tags && tags.title && tags.artist && tags.album) {
-            complete = true; }
         if(!tags || !tags.title || !tags.artist) {
             tags = mdtagsFromPath(song.path); }
         if(!tags || !tags.title || !tags.artist) {
             console.log("missing metadata " + song.path);
             if(!song.fq.startsWith("U")) {  //mark as unreadable
                 song.fq = "U" + song.fq; } }
-        else {  //have at least title and artist
-            song.mrd = makeMetadataRef(tags, complete);
+        else {  //have at least title and artist, update song
+            song.ar = tags.artist || song.ar;
+            song.ab = tags.album || song.ab || "Singles";
+            song.ti = tags.title || song.ti;
+            const pmrd = song.mrd || "";
+            song.mrd = makeMetadataRef(tags);
             if(pmrd !== song.mrd) {  //metadata has changed
                 if(pmrd && song.lp) {  //song is not new and has been played
-                    song.lp = new Date().toISOString(); } //include in hubsync
-                if(complete) {  //new metadata overrides prev
-                    song.ar = "";
-                    song.ab = "";
-                    song.ti = ""; } }
-            //fill in any empty fields
-            song.ar = song.ar || tags.artist;
-            song.ab = song.ab || tags.album || "Singles";
-            song.ti = song.ti || tags.title; }
-        return song;
+                    //bump lp to include updated song data in hubsync
+                    song.lp = new Date().toISOString(); } } }
     }
 
 
