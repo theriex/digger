@@ -859,6 +859,7 @@ app.player = (function () {
             return jt.tac2html(
                 ["div", {id:"tunedetdiv"},
                  [["div", {id:"prevplaydupesdiv"}, prevPlayAndDupesHTML()],
+                  ["div", {id:"playcountdiv"}, "Digger plays: " + stat.song.pc],
                   ["div", {id:"songurldiv"}, "Source: " + stat.song.path],
                   ["div", {id:"kwds2albumdiv"}, keywordsToAlbumHTML()],
                   ["div", {id:"abactdiv"}]]]); }, //conf dialog for kwd assoc

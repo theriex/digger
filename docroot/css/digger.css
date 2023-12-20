@@ -185,7 +185,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .tuneoptdetval, .spotdetval { text-align:left; font-size:small; }
 .tunactimg { max-height:22px; }
 #tunedetdiv { margin-top:8px; }
-#prevplaydiv, #songurldiv { font-size:x-small; }
+#prevplaydiv, #songurldiv, #playcountdiv { font-size:x-small; }
 #dupesdispdiv { padding-left:32px; }
 #pmsgdiv { font-size:small; font-weight:bold; }
 #kwds2albumdiv { text-align:center; }
