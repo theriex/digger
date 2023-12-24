@@ -127,8 +127,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   padding:0px 10px 0px 0px; width:100%; font-weight:bold; }
 .fgacelldivnum { text-align:right; }
 .fgasortcoldiv { background:#ffab00; border-radius:6px; padding:0px 2px; }
-.fmtypespan { background: #ffce69; color: #333; font-size: x-small;
-  font-style: italic; }
+.fmtypespan { background:#ffce69; color:#333; font-size:x-small;
+  font-style:italic; }
 #fgaemptyhtmldiv { font-size:small; }
 .msgactionsdiv { padding:0px 0px 5px 10px; }
 .msgactionsdiv button { font-size:x-small; margin:0px 16px 0px 0px; }
@@ -248,7 +248,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #togsleeplink, #togcommentlink, #togsharelink { margin:0px 20px 0px 16px; }
 #togsleepimg, #togcommentimg, #togshareimg { max-height:24px; }
 #commentdiv { text-align:center; }
-#commentta { padding:3px 5px; }
+#commentta { padding:3px 5px; background:#ffce69; border:1px solid #ffab00; }
 #sleepdiv { font-size:medium; }
 
 #sharedlgdiv { position:relative; padding:12px; margin:0px auto;

@@ -1327,9 +1327,15 @@ app.player = (function () {
             stat.song.nt = stat.song.nt || "";
             cdiv.innerHTML = jt.tac2html(
                 ["textarea", {id:"commentta", name:"commentta", rows:2, cols:40,
-                              placeholder:"Your comment about this song",
+                              //comments can be quite varied, placeholder text
+                              //may interrupt the process of writing a note.
+                              placeholder:"",
                               oninput:mdfs("cmt.updateSongComment")},
-                 stat.song.nt]); },
+                 stat.song.nt]);
+            setTimeout(function () {
+                const cta = jt.byId("commentta");
+                if(cta) {
+                    cta.focus(); } }, 150); },
         updateSongComment: function () {
             var cta = jt.byId("commentta");
             if(stat.song && cta) {
