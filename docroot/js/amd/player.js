@@ -166,7 +166,8 @@ app.player = (function () {
             if(jt.byId("pluidiv")) { //interface still available
                 const rems = Math.max(prog.dur - prog.pos, 0);
                 if(!endhook && state === "playing" && prog.dur && rems < 1200) {
-                    prog.ticker = null;
+                    jt.log("tickf calling player.next in " + rems);
+                    prog.ticker = null;  //done ticking for now
                     setTimeout(app.player.next, rems); }
                 else { //poll to react to external play/pause/skip etc
                     prog.ticker = setTimeout(tickf, 1000); } } }
@@ -1640,9 +1641,15 @@ app.player = (function () {
             mgrs.gen.next(); },
         deckUpdated: function (mgrname) {
             mgrs.aud.checkIfPlaying(function (pinfo) {
-                if(!pinfo.song && mgrname === "ddc") {  //no song playing
-                    jt.log("player.deckUpdated, calling next to start music");
-                    app.player.next(); } }); },
+                if(!pinfo.song && mgrname === "ddc") {
+                    const pre = "player.deckUpdated ";
+                    if(pinfo.pbinistart &&
+                       pinfo.pbinistart - Date.now() < 6000) {
+                        jt.log(pre + "already called to start music"); }
+                    else {
+                        jt.log(pre + "calling next to start music");
+                        pinfo.pbinistart = Date.now();
+                        app.player.next(); } } }); },
         logCurrentlyPlaying: function (prefix) {
             //mobile player updates when playing new song, no separate call.
             prefix = prefix || "";

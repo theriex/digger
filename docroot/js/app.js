@@ -8,6 +8,8 @@ var app = (function () {
     const pdis = [{cn:"ios", pn:"iOS", aud:"IOS"},
                   {cn:"droid", pn:"Android", aud:"Android"},
                   {cn:"node", pn:"Mac/Win/*nix", aud:"Browser"}];
+    var sllwms = 50;  //support lib load wait milliseconds (doubles on retry)
+
 
     function globkey (e) {
         //jt.log("globkey charCode: " + e.charCode + ", keyCode: " + e.keyCode);
@@ -100,12 +102,18 @@ return {
         else {
             app.docroot = ox.split("/").slice(0, 3).join("/") + "/"; }
         if(!jtminjsDecorateWithUtilities) { //support lib not loaded yet
-            return setTimeout(app.init, 50); }
+            sllwms = sllwms * 2;
+            const bsd = document.getElementById("bootstatdiv");
+            if(bsd) {
+                bsd.innerHTML = "Support library load retry in " +
+                    (sllwms / 1000) + " seconds..."; }
+            return setTimeout(app.init, sllwms); }
         jtminjsDecorateWithUtilities(jt);
+        jt.out("bootstatdiv", "Loading app modules...");
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=231223");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=240118");
     },
 
 
@@ -120,7 +128,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=231223";  //updated as part of release process
+        return "v=240118";  //updated as part of release process
     },
 
 
