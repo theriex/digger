@@ -8,8 +8,8 @@ var app = (function () {
     const pdis = [{cn:"ios", pn:"iOS", aud:"IOS"},
                   {cn:"droid", pn:"Android", aud:"Android"},
                   {cn:"node", pn:"Mac/Win/*nix", aud:"Browser"}];
-    var sllwms = 50;  //support lib load wait milliseconds (doubles on retry)
-
+    const slib = {wms:50,  //support lib wait milliseconds (doubles on retry)
+                  tmo:null};
 
     function globkey (e) {
         //jt.log("globkey charCode: " + e.charCode + ", keyCode: " + e.keyCode);
@@ -101,13 +101,17 @@ return {
             app.docroot = ox.slice(0, ox.lastIndexOf("/")); }
         else {
             app.docroot = ox.split("/").slice(0, 3).join("/") + "/"; }
-        if(!jtminjsDecorateWithUtilities) { //support lib not loaded yet
-            sllwms = sllwms * 2;
+        if(typeof(jtminjsDecorateWithUtilities) !== "function") {
+            if(slib.tmo) {
+                clearTimeout(slib.tmo);
+                slib.tmo = null; }
+            slib.wms = slib.wms * 2;
             const bsd = document.getElementById("bootstatdiv");
             if(bsd) {
                 bsd.innerHTML = "Support library load retry in " +
-                    (sllwms / 1000) + " seconds..."; }
-            return setTimeout(app.init, sllwms); }
+                    (slib.wms / 1000) + " seconds..."; }
+            slib.tmo = setTimeout(app.init, slib.wms);
+            return; }
         jtminjsDecorateWithUtilities(jt);
         jt.out("bootstatdiv", "Loading app modules...");
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
