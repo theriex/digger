@@ -53,7 +53,6 @@ mv Digger.icns Digger/Digger.app/Contents/Resources/
 # Move the dmg file to the hub downloads directory
 mv Digger.dmg ../../diggerhub/site/public/downloads
 
-# deploy the updated site and executables
 # https://play.google.com/console/
 #   - Create new release
 #   - Android Studio|Build|Generate Signed Bundle, drop upload to site
@@ -61,3 +60,4 @@ mv Digger.dmg ../../diggerhub/site/public/downloads
 # https://appstoreconnect.apple.com/
 #   - xcode|Product|Archive -> upload
 #   - add new app version
+# diggerhub: deploy the updated site and executables
