@@ -349,8 +349,7 @@ app.filter = (function () {
         makeControl: function (kwdef, idx) {
             jt.out("kwtdiv" + idx, jt.tac2html(
                 ["div", {cla:"kwtcontdiv",
-                         onclick:mdfs("kft.togClick", idx),
-                         ondblclick:mdfs("kft.openKeywordSelectDialog")},
+                         onclick:mdfs("kft.togClick", idx)},
                  [["div", {cla:"kwtoglabel"}, kwdef.pn],
                   ["div", {cla:"kwtbdiv"},
                    ["img", {cla:"kwtbimg", id:"kwtbimg" + idx,
@@ -376,7 +375,12 @@ app.filter = (function () {
                 mgrs.kft.addKWTSettingsFunc(idx);
                 mgrs.kft.addKWTSongMatchFunc(idx);
                 kwtdivs.push(["div", {cla:"kwtogdiv", id:"kwtdiv" + idx}]); });
-            jt.out("kwtogsdiv", jt.tac2html(kwtdivs)); },
+            jt.out("kwtogsdiv", jt.tac2html(
+                [["div", {id:"kwdseltogdiv"},
+                  ["a", {href:"#selectkwds", title:"Select active keywords",
+                         onclick:mdfs("kft.openKeywordSelectDialog")},
+                   ["img", {cla:"tunactimg inv", src:"img/keys.png"}]]],
+                 kwtdivs])); },
         createAndInitControls: function () {
             ctrls.kts.forEach(function (kt, idx) {
                 mgrs.kft.makeControl(kt, idx);

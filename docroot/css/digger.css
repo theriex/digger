@@ -323,6 +323,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   transform:rotate(90deg) translate(0%, -100%);
   max-width:58px; overflow:hidden; font-size:14px; margin-top:5px; }
 .kwtbdiv { postion:absolute; right:20px; top:0px; }
+#kwdseltogdiv { display:inline-block; }
 
 #ratdiv { margin:0px 5px 0px 0px; text-align:center; }
 .gtoreqspan { font-size:large; font-weight:bold; }
