@@ -24,10 +24,18 @@ app.top = (function () {
     //General hub communication utilities
     mgrs.hcu = (function () {
         //account JSON fields
-        var ajfs = {kwdefs:{cmp:["pos", "ig", "dsc"]},
-                    igfolds:{}, settings:{}, hubdat:{},
-                    musfs:{cmp:["dsId", "email", "firstname", "hashtag"]}};
-        var verstat = {};
+        const ajfs = {kwdefs:{cmp:["pos", "ig", "dsc"]},
+                      igfolds:{},
+                      settings:{cmp:["waitcodedays", "sumact"]},
+                      hubdat:{},
+                      musfs:{cmp:["dsId", "email", "firstname", "hashtag"]}};
+        const ncpy = {settings:{ctrls:null, deck:null}};
+        const verstat = {};
+        function equivField (fld, a, b) {  //compare deserialized objs
+            if(fld && ajfs[fld] && ajfs[fld].cmp) {
+                return ajfs[fld].cmp.every((f) => ((a[f] === b[f]) ||
+                           (JSON.stringify(a[f]) === JSON.stringify(b[f])))); }
+            return JSON.stringify(a[fld]) === JSON.stringify(b[fld]); }
     return {
         serializeAccount: function (acct) {
             Object.keys(ajfs).forEach(function (sf) {
@@ -37,25 +45,34 @@ app.top = (function () {
             Object.keys(ajfs).forEach(function (sf) {
                 if(acct[sf] && typeof acct[sf] === "string") {
                     acct[sf] = JSON.parse(acct[sf]); } }); },
-        accountAsData: function (acct) {
-            mgrs.hcu.serializeAccount(acct);
-            const data = jt.objdata(acct);
-            mgrs.hcu.deserializeAccount(acct);
-            return data; },
         verifyDefaultAccountFields: function (acct) {
             var aci = mgrs.aaa.getAcctsInfo();
             var da = aci.accts.find((a) => a.dsId === "101");
             Object.keys(ajfs).forEach(function (df) {
                 acct[df] = acct[df] || da[df] || ""; }); },
-        equivField: function (fld, a, b) {  //compare deserialized objs
-            if(fld && ajfs[fld] && ajfs[fld].cmp) {
-                return ajfs[fld].cmp.every((f) => a[f] === b[f]); }
-            return JSON.stringify(a[fld]) === JSON.stringify(b[fld]); },
         accountDisplayDiff: function (a, b) {
             if(!a || !b) { return false; }  //nothing to compare
             const changed = Object.keys(ajfs).find((fld) =>
-                !mgrs.hcu.equivField(fld, a, b));
+                !equivField(fld, a, b));
             return changed || false; },
+        copyUpdatedAcctData: function (destAcct, srcAcct, skipflds) {
+            //copy field values from srcAcct into destAcct, except for skipflds
+            skipflds = skipflds || ncpy;
+            Object.keys(srcAcct).forEach(function (key) {
+                if(skipflds.hasOwnProperty(key)) {  //skip field or drill in
+                    if(skipflds[key]) { //recurse down to subfields
+                        destAcct[key] = destAcct[key] || {};
+                        srcAcct[key] = srcAcct[key] || {};
+                        mgrs.hcu.copyUpdatedAcctData(destAcct[key],
+                                                     srcAcct[key],
+                                                     skipflds[key]); } }
+                else {  //not a skip field, copy field value
+                    if(typeof srcAcct[key] === "object") {  //obj or array
+                        if(srcAcct[key])  {  //skip copying if null src val
+                            destAcct[key] = JSON.parse(
+                                JSON.stringify(srcAcct[key])); } }
+                    else {
+                        destAcct[key] = srcAcct[key]; } } }); },
         verifyClientVersion: function () {
             var curracct = mgrs.aaa.getAccount();
             if(curracct.hubVersion && curracct.diggerVersion) {
@@ -1347,7 +1364,7 @@ app.top = (function () {
             mgrs.aaa.verifyConfig();  //make sure guest account available
             mgrs.hcu.verifyDefaultAccountFields(acct);  //fill fields as needed
             acct.token = token;
-            curracct = acct;
+            mgrs.hcu.copyUpdatedAcctData(curracct, acct);  //update curract info
             cfg.acctsinfo.currid = acct.dsId;
             cfg.acctsinfo.accts = [acct,
                 ...cfg.acctsinfo.accts.filter((a) => a.dsId !== acct.dsId)];
