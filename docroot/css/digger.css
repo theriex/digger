@@ -381,8 +381,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .dsabspan { font-size:small; font-style:italic; }
 .decksongactdiv { position:absolute; top:0px; left:20px; z-index:1;
   background:rgba(144, 144, 144, 0.6); padding:0px 8px; border-radius:5px; }
-.sopa { margin-left:30px; }
+.sopa { margin:0px 30px; }
 .sopx, .sopfrsugdiv { color:white; background:#999; }
+.dsoidiv { display:inline-flex; width:28px; height:28px; border-radius:14px;
+  align-items:center; justify-content:center;
+  background:rgba(64, 64, 64, 0.6); }
 #albdispdiv { position:relative; padding:0px 0px 0px 10px; }
 #albsuggtogdiv { position:absolute; top:0px; right:10px; }
 #albsuggsframediv { position:absolute; top:0px; left:10px; }

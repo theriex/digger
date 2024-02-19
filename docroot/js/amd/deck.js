@@ -374,12 +374,11 @@ app.deck = (function () {
 
     //Song options manager handles actions at the level of specific song
     mgrs.sop = (function () {
+        var optdisp = null;
         var opts = [{id:"playnow", tt:"Play this song right now",
                      img:"play.png", act:"playnow"},
-                    {id:"playnext", tt:"Play this song next",
+                    {id:"playnext", tt:"Prioritize this song",
                      img:"bumpup.png", act:"playnext"},
-                    {id:"skipsong", tt:"Skip this song",
-                     img:"skipw.png", act:"skip", x:"hst"},
                     {id:"tiredskip", tt:"Note song as tired and skip",
                      img:"snooze.png", act:"snooze", x:"hst"}];
         function amfLink (txt) {
@@ -394,28 +393,31 @@ app.deck = (function () {
                         onclick:(app.dfs("svc", "loc.loadLibrary"))},
                   "retry"]]); }
     return {
-        optionsTAC: function (mgrnm, idx) {
-            var tac = opts.filter((o) => 
-                ((!o.x || o.x.indexOf(mgrnm) < 0) &&
-                 (o.id !== "playnext" || idx > 0)))
-                .map((o) => ["a", {href:"#" + o.id, title:o.tt, cla:"sopa",
-                                   onclick:mdfs("sop.dispatchOption", o.act,
-                                                mgrnm, idx)},
-                             ["img", {src:"img/" + o.img, cla:"ptico"}]]);
-            tac.unshift(["a", {href:"#close", title:"dismiss",
-                               onclick:mdfs("sop.togOptions", mgrnm, idx)},
-                         ["span", {cla:"sopx"}, "x"]]);
-            return tac; },
         togOptions: function  (mgrnm, idx) {
-            var optdivid = "da" + mgrnm + idx;
-            if(jt.byId(optdivid).innerHTML)  { //remove content to close
-                return jt.out(optdivid, ""); }
+            const optdivid = "da" + mgrnm + idx;
+            const optlinkid = "dsl" + mgrnm + idx;
+            if(optdisp) {
+                jt.out(optdisp.divid, "");
+                jt.byId(optdisp.linkid).style.color = null;
+                optdisp = null;
+                return; }
+            optdisp = {divid:optdivid, linkid:optlinkid};
             const playerr = mgrs.hst.playbackError(mgrnm, idx);
             if(playerr) {
                 return jt.out(optdivid, playerr); }
-            jt.out(optdivid, jt.tac2html(mgrs.sop.optionsTAC(mgrnm, idx))); },
+            jt.byId(optlinkid).style.color = "#ffab00";
+            jt.out(optdivid, jt.tac2html(opts.filter((o) =>
+                ((!o.x || o.x.indexOf(mgrnm) < 0) && //option available in mgr
+                 (o.id !== "playnext" || idx > 0)))  //not bumping first song
+                    .map((o) =>
+                        ["a", {href:"#" + o.id, title:o.tt, cla:"sopa",
+                               onclick:mdfs("sop.dispatchOption", o.act,
+                                            mgrnm, idx)},
+                         ["div", {cla:"dsoidiv"},
+                          ["img", {src:"img/" + o.img, cla:"ptico"}]]]))); },
         dispatchOption: function (action, mgrnm, idx) {
-            mgrs.sop.togOptions(mgrnm, idx);  //remove actions overlay
+            //options overlay already cleared from event percolation
+            //mgrs.sop.togOptions(mgrnm, idx);  //remove actions overlay
             mgrs.dk[action](mgrnm, idx); },   //do clicked action
         tiRateStyle: function (song) {
             if(song.kws || song.el !== 49 || song.al !== 49) {
@@ -462,9 +464,11 @@ app.deck = (function () {
                 sd.innerHTML = jt.tac2html(
                     ["div", {cla:"songtitlediv"},
                      [["a", {href:"#songactions", title:"Show song options",
-                             onclick:mdfs("sop.togOptions", mgrnm, idx)},
+                             onclick:mdfs("sop.togOptions", mgrnm, idx),
+                             id:"dsl" + mgrnm + idx},
                        mgrs.sop.songIdentHTML(song)],
-                      ["div", {cla:"decksongactdiv",
+                      ["div", {cla:"decksongactdiv",  //toggle off if clicked
+                               onclick:mdfs("sop.togOptions", mgrnm, idx),
                                id:"da" + mgrnm + idx}]]]);
                 songsdiv.appendChild(sd); }); }
     };  //end mgrs.sop returned functions
@@ -498,14 +502,9 @@ app.deck = (function () {
                     ds.splice(idx, 0, song);
                     break; } }
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
-        skip: function (ignore /*mgrnm*/, idx) {
-            mgrs.dk.markAsPlayedAndMoveToHistory(idx); },
         snooze: function (ignore /*mgrnm*/, idx) {
             var song = ds[idx];
             app.player.dispatch("tun", "bumpTired", song);
-            mgrs.dk.markAsPlayedAndMoveToHistory(idx); },
-        markAsPlayedAndMoveToHistory: function (idx) {
-            var song = ds[idx];
             mgrs.dk.markSongPlayed(song);
             ds.splice(idx, 1);
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
