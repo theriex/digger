@@ -722,13 +722,20 @@ app.player = (function () {
                             "I",   //Ignore, song is in an ignore folder
                             "D",   //Deleted, media file no longer available
                             "U"]}; //Unreadable, no metadata, corrupted etc.
-        function keywordsToAlbumHTML () {
+        function albumActButtonsHTML () {
             return jt.tac2html(
-                ["a", {href:"#keystoAlbum",
-                       title:"Add currently selected keywords to Album songs",
-                       onclick:mdfs("tun.associateKeywordsWithAlbum")},
-                 [["img", {cla:"tunactimg inv", src:"img/keys.png"}],
-                  "&nbsp;&#x21e8;&nbsp;Album"]]); } //rightwards white arrow
+                [["button", {type:"button",
+                             title:"Add selected keywords to all Album songs",
+                             onclick:mdfs("tun.associateKeywordsWithAlbum")},
+                  [["img", {cla:"tunactimg inv", src:"img/keys.png"}],
+                   "&nbsp;&#x21e8;&nbsp;", //rightwards white arrow
+                   ["img", {cla:"tunactimg inv", src:"img/album.png"}]]],
+                 ["button", {type:"button",
+                             title:"Mark all songs on this album as tired",
+                             onclick:mdfs("tun.snoozeAllSongsOnAlbum")},
+                  [["img", {cla:"tunactimg inv", src:"img/album.png"}],
+                   "&nbsp;&#x21e8;&nbsp;", //rightwards white arrow
+                   ["img", {cla:"tunactimg inv", src:"img/snzblk.png"}]]]]); }
         function humanReadKwds (kwdcsv) {
             const qks = kwdcsv.csvarray().map((kwd) => "\"" + kwd + "\"");
             return qks.join(", "); }
@@ -862,7 +869,7 @@ app.player = (function () {
                  [["div", {id:"prevplaydupesdiv"}, prevPlayAndDupesHTML()],
                   ["div", {id:"playcountdiv"}, "Digger plays: " + stat.song.pc],
                   ["div", {id:"songurldiv"}, "Source: " + stat.song.path],
-                  ["div", {id:"kwds2albumdiv"}, keywordsToAlbumHTML()],
+                  ["div", {id:"abactbuttonsdiv"}, albumActButtonsHTML()],
                   ["div", {id:"abactdiv"}]]]); }, //conf dialog for kwd assoc
         associateKeywordsWithAlbum: function () {
             //Not worth extending to remove all keywords. Use a marker kw.
@@ -880,7 +887,7 @@ app.player = (function () {
             jt.out(divid, jt.tac2html(
                 ["Associate " + humanReadKwds(stat.song.kws) +
                  " with all songs on \"" + stat.song.ab + "\"?",
-                 ["div", {id:"keyassocoptsdiv"},
+                 ["div", {id:"abactoptsdiv"},
                   [ropts.map((ao) =>
                       ["div", {cla:"tuneoptiondiv"},
                        [["input", {type:"radio", id:"assocrad" + ao.v,
@@ -894,11 +901,11 @@ app.player = (function () {
             var merge = jt.byId("assocradaddifmiss");
             if(merge) {
                 merge = merge.checked; }
-            jt.out("keyassocoptsdiv", "Processing...");
+            jt.out("abactoptsdiv", "Processing...");
             app.svc.fetchSongs(
                 function (songs) {
                     var updsongs = [];
-                    jt.out("keyassocoptsdiv", "Marking...");
+                    jt.out("abactoptsdiv", "Marking...");
                     const locmod = new Date().toISOString();
                     Object.values(songs).forEach(function (s) {
                         if(s[fld] === stat.song[fld] && s.ar === stat.song.ar) {
@@ -910,7 +917,7 @@ app.player = (function () {
                                 s.kws = stat.song.kws; }
                             s.locmod = locmod;
                             updsongs.push(s); } });
-                    jt.out("keyassocoptsdiv", "Updating " + updsongs.length +
+                    jt.out("abactoptsdiv", "Updating " + updsongs.length +
                            " songs...");
                     app.svc.dispatch("gen", "updateMultipleSongs", updsongs,
                         function (upds) {
@@ -919,10 +926,52 @@ app.player = (function () {
                             jt.out(fld + "actdiv", String(updsongs.length) +
                                    " songs updated."); },
                         function (code, errtxt) {
-                            jt.out("keyassocoptsdiv", "Song update failed " +
+                            jt.out("abactoptsdiv", "Song update failed " +
                                    code + ": " + errtxt); }); },
                 function (code, errtxt) {
-                    jt.out("keyassocoptsdiv", "Song retrieval failed " + code +
+                    jt.out("abactoptsdiv", "Song retrieval failed " + code +
+                           ": " + errtxt); }); },
+        snoozeAllSongsOnAlbum: function () {
+            const divid = "abactdiv";
+            const div = jt.byId(divid);
+            if(div.innerHTML) {  //already displayed, toggle off
+                div.innerHTML = "";
+                return; }
+            jt.out(divid, jt.tac2html(
+                ["Mark all songs tired on \"" + stat.song.ab + "\"?",
+                 ["div", {id:"abactoptsdiv"},
+                  ["button", {type:"button",
+                              onclick:mdfs("tun.snoozeAlbumSongsProc", "ab")},
+                   "Update Songs"]]])); },
+        snoozeAlbumSongsProc: function (fld) {
+            jt.out("abactoptsdiv", "Processing...");
+            app.svc.fetchSongs(
+                function (songs) {
+                    var updsongs = [];
+                    jt.out("abactoptsdiv", "Marking...");
+                    const locmod = new Date().toISOString();
+                    Object.values(songs).forEach(function (s) {
+                        if(s[fld] === stat.song[fld] && s.ar === stat.song.ar) {
+                            if(subcats.B.indexOf(s.fq) < 0) {  //not tired
+                                s.fq = "B";
+                                s.locmod = locmod;
+                                updsongs.push(s); } } });
+                    if(!updsongs.length) {
+                        jt.out(fld + "actdiv", "All songs marked as tired.");
+                        return; }
+                    jt.out("abactoptsdiv", "Updating " + updsongs.length +
+                           " songs...");
+                    app.svc.dispatch("gen", "updateMultipleSongs", updsongs,
+                        function (upds) {
+                            app.deck.dispatch("alb", "noteUpdatedAlbumSongs",
+                                              upds);
+                            jt.out(fld + "actdiv", String(updsongs.length) +
+                                   " songs updated."); },
+                        function (code, errtxt) {
+                            jt.out("abactoptsdiv", "Song update failed " +
+                                   code + ": " + errtxt); }); },
+                function (code, errtxt) {
+                    jt.out("abactoptsdiv", "Song retrieval failed " + code +
                            ": " + errtxt); }); },
         bumpTired: function (song) {  //general utility
             var tfqidx = subcats.B.indexOf(stat.song.fq);

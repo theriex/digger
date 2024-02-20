@@ -188,9 +188,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #prevplaydiv, #songurldiv, #playcountdiv { font-size:x-small; }
 #dupesdispdiv { padding-left:32px; }
 #pmsgdiv { font-size:small; font-weight:bold; }
-#kwds2albumdiv { text-align:center; }
+#abactbuttonsdiv { text-align:center; padding:2px 0px 6px 0px; }
 #abactdiv { font-size:small; }
-#keyassocoptsdiv { text-align:center; padding-bottom:10px; }
+#abactoptsdiv { text-align:center; padding-bottom:10px; }
 #spotdetactdiv { font-size:small; max-width:290px; }
 #tunedetwrktable { padding:0px 0px 0px 22px; }
 #audioplayerdiv { display:flex; justify-content:left; align-items:center;
