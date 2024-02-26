@@ -185,7 +185,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .tuneoptdetval, .spotdetval { text-align:left; font-size:small; }
 .tunactimg { max-height:22px; }
 #tunedetdiv { margin-top:8px; }
-#prevplaydiv, #songurldiv, #playcountdiv { font-size:x-small; }
+#prevplaydiv, #songurldiv, #playcountdiv, #genresdiv { font-size:x-small; }
 #dupesdispdiv { padding-left:32px; }
 #pmsgdiv { font-size:small; font-weight:bold; }
 #abactbuttonsdiv { text-align:center; padding:2px 0px 6px 0px; }
@@ -355,7 +355,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #togfiltb { margin-right:5px; }
 #srchcountsdiv { font-size:small; }
 #srchctrlsdiv { text-align:center; }
-.srchfcbdiv { display:inline-block; white-space:nowrap; margin:0px 12px;
+.srchfcbdiv { display:inline-block; white-space:nowrap; margin:0px 8px;
   font-size:x-small; }
 #srchin { margin-right:2px; border:2px solid #999; border-radius:5px;
   font-size: large; }

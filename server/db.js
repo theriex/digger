@@ -313,9 +313,9 @@ module.exports = (function () {
     }
 
 
-    //if given, tags parameter has "title", "artist", "album" fields
-    //a song must have at least title and artist specified to be identified.
-    //updated tag info always takes precedence
+    //If given, tags parameter has "title", "artist", "album" fields.
+    //A song must have at least title and artist specified to be identified.
+    //Updated tag info from metadata always takes precedence.
     function updateMetadata (song, tags) {
         if(!tags || !tags.title || !tags.artist) {
             console.log("guessing metadata from path " + song.path);
@@ -328,6 +328,9 @@ module.exports = (function () {
             song.ar = tags.artist || song.ar;
             song.ab = tags.album || song.ab || "Singles";
             song.ti = tags.title || song.ti;
+            song.genrejson = "";
+            if(tags.genre) {
+                song.genrejson = JSON.stringify(tags.genre); }
             const pmrd = song.mrd || "";
             song.mrd = makeMetadataRef(tags);
             if(pmrd !== song.mrd) {  //metadata has changed
@@ -338,12 +341,24 @@ module.exports = (function () {
     }
 
 
+    function consoleDumpMetadata (md) {
+        if(!md) {
+            return console.log("No md"); }
+        const mdc = md.common;
+        if(mdc) {
+            delete mdc.picture;
+            return console.log("md.common: " +
+                               JSON.stringify(md.common, null, 2)); }
+        console.log("md: " + JSON.stringify(md, null, 2));
+    }
+
+
     //create or update the song corresponding to the given a full file path.
     //contf is responsible for writing the updated dbo as needed.
     function readMetadata (ffp, contf) {
         mm.parseFile(ffp)
             .then(function (md) {
-                //console.log("rmd md: " + JSON.stringify(md.common, null, 2));
+                //consoleDumpMetadata(md);
                 var song = findOrAddDbSong(ffp);
                 //console.log("rmd song: " + JSON.stringify(song, null, 2));
                 song = updateMetadata(song, md.common);

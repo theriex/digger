@@ -762,6 +762,17 @@ app.player = (function () {
                   ddct,
                   ["div", {id:"dupesdispdiv", style:"display:none"},
                    dupesongshtml]]]); }
+        function genreDispHTML () {
+            var html = ""; var gv;
+            if(stat.song.genrejson) {
+                try {
+                    gv = JSON.parse(stat.song.genrejson);
+                    if(gv instanceof Array) {
+                        gv = gv.map((g) => jt.escq(g)).join(", "); }
+                    html = "Genre: " + gv;
+                } catch(e) {
+                    jt.log("genreDispHTML err " + e); } }
+            return html; }
     return {
         isSubcatValue: function (cat, val) {
             return (subcats[cat] && subcats[cat].indexOf(val) >= 0); },
@@ -868,6 +879,7 @@ app.player = (function () {
                 ["div", {id:"tunedetdiv"},
                  [["div", {id:"prevplaydupesdiv"}, prevPlayAndDupesHTML()],
                   ["div", {id:"playcountdiv"}, "Digger plays: " + stat.song.pc],
+                  ["div", {id:"genresdiv"}, genreDispHTML()],
                   ["div", {id:"songurldiv"}, "Source: " + stat.song.path],
                   ["div", {id:"abactbuttonsdiv"}, albumActButtonsHTML()],
                   ["div", {id:"abactdiv"}]]]); }, //conf dialog for kwd assoc

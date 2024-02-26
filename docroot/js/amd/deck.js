@@ -952,6 +952,7 @@ app.deck = (function () {
             {f:"ar", pn:"Artist", ck:true},
             {f:"ab", pn:"Album", ck:true},
             {f:"ti", pn:"Title", ck:true},
+            {f:"genrejson", pn:"Genre", ck:true},
             {f:"nt", pn:"Notes", ck:true}];
         function updateCounts (ignore /*artist*/, album/*, title*/) {
             //A compilation with lots of artists on one album should be
@@ -966,7 +967,8 @@ app.deck = (function () {
             if(!songs) {
                 songs = Object.values(mgrs.sdt.getSongsDict())
                     .filter((s) => !s.fq || !s.fq.match(/^[DUI]/)); }
-            const rtx = "(\\s|^)" + qstr.toLowerCase().replace("*", ".*");
+            //match start after space, dquote, or start of string. Wildcard ok.
+            const rtx = "(\\s|\"|^)" + qstr.toLowerCase().replace("*", ".*");
             const srx = new RegExp(rtx, "i");
             const sfs = sfds.filter((fd) => fd.ck);
             rslt = {};  //reset search results
