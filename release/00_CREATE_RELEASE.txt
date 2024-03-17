@@ -60,4 +60,6 @@ mv Digger.dmg ../../diggerhub/site/public/downloads
 # https://appstoreconnect.apple.com/
 #   - xcode|Product|Archive -> upload
 #   - add new app version
-# diggerhub: deploy the updated site and executables
+# diggerhub:
+#   - deploy the updated site and executables
+#   - verify downloaded Digger.dmg Applications folder alias is preserved
