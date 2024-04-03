@@ -487,6 +487,19 @@ app.filter = (function () {
                 B:settings.waitcodedays.B,
                 Z:settings.waitcodedays.Z,
                 O:settings.waitcodedays.O}; },
+        isPlaybackEligible: function (song) {
+            var eligible;
+            if(!song.lp) {
+                return true; }  //not played before, so ok to play now
+            if(!song.fq || !waitdays[song.fq]) {
+                return false; }  //"R" (reference only), or invalid fq
+            try {
+                eligible = jt.isoString2Day(song.lp).getTime();
+                eligible += waitdays[song.fq] * (24 * 60 * 60 * 1000);
+                return (eligible < Date.now());
+            } catch(e) {
+                jt.log("Frequency calc failure " + song.path + ": " + e);
+            } },
         writeHTML: function (divid) {
             jt.out(divid, jt.tac2html(
                 ["button", {type:"button", id:"fqtogb",
@@ -512,20 +525,9 @@ app.filter = (function () {
             ctrls.fq.settings = function () {
                 return {tp:"fqb", v:fqb}; };
             ctrls.fq.match = function (song) {
-                var eligible;
                 if(fqb === "off") {
                     return true; }
-                if(!song.lp) {  //not played before
-                    return true; }
-                if(!song.fq || !waitdays[song.fq]) {
-                    return false; }  //"R" (reference only), or invalid fq
-                try {
-                    eligible = jt.isoString2Day(song.lp).getTime();
-                    eligible += waitdays[song.fq] * (24 * 60 * 60 * 1000);
-                    return (eligible < Date.now());
-                } catch(e) {
-                    jt.log("Frequency calc failure " + song.path + ": " + e);
-                }}; },
+                return mgrs.fq.isPlaybackEligible(song); }; },
         setFrequencyFiltering: function (fqsetting) {
             fqsetting = fqsetting || {tp:"fqb", v:"on"};
             mgrs.fq.toggleFreqFiltering(fqsetting.v); },

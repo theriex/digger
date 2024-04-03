@@ -156,10 +156,10 @@ app.deck = (function () {
                  [["span", {cla:"dinfrectspan"}, fc.filter + ": "],
                   ["span", {cla:"dinfrecnspan"}, String(fc.sc)]]]))); },
         filterSongs: function () {
+            wrk.fcs = [];  //clear filter control status messages
             if(app.svc.okToPlay) {  //have plat/situation song filtering func
                 wrk.songs = wrk.songs.filter((s) => app.svc.okToPlay(s)); }
-            wrk.fcs = [];  //clear filter control status messages
-            mgrs.ws.appendInfoCount("Readable songs");
+            mgrs.ws.appendInfoCount("Playable");
             filterByFilters(true); },
         findSongIndex: function (song, songs) {
             return songs.findIndex((s) => 
@@ -230,7 +230,7 @@ app.deck = (function () {
             wrk.songs = [];
             const ssid = app.startParams.songid;
             Object.entries(songs).forEach(function ([p, s]) {
-                if(!s.fq || !s.fq.match(/^[DUI]/)) {  //see player.tun.subcats
+                if(app.deck.isPlayable(s)) {  //see player.tun.subcats
                     s.path = p;  //used for lookup post update
                     if(ssid && s.dsId === ssid) {
                         wrk.startsong = s; }
@@ -681,8 +681,9 @@ app.deck = (function () {
         var toggleButtons = {};
         var cak = "";  //current album key
         var aid = {};  //album info dict (idx, songs, etc by album key)
-        var sacsr = null;  //suggested albums calc song ref
         var playFromTop = false;  //flag to play whole album from the top
+        var songToStartWith = null;  //start playback with this song after init
+        var sacsr = null;  //suggested albums calc song ref
         var asgs = [];   //suggested albums
         const asgmx = 5;  //album suggestion max. Fast scan. Otheriwse search
         function makeAlbumKey (song) {
@@ -752,14 +753,28 @@ app.deck = (function () {
                          "&nbsp;-&nbsp;",
                          ["span", {cla:"sgalbabspan"},
                           sa.songs[0].ab]]]])]])); }
+        function findSongAndPlay (song) {
+            var startPlayback = true;
+            if(playFromTop) {
+                playFromTop = false;
+                aid[cak].ci = 0; }
+            else {
+                aid[cak].ci = mgrs.ws.findSongIndex(song, aid[cak].songs);
+                const np = app.player.song();
+                if(np && np.path === song.path) {
+                    startPlayback = false; } }
+            mgrs.alb.displayAlbum(song);
+            if(startPlayback) {
+                mgrs.alb.playnow(aid[cak].ci); } }
         function updateAlbumDisplay (song) {
-            var asg = song || app.player.song();
+            var asg = song || songToStartWith || app.player.song();
             if(!asg && aid[cak] && aid[cak].src === "pmq") {
-                asg = aid[cak].songs[0];
+                asg = aid[cak].songs[0];  //default to first song on album
                 if(aid[cak].ci >= 0) {
                     asg = aid[cak].songs[aid[cak].ci]; } }
             if(!asg) {
                 return jt.out("albplaydiv", "Album song not found."); }
+            //now that it's determined what song to play, play it
             cak = makeAlbumKey(asg);
             if(!cak) {
                 return jt.out("albplaydiv", "No album lookup key."); }
@@ -768,19 +783,10 @@ app.deck = (function () {
                 jt.out("albplaydiv", "Fetching album info...");
                 return app.svc.fetchAlbum(asg, mgrs.alb.setAlbumSongs,
                                           mgrs.alb.albumFetchFailure); }
+            songToStartWith = null;  //reset now that we are ready to play
             if(!aid[cak].songs || !aid[cak].songs.length) {
                 return jt.out("albplaydiv", "No album info for song"); }
-            if(playFromTop) {
-                aid[cak].ci = 0; }
-            else {  //currently playing song may have changed
-                aid[cak].ci = -1;
-                const np = app.player.song();
-                if(np) {
-                    aid[cak].ci = mgrs.ws.findSongIndex(np, aid[cak].songs); } }
-            mgrs.alb.displayAlbum(asg);
-            if(playFromTop) {
-                playFromTop = false;
-                mgrs.alb.playnow(0); } }
+            findSongAndPlay(asg); }
     return {
         getSaveState: function (dmx) {  //dmx is >= 0
             const abst = {key:cak, info:aid[cak]};
@@ -843,6 +849,8 @@ app.deck = (function () {
                     app.copyUpdatedSongData(s, updsong); } }); },
         togSuggestAlbums: function (disp) {
             toggleButtons.togsuggb(disp); },
+        setSongToStartWith: function (song) {
+            songToStartWith = song; },
         playSuggestedAlbum: function (idx) {
             mgrs.alb.playAlbum(asgs[idx].songs[0]); },
         playAlbum: function (song) {
@@ -966,7 +974,7 @@ app.deck = (function () {
         function searchSongs () {
             if(!songs) {
                 songs = Object.values(mgrs.sdt.getSongsDict())
-                    .filter((s) => !s.fq || !s.fq.match(/^[DUI]/)); }
+                    .filter((s) => app.deck.isPlayable(s)); }
             //match start after space, dquote, or start of string. Wildcard ok.
             const rtx = "(\\s|\"|^)" + qstr.toLowerCase().replace("*", ".*");
             const srx = new RegExp(rtx, "i");
@@ -1134,7 +1142,7 @@ app.deck = (function () {
         rebuildHistory: function () {
             var songs = [];
             Object.entries(app.svc.songs()).forEach(function ([p, s]) {
-                if(!s.fq || !s.fq.match(/^[DUI]/)) {  //see player.tun.subcats
+                if(app.deck.isPlayable(s)) {
                     s.path = p;  //used for lookup post update
                     songs.push(s); } });
             pps = [];
@@ -1274,6 +1282,7 @@ return {
     playbackStatus: mgrs.gen.playbackStatus,
     rebuildHistory: mgrs.hst.rebuildHistory,
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
+    isPlayable: function (s) { return (!s.fq || !s.fq.match(/^[DUI]/)); },
     getPlaybackState: mgrs.gen.getPlaybackState,
     endedDueToSleep: mgrs.gen.endedDueToSleep,
     getState: mgrs.gen.deckstate,

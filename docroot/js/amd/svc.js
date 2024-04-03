@@ -636,6 +636,7 @@ return {
     urlOpenSupp: function () { return true; }, //ok to open urls in new tab
     docContent: function (du, cf) { mgrs.gen.docContent(du, cf); },
     topLibActionSupported: function () { return true; },
+    defaultCollectionStyle: function () { return "permanentCollection"; },
     writeConfig: function (cfg, cf, ef) { mgrs.gen.writeConfig(cfg, cf, ef); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }

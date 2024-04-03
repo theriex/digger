@@ -1420,6 +1420,23 @@ app.top = (function () {
                     mgrs.aaa.reflectDarkMode(cfg.darkmode); },
                 function (code, errtxt) {
                     jt.log("toggleDarkMode writeConfig call failure " + code +
+                           ": " + errtxt); }); },
+        getCollectionStyle: function () {
+            var dbpt = cfg.dbPersistence;
+            if(!dbpt) {
+                if(app.svc.defaultCollectionStyle) {
+                    dbpt = app.svc.defaultCollectionStyle(); }
+                else {  //mobile platforms are assumed to be personalCarry
+                    dbpt = "personalCarry"; } }
+            return dbpt; },
+        setCollectionStyle: function (dbpt) {
+            cfg.dbPersistence = dbpt;
+            app.svc.writeConfig(cfg,
+                function (writtenconf) {
+                    cfg = writtenconf;
+                    mgrs.lcm.displayLocalCarryInfo(); },
+                function (code, errtxt) {
+                    jt.log("setCollectionStyle config write failure " + code +
                            ": " + errtxt); }); }
     };  //end mgrs.aaa returned functions
     }());
@@ -1794,6 +1811,138 @@ app.top = (function () {
     }());
 
 
+    //Local Carry Manager helps with personal carry download/offload suggestions
+    mgrs.lcm = (function () {
+        const dbps = [{v:"permanentCollection", t:"Permanent Collection"},
+                      {v:"personalCarry", t:"Personal Carry"}];
+        const crd = {};
+        function resetCarryData () {
+            crd.ars={};  crd.abs={};  crd.sks={};  crd.psc=0; }
+        function carryLenDisp (fld) {
+            return Object.keys(crd[fld]).length; }
+        function updateOffloadStats (dbpt, ts, song) {
+            ts.ac += 1;  //bump album song count
+            if(song.lp && song.lp.localeCompare(ts.mrp) > 0) {
+                ts.mrp = song.lp; }  //note most recent song play off album
+            if(song.rv <= 4) { //two or fewer stars
+                ts.dpath = ts.dpath || song.path;
+                ts.dc += 1; }  //bump dud count for album
+            const fqe = app.filter.dispatch("fq", "isPlaybackEligible", song);
+            if(fqe && song.rv >= 8) {  //4+ stars and playable
+                ts.hc += 1; }  //bump hit count for album
+            if(dbpt !== "permanentCollection") {  //personalCarry
+                if(song.rv > 4 && //not already counted as a dud
+                   song.fq && song.fq.match(/[BZOR]/) && //tired or ref only
+                   !fqe) {  //not eligible to play
+                    ts.tpath = ts.tpath || song.path;
+                    ts.tc += 1; } } } //bump tired count for album
+        function rebuildCarryData () {
+            const dbpt = mgrs.aaa.getCollectionStyle();
+            resetCarryData();
+            const sd = app.deck.dispatch("sdt", "getSongsDict");
+            Object.values(sd).forEach(function (song) {
+                if(app.deck.isPlayable(song)) {
+                    crd.psc += 1;  //update song count
+                    crd.ars[song.ar] = crd.ars[song.ar] || song.ar;  //artist
+                    //note album
+                    const ab = song.ab || song.ar + "Singles";
+                    crd.abs[ab] = crd.abs[ab] || {
+                        ar:song.ar, ac:0, dc:0, tc:0, hc:0, apath:song.path,
+                        mrp:"1970-01-01T00:00:00Z"};
+                    updateOffloadStats(dbpt, crd.abs[ab], song);
+                    //note song key for hub interaction
+                    const sk = song.ar + song.ab + song.ti;
+                    crd.sks[sk] = song.ti; } }); }
+        function carryReportTotalsHTML () {
+            return jt.tac2html(
+                [["div", {cla:"crsumitemdiv"},
+                  [["span", {cla:"crsumitemval"}, carryLenDisp("ars")],
+                   ["span", {cla:"crsumitemattr"}, "Artists"]]],
+                 ["div", {cla:"crsumitemdiv"},
+                  [["span", {cla:"crsumitemval"}, carryLenDisp("abs")],
+                   ["span", {cla:"crsumitemattr"}, "Albums"]]],
+                 ["div", {cla:"crsumitemdiv"},
+                  //"sks" has unique ti/ar/ab keys without dupes.  That can be
+                  //confusingly less than the total as displayed in deck info.
+                  [["span", {cla:"crsumitemval"}, crd.psc || "0"],
+                   ["span", {cla:"crsumitemattr"}, "Songs"]]]]); }
+        function permCollOrCarryHTML () {
+            var dbpt = mgrs.aaa.getCollectionStyle();
+            return jt.tac2html(
+                [["div", {cla:"crsectitdiv"}, "Song file persistence:"],
+                 dbps.map((dbp) =>
+                     ["div", {cla:"dbpoptdiv"},
+                      [["input", {type:"radio", id:dbp.v + "RadioButton",
+                                  name:"dbpoption", value:dbp.v,
+                                  checked:jt.toru(dbpt === dbp.v),
+                                  onclick:mdfs("aaa.setCollectionStyle",
+                                               dbp.v)}],
+                       ["label", {fo:dbp.v + "RadioButton"}, dbp.t]]])]); }
+        function isOffloadEligible(stats) {
+            if(stats.hc) {
+                return false; } //at least one high rated play-eligible song
+            if(!stats.dc && !stats.tc) {
+                return false; } //no duds and nothing tired
+            return true; }  //possibly offloadable
+        function findOffloadableAlbums () {
+            var oas = [];
+            Object.entries(crd.abs).forEach(function ([k, d]) {
+                if(isOffloadEligible(d)) {
+                    const dtc = d.dc + d.tc;  //duds and ineligible tired
+                    const bp = Math.round((dtc * 100) / d.ac);  //bad song pcnt
+                    const ia = ((d.ac > 2)? 1 : 0);  //1 if more than a single
+                    oas.push({ar:d.ar, ab:k, ac:d.ac, mrp:d.mrp,
+                              path:d.dpath || d.tpath || d.apath,
+                              iat:ia, bpc:bp}); } });
+            //Albums before singles.  Highest badness first.  Within
+            //equally bad albums, prefer least recently played because if
+            //you play a song off the album and don't delete it, then it
+            //should move down in the suggestions order.  If all else equal,
+            //prefer longer albums since since they will free up more space.
+            oas.sort(function (a, b) {
+                return ((b.iat - a.iat) ||  //albums before singles
+                        (b.bpc - a.bpc) ||  //highest badness percent first
+                        a.mrp.localeCompare(b.mrp) ||  //least recently played
+                        (b.ac - a.ac)); }); //longer albums first
+            oas = oas.slice(0, 3);  //manageable number to actually consider
+            return oas; }
+        function suggestedOffloadsHTML () {
+            const oas = findOffloadableAlbums();
+            return jt.tac2html(
+                ["div", {id:"suggoffdiv"},
+                 [["div", {cla:"crsectitdiv"}, "Suggested offloads:"],
+                  ["ul", {cla:"suggul"},
+                   oas.map((oa) =>
+                      ["li",
+                       [["span", {cla:"carryarspan"}, oa.ar],
+                        "&nbsp;-&nbsp;",
+                        ["a", {href:"#playalbum",
+                               onclick:mdfs("lcm.showAlbum",
+                                            jt.escq(oa.path))},
+                         ["span", {cla:"carryabspan"}, oa.ab]],
+                        ["span", {cla:"carrypcntspan"}, oa.bpc + "%"]]])]]]); }
+    return {
+        showAlbum: function (encpath) {
+            const path = jt.dec(encpath);
+            const sd = app.deck.dispatch("sdt", "getSongsDict");
+            const song = sd[path];
+            app.deck.dispatch("alb", "setSongToStartWith", song);
+            app.deck.dispatch("gen", "dispMode", "alb"); },
+        displayLocalCarryInfo: function () {
+            rebuildCarryData();
+            jt.out(tddi, jt.tac2html(
+                ["div", {id:"carryrptdiv"},
+                 [["div", {id:"crttlsdiv"}, carryReportTotalsHTML()],
+                  ["div", {id:"crprmcrydiv"}, permCollOrCarryHTML()],
+                  ["div", {id:"offloadsdiv"}, suggestedOffloadsHTML()],
+                  ["div", {cla:"dlgbuttonsdiv", id:"crbdiv"},
+                   ["button", {type:"button", id:"crbcloseb",
+                               onclick:mdfs("locla.writeDlgContent")},
+                    "Close"]]]])); }
+    };  //end of mgrs.lcm returned functions
+    }());
+
+
     //Local library actions manager handles lib level actions and data.
     mgrs.locla = (function () {
         var acts;
@@ -1813,12 +1962,15 @@ app.top = (function () {
                 {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
                  tt:"Read all files in the music folder",
                  n:"Read Files", id:"readfilesbutton"},
+                {ty:"btn", oc:mdfs("lcm.displayLocalCarryInfo"),
+                 tt:"Display local collection info",
+                 n:"Carry", id:"localcarrybutton"},
                 {ty:"btn", oc:mdfs("igf.igMusicFolders"),
                  tt:"Ignore folders when reading music files",
                  n:"Ignore Folders", id:"ignorefldrsbutton"},
                 {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
-                 tt:"Choose keywords to use for filtering",
-                 n:"Choose Keywords", id:"choosekwdsbutton"},
+                 tt:"Select active keywords for filtering",
+                 n:"Active Keywords", id:"choosekwdsbutton"},
                 {ty:"btn", oc:mdfs("aaa.toggleDarkMode"),
                  tt:"Toggle dark mode display",
                  n:"Dark", id:"darkmodebutton"}];
@@ -2367,7 +2519,7 @@ app.top = (function () {
                       ["a", {href:"/docs/manual.html", title:"Digger manual",
                              onclick:jt.fs("app.displayDoc('" + app.overlaydiv +
                                            "','manual.html')")},
-                       "RTFM"]]]]]],
+                       ["img", {src:"img/info.png"}]]]]]]],
                  ["div", {id:tddi, "data-mode":"empty"}],
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],
                  ["div", {cla:"statdiv", id:"topstatdiv"}]])); }

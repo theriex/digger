@@ -41,7 +41,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #titleftdiv, #titcenterdiv, #titrightdiv { display:inline-block;
   vertical-align:middle; }
 .titlespan { font-size:x-large; font-weight:bold; }
-#countspan { font-size:small; padding:0px 10px; }
+#countspan { display:none; font-size:small; padding:0px 10px; }
 .vpadtxtdiv { display:inline-block; padding:8px 0px; }
 .linkdescrspan { font-size:small; }
 #rtfmdiv { text-align:center; font-size:small; }
@@ -74,6 +74,18 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .statdiv { font-size:small; }
 #toponelinestatdiv { max-height:1em; overflow:hidden; white-space:nowrap; }
 #toponelinestatdiv, #topstatdiv, #topdlgdiv { padding:0px 15px; }
+
+#carryrptdiv { font-size:small; }
+#crttlsdiv { text-align:center; }
+.crsumitemdiv { display:inline-block; font-size:small; padding:0px 5px; }
+.crsumitemval { padding-right:3px; }
+.crsumitemattr { font-style:italic; }
+.crsectitdiv { font-weight:bold; padding-top:4px; }
+.dbpoptdiv { display:inline-block; }
+#offloadsdiv { font-size:small; }
+.suggul { margin:0px; padding-left:24px; }
+.carryarspan { font-style:italic; padding-right:5px; }
+.carrypcntspan { font-size:x-small; padding-left:5px; }
 
 .pathdiv { font-size:medium; }
 .pathlabelspan, .pathlabelgreyspan { font-size:small; font-style:italic; }
