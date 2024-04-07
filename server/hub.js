@@ -8,8 +8,9 @@ module.exports = (function () {
     "use strict";
 
     var eec = {};  //endpoint error contexts
-    var hs = "https://diggerhub.com";
+    //var hs = "https://diggerhub.com";
     //var hs = "http://localhost:8080";
+    var hs = "http://127.0.0.1:8080";
 
 
     function bodify (po) {  //parameters object
@@ -275,6 +276,13 @@ module.exports = (function () {
     }
 
 
+    function suggdown (pu, ignore /*req*/, res) {
+        const params = {an:pu.query.an, at:pu.query.at,
+                        suggtype:pu.query.suggtype};
+        return hubget("suggdown", params, res);
+    }
+
+
     const gdutil = (function () {
         var gdflds = ["el", "al", "rv", "kws"];
     return {
@@ -313,6 +321,7 @@ module.exports = (function () {
         hubsync: function (req, res) { return hubsync(req, res); },
         fangrpact: function (req, res) { return fangrpact(req, res); },
         fancollab: function (req, res) { return fancollab(req, res); },
-        fanmsg: function (req, res) { return fanmsg(req, res); }
+        fanmsg: function (req, res) { return fanmsg(req, res); },
+        suggdown: function (pu, req, res) { return suggdown(pu, req, res); }
     };
 }());

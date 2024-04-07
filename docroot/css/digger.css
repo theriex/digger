@@ -81,7 +81,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .crsumitemval { padding-right:3px; }
 .crsumitemattr { font-style:italic; }
 .crsectitdiv { font-weight:bold; padding-top:4px; }
-.dbpoptdiv { display:inline-block; }
+.radiobdiv { display:inline-block; }
 #offloadsdiv { font-size:small; }
 .suggul { margin:0px; padding-left:24px; }
 .carryarspan { font-style:italic; padding-right:5px; }

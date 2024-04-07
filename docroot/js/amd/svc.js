@@ -615,7 +615,7 @@ app.svc = (function () {
         writeConfig: function (cfg, contf, errf) {
             mgrs[hdm].writeConfig(cfg, contf, errf); },
         fanGroupAction: function (data, contf, errf) {
-            mgrs[hdm].fanGroupAction(data, contf,errf); },
+            mgrs[hdm].fanGroupAction(data, contf, errf); },
         fanCollab: function (data, contf, errf) {
             mgrs[hdm].fanCollab(data, contf, errf); },
         fanMessage: function (data, contf, errf) {
