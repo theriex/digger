@@ -719,6 +719,7 @@ app.player = (function () {
                             "Z",   //Resting, default 180 days between plays
                             "O"],  //Overplayed, default 365 days between plays
                        "R":["R",   //Reference only, do not play by default
+                            "M",   //Metadata no longer matches media
                             "I",   //Ignore, song is in an ignore folder
                             "D",   //Deleted, media file no longer available
                             "U"]}; //Unreadable, no metadata, corrupted etc.

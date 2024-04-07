@@ -8,9 +8,9 @@ module.exports = (function () {
     "use strict";
 
     var eec = {};  //endpoint error contexts
-    //var hs = "https://diggerhub.com";
+    var hs = "https://diggerhub.com";
     //var hs = "http://localhost:8080";
-    var hs = "http://127.0.0.1:8080";
+    //var hs = "http://127.0.0.1:8080";
 
 
     function bodify (po) {  //parameters object
@@ -283,6 +283,13 @@ module.exports = (function () {
     }
 
 
+    function nosugg (req, res) {
+        return hubpost(req, res, "nosugg", function (songs) {
+            songs = JSON.parse(songs);
+            console.log(String(songs.length) + " hub songs updated"); });
+    }
+
+
     const gdutil = (function () {
         var gdflds = ["el", "al", "rv", "kws"];
     return {
@@ -322,6 +329,7 @@ module.exports = (function () {
         fangrpact: function (req, res) { return fangrpact(req, res); },
         fancollab: function (req, res) { return fancollab(req, res); },
         fanmsg: function (req, res) { return fanmsg(req, res); },
-        suggdown: function (pu, req, res) { return suggdown(pu, req, res); }
+        suggdown: function (pu, req, res) { return suggdown(pu, req, res); },
+        nosugg: function (req, res) { return nosugg(req, res); }
     };
 }());

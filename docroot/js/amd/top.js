@@ -1822,6 +1822,8 @@ app.top = (function () {
                      hdat:{albums:null, singles:null},
                      lookup:null};
         const fbk = {active:false, keyword:"Any", kwds:["Any"]};
+        const fsos = [{v:"M", t:"Already have this. Metadata mismatch."},
+                      {v:"R", t:"Just never suggest this."}];
         function resetCarryData () {
             crd.ars={};  crd.abs={};  crd.sks={};  crd.psc=0; }
         function carryLenDisp (fld) {
@@ -1996,15 +1998,17 @@ app.top = (function () {
                 ["div", {id:"suggdowndiv"},
                  [["div", {cla:"crsectitdiv"}, "Suggested downloads:"],
                   ["ul", {cla:"suggul"},
-                   dls.map((dl) =>
+                   dls.map((dl, idx) =>
                       ["li",
                        [["span", {cla:"carryarspan"}, dl.ar],
                         "&nbsp;-&nbsp;",
-                        ["span", {cla:"carryabspan"}, dl.ab],
+                        ["a", {href:"#fixsuggestion",
+                               onclick:mdfs("lcm.fixSuggestion", idx,
+                                            dl.ar, dl.ab)},
+                         ["span", {cla:"carryabspan"}, dl.ab]],
                         ["span", {cla:"carrypcntspan"}, dl.vr],
-                        ["span", {cla:"carrypcntspan"}, "mr:" + dl.mr]
-                        ["span", {cla:"carrypcntspan"}, "qc:" + dl.qc]
-                       ]])]]])); }
+                        ["div", {id:"fixdlsuggdiv" + idx,
+                                 style:"display:none;"}]]])]]])); }
         function rebuildSuggestedDownloads () {
             jt.out("dwnloadsdiv", suggestedDownloadsHTML());
             const acct = mgrs.aaa.getAccount();
@@ -2018,8 +2022,7 @@ app.top = (function () {
                 const st = aso.sel;
                 const dat = app.authdata({suggtype:st});
                 const url = app.cb("suggdown", dat);
-                app.svc.dispatch(
-                    "gen", "makeHubAcctCall", "GET", url, null,
+                app.svc.dispatch("gen", "makeHubAcctCall", "GET", url, null,
                     function (suggs) {
                         jt.out("crdsuggsdiv", st + " data received.");
                         aso.hdat[st] = suggs;
@@ -2030,6 +2033,41 @@ app.top = (function () {
                 return; }
             displayDownloadSuggestions(); }
     return {
+        fixSuggestion: function (idx, ar, ab) {
+            const div = jt.byId("fixdlsuggdiv" + idx);
+            if(div.style.display !== "none") {  //toggle off
+                div.style.display = "none";
+                return; }
+            div.style.display = "block";
+            div.innerHTML = jt.tac2html(
+                [["div", {id:"fsoptsdiv" + idx},
+                  fsos.map((fso) =>
+                      ["div", {cla:"oneselperlinediv"},
+                       [["input", {type:"radio", id:fso.v + "RadioButton",
+                                   checked:jt.toru(fso.v === "M"),
+                                   name:"fsoption", value:fso.v}, fso.v],
+                        ["label", {fo:fso.v + "RadioButton"}, fso.t]]])],
+                 ["div", {id:"fsbuttondiv" + idx, cla:"dlgbuttonsdiv"},
+                  ["button", {type:"button", id:"fixsuggb" + idx,
+                              onclick:mdfs("lcm.hubfixSuggestion", idx,
+                                           ar, ab)},
+                   "Remove Suggestion"]],
+                 ["div", {id:"fixdlstatdiv" + idx}]]); },
+        hubfixSuggestion: function (idx, ar, ab) {
+            const ufq = document.querySelector("input[name=fsoption]:checked")
+                  .value;
+            const acct = mgrs.aaa.getAccount();
+            const dat = jt.objdata({an:acct.email, at:acct.token,
+                                    artist:ar, album:ab, fq:ufq});
+            jt.out("fixdlstatdiv" + idx, "Updating hub...");
+            app.svc.dispatch("gen", "makeHubAcctCall", "POST", "nosugg", dat,
+                function (songs) {
+                    aso.lookup[ar] = aso.lookup[ar] || {};
+                    aso.lookup[ar][ab] = -1 * songs.length;
+                    rebuildSuggestedDownloads(); },
+                function (code, errtxt) {
+                    jt.out("fixdlstatdiv" + idx, "Hub update failed " + code +
+                           ": " + errtxt); }); },
         suggDownType: function (val) {
             aso.sel = val;
             rebuildSuggestedDownloads(); },

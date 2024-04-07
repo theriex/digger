@@ -230,7 +230,7 @@ app.deck = (function () {
             wrk.songs = [];
             const ssid = app.startParams.songid;
             Object.entries(songs).forEach(function ([p, s]) {
-                if(app.deck.isPlayable(s)) {  //see player.tun.subcats
+                if(app.deck.isDeckable(s)) {
                     s.path = p;  //used for lookup post update
                     if(ssid && s.dsId === ssid) {
                         wrk.startsong = s; }
@@ -714,8 +714,7 @@ app.deck = (function () {
                 if(aid[ak].src === "asc") {  //reset all previous counts
                     aid[ak] = initialAlbumSuggestionCount(ak); } });
             Object.values(mgrs.sdt.getSongsDict()).forEach(function (song) {
-                if((!song.fq || !song.fq.match(/^[RDUI]/)) &&  //is eligible
-                   (song.rv >= 3)) {  //not rated as bad
+                if(app.deck.isDeckable(song) && song.rv >= 5) {  //not bad
                     const key = makeAlbumKey(song);
                     aid[key] = aid[key] || initialAlbumSuggestionCount(key);
                     aid[key].songs.push(song);
@@ -1283,6 +1282,7 @@ return {
     rebuildHistory: mgrs.hst.rebuildHistory,
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
     isPlayable: function (s) { return (!s.fq || !s.fq.match(/^[DUI]/)); },
+    isDeckable: function (s) { return (!s.fq || !s.fq.match(/^[RMDUI]/)); },
     getPlaybackState: mgrs.gen.getPlaybackState,
     endedDueToSleep: mgrs.gen.endedDueToSleep,
     getState: mgrs.gen.deckstate,

@@ -127,6 +127,7 @@ db.init(function (conf) {
             case "/fangrpact": hub.fangrpact(req, rsp); break;
             case "/fancollab": hub.fancollab(req, rsp); break;
             case "/fanmsg": hub.fanmsg(req, rsp); break;
+            case "/nosugg": hub.nosugg(req, rsp); break;
             default: //handle after request is fully stabilized
                 req.addListener("end", function () {
                     //GET requests:
