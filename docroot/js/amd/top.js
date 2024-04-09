@@ -1400,12 +1400,18 @@ app.top = (function () {
                 app.filter.dispatch("stg", "rebuildAllControls", true); } },
         getDarkMode: function () {  //returns either "dark" or "light"
             return cfg.darkmode || "light"; },
+        getDarkModeButtonDisplayName: function (cfg) {
+            if(cfg.darkmode === "dark") {
+                return "Light"; }
+            return "Dark"; },
         reflectDarkMode: function (mode) {
             mode = mode || mgrs.aaa.getDarkMode();
             if(mode === "dark") {
                 jt.byId("darkmodecss").disabled = false; }
             else {
-                jt.byId("darkmodecss").disabled = true; } },
+                jt.byId("darkmodecss").disabled = true; }
+            jt.out("darkmodebutton",
+                   mgrs.aaa.getDarkModeButtonDisplayName(cfg)); },
         toggleDarkMode: function (mode) {
             if(!mode) {
                 mode = mgrs.aaa.getDarkMode();
@@ -2130,10 +2136,14 @@ app.top = (function () {
                  n:"Active Keywords", id:"choosekwdsbutton"},
                 {ty:"btn", oc:mdfs("aaa.toggleDarkMode"),
                  tt:"Toggle dark mode display",
+                 dynamicName:mgrs.aaa.getDarkModeButtonDisplayName,
                  n:"Dark", id:"darkmodebutton"}];
             acts = acts.filter((a) => app.svc.topLibActionSupported(a)); },
         writeDlgContent: function () {
             var config = app.svc.dispatch("loc", "getConfig");
+            acts.forEach(function (a) {
+                if(a.dynamicName) {
+                    a.n = a.dynamicName(config, a); } });
             jt.out(tddi, jt.tac2html(
                 [["div", {cla:"dlgpathsdiv"},
                   acts.filter((a) => (a.ty === "cfgp" &&
@@ -2151,7 +2161,8 @@ app.top = (function () {
                  ["div", {cla:"dlgbuttonsdiv"},
                   acts.filter((a) => a.ty === "btn")
                   .map((a) =>
-                      ["button", {type:"button", title:a.tt, onclick:a.oc},
+                      ["button", {type:"button", id:a.id, title:a.tt,
+                                  onclick:a.oc},
                        a.n])]]));
             setTimeout(mgrs.locla.missingMetadataLink, 50); },
         missingMetadataSongs: function () {
