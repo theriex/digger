@@ -1923,9 +1923,7 @@ app.top = (function () {
             return oas; }
         function suggestedOffloadsHTML () {
             const oas = findOffloadableAlbums();
-            return jt.tac2html(
-                ["div", {id:"suggoffdiv"},
-                 [["div", {cla:"crsectitdiv"}, "Suggested offloads:"],
+                var sughtml = jt.tac2html(
                   ["ul", {cla:"suggul"},
                    oas.map((oa) =>
                       ["li",
@@ -1935,7 +1933,13 @@ app.top = (function () {
                                onclick:mdfs("lcm.showAlbum",
                                             jt.escq(oa.path))},
                          ["span", {cla:"carryabspan"}, oa.ab]],
-                        ["span", {cla:"carrypcntspan"}, oa.bpc + "%"]]])]]]); }
+                        ["span", {cla:"carrypcntspan"}, oa.bpc + "%"]]])]);
+            if(!oas.length) {
+                sughtml = "&nbsp; No offload suggestions."; }
+            return jt.tac2html(
+                ["div", {id:"suggoffdiv"},
+                 [["div", {cla:"crsectitdiv"}, "Suggested offloads:"],
+                  sughtml]]); }
         function albSingleSelHTML () {
             return jt.tac2html(aso.opts.map((as) =>
                 ["div", {cla:"radiobdiv"},
