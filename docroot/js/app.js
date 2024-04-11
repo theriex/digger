@@ -363,6 +363,7 @@ return {
                                   body.indexOf("</body>")); }
             const mbp = "| MANUAL | TERMS | PRIVACY | SUPPORT |";
             body = jt.tac2html(["div", {id:"docmenubardiv"}, mbp]) + body;
+            body = body.replace(/src="\.\.\//g, "src=\"");  //droid etc
             body = app.subPlaceholders(divid, app.svc.urlOpenSupp(), body);
             app.docStaticContent(divid, body);
             app.docDynamicContent(); });
