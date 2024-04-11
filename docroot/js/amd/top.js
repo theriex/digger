@@ -2691,7 +2691,7 @@ app.top = (function () {
                       ["a", {href:"/docs/manual.html", title:"Digger manual",
                              onclick:jt.fs("app.displayDoc('" + app.overlaydiv +
                                            "','manual.html')")},
-                       ["img", {src:"img/info.png"}]]]]]]],
+                       ["img", {cla:"inv", src:"img/info.png"}]]]]]]],
                  ["div", {id:tddi, "data-mode":"empty"}],
                  ["div", {cla:"statdiv", id:"toponelinestatdiv"}],
                  ["div", {cla:"statdiv", id:"topstatdiv"}]])); }
