@@ -58,6 +58,7 @@ mv Digger.dmg ../../diggerhub/site/public/downloads
 #   - Android Studio|Build|Generate Signed Bundle, drop upload to site
 #   - paste relnotes, rollout
 # https://appstoreconnect.apple.com/
+#   - node copyfiles.js  # from ~/general/dev/diggerIOS/ref
 #   - xcode|Product|Archive -> upload
 #   - add new app version
 # diggerhub:
