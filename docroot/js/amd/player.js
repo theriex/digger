@@ -1521,7 +1521,7 @@ app.player = (function () {
                  " Pause after ",
                  ["input", {type:"number", id:"sleepcountin", size:2,
                             onchange:mdfs("slp.updateSleepCount", "event"),
-                            value:0, min:0, max:8, step:1}],
+                            value:(sc.count || 0), min:0, max:8, step:1}],
                  " more"]));
             mgrs.slp.togsleepcb(); },  //reflect checkbox checked image
         togsleepcb: function () {
