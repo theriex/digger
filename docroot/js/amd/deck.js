@@ -136,9 +136,9 @@ app.deck = (function () {
                 if(arpi > brpi) { return 1; } }
             return 0; }
         function comparePresentation (a, b) {
-            return (compareOwnership(a, b) ||
-                    compareRecent("ar", wrk.rpas, a, b) ||
-                    compareRecent("ab", wrk.rpbs, a, b) ||
+            return (compareOwnership(a, b) ||   //friend recommendations first
+                    compareRecent("ab", wrk.rpbs, a, b) ||  //recent albums
+                    compareRecent("ar", wrk.rpas, a, b) ||  //recent artists
                     oldestFirst(a, b)); }
         function filterByFilters (runcounts) {
             if(app.filter.filteringPanelState() === "off") {
@@ -207,10 +207,14 @@ app.deck = (function () {
         shuffleSongs: function () {  //oldest first, artisanal variety
             var first = []; var rest = [];
             var ba = {};  //string keys traverse in insertion order (ES2015)
+            var bb = {};  //album name is alt key for artist name in sort
             wrk.songs.forEach(function (s) {  //oldest songs first
-                var artist = s.ar || "Unknown";
-                if(!ba[artist]) { ba[artist] = []; }
-                ba[artist].push(s); });
+                const artist = s.ar || "Unknown";
+                const album = s.ab || "Singles";
+                var accumlist = ba[artist] || bb[album] || [];
+                accumlist.push(s);
+                ba[artist] = ba[artist] || accumlist;
+                bb[album] = ba[artist] || accumlist; });
             Object.values(ba).forEach(function (songs) {
                 first.push(songs.shift());      //oldest song from each artist
                 rest = rest.concat(songs); });  //rest of songs from artist
