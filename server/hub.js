@@ -80,7 +80,7 @@ module.exports = (function () {
             "ti", "ar", "ab",     //if changed elsewhere, reflect here
             "el", "al", "rv",     //update knobs and stars
             "kws", "nt",          //update keywords and notes
-            "lp", "pc"];          //copy most recent play info
+            "lp", "pd", "pc"];    //copy most recent play info
         if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
             flds.push("fq"); }
         flds.forEach(function (fld) { ls[fld] = s[fld]; });

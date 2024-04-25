@@ -2407,6 +2407,7 @@ app.top = (function () {
             {fn:"rv", dv:5, min:1, max:10},
             {fn:"fq", dv:"N"},
             {fn:"lp", dv:""},
+            {fn:"pd", dv:""},
             {fn:"nt", dv:""},
             {fn:"pc", dv:0, min:0, max:Number.MAX_SAFE_INTEGER},
             {fn:"srcid", dv:""},

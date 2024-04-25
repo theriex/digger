@@ -1700,6 +1700,7 @@ app.player = (function () {
             mgrs.gen.illuminateAndFade("nextsongdiv", 5000);
             stat.skiptime = st;
             mgrs.tun.bumpCurrentIfTired();  //bumps the fq value if tired song
+            stat.song.pd = "skipped";
             mgrs.gen.next(); },
         deckUpdated: function (mgrname) {
             mgrs.aud.checkIfPlaying(function (pinfo) {

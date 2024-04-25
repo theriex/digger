@@ -36,6 +36,7 @@ app.deck = (function () {
                     if(markplayed) {
                         //not updating s.pc/fq since not actually played
                         if(!s.lp || s.lp < song.lp) {
+                            s.pd = "dupe";
                             s.lp = song.lp; } }
                     res.push(s); } });
             return res; }
@@ -350,7 +351,7 @@ app.deck = (function () {
                 "ti", "ar", "ab",     //if changed elsewhere, reflect here
                 "el", "al", "rv",     //update knobs and stars
                 "kws", "nt",          //update keywords and notes
-                "lp", "pc"];          //copy most recent play info
+                "lp", "pd", "pc"];    //copy most recent play info
             if(!(ls.fq.startsWith("D") || ls.fq.startsWith("U"))) {
                 flds.push("fq"); }
             flds.forEach(function (fld) { ls[fld] = s[fld]; });
@@ -506,10 +507,12 @@ app.deck = (function () {
             var song = ds[idx];
             app.player.dispatch("tun", "bumpTired", song);
             mgrs.dk.markSongPlayed(song);
+            song.pd = "snoozed";
             ds.splice(idx, 1);
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         markSongPlayed: function (song) {
             song.lp = new Date().toISOString();
+            song.pd = "played";
             song.pc = (song.pc || 0) + 1;
             if(song.fq === "N") { song.fq = "P"; }
             mgrs.hst.noteSongPlayed(song);
@@ -519,6 +522,7 @@ app.deck = (function () {
             const pss = ds.splice(0, count);
             pss.forEach(function (song) {
                 song.lp = new Date().toISOString();
+                song.pd = "played";
                 mgrs.hst.noteSongPlayed(song); });
             app.svc.dispatch("gen", "updateMultipleSongs", pss, function () {
                 mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
