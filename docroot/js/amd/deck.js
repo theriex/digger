@@ -19,8 +19,9 @@ app.deck = (function () {
             //See related appdat.py standardized_colloquial_match used for
             //equivalence matching during collaboration.
             sm = sm.replace(/featuring.*/ig, "");
-            sm = sm.replace(/\(.*\)/g, "");
-            sm = sm.replace(/\[.*\]/g, "");
+            if(!sm.match(/\(.*part.*\)/i)) {  //not "(Part 2)" or similar
+                sm = sm.replace(/\(.*\)/g, ""); }  //ignore parenthetical
+            sm = sm.replace(/\[.*\]/g, "");  //ignore bracketed
             if(!sm) {
                 jt.log("simplifiedMatch reduced to nothing: " + str);
                 sm = str; }
