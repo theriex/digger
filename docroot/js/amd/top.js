@@ -1432,8 +1432,8 @@ app.top = (function () {
             if(!dbpt) {
                 if(app.svc.defaultCollectionStyle) {
                     dbpt = app.svc.defaultCollectionStyle(); }
-                else {  //mobile platforms are assumed to be personalCarry
-                    dbpt = "personalCarry"; } }
+                else {  //mobile platforms are assumed to be localCopy
+                    dbpt = "localCopy"; } }
             return dbpt; },
         setCollectionStyle: function (dbpt) {
             cfg.dbPersistence = dbpt;
@@ -1817,10 +1817,10 @@ app.top = (function () {
     }());
 
 
-    //Local Carry Manager helps with personal carry download/offload suggestions
+    //Local Carry Manager helps with local copy download/offload suggestions
     mgrs.lcm = (function () {
         const dbps = [{v:"permanentCollection", t:"Permanent Collection"},
-                      {v:"personalCarry", t:"Personal Carry"}];
+                      {v:"localCopy", t:"Local Copy"}];
         const crd = {};
         const aso = {sel:"albums",
                      opts:[{v:"albums", t:"Albums"},
@@ -1844,7 +1844,7 @@ app.top = (function () {
             const fqe = app.filter.dispatch("fq", "isPlaybackEligible", song);
             if(fqe && song.rv >= 8) {  //4+ stars and playable
                 ts.hc += 1; }  //bump hit count for album
-            if(dbpt !== "permanentCollection") {  //personalCarry
+            if(dbpt !== "permanentCollection") {  //localCopy
                 if(song.rv > 4 && //not already counted as a dud
                    song.fq && song.fq.match(/[BZOR]/) && //tired or ref only
                    !fqe) {  //not eligible to play
