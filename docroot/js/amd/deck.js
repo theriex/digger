@@ -209,12 +209,18 @@ app.deck = (function () {
             var ba = {};  //string keys traverse in insertion order (ES2015)
             var bb = {};  //album name is alt key for artist name in sort
             wrk.songs.forEach(function (s) {  //oldest songs first
-                const artist = s.ar || "Unknown";
-                const album = s.ab || "Singles";
-                var accumlist = ba[artist] || bb[album] || [];
-                accumlist.push(s);
-                ba[artist] = ba[artist] || accumlist;
-                bb[album] = ba[artist] || accumlist; });
+                const acc = {artist:s.ar || "Unknown",   //primary key
+                             album:s.ab || "Singles",    //secondary key
+                             list:[]};                   //accumulator
+                if(ba[acc.artist]) {  //use existing artist key
+                    acc.list = ba[acc.artist]; }
+                else {  //no existing artist accumulator
+                    if(bb[acc.album]) {  //use existing album key
+                        acc.list = bb[acc.album]; }
+                    else {  //no keys available, init accumulator access
+                        ba[acc.artist] = acc.list;
+                        bb[acc.album] = acc.list; } }
+                acc.list.push(s); });
             Object.values(ba).forEach(function (songs) {
                 first.push(songs.shift());      //oldest song from each artist
                 rest = rest.concat(songs); });  //rest of songs from artist
