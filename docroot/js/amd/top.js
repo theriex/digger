@@ -80,7 +80,9 @@ app.top = (function () {
                 verstat.loc = curracct.diggerVersion;
                 if(!verstat.notice && verstat.hub > verstat.loc) {
                     verstat.notice = true;
-                    mgrs.gen.togtopdlg("la"); } } },
+                    mgrs.gen.togtopdlg("la"); }
+                else {
+                    verstat.notice = false; } } },
         getVersionStatus: function () {
             return verstat; }
     };  //end mgrs.hcu returned functions
@@ -2124,7 +2126,7 @@ app.top = (function () {
                  tt:"Configure music and data file locations",
                  p:"dbPath", n:"Digger Data"},
                 {ty:"info", htmlfs:"versionInfoHTML"},
-                {ty:"info", htmlfs:"getLatestVersionHTML"},
+                {ty:"info", htmlfs:"getLatestVersionHTML", id:"updversionnote"},
                 {ty:"info", htmlfs:"hubSyncInfoHTML"},
                 {ty:"btn", oc:app.dfs("svc", "loc.loadLibrary"),
                  tt:"Read all files in the music folder",
