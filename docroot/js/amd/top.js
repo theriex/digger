@@ -8,6 +8,7 @@ app.top = (function () {
     const hubdom = "diggerhub.com";
     const suppem = "support@" + hubdom;
     var tddi = "topdlgdiv";  //default to app div used for display
+    var inapp = true;  //unset for standalone account access from web
     var mgrs = {};  //general container for managers 
     function mdfs (mgrfname, ...args) {  //module dispatch function string
         return app.dfs("top", mgrfname, args);
@@ -943,7 +944,7 @@ app.top = (function () {
             return (aff.n === "privaccept" && mgrs.ppc.policyAccepted()); }
         function clientCancelButton () {
             var ret = "";
-            if(mgrs.afg.inApp()) {
+            if(inapp) {
                 ret = ["button", {type:"button", id:"cancelb",
                                   onclick:mdfs("gen.togtopdlg", null, "close")},
                        "Cancel"]; }
@@ -1050,7 +1051,7 @@ app.top = (function () {
             if(!formError(dat, [verifyEmail, verifyPwd, verifyFirst, verifyDN,
                                 verifyPriv, verifyKwdefs])) {
                 makeHubCall(buttonid, "POST", "newacct", dat, function (acct) {
-                    if(mgrs.afg.inApp()) {
+                    if(inapp) {
                         mgrs.gen.updateHubToggleSpan(acct);
                         mgrs.gen.togtopdlg(null, "close"); }
                     else {  //standalone account management
@@ -1064,7 +1065,7 @@ app.top = (function () {
                 ["a", {href:"#pwdreset", title:"Send password reset email",
                        onclick:mdfs("asu.emailPwdReset")},
                  "Send password reset"]);
-            if(!mgrs.afg.inApp()) {  //allow enter key signin on website
+            if(!inapp) {  //allow enter key signin on website
                 jt.on("passwordin", "change", function (evt) {
                     mgrs.asu.signinProc("signinb");
                     jt.evtend(evt); }); } },
@@ -1072,7 +1073,7 @@ app.top = (function () {
             const dat = formData("s");
             if(!formError(dat, [verifyEmail, verifyPwd])) {
                 makeHubCall(buttonid, "POST", "acctok", dat, function (acct) {
-                    if(mgrs.afg.inApp()) {  //running within web app
+                    if(inapp) {  //running within web app
                         mgrs.gen.updateHubToggleSpan(acct);  //UI reflect name
                         mgrs.gen.togtopdlg(null, "close");
                         mgrs.igf.resetIgnoreFolders(acct.igfolds);
@@ -1158,7 +1159,7 @@ app.top = (function () {
                 dat.actcode = app.startParams.actcode; }
             if(!formError(dat, [verifyFirst, verifyDN, verifyPriv])) {
                 makeHubCall(buttonid, "POST", "updacc", dat, function (acct) {
-                    if(mgrs.afg.inApp() && dat.privaccept) {  //checkbox done
+                    if(inapp && dat.privaccept) {  //checkbox done
                         mgrs.gen.togtopdlg(null, "close"); }
                     mgrs.gen.updateHubToggleSpan(acct);  //UI reflect name
                     jt.out("afgbtsdiv", "");
@@ -1223,7 +1224,7 @@ app.top = (function () {
                 app.login.dispatch("hua", "signOut"); }
             mgrs.aaa.removeAccount(mgrs.aaa.getAccount(),
                 function () {
-                    if(mgrs.afg.inApp()) {
+                    if(inapp) {
                         mgrs.gen.updateHubToggleSpan(mgrs.aaa.getAccount());
                         mgrs.aaa.notifyAccountChanged(); }
                     mgrs.afg.accountFanGroup("offline"); },
@@ -1235,7 +1236,7 @@ app.top = (function () {
 
     //Account and fan group manager handles personal and connection forms.
     mgrs.afg = (function () {
-        var inapp = true;
+        var psicbf = null;
         var mode = "offline";
         const tabs = {
             offline: [
@@ -1278,10 +1279,10 @@ app.top = (function () {
                 midx = 0; }
             return midx; }
     return {
-        setDisplayDiv: function (divid) {  //called by hub site
-            tddi = divid; },
-        inApp: function () { return inapp; },
-        setInApp: function (runningInApp) { inapp = runningInApp; },
+        runOutsideApp: function (divid, postSignInCallbackFunc) {
+            inapp = false;
+            tddi = divid;
+            psicbf = postSignInCallbackFunc || null; },
         accountFanGroup: function (dispmode, midx) {
             const acct = getProfileAccount();
             midx = verifyModeAndIndex(acct, dispmode, midx);
@@ -1300,6 +1301,8 @@ app.top = (function () {
             const [mgr, fun] = tabs[mode][midx].oc.split(".");
             if(haveProfileIssue(acct)) {
                 mgrs.asu.profileForm(acct); }
+            else if(psicbf) {  //return valid account to caller
+                psicbf(acct); }
             else if(mgr === "afg") {
                 mgrs.afg.accountFanGroup(fun); }
             else {
