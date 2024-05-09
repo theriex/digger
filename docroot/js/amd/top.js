@@ -1301,7 +1301,7 @@ app.top = (function () {
             const [mgr, fun] = tabs[mode][midx].oc.split(".");
             if(haveProfileIssue(acct)) {
                 mgrs.asu.profileForm(acct); }
-            else if(psicbf) {  //return valid account to caller
+            else if(acct && psicbf) {  //return valid account to caller
                 psicbf(acct); }
             else if(mgr === "afg") {
                 mgrs.afg.accountFanGroup(fun); }
