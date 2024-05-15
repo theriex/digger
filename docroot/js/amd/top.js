@@ -908,7 +908,7 @@ app.top = (function () {
             {n:"updemail", dn:"new email", m:"w", ty:"email"},
             {n:"updpassword", dn:"new password", m:"w", ty:"password"},
             {n:"firstname", dn:"first name", m:"jp", ty:"text"},
-            {n:"digname", dn:"dig name", m:"jp", ty:"text", plc:"optional"},
+            {n:"digname", dn:"dig name", m:"jp", ty:"text", plc:"unique"},
             {n:"privaccept", m:"jp", ty:"checkbox"}];
         function makeLabel (labname) {
             switch(labname) {
@@ -1005,7 +1005,7 @@ app.top = (function () {
         function verifyDN (dat) {
             const dnml = 20;
             if(!dat.digname) {
-                return {msg:"Need a Digger music fan name.", fld:"digname"}; }
+                return {msg:"Need a unique Digger name.", fld:"digname"}; }
             if(dat.digname.length > dnml) {
                 return {msg:"Max " + dnml + " letters.", fld:"digname"}; } }
         function verifyCred (dat) {
