@@ -1377,7 +1377,7 @@ app.top = (function () {
             return changed; },
         updateCurrAcct: function (acct, token, contf, errf) {
             mgrs.hcu.deserializeAccount(acct);  //verify deserialized
-            if(!cfg.acctsinfo.accts.find((a) => a.dsId === acct.dsId)) {
+            if(cfg && !cfg.acctsinfo.accts.find((a) => a.dsId === acct.dsId)) {
                 cfg.acctsinfo.accts.unshift(acct);
                 cfg.acctsinfo.currid = acct.dsId; }
             mgrs.aaa.reflectAccountChangeInRuntime(acct, token);
