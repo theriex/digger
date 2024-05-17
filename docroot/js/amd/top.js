@@ -1103,6 +1103,7 @@ app.top = (function () {
                 [["div", {cla:"settingsrowdiv"},
                   [["input", {type:"checkbox", id:"wkactin", value:"active",
                               checked:jt.toru(sact.sendon !== "Never")}],
+                   ["label", {fo:"wkactin"}, "Weekly report"],
                    ["select", {id:"wkactdaysel", title:"Weekly report day"},
                     dsow.map((d) =>
                         ["option", {value:d,
