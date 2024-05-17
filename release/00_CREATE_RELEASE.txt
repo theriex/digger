@@ -59,9 +59,9 @@ mv Digger.dmg ../../diggerhub/site/public/downloads
 #   - Android Studio|Build|Generate Signed Bundle, drop upload to site
 #   - paste relnotes, rollout
 # https://appstoreconnect.apple.com/
-#   - node copyfiles.js  # from ~/general/dev/diggerIOS/ref
-#   - xcode|Product|Archive -> upload
-#   - add new app version
+#   1. node copyfiles.js  # from ~/general/dev/diggerIOS/ref
+#   2. xcode|Product|Archive -> upload
+#   3. add new app version on appstoreconnect
 # diggerhub:
 #   - deploy the updated site and executables
 #   - verify downloaded Digger.dmg Applications folder alias is preserved
