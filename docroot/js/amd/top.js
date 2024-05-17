@@ -1345,17 +1345,17 @@ app.top = (function () {
             mgrs.aaa.verifyConfig(); },
         verifyConfig: function () {
             cfg = cfg || {};
-            if(!cfg.acctsinfo) {
+            if(!cfg.acctsinfo || !Array.isArray(cfg.acctsinfo.accts)) {
                 jt.log("aaa.verifyConfig recreating cfg.acctsinfo");
-                cfg.acctsinfo = {currid:"", accts:[]};
-                if(!cfg.acctsinfo.accts.find((x) => x.dsId === "101")) {
-                    jt.log("aaa.verifyConfig making default account");
-                    const diggerbday = "2019-10-11T00:00:00Z";
-                    cfg.acctsinfo.accts.push(
-                        {dsType:"DigAcc", dsId:"101", firstname:"Digger",
-                         created:diggerbday, modified:diggerbday + ";1",
-                         email:suppem, token:"none", kwdefs:dfltkeywords,
-                         igfolds:dfltigfolds}); } }
+                cfg.acctsinfo = {currid:"", accts:[]}; }
+            if(!cfg.acctsinfo.accts.find((x) => x.dsId === "101")) {
+                jt.log("aaa.verifyConfig making default account");
+                const diggerbday = "2019-10-11T00:00:00Z";
+                cfg.acctsinfo.accts.push(
+                    {dsType:"DigAcc", dsId:"101", firstname:"Digger",
+                     created:diggerbday, modified:diggerbday + ";1",
+                     email:suppem, token:"none", kwdefs:dfltkeywords,
+                     igfolds:dfltigfolds}); }
             if(!cfg.acctsinfo.currid) {
                 jt.log("aaa.verifyConfig defaulting cfg.acctsinfo.currid");
                 cfg.acctsinfo.currid = "101"; }
@@ -1376,6 +1376,9 @@ app.top = (function () {
             return changed; },
         updateCurrAcct: function (acct, token, contf, errf) {
             mgrs.hcu.deserializeAccount(acct);  //verify deserialized
+            if(!cfg.acctsinfo.accts.find((a) => a.dsId === acct.dsId)) {
+                cfg.acctsinfo.accts.unshift(acct);
+                cfg.acctsinfo.currid = acct.dsId; }
             mgrs.aaa.reflectAccountChangeInRuntime(acct, token);
             app.svc.writeConfig(cfg,
                 function (writtenconf) {
