@@ -1419,8 +1419,10 @@ app.top = (function () {
                 jt.byId("darkmodecss").disabled = false; }
             else {
                 jt.byId("darkmodecss").disabled = true; }
-            jt.out("darkmodebutton",
-                   mgrs.aaa.getDarkModeButtonDisplayName(cfg)); },
+            const button = jt.byId("darkmodebutton");
+            if(button) {
+                button.innerHTML =
+                    mgrs.aaa.getDarkModeButtonDisplayName(cfg); } },
         toggleDarkMode: function (mode) {
             if(!mode) {
                 mode = mgrs.aaa.getDarkMode();

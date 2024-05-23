@@ -155,6 +155,7 @@ app.player = (function () {
         function tickf () {
             // jt.log("tickf " + prog.tickcount + " " + state + " " +
             //        prog.pos + " of " + prog.dur);
+            prog.ticker = null;  //always clear hearbeat indicator
             if(!prog.tickcount      //call for status if it's been 4 seconds
                || prog.pos < 2000   //or we are near the beginning or end
                || prog.dur - prog.pos < 2000) {
@@ -167,11 +168,14 @@ app.player = (function () {
                 const rems = Math.max(prog.dur - prog.pos, 0);
                 if(!endhook && state === "playing" && prog.dur && rems < 1200) {
                     jt.log("tickf calling player.next in " + rems);
-                    prog.ticker = null;  //done ticking for now
                     setTimeout(app.player.next, rems); }
                 else { //poll to react to external play/pause/skip etc
                     prog.ticker = setTimeout(tickf, 1000); } } }
     return {
+        verifyHeartbeat: function () {
+            if(!prog.ticker) {  //restart heartbeat
+                prog.tickcount = 1;
+                prog.ticker = setTimeout(tickf, 1000); } },
         reflectPlaybackState: function (pbs, skiptick) {
             mgrs.plui.verifyInterface();
             if(pbs === "paused") {  //may be resumed via external controls
@@ -179,9 +183,8 @@ app.player = (function () {
             else {  //playing
                 bimg = "img/pause.png"; }
             jt.byId("pluibimg").src = bimg;
-            if(!prog.ticker && !skiptick) {  //restart heartbeat
-                prog.tickcount = 1;
-                prog.ticker = setTimeout(tickf, 1000);
+            if(!skiptick) {
+                mgrs.plui.verifyHeartbeat();
                 mgrs.plui.updatePosIndicator(); } }, //reflect position
         togglePlaybackState: function () {
             if(state === "paused") {
@@ -245,7 +248,8 @@ app.player = (function () {
             mgrs.plui.updatePosIndicator(); },
         verifyInterface: function () {
             if(!jt.byId("pluidiv")) { //interface not set up yet
-                mgrs.plui.initInterface(); } },
+                mgrs.plui.initInterface(); }
+            mgrs.plui.verifyHeartbeat(); },
         updateDisplay: function (svco, pbstate, position, duration) {
             prog.svco = svco;
             prog.pos = position;
@@ -492,8 +496,9 @@ app.player = (function () {
             if(status.path && !status.song) {  //discovered a playing song
                 const sd = app.deck.dispatch("sdt", "getSongsDict");
                 if(sd && sd[status.path]) {
-                    jt.log("handleStatusQueryCallback song found");
                     status.song = sd[status.path];
+                    jt.log("handleStatusQueryCallback song found " +
+                           status.song.ti);
                     stat.song = status.song;  //needed for playback display
                     app.deck.dispatch("dk", "removeFromDeck", status.path);
                     pbi = {song:status.song};  //init or reset to current song
@@ -507,11 +512,15 @@ app.player = (function () {
     return {
         ////calls from svc.mp
         notePlaybackStatus: function (status) {
-            pbi.treceive = Date.now();
-            if(pscf) {
-                return handleStatusQueryCallback(status); }
+            pbi.treceive = Date.now();  //note latency
             if(stat.stale && stat.stale.path === status.path) {
                 return jt.log("mob: ignoring stale stat from previous song"); }
+            if(stat.song && !status.path) {  //bad status result
+                jt.log("mob: retrying bad !status.path, already playing" +
+                       stat.song.ti);
+                return mgrs.mob.refreshPlayState(); }
+            if(pscf) {  //checkIfPlaying call return, not tickf
+                return handleStatusQueryCallback(status); }
             if(stat.song && stat.song.path === status.path) {
                 if(pbi.state !== status.state) {
                     mgrs.plui.reflectPlaybackState(status.state); }
@@ -768,7 +777,7 @@ app.player = (function () {
             if(stat.song.genrejson) {
                 try {
                     gv = JSON.parse(stat.song.genrejson);
-                    if(gv instanceof Array) {
+                    if(Array.isArray(gv)) {
                         gv = gv.map((g) => jt.escq(g)).join(", "); }
                     html = "Genre: " + gv;
                 } catch(e) {
@@ -1704,15 +1713,9 @@ app.player = (function () {
             mgrs.gen.next(); },
         deckUpdated: function (mgrname) {
             mgrs.aud.checkIfPlaying(function (pinfo) {
-                if(!pinfo.song && mgrname === "ddc") {
-                    const pre = "player.deckUpdated ";
-                    if(pinfo.pbinistart &&
-                       pinfo.pbinistart - Date.now() < 6000) {
-                        jt.log(pre + "already called to start music"); }
-                    else {
-                        jt.log(pre + "calling next to start music");
-                        pinfo.pbinistart = Date.now();
-                        app.player.next(); } } }); },
+                if(!stat.song && !pinfo.path && mgrname === "ddc") {
+                    jt.log("player.deckUpdated calling next to start music");
+                    app.player.next(); } }); },
         logCurrentlyPlaying: function (prefix) {
             //mobile player updates when playing new song, no separate call.
             prefix = prefix || "";
