@@ -636,9 +636,8 @@ app.deck = (function () {
             var songs = mgrs.dk.songs().slice(0, sqmax);
             if(includeContextSongs) {  //include currently playing song
                 const nowplayingsong = app.player.song();
-                if(nowplayingsong) {
-                    songs.unshift(nowplayingsong);
-                    songs = songs.slice(0, songs.length - 1); } }
+                if(nowplayingsong) {  //might not be playing if no music
+                    songs.unshift(nowplayingsong); } } // len sqmax+1 correct.
             return songs; },
         endedDueToSleep: function () {  //can click to resume if more songs
             return mgrs.dk.songs().length; },
