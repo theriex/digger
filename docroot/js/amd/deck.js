@@ -632,12 +632,14 @@ app.deck = (function () {
             mgrs.dk.setSongs(state.det, songs); },
         getSettings: function () { return {}; },
         restoreSettings: function () { return; },
-        getQueuedSongs: function (includeContextSongs, sqmax) {
+        getQueuedSongs: function (includeContextSongs, sqmax, slim) {
             var songs = mgrs.dk.songs().slice(0, sqmax);
             if(includeContextSongs) {  //include currently playing song
+                if(slim) {
+                    songs.push(app.player.dispatch("slp", "sleepMarkerSong")); }
                 const nowplayingsong = app.player.song();
                 if(nowplayingsong) {  //might not be playing if no music
-                    songs.unshift(nowplayingsong); } } // len sqmax+1 correct.
+                    songs.unshift(nowplayingsong); } } // len > sqmax is valid.
             return songs; },
         endedDueToSleep: function () {  //can click to resume if more songs
             return mgrs.dk.songs().length; },
@@ -826,12 +828,18 @@ app.deck = (function () {
         haveUnplayedAlbums: function () {
             const sa = getSuggestedAlbums();
             return (sa && sa.length && sa[0].npsc >= 2); },
-        getQueuedSongs: function (includeContextSongs, sqmax) {
+        getQueuedSongs: function (includeContextSongs, sqmax, slim) {
             var songs = [];
             if(aid[cak] && aid[cak].src === "pmq") {
                 songs = aid[cak].songs.slice(aid[cak].ci, sqmax);
+                if(includeContextSongs && slim) {
+                    songs.push(app.player.dispatch("slp", "sleepMarkerSong")); }
                 if(!includeContextSongs) {  //don't include current song
-                    songs = songs.slice(1); } }
+                    songs = songs.slice(1); }
+                if(app.player.dispatch("slp", "nowSleeping")) {
+                    //no currently playing song because not currently playing.
+                    //only checking for status other than "ended".
+                    songs = []; } }
             return songs; },
         endedDueToSleep: function () {  //can click to resume if more alb tracks
             return (aid[cak] && aid[cak].src === "pmq" &&
@@ -1237,10 +1245,12 @@ app.deck = (function () {
             mgrs.gen.songSeqMgrName(mdms[0].mgr); //interim until data loaded
             mgrs.gen.dispMode(mdms[0].mgr); },    //interim until data loaded
         getPlaybackState: function (includeContextSongs, fmt) {
-            var sqmax = 200;  //approximately 6+ hrs of songs to queue up
-            sqmax = app.player.dispatch("slp", "limitToSleepQueueMax", sqmax);
+            const qm = 200; //queue max around 6+ hrs of songs
+            const sm = app.player.dispatch("slp", "limitToSleepQueueMax", qm);
+            //if sm < qm, then playback is limited by sleep, and playback can
+            //be resumed after sleeping if so desired.
             const songs = mgrs[songSeqMgrName].getQueuedSongs(
-                includeContextSongs, sqmax);
+                includeContextSongs, sm, (sm < qm));
             //copy needed song info to avoid any interaction with live data
             const ret = {dbts:app.svc.dispatch("loc", "getDatabase").dbts,
                          qsi:songs.map((s) => simplifiedSongInfo(s))};

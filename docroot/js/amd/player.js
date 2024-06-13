@@ -570,12 +570,12 @@ app.player = (function () {
                 mgrs.plui.reflectPlaybackState("paused");
                 debouncing = true;
                 app.svc.dispatch("mp", "pause"); } },
-        resume: function () {
+        resume: function (unsleep) {
             //jt.log("mgrs.mob.resume debouncing " + debouncing);
             if(!debouncing) {
                 mgrs.plui.reflectPlaybackState("playing", "noticker");
                 debouncing = true;
-                app.svc.dispatch("mp", "resume"); } },
+                app.svc.dispatch("mp", "resume", unsleep || ""); } },
         seek: function (ms) {
             app.svc.dispatch("mp", "seek", ms); },
         sleep: function (count, cmd, cbf) {
@@ -1487,9 +1487,21 @@ app.player = (function () {
         const srcimgs = {active:"img/sleepactive.png",
                          inactive:"img/sleep.png"};
         const sst = {ctrl:"off", count:0};
+        const dsmt = "DIGGERSLEEPMARKER";  //text for sleep song marker object
+        const ssmo = {aid:"101", path:dsmt, ti:dsmt, ar:dsmt, ab:dsmt,
+                      el:49, al:49, kws:"", rv:5, fq:"R", nt:"", pc:0};
         function clearOverlayMessage () {
             jt.out("mediaoverlaydiv", "");
             jt.byId("mediaoverlaydiv").style.display = "none"; }
+        function noteExternalResume () {
+            jt.log("mgrs.slp.noteExternalResume");
+            mgrs.slp.reset();
+            jt.out("mediaoverlaydiv", jt.tac2html(
+                ["Sleep resumed by external control.",
+                 ["div", {cla:"dlgbuttonsdiv"},
+                  ["button", {type:"button", onclick:mdfs("slp.reset")},
+                   "Ok"]]]));
+            jt.byId("mediaoverlaydiv").style.display = "block"; }
         function updateSleepDisplayIndicator () {
             const togimg = jt.byId("togsleepimg");
             if(!togimg) {  //verify the UI is still intact, just in case
@@ -1499,16 +1511,17 @@ app.player = (function () {
             case "on": togimg.src = srcimgs.active; break;
             case "transitioning":
                 if(togimg.src.endsWith(srcimgs.inactive)) {  //toggle the image
-                    jt.log("mgrs.slp blinking togsleepimg active")
+                    //jt.log("mgrs.slp blinking togsleepimg active");
                     togimg.src = srcimgs.active; }
                 else {
-                    jt.log("mgrs.slp blinking togsleepimg inactive")
+                    //jt.log("mgrs.slp blinking togsleepimg inactive");
                     togimg.src = srcimgs.inactive; }
                 setTimeout(updateSleepDisplayIndicator, 200);
                 break;
             default: jt.log("updateSleepDisplayIndicator unknown state: " +
                             sst.ctrl); } }
     return {
+        sleepMarkerSong: function () { return ssmo; },
         toggleSleepDisplay: function () {  //show or hide the sleep details
             if(jt.byId("sleepdiv").innerHTML) {
                 return jt.out("sleepdiv", ""); }  //toggle off
@@ -1574,8 +1587,18 @@ app.player = (function () {
             clearOverlayMessage();
             updateSleepDisplayIndicator(); },
         resume: function () {
+            const cap = mgrs.aud.currentAudioPlayer();
+            jt.log("slp.resume calling " + cap + ".sleep cancel");
+            mgrs[cap].sleep(1000, "cancel");
+            jt.log("slp.resume calling slp.reset");
             mgrs.slp.reset();
-            app.player.next(); },
+            if(app.svc.plat("audsrc") === "IOS") {
+                //stopped at beginning of song after sleep
+                jt.log("slp.resume IOS calling " + cap + ".resume");
+                mgrs[cap].resume("unsleep"); }
+            else {  //stopped at end of previously playing song
+                jt.log("slp.resume calling player.next");
+                app.player.next(); } },
         limitToSleepQueueMax: function (qm) {  //queue max
             if(sst.ctrl !== "on") {
                 return qm; }
@@ -1587,9 +1610,14 @@ app.player = (function () {
                 if(app.deck.endedDueToSleep()) {  //have songs to resume with
                     mgrs.slp.startSleep("Sleeping...", "deck ended"); }
                 else {  //nothing to resume playback with, clear sleep state.
-                    mgrs.slp.reset(); } } }
+                    mgrs.slp.reset(); } }
+            else if(state === "playing") {
+                const odiv = jt.byId("mediaoverlaydiv");
+                if(odiv && odiv.style.display === "block") {
+                    noteExternalResume(); } } }
     };  //end mgrs.slp returned functions
     }());
+
 
     //general top level processing functions
     mgrs.gen = (function () {
