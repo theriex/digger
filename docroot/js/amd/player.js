@@ -135,7 +135,8 @@ app.player = (function () {
             app.top.dispatch("locla", "libimpNeeded"); },
         sleep: function (count, cmd, cbf) {
             jt.log("mgrs.loa.sleep " + count + ", " + cmd);
-            cbf(cmd); }  //deck already limited to sleep queue max
+            if(cbf) {  //might not be provided on cancel.  Call back if given.
+                cbf(cmd); } }  //deck already limited to sleep queue max
     };  //end mgrs.loa returned functions
     }());
 
