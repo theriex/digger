@@ -247,7 +247,8 @@ app.player = (function () {
         verifyInterface: function () {
             if(!jt.byId("pluidiv")) { //interface not set up yet
                 mgrs.plui.initInterface(); }
-            mgrs.plui.verifyHeartbeat(); },
+            if(prog.svco) {  //no tickf until service control object set
+                mgrs.plui.verifyHeartbeat(); } },
         updateDisplay: function (svco, pbstate, position, duration) {
             prog.svco = svco;
             prog.pos = position;
@@ -1482,7 +1483,9 @@ app.player = (function () {
     }());
 
 
-    //handle the sleep display setup and state management.
+    //handle sleep display setup and state management.  On mobile platforms,
+    //the sleep marker song is sent with the next requestStatusUpdate, and the
+    //sleep callback is called from notePlaybackStatus.
     mgrs.slp = (function () {
         const srcimgs = {active:"img/sleepactive.png",
                          inactive:"img/sleep.png"};
@@ -1549,12 +1552,10 @@ app.player = (function () {
                 else {  //command went through
                     sst.ctrl = ((retcmd === "sleep")? "on" : "off"); }
                 if(sst.ctrl === "on") {
-                    mgrs.slp.getSleepCountFromInput();
+                    sst.count = jt.byId("sleepcountin").value;
                     jt.byId("togsleepimg").src = srcimgs.active; }
                 else { //sst.ctrl === "off"
                     jt.byId("togsleepimg").src = srcimgs.inactive; } }); },
-        getSleepCountFromInput: function () {
-            sst.count = jt.byId("sleepcountin").value; },
         shouldSleepNow: function () {  //called prior to playing next song
             jt.out("sleepdiv", "");  //clear sleep display setup if displayed
             clearOverlayMessage();
@@ -1581,6 +1582,10 @@ app.player = (function () {
             //resume link.
             //app.spacebarhookfunc = mgrs.slp.resume;
             return true; },
+        isNowSleeping: function () {
+            const odiv = jt.byId("mediaoverlaydiv");
+            return (odiv && odiv.style.display === "block" && 
+                    jt.byId("sleepresumelink")); },
         reset: function () {
             sst.ctrl = "off";
             sst.count = 0;
@@ -1606,10 +1611,11 @@ app.player = (function () {
             jt.log("sleep active, queue limited to " + queuelen);
             return queuelen; },
         updateStatusInfo: function (state/*, pos, dur, path*/) {
-            if(state === "ended") {
+            if(state === "ended" && sst.ctrl === "on") {
                 if(app.deck.endedDueToSleep()) {  //have songs to resume with
                     mgrs.slp.startSleep("Sleeping...", "deck ended"); }
                 else {  //nothing to resume playback with, clear sleep state.
+                    jt.log("slp.updateStatusInfo normal end, resetting");
                     mgrs.slp.reset(); } }
             else if(state === "playing") {
                 const odiv = jt.byId("mediaoverlaydiv");
@@ -1712,12 +1718,19 @@ app.player = (function () {
                 return; }
             mgrs.gen.illuminateAndFade("nextsongdiv", 5000);
             stat.skiptime = st;
-            mgrs.tun.bumpCurrentIfTired();  //bumps the fq value if tired song
-            stat.song.pd = "skipped";
-            mgrs.gen.next(); },
-        deckUpdated: function (mgrname) {
+            if(mgrs.slp.isNowSleeping()) {
+                jt.log("skip calling slp.resume");
+                mgrs.slp.resume(); }
+            else {
+                jt.log("noting skip and calling next");
+                mgrs.tun.bumpCurrentIfTired();  //bump fq value if tired
+                stat.song.pd = "skipped";
+                mgrs.gen.next(); } },
+        deckUpdated: function (/*mgrname*/) {
             mgrs.aud.checkIfPlaying(function (pinfo) {
-                if(!stat.song && !pinfo.path && mgrname === "ddc") {
+                //mgrname is now out of scope and undefined at least on Android
+                var ssmn = app.deck.dispatch("gen", "getSongSeqMgrName");
+                if(!stat.song && !pinfo.path && ssmn === "ddc") {
                     jt.log("player.deckUpdated calling next to start music");
                     app.player.next(); } }); },
         logCurrentlyPlaying: function (prefix) {

@@ -257,7 +257,7 @@ app.deck = (function () {
                 app.startParams.songid = ""; }
             mgrs.dk.setSongs(wrk.songs);  //replace working set
             if(wrk.songs.length) { //have songs to play if not playing
-                app.player.deckUpdated(mgrs.gen.songSeqMgrName()); }
+                app.player.deckUpdated(mgrs.gen.getSongSeqMgrName()); }
             setTimeout(function () {  //leave info up momentarily
                 mgrs.ddc.togInfoButton(false); }, 800);
             mgrs.sop.displaySongs("dk", "decksongsdiv", wrk.songs);
@@ -835,11 +835,7 @@ app.deck = (function () {
                 if(includeContextSongs && slim) {
                     songs.push(app.player.dispatch("slp", "sleepMarkerSong")); }
                 if(!includeContextSongs) {  //don't include current song
-                    songs = songs.slice(1); }
-                if(app.player.dispatch("slp", "nowSleeping")) {
-                    //no currently playing song because not currently playing.
-                    //only checking for status other than "ended".
-                    songs = []; } }
+                    songs = songs.slice(1); } }
             return songs; },
         endedDueToSleep: function () {  //can click to resume if more alb tracks
             return (aid[cak] && aid[cak].src === "pmq" &&
@@ -1211,7 +1207,7 @@ app.deck = (function () {
             return {ti:song.ti, ar:song.ar, path:song.path}; }
     return {
         dataLoadCompleted: function () { return dataLoadCompleted; },
-        songSeqMgrName: function () { return songSeqMgrName; },
+        getSongSeqMgrName: function () { return songSeqMgrName; },
         setSongSeqMgrName: function (mgr) { songSeqMgrName = mgr; },
         saveSettings: function () {  //filter holds/sets all settings
             const settings = app.filter.dispatch("stg", "settings");
@@ -1242,8 +1238,7 @@ app.deck = (function () {
                                style:"display:none;"}])]]));
             mdms.forEach(function (dm) {
                 if(mgrs[dm.mgr].initDisplay) { mgrs[dm.mgr].initDisplay(); }});
-            mgrs.gen.songSeqMgrName(mdms[0].mgr); //interim until data loaded
-            mgrs.gen.dispMode(mdms[0].mgr); },    //interim until data loaded
+            mgrs.gen.dispMode(mdms[0].mgr); },  //interim until data loaded
         getPlaybackState: function (includeContextSongs, fmt) {
             const qm = 200; //queue max around 6+ hrs of songs
             const sm = app.player.dispatch("slp", "limitToSleepQueueMax", qm);
