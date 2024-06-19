@@ -485,7 +485,6 @@ app.player = (function () {
             mgrs.slp.updateStatusInfo(pbi.state, pbi.pos, pbi.dur, status.path);
             debouncing = false; }
         function clearSongDisplay () {
-            mgrs.slp.reset();
             mgrs.tun.toggleTuningOpts("off");
             mgrs.cmt.resetDisplay();  //close comment if open
             jt.out("playtitletextspan", "---"); }
@@ -514,10 +513,10 @@ app.player = (function () {
         notePlaybackStatus: function (status) {
             pbi.treceive = Date.now();  //note latency
             if(stat.stale && stat.stale.path === status.path) {
-                return jt.log("mob: ignoring stale stat from previous song"); }
+                return jt.log("mod.nPS ignoring stale stat from prev song"); }
             if(stat.song && (!status.path || !status.state ||
                              status.state === "unknown")) {
-                jt.log("mob.notePlaybackStatus retrying bad status return: " +
+                jt.log("mod.notePlaybackStatus retrying bad status return: " +
                        JSON.stringify(status) + ", stat: " +
                        JSON.stringify(stat));
                 return mgrs.mob.refreshPlayState(); }
@@ -529,14 +528,14 @@ app.player = (function () {
                 updatePBI(status);
                 mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
                 app.deck.playbackStatus(status); }  //album positioning
-            else {  //song has changed. service has moved forward N songs
+            else {  //song changed. most likely svc has moved forward N songs.
                 updatePBI(status);
                 clearSongDisplay();
                 app.svc.loadDigDat(function (dbo) {  //load updated song(s) lp
                     dbo.dbts = new Date().toISOString();  //for stale data chk
-                    //if plat is playing foreign media, this logic will fail.
-                    //user may have to hit the skip button or relaunch.
                     stat.song = dbo.songs[status.path];
+                    if(!stat.song) {  //foreign media, or wait for media read
+                        return jt.log("mod.nPS ignoring unknown song media"); }
                     mgrs.cmt.resetDisplay();  //update comment indicator
                     mgrs.aud.updateSongDisplay();  //update controls display
                     app.deck.popForward(stat.song.path);
@@ -1485,8 +1484,14 @@ app.player = (function () {
 
 
     //handle sleep display setup and state management.  On mobile platforms,
-    //the sleep marker song is sent with the next requestStatusUpdate, and the
-    //sleep callback is called from notePlaybackStatus.
+    //the sleep marker song is sent with the next requestStatusUpdate, and
+    //the sleep callback is called from notePlaybackStatus.  On IOS, sleep
+    //kicks in after the player has moved to the start of the next song.  On
+    //playback end (e.g. just played the last song on an album) playback is
+    //paused and the player rewinds to the beginning of that song.  Those
+    //two situations are indistinguishable for presenting a sleep overlay
+    //display, so even though playback will stop if sleeping after the 2nd
+    //to last album song, there is no "Sleeping" displayed in that case.
     mgrs.slp = (function () {
         const srcimgs = {active:"img/sleepactive.png",
                          inactive:"img/sleep.png"};
@@ -1498,12 +1503,13 @@ app.player = (function () {
             jt.out("mediaoverlaydiv", "");
             jt.byId("mediaoverlaydiv").style.display = "none"; }
         function noteExternalResume () {
-            jt.log("mgrs.slp.noteExternalResume");
-            mgrs.slp.reset();
+            mgrs.slp.reset("slp.noteExternalResume");
             jt.out("mediaoverlaydiv", jt.tac2html(
                 ["Sleep resumed by external control.",
                  ["div", {cla:"dlgbuttonsdiv"},
-                  ["button", {type:"button", onclick:mdfs("slp.reset")},
+                  ["button", {type:"button", 
+                              onclick:mdfs("slp.reset",  //already playing...
+                                           "noteExternalResume ok button")},
                    "Ok"]]]));
             jt.byId("mediaoverlaydiv").style.display = "block"; }
         function updateSleepDisplayIndicator () {
@@ -1564,6 +1570,9 @@ app.player = (function () {
                 return false; }
             if(sst.count > 0) {  //more songs to play before sleep
                 sst.count -= 1;
+                const sci = jt.byId("sleepcountin");
+                if(sci) {
+                    sci.value = sst.count; }
                 return false; }
             return mgrs.slp.startSleep("Sleeping...", "shouldSleepNow"); },
         startSleep: function (msg, logreason) {
@@ -1585,9 +1594,10 @@ app.player = (function () {
             return true; },
         isNowSleeping: function () {
             const odiv = jt.byId("mediaoverlaydiv");
-            return (odiv && odiv.style.display === "block" && 
+            return (odiv && odiv.style.display === "block" &&
                     jt.byId("sleepresumelink")); },
-        reset: function () {
+        reset: function (reason) {
+            jt.log("slp.reset reason: " + reason);
             sst.ctrl = "off";
             sst.count = 0;
             clearOverlayMessage();
@@ -1596,8 +1606,7 @@ app.player = (function () {
             const cap = mgrs.aud.currentAudioPlayer();
             jt.log("slp.resume calling " + cap + ".sleep cancel");
             mgrs[cap].sleep(1000, "cancel");
-            jt.log("slp.resume calling slp.reset");
-            mgrs.slp.reset();
+            mgrs.slp.reset("slp.resume");
             if(app.svc.plat("audsrc") === "IOS") {
                 //stopped at beginning of song after sleep
                 jt.log("slp.resume IOS calling " + cap + ".resume");
@@ -1615,9 +1624,9 @@ app.player = (function () {
             if(state === "ended" && sst.ctrl === "on") {
                 if(app.deck.endedDueToSleep()) {  //have songs to resume with
                     mgrs.slp.startSleep("Sleeping...", "deck ended"); }
+                //see mgr comment on IOS sleep after 2nd to last song
                 else {  //nothing to resume playback with, clear sleep state.
-                    jt.log("slp.updateStatusInfo normal end, resetting");
-                    mgrs.slp.reset(); } }
+                    mgrs.slp.reset("slp.updateStatusInfo normal end"); } }
             else if(state === "playing") {
                 const odiv = jt.byId("mediaoverlaydiv");
                 if(odiv && odiv.style.display === "block") {

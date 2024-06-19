@@ -500,6 +500,7 @@ app.deck = (function () {
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         songByIndex: function (idx) { return ds[idx]; },
         playSongNow: function (song) {
+            app.player.dispatch("slp", "reset", "dk.playnow");
             ds = ds.filter((s) => s.path !== song.path);
             ds.unshift(song);
             app.player.next(); },
@@ -831,7 +832,8 @@ app.deck = (function () {
         getQueuedSongs: function (includeContextSongs, sqmax, slim) {
             var songs = [];
             if(aid[cak] && aid[cak].src === "pmq") {
-                songs = aid[cak].songs.slice(aid[cak].ci, sqmax);
+                songs = aid[cak].songs.slice(aid[cak].ci);  //curr song thru end
+                songs = songs.slice(0, sqmax + 1);  //limit to sqmax
                 if(includeContextSongs && slim) {
                     songs.push(app.player.dispatch("slp", "sleepMarkerSong")); }
                 if(!includeContextSongs) {  //don't include current song
@@ -839,7 +841,8 @@ app.deck = (function () {
             return songs; },
         endedDueToSleep: function () {  //can click to resume if more alb tracks
             return (aid[cak] && aid[cak].src === "pmq" &&
-                    aid[cak].ci < aid[cak].songs.length - 2); },
+                    //if on last song and playback ended, nothing left to resume
+                    aid[cak].ci < aid[cak].songs.length - 1); },
         songs: function () { return aid[cak].songs; },
         songByIndex: function (idx) { return aid[cak].songs[idx]; },
         setAlbumSongs: function (fetchsong, albumsongs) {
@@ -898,6 +901,7 @@ app.deck = (function () {
                  aid[cak].songs.map((song, idx) =>
                      mgrs.alb.makeAlbumSongDiv(song, idx))])); },
         playnow: function (idx) {
+            app.player.dispatch("slp", "reset", "alb.playnow");
             aid[cak].ci = idx - 1;
             app.player.next(); },
         getNextSong: function () {
@@ -933,7 +937,7 @@ app.deck = (function () {
             return song; },
         playbackStatus: function (status) {
             if(status.song) {  //if on a specific song, hide start suggestions
-                jt.byId("albsuggsdiv").style.display = "none"; }
+                mgrs.alb.togSuggestAlbums(false); }
             if(status.song && cak !== makeAlbumKey(status.song)) {
                 return updateAlbumDisplay(status.song); }  //full redraw
             const ab = aid[cak];  //have info, reposition appropriately
