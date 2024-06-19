@@ -354,6 +354,9 @@ app.svc = (function () {
                 .filter((s) => s.path.startsWith(pp))
                 .sort(function (a, b) {  //assuming filename start with track#
                     return a.path.localeCompare(b.path); });
+            jt.log("svc.loc.fetchAlbum song.path " + song.path);
+            abs.forEach(function (s) {
+                jt.log("    " + s.path); });
             contf(song, abs); },
         majorError: function (code, errtxt) {
             if(!code && !errtxt) { //local server unreachable

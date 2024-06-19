@@ -1535,16 +1535,29 @@ app.player = (function () {
         toggleSleepDisplay: function () {  //show or hide the sleep details
             if(jt.byId("sleepdiv").innerHTML) {
                 return jt.out("sleepdiv", ""); }  //toggle off
+            const svos = [0, 1, 2, 3, 4, 5, 6, 7, 8];
             jt.out("sleepdiv", jt.tac2html(
                 [["input", {type:"checkbox", id:"sleepactivecb",
                             checked:"checked",  //switch on when opening
                             onclick:mdfs("slp.togsleepcb", "event")}],
                  " Pause after ",
-                 ["input", {type:"number", id:"sleepcountin", size:2,
-                            onchange:mdfs("slp.updateSleepCount", "event"),
-                            value:(sst.count || 0), min:0, max:8, step:1}],
+                 ["select", {id:"sleepcountsel", title:"Sleep counter",
+                             onchange:mdfs("slp.readSleepCountInput")},
+                  svos.map((v) =>
+                      ["option", {value:v, selected:jt.toru(v === sst.count)},
+                       String(v)])],
                  " more"]));
             mgrs.slp.togsleepcb(); },  //reflect checkbox checked image
+        readSleepCountInput: function () {
+            const sci = jt.byId("sleepcountsel");
+            if(sci) {
+                sst.count = parseInt(sci.value, 10);  //want int for math
+                jt.log("readSleepCountInput: " + String(sst.count)); } },
+        updateSleepCountInput: function () {
+            const sci = jt.byId("sleepcountsel");
+            if(sci) {
+                sci.value = String(sst.count);  //"0" shows up in display
+                jt.log("setSleepCountInput: " + String(sst.count)); } },
         togsleepcb: function () {
             const prevctrl = sst.ctrl;
             sst.ctrl = ((jt.byId("sleepactivecb").checked)? "on" : "off");
@@ -1559,7 +1572,7 @@ app.player = (function () {
                 else {  //command went through
                     sst.ctrl = ((retcmd === "sleep")? "on" : "off"); }
                 if(sst.ctrl === "on") {
-                    sst.count = jt.byId("sleepcountin").value;
+                    mgrs.slp.readSleepCountInput();
                     jt.byId("togsleepimg").src = srcimgs.active; }
                 else { //sst.ctrl === "off"
                     jt.byId("togsleepimg").src = srcimgs.inactive; } }); },
@@ -1570,9 +1583,7 @@ app.player = (function () {
                 return false; }
             if(sst.count > 0) {  //more songs to play before sleep
                 sst.count -= 1;
-                const sci = jt.byId("sleepcountin");
-                if(sci) {
-                    sci.value = sst.count; }
+                mgrs.slp.updateSleepCountInput();
                 return false; }
             return mgrs.slp.startSleep("Sleeping...", "shouldSleepNow"); },
         startSleep: function (msg, logreason) {
@@ -1704,8 +1715,9 @@ app.player = (function () {
                 stat.status = "";
                 if(!mgrs.slp.shouldSleepNow()) {
                     const ns = app.deck.getNextSong();
-                    if(!ns) { //just stop, might be playing an album.
-                        return; }
+                    if(!ns) { //end of album or nothing left on deck
+                        mgrs.slp.reset("player.gen.next no more songs left");
+                        return; }  //no next song to play, so just stop
                     stat.stale = stat.song;
                     stat.song = ns;
                     mgrs.gen.logCurrentlyPlaying("player.gen.next");

@@ -734,7 +734,8 @@ app.deck = (function () {
                 if(app.deck.isDeckable(song) && song.rv >= 5) {  //not bad
                     const key = makeAlbumKey(song);
                     aid[key] = aid[key] || initialAlbumSuggestionCount(key);
-                    aid[key].songs.push(song);
+                    if(aid[key].src === "asc") {
+                        aid[key].songs.push(song); }
                     if(!song.pc || !song.lp) {  //not played yet
                         aid[key].npsc += 1; }
                     if(song.lp > aid[key].mrpt) {
