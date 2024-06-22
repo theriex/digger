@@ -558,6 +558,7 @@ app.deck = (function () {
             const idx = ds.findIndex((s) => s.path === npp);
             if(idx >= 0) {
                 ds = ds.slice(idx + 1);
+                app.player.dispatch("slp", "reduceSleepCount", idx + 1);
                 mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
                 return ds; }
             return null; }
@@ -932,6 +933,7 @@ app.deck = (function () {
             if(idx < 0) {  //no longer playing album
                 mgrs.gen.dispMode("ddc");
                 return null; }
+            app.player.dispatch("slp", "reduceSleepCount", idx - aid[cak].ci);
             aid[cak].ci = idx;
             const song = aid[cak].songs[idx];
             mgrs.alb.displayAlbum(song);
@@ -1272,7 +1274,12 @@ app.deck = (function () {
         getNextSong: function () {
             return mgrs[songSeqMgrName].getNextSong(); },
         popForward: function (npp) { //now playing path
-            return mgrs[songSeqMgrName].popForward(npp); },
+            const pfsg = mgrs[songSeqMgrName].popForward(npp);
+            if(pfsg) {
+                jt.log("popForward " + npp + ": " + pfsg.ti); }
+            else {
+                jt.log("popForward " + npp + " song not found"); }
+            return pfsg; },
         playbackStatus: function (status) {
             return mgrs[songSeqMgrName].playbackStatus(status); },
         songDataChanged: function (caller) {

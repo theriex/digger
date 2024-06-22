@@ -177,7 +177,8 @@ app.player = (function () {
                 prog.ticker = setTimeout(tickf, 1000); } },
         reflectPlaybackState: function (pbs, skiptick) {
             mgrs.plui.verifyInterface();
-            if(pbs === "paused") {  //may be resumed via external controls
+            if((pbs === "paused") ||  //may be resumed via external controls
+               (pbs === "ended"))  {  //showing a pause ctrl makes no sense
                 bimg = "img/play.png"; }
             else {  //playing
                 bimg = "img/pause.png"; }
@@ -513,10 +514,10 @@ app.player = (function () {
         notePlaybackStatus: function (status) {
             pbi.treceive = Date.now();  //note latency
             if(stat.stale && stat.stale.path === status.path) {
-                return jt.log("mod.nPS ignoring stale stat from prev song"); }
+                return jt.log("mob.nPS ignoring stale stat from prev song"); }
             if(stat.song && (!status.path || !status.state ||
                              status.state === "unknown")) {
-                jt.log("mod.notePlaybackStatus retrying bad status return: " +
+                jt.log("mob.notePlaybackStatus retrying bad status return: " +
                        JSON.stringify(status) + ", stat: " +
                        JSON.stringify(stat));
                 return mgrs.mob.refreshPlayState(); }
@@ -535,7 +536,7 @@ app.player = (function () {
                     dbo.dbts = new Date().toISOString();  //for stale data chk
                     stat.song = dbo.songs[status.path];
                     if(!stat.song) {  //foreign media, or wait for media read
-                        return jt.log("mod.nPS ignoring unknown song media"); }
+                        return jt.log("mob.nPS ignoring unknown song media"); }
                     mgrs.cmt.resetDisplay();  //update comment indicator
                     mgrs.aud.updateSongDisplay();  //update controls display
                     app.deck.popForward(stat.song.path);
@@ -1512,6 +1513,15 @@ app.player = (function () {
                                            "noteExternalResume ok button")},
                    "Ok"]]]));
             jt.byId("mediaoverlaydiv").style.display = "block"; }
+        function updateSleepActiveCheckbox () {
+            const sleepcb = jt.byId("sleepactivecb");
+            if(sleepcb) {
+                sleepcb.checked = false; } }
+        function updateSleepCountInput () {
+            const sci = jt.byId("sleepcountsel");
+            if(sci) {
+                sci.value = String(sst.count);  //"0" shows up in display
+                jt.log("setSleepCountInput: " + String(sst.count)); } }
         function updateSleepDisplayIndicator () {
             const togimg = jt.byId("togsleepimg");
             if(!togimg) {  //verify the UI is still intact, just in case
@@ -1553,11 +1563,15 @@ app.player = (function () {
             if(sci) {
                 sst.count = parseInt(sci.value, 10);  //want int for math
                 jt.log("readSleepCountInput: " + String(sst.count)); } },
-        updateSleepCountInput: function () {
-            const sci = jt.byId("sleepcountsel");
-            if(sci) {
-                sci.value = String(sst.count);  //"0" shows up in display
-                jt.log("setSleepCountInput: " + String(sst.count)); } },
+        reduceSleepCount: function (numplayed) {  //reduce the sleep countdown
+            if(sst.count <= 0) {
+                jt.log("reduceSleepCount sst.count already at zero.");
+                sst.count = 0;
+                return; }
+            jt.log("reduceSleepCount " + sst.count + " by " + numplayed);
+            sst.count -= numplayed;
+            sst.count = Math.max(sst.count, 0);
+            updateSleepCountInput(); },
         togsleepcb: function () {
             const prevctrl = sst.ctrl;
             sst.ctrl = ((jt.byId("sleepactivecb").checked)? "on" : "off");
@@ -1583,7 +1597,7 @@ app.player = (function () {
                 return false; }
             if(sst.count > 0) {  //more songs to play before sleep
                 sst.count -= 1;
-                mgrs.slp.updateSleepCountInput();
+                updateSleepCountInput();
                 return false; }
             return mgrs.slp.startSleep("Sleeping...", "shouldSleepNow"); },
         startSleep: function (msg, logreason) {
@@ -1612,6 +1626,8 @@ app.player = (function () {
             sst.ctrl = "off";
             sst.count = 0;
             clearOverlayMessage();
+            updateSleepActiveCheckbox();
+            updateSleepCountInput();
             updateSleepDisplayIndicator(); },
         resume: function () {
             const cap = mgrs.aud.currentAudioPlayer();
