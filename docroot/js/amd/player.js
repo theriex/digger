@@ -1565,7 +1565,7 @@ app.player = (function () {
                 jt.log("readSleepCountInput: " + String(sst.count)); } },
         reduceSleepCount: function (numplayed) {  //reduce the sleep countdown
             if(sst.count <= 0) {
-                jt.log("reduceSleepCount sst.count already at zero.");
+                //jt.log("reduceSleepCount sst.count already at zero.");
                 sst.count = 0;
                 return; }
             jt.log("reduceSleepCount " + sst.count + " by " + numplayed);

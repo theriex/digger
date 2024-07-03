@@ -560,7 +560,7 @@ app.deck = (function () {
                 ds = ds.slice(idx + 1);
                 app.player.dispatch("slp", "reduceSleepCount", idx + 1);
                 mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
-                return ds; }
+                return ds[0]; }
             return null; }
     };  //end of mgrs.dk returned functions
     }());

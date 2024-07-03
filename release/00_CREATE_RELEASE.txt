@@ -1,7 +1,7 @@
 # All commands here are run from the same directory as this file.
-# see softdep.txt for node/npm/packages setup
+# see softdep.txt for node/npm/packages setup.
 
-# If not a slipstream release, bump the release version by editing:
+# Bump the release version by editing:
 #   ./Digger/Digger.app/Contents/Info.plist CFBundleVersion (numeric, no 'v')
 #   ../server/db.js diggerVersion (string, preceding 'v')
 #   ../../diggerhub/site/py/util.py version (string, preceding 'v')
