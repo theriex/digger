@@ -42,10 +42,16 @@ app.deck = (function () {
                     res.push(s); } });
             return res; }
         function findAllDupes (songs, markplayed) {
-            var swd = songs;
+            var dupes = [];
             songs.forEach(function (song) {
-                swd = swd.concat(findDupesForSong(song, markplayed)); });
-            return swd; }
+                dupes = dupes.concat(findDupesForSong(song, markplayed)); });
+            return dupes; }
+        function updateSecondaryCachedReferences (song) {
+            //This is the fine-grained, runtime data refs update, as opposed
+            //to the large scale big change rebuild from songDataChanged.
+            const cachingMgrNames = ["dk", "alb", "hst"];
+            cachingMgrNames.forEach(function (cmn) {
+                mgrs[cmn].noteSongInstanceUpdated(song); }); }
     return {
         setSongsDict: function (sd) { sbp = sd; },
         getSongsDict: function () { return sbp; },
@@ -53,8 +59,10 @@ app.deck = (function () {
         saveSongs: function (songs, trackdupes, contf, errf) {
             if(!Array.isArray(songs)) {
                 songs = [songs]; }
+            jt.log("saveSongs called with " + songs.length + " songs.");
             if(trackdupes) {
                 songs = songs.concat(findAllDupes(songs, true)); }
+            jt.log("saveSongs: " + JSON.stringify(songs));
             app.svc.saveSongs(songs,
                 function (res) {
                     var merged = [];
@@ -63,6 +71,7 @@ app.deck = (function () {
                             if(!sbp[path]) {  //non-local absolute path
                                 path = "/" + path; }
                             app.copyUpdatedSongData(sbp[path], updsong);
+                            updateSecondaryCachedReferences(sbp[path]);
                             merged.push(sbp[path]); });
                         jt.out("modindspan", "");  //turn off "mod" indicator
                         app.top.dispatch("srs", "syncToHub");  //sched sync
@@ -561,7 +570,11 @@ app.deck = (function () {
                 app.player.dispatch("slp", "reduceSleepCount", idx + 1);
                 mgrs.sop.displaySongs("dk", "decksongsdiv", ds);
                 return ds[0]; }
-            return null; }
+            return null; },
+        noteSongInstanceUpdated: function (song) {
+            const idx = ds.findIndex((s) => s.path === song.path);
+            if(idx >= 0) {  //current song and any dupes should not be on deck
+                mgrs.ws.rebuild("mgrs.dk.noteSongInstanceUpdated"); } }
     };  //end of mgrs.dk returned functions
     }());
 
@@ -869,6 +882,13 @@ app.deck = (function () {
                 const updsong = usbp[s.path];
                 if(updsong) {
                     app.copyUpdatedSongData(s, updsong); } }); },
+        noteSongInstanceUpdated: function (song) {
+            const key = makeAlbumKey(song);
+            if(aid[key]) {  //have album entry for this song
+                const abs = aid[key].songs || [];
+                const aidx = abs.findIndex((s) => s.path === song.path);
+                if(aidx >= 0) {  //have song object in album entry
+                    aid[key].songs[aidx] = song; } } },
         togSuggestAlbums: function (disp) {
             toggleButtons.togsuggb(disp); },
         setSongToStartWith: function (song) {
@@ -1170,7 +1190,11 @@ app.deck = (function () {
                     s.path = p;  //used for lookup post update
                     songs.push(s); } });
             pps = [];
-            mgrs.hst.initHistoryIfNeeded(songs); }
+            mgrs.hst.initHistoryIfNeeded(songs); },
+        noteSongInstanceUpdated: function (song) {
+            const idx = pps.findIndex((s) => s.path === song.path);
+            if(idx >= 0) {
+                pps[idx] = song; } }
     };  //end mgrs.hst returned functions
     }());
 

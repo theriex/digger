@@ -21,7 +21,7 @@ app.player = (function () {
     //save fails, the UI state cannot be touched since there is nothing to
     //revert back to.  A save failure basically never happens for local
     //storage, and for web it would most likely be a well timed network
-    //hiccup or a server failure.  Not much to be done.
+    //hiccup or a server failure.  Not much to be done.  Log what was saved.
     function saveSongDataIfModified (ignoreupdate) {
         if(!stat.songModified) { return; }  //save not needed
         if(!ignoreupdate) {  //saving the working song
@@ -29,15 +29,9 @@ app.player = (function () {
             //be another save call.
             stat.songModified = false; }
         app.deck.saveSongs(stat.song, true,
-            function (updsong) {
-                //stat.song should be up to date since that's what was saved..
-                const sfs = ["ti", "ar", "ab", "el", "al", "kws", "rv",
-                             "fq", "lp", "nt", "dsId", "modified"];
-                const diff = sfs.filter((f) => stat.song[f] !== updsong[f]);
-                if(diff.length) {  //"lp" on first play, otherwise it's a prob
-                    jt.log("stat.song and updsong diff fields: " + diff); }
+            function (upds) {
                 jt.out("modindspan", "");
-                jt.log("song data updated " + JSON.stringify(updsong)); },
+                jt.log("song data updated " + JSON.stringify(upds)); },
             function (code, errtxt) {
                 stat.songModified = true;  //hopefully next try will work
                 jt.err("song save failed " + code + ": " + errtxt); });
@@ -1775,8 +1769,9 @@ app.player = (function () {
             //mobile player updates when playing new song, no separate call.
             prefix = prefix || "";
             if(prefix) { prefix += " "; }
-            if(stat && stat.song) {
-                jt.log(prefix + "logCurrentlyPlaying: " + stat.song.path); }
+            if(stat && stat.song) {  //iOS has opaque paths, so include ti
+                jt.log(prefix + "logCurrentlyPlaying: " + stat.song.path +
+                       " " + stat.song.ti); }
             else {
                 jt.log(prefix + "logCurrentlyPlaying: no song"); } },
         listChangedFields: function (sa, sb) {

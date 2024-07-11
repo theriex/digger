@@ -117,7 +117,7 @@ return {
         const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
         app.amdtimer = {};
         app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=240703");
+        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=240707");
     },
 
 
@@ -132,7 +132,7 @@ return {
 
 
     fileVersion: function () {
-        return "v=240703";  //updated as part of release process
+        return "v=240707";  //updated as part of release process
     },
 
 
@@ -375,7 +375,7 @@ return {
     copyUpdatedSongData: function (destSong, srcSong) {
         const songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
                             "el", "al", "kws", "rv", "fq", "lp", "nt",
-                            "dsId", "modified", "locmod"];
+                            "pc", "pd", "dsId", "modified", "locmod"];
         songfields.forEach(function (fld) {
             if(srcSong.hasOwnProperty(fld)) {  //don't copy undefined values
                 destSong[fld] = srcSong[fld]; } });

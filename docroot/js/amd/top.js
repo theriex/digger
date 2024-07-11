@@ -2445,7 +2445,7 @@ app.top = (function () {
                 err("dbo.songs is not an object"); }
             if(Array.isArray(dbo.songs)) {  //arrays are objects...
                 err("dbo.songs is an array, not an object"); }
-            if(stat.verified) {
+            if(stat.verified) {  //no errors from above checks
                 Object.entries(dbo.songs).forEach(function ([path, song]) {
                     if(!song || typeof song !== "object") {
                         err("song path " + path + " has no song object"); }
