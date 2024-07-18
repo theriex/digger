@@ -129,6 +129,8 @@ app.player = (function () {
             app.top.dispatch("locla", "libimpNeeded"); },
         sleep: function (count, cmd, cbf) {
             jt.log("mgrs.loa.sleep " + count + ", " + cmd);
+            if(cmd === "cancel") {
+                app.player.next(); }
             if(cbf) {  //might not be provided on cancel.  Call back if given.
                 cbf(cmd); } }  //deck already limited to sleep queue max
     };  //end mgrs.loa returned functions
@@ -566,12 +568,12 @@ app.player = (function () {
                 mgrs.plui.reflectPlaybackState("paused");
                 debouncing = true;
                 app.svc.dispatch("mp", "pause"); } },
-        resume: function (unsleep) {
+        resume: function () {
             //jt.log("mgrs.mob.resume debouncing " + debouncing);
             if(!debouncing) {
                 mgrs.plui.reflectPlaybackState("playing", "noticker");
                 debouncing = true;
-                app.svc.dispatch("mp", "resume", unsleep || ""); } },
+                app.svc.dispatch("mp", "resume"); } },
         seek: function (ms) {
             app.svc.dispatch("mp", "seek", ms); },
         sleep: function (count, cmd, cbf) {
@@ -1536,8 +1538,8 @@ app.player = (function () {
                             sst.ctrl); } }
     return {
         sleepMarkerSong: function () { return ssmo; },
-        toggleSleepDisplay: function () {  //show or hide the sleep details
-            if(jt.byId("sleepdiv").innerHTML) {
+        toggleSleepDisplay: function (close) {  //show or hide the sleep details
+            if(close || jt.byId("sleepdiv").innerHTML) {
                 return jt.out("sleepdiv", ""); }  //toggle off
             const svos = [0, 1, 2, 3, 4, 5, 6, 7, 8];
             jt.out("sleepdiv", jt.tac2html(
@@ -1595,7 +1597,8 @@ app.player = (function () {
                 return false; }
             return mgrs.slp.startSleep("Sleeping...", "shouldSleepNow"); },
         startSleep: function (msg, logreason) {
-            jt.log("slp.startSleep reason: " + logreason);
+            if(!mgrs.slp.isNowSleeping()) {
+                jt.log("slp.startSleep reason: " + logreason); }
             const odiv = jt.byId("mediaoverlaydiv");
             odiv.style.top = (jt.byId("playertitle").offsetHeight + 2) + "px";
             odiv.style.display = "block";
@@ -1622,24 +1625,18 @@ app.player = (function () {
             clearOverlayMessage();
             updateSleepActiveCheckbox();
             updateSleepCountInput();
-            updateSleepDisplayIndicator(); },
+            updateSleepDisplayIndicator();
+            mgrs.slp.toggleSleepDisplay("close"); },
         resume: function () {
+            mgrs.slp.reset("slp.resume");
             const cap = mgrs.aud.currentAudioPlayer();
             jt.log("slp.resume calling " + cap + ".sleep cancel");
-            mgrs[cap].sleep(1000, "cancel");
-            mgrs.slp.reset("slp.resume");
-            if(app.svc.plat("audsrc") === "IOS") {
-                //stopped at beginning of song after sleep
-                jt.log("slp.resume IOS calling " + cap + ".resume");
-                mgrs[cap].resume("unsleep"); }
-            else {  //stopped at end of previously playing song
-                jt.log("slp.resume calling player.next");
-                app.player.next(); } },
+            mgrs[cap].sleep(1000, "cancel"); },
         limitToSleepQueueMax: function (qm) {  //queue max
             if(sst.ctrl !== "on") {
                 return qm; }
             const queuelen = Math.min(sst.count, qm);
-            jt.log("sleep active, queue limited to " + queuelen);
+            //jt.log("sleep active, queue limited to " + queuelen);
             return queuelen; },
         updateStatusInfo: function (state/*, pos, dur, path*/) {
             if(state === "ended" && sst.ctrl === "on") {

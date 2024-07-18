@@ -1299,10 +1299,11 @@ app.deck = (function () {
             return mgrs[songSeqMgrName].getNextSong(); },
         popForward: function (npp) { //now playing path
             const pfsg = mgrs[songSeqMgrName].popForward(npp);
+            const prefix = songSeqMgrName + ".popForward " + npp;
             if(pfsg) {
-                jt.log("popForward " + npp + ": " + pfsg.ti); }
+                jt.log(prefix + ": " + pfsg.ti); }
             else {
-                jt.log("popForward " + npp + " song not found"); }
+                jt.log(prefix + " song not found"); }
             return pfsg; },
         playbackStatus: function (status) {
             return mgrs[songSeqMgrName].playbackStatus(status); },
