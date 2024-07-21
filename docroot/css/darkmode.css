@@ -1,5 +1,7 @@
 body { color:#ccc; }
 button { color:white; background:#666; }
+#contentframingdiv { background:black; }
+#contentmargindiv { background:black; }
 .paneldiv {
   border:3px solid #666; background-image: url('../img/panelsbginv.png'); }
 .inv { filter:invert(100%); }

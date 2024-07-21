@@ -73,11 +73,12 @@ var app = (function () {
                 jt.byId("topsectiondiv").style.display = "none"; }
             jt.out("outercontentdiv", jt.tac2html(
                 ["div", {id:"contentframingdiv"},
-                 ["div", {id:"contentdiv"},
-                  [["div", {cla:"paneldiv", id:"pantopdiv"}],
-                   ["div", {cla:"paneldiv", id:"panplaydiv"}],
-                   ["div", {cla:"paneldiv", id:"pandeckdiv"}],
-                   ["div", {id:"appoverlaydiv"}]]]]));
+                 ["div", {id:"contentmargindiv"},
+                  ["div", {id:"contentdiv"},
+                   [["div", {cla:"paneldiv", id:"pantopdiv"}],
+                    ["div", {cla:"paneldiv", id:"panplaydiv"}],
+                    ["div", {cla:"paneldiv", id:"pandeckdiv"}],
+                    ["div", {id:"appoverlaydiv"}]]]]]));
             if(app.startPath === "/digger") {  //web startup needs auth info
                 app.login.init(false); }  //calls initDiggerModules
             else {
