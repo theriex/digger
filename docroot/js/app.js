@@ -391,6 +391,11 @@ return {
                       "deck"];    //choose appropriate display
         uims.forEach(function (uim) {
             app[uim].initialDataLoaded(startdata); });
+        app.player.dispatch("aud", "verifyPlayer", function () {
+            //resize the framing background to match the height of the panels
+            const oh = jt.byId("contentdiv").offsetHeight;  //736px default
+            const cmdiv = jt.byId("contentmargindiv");
+            cmdiv.style.backgroundSize = "564px " + (oh + 20) + "px"; });
     },
 
 

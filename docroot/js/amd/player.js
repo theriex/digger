@@ -1677,7 +1677,7 @@ app.player = (function () {
             mgrs.aud.init();  //may redirect to authenticate web player
             jt.out("panplaydiv", jt.tac2html(
                 [["div", {id:"panplaymousingdiv"},
-                  [["div", {id:"mediadiv"}, "No songs on deck yet"],
+                  [["div", {id:"mediadiv"}, "Nothing to play yet"],
                    ["div", {id:"mediaoverlaydiv", style:"display:none"}],
                    ["div", {id:"impressiondiv"},
                     [["div", {id:"panpotsdiv"},
