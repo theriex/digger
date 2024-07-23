@@ -259,19 +259,22 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   padding:8px 12px; font-size:medium; border-radius:14px; }
 #keysratdiv { margin-left:-2px; margin-top:7px; }
 #kwdsdiv { display:inline-block; }
-#starsnbuttonsdiv { padding:10px 0px 2px 22px; }
+#starsnbuttonsdiv { padding:10px 0px 2px 22px; position:relative; }
 #rvdiv { display:inline-block; padding-left:8px; }
 #playerbuttonsdiv { display:inline-block; vertical-align:top; }
+.playerbdiv { display:inline-block; position:relative; }
+.plbimg { max-height:24px; margin:0px 20px 0px 16px; }
+#sleepcntssdiv { position:absolute; top:0px; left:33px; font-size:x-small; }
 .kwdtogoff, .kwdtogon { color:white; background:#333; font-size:medium; 
   padding:0px 2px; margin:4px; border-radius:0px; }
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
-#togsleeplink, #togcommentlink, #togsharelink { margin:0px 20px 0px 16px; }
-#togsleepimg, #togcommentimg, #togshareimg { max-height:24px; }
 #commentdiv { text-align:center; }
 #commentta { padding:3px 5px; background:#ffce69; border:1px solid #ffab00; }
-#sleepdiv { font-size:medium; }
+#sleepdiv { position:absolute; top:11px; left:105px; width:200px;
+  background:rgba(256, 171, 0, 0.7); padding:0px 8px; border-radius:5px;
+  text-align:right; font-size:medium; }
 
 #sharedlgdiv { position:relative; padding:12px; margin:0px auto;
   background:#ffab00; color:#111111; display:table; margin:0px auto;}

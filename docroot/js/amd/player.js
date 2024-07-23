@@ -1217,7 +1217,7 @@ app.player = (function () {
             mgrs.pan.updateControl("al");
             mgrs.pan.updateControl("el");
             jt.on("impressiondiv", "mousedown", function (event) {
-                const okinids = ["kwdin", "commentta"];
+                const okinids = ["kwdin", "sleepcountsel", "commentta"];
                 if(!event.target || okinids.indexOf(event.target.id) < 0) {
                     jt.evtend(event); } });  //ignore to avoid selecting ctrls
             jt.on("impressiondiv", "mouseup", function (event) {
@@ -1516,8 +1516,9 @@ app.player = (function () {
         function updateSleepCountInput () {
             const sci = jt.byId("sleepcountsel");
             if(sci) {
-                sci.value = String(sst.count);  //"0" shows up in display
-                jt.log("setSleepCountInput: " + String(sst.count)); } }
+                sci.value = String(sst.count);  //Make "0" show up in display
+                jt.log("setSleepCountInput: " + String(sst.count));
+                jt.out("sleepcntssdiv", sst.count || ""); } }
         function updateSleepDisplayIndicator () {
             const togimg = jt.byId("togsleepimg");
             if(!togimg) {  //verify the UI is still intact, just in case
@@ -1539,26 +1540,43 @@ app.player = (function () {
     return {
         sleepMarkerSong: function () { return ssmo; },
         toggleSleepDisplay: function (close) {  //show or hide the sleep details
-            if(close || jt.byId("sleepdiv").innerHTML) {
-                return jt.out("sleepdiv", ""); }  //toggle off
-            const svos = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-            jt.out("sleepdiv", jt.tac2html(
-                [["input", {type:"checkbox", id:"sleepactivecb",
-                            checked:"checked",  //switch on when opening
-                            onclick:mdfs("slp.togsleepcb", "event")}],
-                 " Pause after ",
-                 ["select", {id:"sleepcountsel", title:"Sleep counter",
-                             onchange:mdfs("slp.readSleepCountInput")},
-                  svos.map((v) =>
-                      ["option", {value:v, selected:jt.toru(v === sst.count)},
-                       String(v)])],
-                 " more"]));
-            mgrs.slp.togsleepcb(); },  //reflect checkbox checked image
-        readSleepCountInput: function () {
+            if(close || jt.byId("sleepdiv").style.display !== "none") {
+                jt.byId("sleepdiv").style.display = "none";
+                return; }
+            if(sst.ctrl === "on") {  //sleep active and stabilized, allow mod
+                jt.byId("sleepdiv").style.display = "block"; }
+            if(!jt.byId("sleepactivecb")) {  //init the sleep controls
+                const svos = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+                jt.out("sleepdiv", jt.tac2html(
+                    [["a", {href:"#close",
+                            onclick:mdfs("slp.toggleSleepDisplay", "close")},
+                      "Sleep after "],
+                     ["select", {id:"sleepcountsel", title:"Sleep counter",
+                                 onchange:mdfs("slp.readSleepCountInput",
+                                               "close")},
+                      svos.map((v) =>
+                          ["option", {value:v,
+                                      selected:jt.toru(v === sst.count)},
+                           String(v)])],
+                     ["a", {href:"#close",
+                            onclick:mdfs("slp.toggleSleepDisplay", "close")},
+                      " more "],
+                     ["input", {type:"checkbox", id:"sleepactivecb",
+                                checked:"checked",  //switch on when opening
+                                onclick:mdfs("slp.togsleepcb", "event")}]]));
+                mgrs.slp.togsleepcb(); }  //reflect checkbox checked image
+            else {  //sleepactivecb available
+                if(sst.ctrl === "off") {  //need to reactivate
+                    jt.byId("sleepactivecb").checked = true;
+                    mgrs.slp.togsleepcb(); } } },
+        readSleepCountInput: function (close) {
             const sci = jt.byId("sleepcountsel");
             if(sci) {
                 sst.count = parseInt(sci.value, 10);  //want int for math
-                jt.log("readSleepCountInput: " + String(sst.count)); } },
+                jt.log("readSleepCountInput: " + String(sst.count));
+                jt.out("sleepcntssdiv", sst.count || ""); }
+            if(close) {
+                mgrs.slp.toggleSleepDisplay(close); } },
         reduceSleepCount: function (numplayed) {  //reduce the sleep countdown
             if(sst.count <= 0) {
                 //jt.log("reduceSleepCount sst.count already at zero.");
@@ -1567,13 +1585,14 @@ app.player = (function () {
             jt.log("reduceSleepCount " + sst.count + " by " + numplayed);
             sst.count -= numplayed;
             sst.count = Math.max(sst.count, 0);
-            updateSleepCountInput(); },
+            updateSleepCountInput();
+            jt.out("sleepcntssdiv", sst.count || ""); },
         togsleepcb: function () {
             const prevctrl = sst.ctrl;
             sst.ctrl = ((jt.byId("sleepactivecb").checked)? "on" : "off");
-            const cmd = ((sst.ctrl === "on")? "sleep" : "cancel");
+            const cmd = ((sst.ctrl === "on")? "sleep" : "nevermind");
             sst.ctrl = "transitioning";
-            updateSleepDisplayIndicator();
+            updateSleepDisplayIndicator();  //starts blink if needed
             const cap = mgrs.aud.currentAudioPlayer();
             mgrs[cap].sleep(sst.count, cmd, function (retcmd) {
                 if(retcmd !== cmd) {
@@ -1581,13 +1600,10 @@ app.player = (function () {
                     sst.ctrl = prevctrl; }  //revert state
                 else {  //command went through
                     sst.ctrl = ((retcmd === "sleep")? "on" : "off"); }
-                if(sst.ctrl === "on") {
-                    mgrs.slp.readSleepCountInput();
-                    jt.byId("togsleepimg").src = srcimgs.active; }
-                else { //sst.ctrl === "off"
-                    jt.byId("togsleepimg").src = srcimgs.inactive; } }); },
+                updateSleepDisplayIndicator();  //end blink
+                mgrs.slp.readSleepCountInput("close"); }); },
         shouldSleepNow: function () {  //called prior to playing next song
-            jt.out("sleepdiv", "");  //clear sleep display setup if displayed
+            mgrs.slp.toggleSleepDisplay("close");
             clearOverlayMessage();
             if(sst.ctrl !== "on") {  //"off" or "transitioning" === not active
                 return false; }
@@ -1688,26 +1704,30 @@ app.player = (function () {
                        ["div", {id:"starsnbuttonsdiv"},
                         [["div", {id:"rvdiv"}],
                          ["div", {id:"playerbuttonsdiv"},
-                          [["a", {id:"togcommentlink", href:"#togglecomment",
-                                  title:"",
-                                  onclick:mdfs("cmt.toggleCommentDisplay")},
-                            ["img", {id:"togcommentimg", cla:"inv",
-                                     src:"img/comment.png"}]],
-                           ["a", {id:"togsharelink", href:"#share",
-                                  title:"",
-                                  onclick:mdfs("cmt.togSongShareDialog")},
-                            ["img", {id:"togshareimg", cla:"inv",
-                                     src:"img/share.png"}]],
-                           ["a", {id:"togsleeplink", href:"#sleepafter",
-                                  title:"",
-                                  onclick:mdfs("slp.toggleSleepDisplay")},
-                            ["img", {id:"togsleepimg", cla:"inv",
-                                     src:"img/sleep.png"}]]]]]]]],
+                          [["div", {cla:"playerbdiv"},
+                            ["a", {id:"togcommentlink", href:"#togglecomment",
+                                   title:"Comment",
+                                   onclick:mdfs("cmt.toggleCommentDisplay")},
+                             ["img", {id:"togcommentimg", cla:"plbimg inv",
+                                      src:"img/comment.png"}]]],
+                           ["div", {cla:"playerbdiv"},
+                            ["a", {id:"togsharelink", href:"#share",
+                                   title:"Share",
+                                   onclick:mdfs("cmt.togSongShareDialog")},
+                             ["img", {id:"togshareimg", cla:"plbimg inv",
+                                      src:"img/share.png"}]]],
+                           ["div", {cla:"playerbdiv"},
+                            [["div", {id:"sleepcntssdiv"}],
+                             ["a", {id:"togsleeplink", href:"#sleepafter",
+                                    title:"Sleep",
+                                    onclick:mdfs("slp.toggleSleepDisplay")},
+                              ["img", {id:"togsleepimg", cla:"plbimg inv",
+                                       src:"img/sleep.png"}]]]]]],
+                         ["div", {id:"sleepdiv", style:"display:none"}]]]]],
                      ["div", {id:"pandragcontdiv"},
                       [["div", {id:"alpandragdiv", cla:"pandragdiv"}],
                        ["div", {id:"elpandragdiv", cla:"pandragdiv"}]]]]]]],
-                 ["div", {id:"commentdiv"}],
-                 ["div", {id:"sleepdiv"}]]));
+                 ["div", {id:"commentdiv"}]]));
             mgrs.pan.makePanControls();
             //toggle controls are rebuilt after data loads, not needed yet
             mgrs.rat.makeRatingValueControl(); },
