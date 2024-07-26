@@ -271,10 +271,26 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
 #commentdiv { text-align:center; }
-#commentta { padding:3px 5px; background:#ffce69; border:1px solid #ffab00; }
+#commentdispdiv { position:absolute; top:48px; left:10px; }
+#commentta { padding:3px 5px; background:#f3dfb6; border:1px solid #333; }
 #sleepdiv { position:absolute; top:11px; left:105px; width:200px;
   background:rgba(256, 171, 0, 0.7); padding:0px 8px; border-radius:5px;
   text-align:right; font-size:medium; }
+
+#panplayoverlaydiv { position:absolute; top:0px; left:0px; 
+  background:rgba(256, 171, 0, 0.7);}
+#ppocontdiv { background:rgba(200, 200, 200, 0.9); position:relative;
+  border-radius:20px; margin:5px; height:160px; width:345px; }
+#pposidiv { position:absolute; top:5px; left:5px; }
+#sharedispdiv { display:flex; align-items:center; justify-content:center;
+  height: 160px; }
+#sharedispdiv div { display:flex; flex-direction:column;
+  justify-content:space-around; height:90px; }
+#sharedispdiv #shbdiv { justify-content:space-between; }
+#sharesrcimg {height:44px; margin-right:4px; }
+#sharrowimg { height:58px; }
+#sharestatdiv { position:absolute; top:60px; left:20px; background:#ffab00;
+  padding:2px; }
 
 #sharedlgdiv { position:relative; padding:12px; margin:0px auto;
   background:#ffab00; color:#111111; display:table; margin:0px auto;}
