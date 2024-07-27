@@ -1408,10 +1408,12 @@ app.player = (function () {
                     function (code, errtxt) {
                         resStat("Comment save failed " + code + ": " +
                                 errtxt); }); }} };
-        function bids2DefA(bids) {
-            return bids.map(function (bid) {
-                return {id:bid, name:buttons[bid].name}; }); }
-        function togDialog(togstate, mode, dispf) {
+        function buttonsHTML () {
+            return jt.tac2html(modeps[ost.mode].bids.map((bid) =>
+                ["button", {type:"button", id:buttons[bid].id,
+                            onclick:mdfs("cmt.buttonHandler", buttons[bid].id)},
+                 buttons[bid].name])); }
+        function togDialog (togstate, mode, dispf) {
             ost.song = null;
             ost.mode = mode || "";
             const odiv = jt.byId(ost.odi);
@@ -1448,12 +1450,7 @@ app.player = (function () {
                                     //can interrupt the writing process.
                                     placeholder:""},
                        ost.song.nt || ""],
-                      ["div", {cla:"dlgbuttonsdiv"},
-                       bids2DefA(["cancelb", "savcmtb"]).map((bdef) =>
-                           ["button", {type:"button", id:bdef.id,
-                                       onclick:mdfs("cmt.buttonHandler",
-                                                    bdef.id)},
-                            bdef.name])],
+                      ["div", {cla:"dlgbuttonsdiv"}, buttonsHTML()],
                       ["div", {id:"cmtstatdiv"}]]]);
                 setTimeout(function () {
                     const cta = jt.byId("commentta");
@@ -1471,11 +1468,7 @@ app.player = (function () {
                                     src:"img/diggerbutton.png"}]],
                    ["div", ["img", {id:"sharrowimg",
                                     src:"img/sharrow.png"}]],
-                   ["div", {id:"shbdiv"},
-                    bids2DefA(["sg2cbb", "sg2dhb"]).map((bdef) =>
-                        ["button", {type:"button", id:bdef.id,
-                                    onclick:mdfs("cmt.buttonHandler", bdef.id)},
-                         bdef.name])]]],
+                   ["div", {id:"shbdiv"}, buttonsHTML()]]],
                  ["div", {id:"sharestatdiv"}]]); }); },
         buttonHandler: function (bid) {
             jt.byId(bid).disabled = true;

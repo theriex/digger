@@ -21,7 +21,7 @@ A:hover {text-decoration:underline; color:#00989a; }
 img { border:0px; vertical-align:middle; }
 
 button { color:black; background:#ccc; cursor:pointer; font-size:small;
-  font-weight:normal; padding:1px 4px; margin:5px 10px 0px 0px;
+  font-weight:normal; padding:1px 4px; margin:5px 32px 0px 0px;
   border:2px solid black; border-radius:8px; box-shadow:2px 2px 2px #666; }
 
 #contentframingdiv { height:100vh; background-image: url('../img/desktop.png');
@@ -283,7 +283,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   border-radius:20px; margin:5px; height:160px; width:345px; }
 #pposidiv { position:absolute; top:5px; left:5px; }
 #sharedispdiv { display:flex; align-items:center; justify-content:center;
-  height: 160px; }
+  /* match ppocontdiv height: */ height:140px; padding-top:20px; }
 #sharedispdiv div { display:flex; flex-direction:column;
   justify-content:space-around; height:90px; }
 #sharedispdiv #shbdiv { justify-content:space-between; }
