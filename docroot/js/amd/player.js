@@ -391,9 +391,9 @@ app.player = (function () {
         spotifyTrackDetails: function () {
             return pbi.det || {title:"", artist:"", album:""}; },
         switchToSpotifyTrack: function (wpso) {
-            mgrs.tun.toggleTuningOpts("off");
+            mgrs.cmt.toggleTuningOpts("off");
             mgrs.cmt.toggleCommentDisplay("off");
-            mgrs.cmt.togSongShareDialog("off");
+            mgrs.cmt.toggleSongShare("off");
             const st = wpso.track_window.current_track;
             const tid = "z:" + st.id;
             stat.song = {dsId:"spotify" + tid, ti:st.name,
@@ -482,7 +482,7 @@ app.player = (function () {
             mgrs.slp.updateStatusInfo(pbi.state, pbi.pos, pbi.dur, status.path);
             debouncing = false; }
         function clearSongDisplay () {
-            mgrs.tun.toggleTuningOpts("off");
+            mgrs.cmt.toggleTuningOpts("off");
             mgrs.cmt.resetDisplay("mob clear");  //close comment if open
             jt.out("playtitletextspan", "---"); }
         function handleStatusQueryCallback (status) {
@@ -668,14 +668,13 @@ app.player = (function () {
                  [["div", {id:"playtitlebuttonsdiv"},
                    [["span", {id:"modindspan"}],
                     ["a", {href:"#tuneoptions", title:"Tune Playback Options",
-                           id:"tuneopta", onclick:mdfs("tun.toggleTuningOpts")},
+                           id:"tuneopta", onclick:mdfs("cmt.toggleTuningOpts")},
                      ["img", {src:tunesrc, cla:"ptico inv", id:"tuneimg"}]]]],
                   ["span", {id:"playtitletextspan"},
                    app.deck.dispatch("sop", "songIdentHTML", stat.song)]]])); },
         updateSongDisplay: function () {
             mgrs.kwd.rebuildToggles();
             mgrs.aud.updateSongTitleDisplay();
-            mgrs.tun.resetClearedMetDat();
             mgrs.pan.updateControl("al", stat.song.al);
             mgrs.pan.updateControl("el", stat.song.el);
             stat.song.rv = stat.song.rv || 0;  //verify numeric value
@@ -716,300 +715,6 @@ app.player = (function () {
                                    cla:"ptico inv"}]]]]]]])); }
             mgrs[cap].verifyPlayer(contf); }
     };  //end mgrs.aud returned functions
-    }());
-
-
-    //handle the tuning fork actions and info display
-    mgrs.tun = (function () {
-        var fos = [{v:"P", t:"Playable"}, {v:"B", t:"Tired"},
-                   {v:"R", t:"Don't Suggest"}];
-        var subcats = {"P":["N",   //Newly added song
-                            "P"],  //Playable
-                       "B":["B",   //Back-burner, default 90 days between plays
-                            "Z",   //Resting, default 180 days between plays
-                            "O"],  //Overplayed, default 365 days between plays
-                       "R":["R",   //Reference only, do not play by default
-                            "M",   //Metadata no longer matches media
-                            "I",   //Ignore, song is in an ignore folder
-                            "D",   //Deleted, media file no longer available
-                            "U"]}; //Unreadable, no metadata, corrupted etc.
-        function albumActButtonsHTML () {
-            return jt.tac2html(
-                [["button", {type:"button",
-                             title:"Add selected keywords to all Album songs",
-                             onclick:mdfs("tun.associateKeywordsWithAlbum")},
-                  [["img", {cla:"tunactimg inv", src:"img/keys.png"}],
-                   "&nbsp;&#x21e8;&nbsp;", //rightwards white arrow
-                   ["img", {cla:"tunactimg inv", src:"img/album.png"}]]],
-                 ["button", {type:"button",
-                             title:"Mark all songs on this album as tired",
-                             onclick:mdfs("tun.snoozeAllSongsOnAlbum")},
-                  [["img", {cla:"tunactimg inv", src:"img/album.png"}],
-                   "&nbsp;&#x21e8;&nbsp;", //rightwards white arrow
-                   ["img", {cla:"tunactimg inv", src:"img/snzblk.png"}]]]]); }
-        function humanReadKwds (kwdcsv) {
-            const qks = kwdcsv.csvarray().map((kwd) => "\"" + kwd + "\"");
-            return qks.join(", "); }
-        function prevPlayAndDupesHTML () {
-            var pp = ""; var ddct = ""; var dupesongshtml = "";
-            if(stat.prevPlayed) {
-                pp = jt.tz2human(stat.prevPlayed);
-                pp = "Previously played " + pp; }
-            const dupes = app.deck.dispatch("sdt", "getSongDupes", stat.song);
-            if(dupes && dupes.length) {
-                const dn = dupes.length;
-                ddct = jt.tac2html(
-                    [", ",
-                     ["a", {href:"#togdupedisplay",
-                            onclick:jt.fs("app.togdivdisp('dupesdispdiv')")},
-                      dn + " dupe" + ((dn > 1)? "s" : "")]]);
-                dupesongshtml = jt.tac2html(
-                    dupes.map((s) =>
-                        ["div", {cla:"dupesongdispdiv"},
-                         app.deck.dispatch("sop", "songIdentHTML", s)])); }
-            return jt.tac2html(
-                ["div", {id:"prevplaydiv"},
-                 [["span", {id:"ppvalspan"}, pp],
-                  ddct,
-                  ["div", {id:"dupesdispdiv", style:"display:none"},
-                   dupesongshtml]]]); }
-        function genreDispHTML () {
-            var html = ""; var gv;
-            if(stat.song.genrejson) {
-                try {
-                    gv = JSON.parse(stat.song.genrejson);
-                    if(Array.isArray(gv)) {
-                        gv = gv.map((g) => jt.escq(g)).join(", "); }
-                    html = "Genre: " + gv;
-                } catch(e) {
-                    jt.log("genreDispHTML err " + e); } }
-            return html; }
-    return {
-        isSubcatValue: function (cat, val) {
-            return (subcats[cat] && subcats[cat].indexOf(val) >= 0); },
-        isSelVal: function (radval) {
-            var songval = stat.song.fq || "P";
-            if(songval === "0") { songval = "P"; }  //tolerate bad data init
-            songval = songval.slice(0, 1);  //e.g treat "DP" as Deleted
-            return mgrs.tun.isSubcatValue(radval, songval); },
-        fqOptsHTML: function () {
-            return fos.map((fo) =>
-                ["div", {cla:"tuneoptiondiv"},
-                 [["input", {type:"radio", id:"tunerad" + fo.v,
-                             name:"tuneoption", value:fo.v,
-                             checked:jt.toru(mgrs.tun.isSelVal(fo.v)),
-                             onclick:mdfs("tun.updateSongFrequency", "event")}],
-                  ["label", {fo:"tunerad" + fo.v}, fo.t]]]); },
-        updateSongFrequency: function (event) {
-            var rbv = event.target.value;
-            if(!mgrs.tun.isSubcatValue(rbv, stat.song.fq)) {  //value changed
-                stat.song.fq = rbv;
-                noteSongModified(); } },
-        toggleTuningOpts: function (togstate) {
-            var ptitle = jt.byId("playertitle");
-            var tdiv = jt.byId("playertuningdiv");
-            var timg = jt.byId("tuneimg");
-            if(!tdiv) { return; }  //nothing to do
-            if(tdiv.innerHTML || !stat.song || togstate === "off") {
-                tdiv.innerHTML = "";
-                if(timg) { timg.src = "img/tunefork.png"; }
-                ptitle.style.overflow = "hidden";
-                ptitle.style.maxHeight = "20px";  //hide top of next line
-                return; }
-            if(timg) { timg.src = "img/tuneforkact.png"; }
-            ptitle.style.overflow = "visible";
-            ptitle.style.maxHeight = "none";
-            tdiv.innerHTML = jt.tac2html(
-                [["div", {id:"frequencyoptionsdiv"}, mgrs.tun.fqOptsHTML()],
-                 ["div", {id:"tuningdetdiv"}, mgrs.tun.optDetailsHTML()]]); },
-        changeTuningField: function (fld, val, toggleoff) {
-            if(toggleoff) {
-                mgrs.tun.toggleTuningOpts("off"); }
-            stat.song[fld] = val;
-            noteSongModified(); },
-        resetClearedMetDat: function () {
-            const sfs = ["ti", "ar", "ab"];
-            sfs.forEach(function (sf) {
-                var input = jt.byId("tdet" + sf);
-                if(input && !input.value) {
-                    input.value = stat.song[sf]; } }); },
-        spotWrongC: function () {
-            const trackdet = mgrs.spa.spotifyTrackDetails();
-            //"From" line filled out and prepended on server
-            const subj = "Bad spotify song mapping " + stat.song.spid;
-            var body = "Song " + stat.song.dsId + "\n" +
-                "  ti: " + stat.song.ti + "\n" +
-                "  ar: " + stat.song.ar + "\n" +
-                "  ab: " + stat.song.ab + "\n" +
-                "is wrongly mapped to " + stat.song.spid + "\n" +
-                "  title: " + trackdet.title + "\n" +
-                "  artist: " + trackdet.artist + "\n" +
-                "  album: " + trackdet.album + "\n" +
-                "Check and respond by email \n";
-            jt.out("spotdetactdiv", "Sending...");
-            app.svc.dispatch("web", "postSupportRequest", subj, body,
-                function () {
-                    jt.out("spotdetactdiv", "Support notified." +
-                           " Will be in touch by email."); },
-                function (code, errtxt) {
-                    jt.out("spotdetactdiv", code + ": " + errtxt); }); },
-        spotWrongSong: function () {
-            jt.out("spotdetactdiv", jt.tac2html(
-                ["div", {id:"badspidconfdiv"},
-                 ["Report bad song mapping to support@diggerhub.com?",
-                  ["div", {cla:"dlgbuttonsdiv"},
-                   [["button", {type:"button", onclick:mdfs("tun.spotDetails")},
-                     "Cancel"],
-                    ["button", {type:"button", onclick:mdfs("tun.spotWrongC")},
-                     "Send"]]]]])); },
-        spotDetails: function () {
-            if(jt.byId("spotdetactdiv")) {  //toggle off
-                return jt.out("tunedetwrkdiv", ""); }
-            const spurl = "https://open.spotify.com/track/" +
-                  stat.song.spid.slice(2);
-            const trackdet = mgrs.spa.spotifyTrackDetails();
-            jt.out("tunedetwrkdiv", jt.tac2html(
-                [["table", {id:"tunedetwrktable"},
-                  Object.entries(trackdet).map(function ([a, v]) {
-                      return ["tr", {cla:"spotdettr"},
-                              [["td", {cla:"spotdetattr"},
-                                a.capitalize() + ":"],
-                               ["td", {cla:"spotdetval"}, v]]]; })],
-                 ["div", {id:"spotdetactdiv", cla:"dlgbuttonsdiv"},
-                  [["span", {id:"spotwrongsongspan"},
-                    ["a", {href:"#wrongsong", onclick:mdfs("tun.spotWrongSong"),
-                           title:"Report bad song mapping"},
-                     "Report wrong song"]],
-                   " &nbsp; ",
-                   ["span", {id:"spotopentrackspan"},
-                    ["a", {href:"openspotify", title:"Open in Spotify",
-                           onclick:jt.fs("window.open('" + spurl + "')")},
-                     "Open in Spotify"]]]]])); },
-        optDetailsHTML: function () {
-            return jt.tac2html(
-                ["div", {id:"tunedetdiv"},
-                 [["div", {id:"prevplaydupesdiv"}, prevPlayAndDupesHTML()],
-                  ["div", {id:"playcountdiv"}, "Digger plays: " + stat.song.pc],
-                  ["div", {id:"genresdiv"}, genreDispHTML()],
-                  ["div", {id:"songurldiv"}, "Source: " + stat.song.path],
-                  ["div", {id:"abactbuttonsdiv"}, albumActButtonsHTML()],
-                  ["div", {id:"abactdiv"}]]]); }, //conf dialog for kwd assoc
-        associateKeywordsWithAlbum: function () {
-            //Not worth extending to remove all keywords. Use a marker kw.
-            const divid = "abactdiv";
-            const div = jt.byId(divid);
-            if(div.innerHTML) {  //already displayed, toggle off
-                div.innerHTML = "";
-                return; }
-            if(!stat.song.kws) {
-                jt.out(divid, "No keywords selected");
-                return; }
-            const ropts = [{v:"overwrite", t:"Overwrite"},
-                           {v:"addifmiss", t:"Add if not already set",
-                            c:"checked"}];
-            jt.out(divid, jt.tac2html(
-                ["Associate " + humanReadKwds(stat.song.kws) +
-                 " with all songs on \"" + stat.song.ab + "\"?",
-                 ["div", {id:"abactoptsdiv"},
-                  [ropts.map((ao) =>
-                      ["div", {cla:"tuneoptiondiv"},
-                       [["input", {type:"radio", id:"assocrad" + ao.v,
-                                   name:"assocoption", value:ao.v,
-                                   checked:jt.toru(ao.c)}],
-                        ["label", {fo:"assocrad" + ao.v}, ao.t]]]),
-                   ["button", {type:"button",
-                               onclick:mdfs("tun.assocKwdProc", "ab")},
-                    "Update Songs"]]]])); },
-        assocKwdProc: function (fld) {
-            var merge = jt.byId("assocradaddifmiss");
-            if(merge) {
-                merge = merge.checked; }
-            jt.out("abactoptsdiv", "Processing...");
-            app.svc.fetchSongs(
-                function (songs) {
-                    var updsongs = [];
-                    jt.out("abactoptsdiv", "Marking...");
-                    const locmod = new Date().toISOString();
-                    Object.values(songs).forEach(function (s) {
-                        if(s[fld] === stat.song[fld] && s.ar === stat.song.ar) {
-                            if(merge) {
-                                stat.song.kws.csvarray().forEach(function (kw) {
-                                    s.kws = s.kws.csvremove(kw);
-                                    s.kws = s.kws.csvappend(kw); }); }
-                            else {
-                                s.kws = stat.song.kws; }
-                            s.locmod = locmod;
-                            updsongs.push(s); } });
-                    jt.out("abactoptsdiv", "Updating " + updsongs.length +
-                           " songs...");
-                    app.svc.dispatch("gen", "updateMultipleSongs", updsongs,
-                        function (upds) {
-                            app.deck.dispatch("alb", "noteUpdatedAlbumSongs",
-                                              upds);
-                            jt.out(fld + "actdiv", String(updsongs.length) +
-                                   " songs updated."); },
-                        function (code, errtxt) {
-                            jt.out("abactoptsdiv", "Song update failed " +
-                                   code + ": " + errtxt); }); },
-                function (code, errtxt) {
-                    jt.out("abactoptsdiv", "Song retrieval failed " + code +
-                           ": " + errtxt); }); },
-        snoozeAllSongsOnAlbum: function () {
-            const divid = "abactdiv";
-            const div = jt.byId(divid);
-            if(div.innerHTML) {  //already displayed, toggle off
-                div.innerHTML = "";
-                return; }
-            jt.out(divid, jt.tac2html(
-                ["Mark all songs tired on \"" + stat.song.ab + "\"?",
-                 ["div", {id:"abactoptsdiv"},
-                  ["button", {type:"button",
-                              onclick:mdfs("tun.snoozeAlbumSongsProc", "ab")},
-                   "Update Songs"]]])); },
-        snoozeAlbumSongsProc: function (fld) {
-            jt.out("abactoptsdiv", "Processing...");
-            app.svc.fetchSongs(
-                function (songs) {
-                    var updsongs = [];
-                    jt.out("abactoptsdiv", "Marking...");
-                    const locmod = new Date().toISOString();
-                    Object.values(songs).forEach(function (s) {
-                        if(s[fld] === stat.song[fld] && s.ar === stat.song.ar) {
-                            if(subcats.B.indexOf(s.fq) < 0) {  //not tired
-                                s.fq = "B";
-                                s.locmod = locmod;
-                                updsongs.push(s); } } });
-                    if(!updsongs.length) {
-                        jt.out(fld + "actdiv", "All songs marked as tired.");
-                        return; }
-                    jt.out("abactoptsdiv", "Updating " + updsongs.length +
-                           " songs...");
-                    app.svc.dispatch("gen", "updateMultipleSongs", updsongs,
-                        function (upds) {
-                            app.deck.dispatch("alb", "noteUpdatedAlbumSongs",
-                                              upds);
-                            jt.out(fld + "actdiv", String(updsongs.length) +
-                                   " songs updated."); },
-                        function (code, errtxt) {
-                            jt.out("abactoptsdiv", "Song update failed " +
-                                   code + ": " + errtxt); }); },
-                function (code, errtxt) {
-                    jt.out("abactoptsdiv", "Song retrieval failed " + code +
-                           ": " + errtxt); }); },
-        bumpTired: function (song) {  //general utility
-            var tfqidx = subcats.B.indexOf(stat.song.fq);
-            if(tfqidx < 0) {  //not currently marked as tired
-                song.fq = "B";
-                return true; }
-            if(tfqidx >= 0 && tfqidx < subcats.B.length - 1) {
-                song.fq = subcats.B[tfqidx + 1];
-                return true; }
-            return false; },
-        bumpCurrentIfTired: function () {
-            if(stat.song && stat.song.fq) {  //already marked as tired
-                if(mgrs.tun.bumpTired(stat.song)) {  //made tireder
-                    noteSongModified(); } } }
-    };  //end of mgrs.tun returned functions
     }());
 
 
@@ -1265,6 +970,20 @@ app.player = (function () {
     //handle the selected keywords display and entry
     mgrs.kwd = (function () {
         var kwdefs = null;
+        function kwds2albHTML () {
+            return jt.tac2html(
+                ["div", {cla:"buttondlgdiv"},
+                 [["button", {
+                     type:"button",
+                     title:"Add selected keywords to all Album songs",
+                     onclick:mdfs("kwd.togkwds2alb")},
+                   [["img", {cla:"tunactimg inv", src:"img/keys.png"}],
+                    "&nbsp;&#x21e8;&nbsp;", //rightwards white arrow
+                    ["img", {cla:"tunactimg inv", src:"img/album.png"}]]],
+                  ["div", {id:"kwds2albconfdiv"}]]]); }
+        function humanReadKwds (kwdcsv) {
+            const qks = kwdcsv.csvarray().map((kwd) => "\"" + kwd + "\"");
+            return qks.join(", "); }
     return {
         makeToggleButton: function (kd, idx) {
             var tc = "kwdtogoff";
@@ -1283,6 +1002,7 @@ app.player = (function () {
             else {
                 button.className = "kwdtogoff";
                 stat.song.kws = stat.song.kws.csvremove(button.innerHTML); }
+            mgrs.kwd.togkwds2alb("off");
             app.top.dispatch("gen", "togtopdlg", "", "close");  //sc changed
             noteSongModified(); },
         rebuildToggles: function (context) {
@@ -1297,9 +1017,9 @@ app.player = (function () {
                  ["span", {id:"extrakwspan"}]]));
             if(context === "playeradd") {
                 mgrs.kwd.toggleExpansion(); } },
-        toggleExpansion: function () {
+        toggleExpansion: function (togstate) {
             var togb = jt.byId("kwdexpb");
-            if(togb.innerHTML === "+") {
+            if(togb.innerHTML === "+" && togstate !== "off") {
                 jt.out("newkwspan", jt.tac2html(
                     [["input", {type:"text", id:"kwdin", size:10, value:"",
                                 placeholder:"new keyword"}],
@@ -1307,7 +1027,8 @@ app.player = (function () {
                                  onclick:mdfs("kwd.addNewKeyword")}, "+"]]));
                 jt.out("extrakwspan", jt.tac2html(
                     kwdefs.filter((kd) => kd.pos <= 0).map((kd, i) =>
-                        mgrs.kwd.makeToggleButton(kd, i + 4))));
+                        mgrs.kwd.makeToggleButton(kd, i + 4))
+                        .concat(kwds2albHTML())));
                 togb.innerHTML = "-"; }
             else {
                 jt.out("newkwspan", "");
@@ -1327,7 +1048,67 @@ app.player = (function () {
             if(!stat.song.kws.csvcontains(kwd)) {
                 stat.song.kws = stat.song.kws.csvappend(kwd);
                 noteSongModified(); }
-            app.top.dispatch("kwd", "addKeyword", kwd, "playeradd"); }
+            app.top.dispatch("kwd", "addKeyword", kwd, "playeradd"); },
+        togkwds2alb: function (togstate) {
+            //Not worth extending to remove all keywords. Use a marker kw.
+            const divid = "kwds2albconfdiv";
+            const div = jt.byId(divid);
+            if(togstate === "off" || div.innerHTML) {
+                div.innerHTML = "";
+                return; }
+            const wasoa = " with all songs on \"" + stat.song.ab + "\"";
+            if(!stat.song.kws) {
+                div.innerHTML = "Select keywords to associate" + wasoa;
+                return; }
+            const ropts = [{v:"overwrite", t:"Overwrite"},
+                           {v:"addifmiss", t:"Add if not already set",
+                            c:"checked"}];
+            jt.out(divid, jt.tac2html(
+                ["Associate " + humanReadKwds(stat.song.kws) + wasoa + "?",
+                 ["div", {id:"abactoptsdiv"},
+                  [ropts.map((ao) =>
+                      ["div", {cla:"tuneoptiondiv"},
+                       [["input", {type:"radio", id:"assocrad" + ao.v,
+                                   name:"assocoption", value:ao.v,
+                                   checked:jt.toru(ao.c)}],
+                        ["label", {fo:"assocrad" + ao.v}, ao.t]]]),
+                   ["button", {type:"button",
+                               onclick:mdfs("kwd.assocKwdProc", "ab")},
+                    "Update Songs"]]]])); },
+        assocKwdProc: function (fld) {
+            var merge = jt.byId("assocradaddifmiss");
+            if(merge) {
+                merge = merge.checked; }
+            jt.out("abactoptsdiv", "Processing...");
+            app.svc.fetchSongs(
+                function (songs) {
+                    var updsongs = [];
+                    jt.out("abactoptsdiv", "Marking...");
+                    const locmod = new Date().toISOString();
+                    Object.values(songs).forEach(function (s) {
+                        if(s[fld] === stat.song[fld] && s.ar === stat.song.ar) {
+                            if(merge) {
+                                stat.song.kws.csvarray().forEach(function (kw) {
+                                    s.kws = s.kws.csvremove(kw);
+                                    s.kws = s.kws.csvappend(kw); }); }
+                            else {
+                                s.kws = stat.song.kws; }
+                            s.locmod = locmod;
+                            updsongs.push(s); } });
+                    jt.out("abactoptsdiv", "Updating " + updsongs.length +
+                           " songs...");
+                    app.svc.dispatch("gen", "updateMultipleSongs", updsongs,
+                        function (upds) {
+                            app.deck.dispatch("alb", "noteUpdatedAlbumSongs",
+                                              upds);
+                            jt.out("abactoptsdiv", String(updsongs.length) +
+                                   " songs updated."); },
+                        function (code, errtxt) {
+                            jt.out("abactoptsdiv", "Song update failed " +
+                                   code + ": " + errtxt); }); },
+                function (code, errtxt) {
+                    jt.out("abactoptsdiv", "Song retrieval failed " + code +
+                           ": " + errtxt); }); }
     };  //end mgrs.kwd returned functions
     }());
 
@@ -1338,6 +1119,30 @@ app.player = (function () {
         const modeps = {
             share: {bids:["sg2cbb", "sg2dhb"], statd:"sharestatdiv"},
             comment: {bids:["cancelb", "savcmtb"], statd:"cmtstatdiv"}};
+        const sfos = [{v:"P", t:"Playable"},  //selectable frequency options
+                      {v:"B", t:"Tired"},
+                      {v:"R", t:"Don't Suggest"}];
+        const subcats = {"P":["N",   //Newly added song
+                              "P"],  //Playable
+                         "B":["B",   //Back-burner, 90 days between plays
+                              "Z",   //Resting, default 180 days between plays
+                              "O"],  //Overplayed, 365 days between plays
+                         "R":["R",   //Reference only, do not play by default
+                              "M",   //Metadata no longer matches media
+                              "I",   //Ignore, song is in an ignore folder
+                              "D",   //Deleted, media file no longer available
+                              "U"]}; //Unreadable, no metadata, corrupted etc.
+        function isSubcatValue (cat, val) {
+            return (subcats[cat] && subcats[cat].indexOf(val) >= 0); }
+        function tuningDisplayMode (val) {
+            var sfo = sfos.find((sfo) => isSubcatValue(sfo.v, val));
+            sfo = sfo || sfos[0];
+            return sfo.v; }
+        function isSelVal (radval) {
+            var songval = ost.song.fq || "P";
+            if(songval === "0") { songval = "P"; }  //tolerate bad data init
+            songval = songval.slice(0, 1);  //e.g treat "DP" as Deleted
+            return isSubcatValue(radval, songval); }
         function impressionSummary () {
             const imps = [{lab:"Keywords", val:ost.song.kws || "none"},
                           {lab:"Approachability", val:"Medium"},
@@ -1361,6 +1166,40 @@ app.player = (function () {
             if(acct && acct.digname) {
                 txt += "\nFind me on DiggerHub: " + acct.digname + "\n"; }
             return txt; }
+        function prevPlayAndDupesHTML () {
+            var pp = ""; var ddct = ""; var dupesongshtml = "";
+            if(ost.prevPlayed) {
+                pp = jt.tz2human(ost.prevPlayed);
+                pp = "Previously played " + pp; }
+            const dupes = app.deck.dispatch("sdt", "getSongDupes", ost.song);
+            if(dupes && dupes.length) {
+                const dn = dupes.length;
+                ddct = jt.tac2html(
+                    [", ",
+                     ["a", {href:"#togdupedisplay",
+                            onclick:jt.fs("app.togdivdisp('dupesdispdiv')")},
+                      dn + " dupe" + ((dn > 1)? "s" : "")]]);
+                dupesongshtml = jt.tac2html(
+                    dupes.map((s) =>
+                        ["div", {cla:"dupesongdispdiv"},
+                         app.deck.dispatch("sop", "songIdentHTML", s)])); }
+            return jt.tac2html(
+                ["div", {id:"prevplaydiv"},
+                 [["span", {id:"ppvalspan"}, pp],
+                  ddct,
+                  ["div", {id:"dupesdispdiv", style:"display:none"},
+                   dupesongshtml]]]); }
+        function genreDispHTML () {
+            var html = ""; var gv;
+            if(ost.song.genrejson) {
+                try {
+                    gv = JSON.parse(ost.song.genrejson);
+                    if(Array.isArray(gv)) {
+                        gv = gv.map((g) => jt.escq(g)).join(", "); }
+                    html = "Genre: " + gv;
+                } catch(e) {
+                    jt.log("genreDispHTML err " + e); } }
+            return html; }
         function resStat(txt) {
             jt.log("player.cmt.resStat: " + txt);
             jt.out(modeps[ost.mode].statd, jt.tac2html(
@@ -1368,6 +1207,18 @@ app.player = (function () {
                  ["a", {href:"#done", onclick:mdfs("cmt.closeOverlay")},
                   "Ok"]]));
             ost.btdonef(); }
+        function showTiredAlbumButton () {
+            jt.out("albtireddiv", "");
+            if(isSubcatValue("B", ost.song.fq)) {
+                jt.out("albtireddiv", jt.tac2html(
+                    ["div", {cla:"buttondlgdiv"},
+                     [["button", {type:"button",
+                                  title:"Mark all songs on this album as tired",
+                                  onclick:mdfs("cmt.snoozeAllSongsOnAlbum")},
+                       [["img", {cla:"tunactimg inv", src:"img/album.png"}],
+                        "&nbsp;&#x21e8;&nbsp;", //rightwards white arrow
+                        ["img", {cla:"tunactimg inv", src:"img/snzblk.png"}]]],
+                      ["div", {id:"albtiredconfdiv"}]]])); } }
         const buttons = {
             sg2cbb: {name:"Clipboard", handler:function () {
                 const txt = clipboardSongDescription(ost.song);
@@ -1403,15 +1254,15 @@ app.player = (function () {
                         jt.log("Song" + ost.song.dsId + " comment saved: " +
                                upds[0].nt);
                         mgrs.cmt.closeOverlay();
-                        mgrs.cmt.updateCommentIndicator();
+                        mgrs.cmt.updateIndicators();
                         ost.btdonef(); },
                     function (code, errtxt) {
                         resStat("Comment save failed " + code + ": " +
                                 errtxt); }); }} };
         function buttonsHTML () {
             return jt.tac2html(modeps[ost.mode].bids.map((bid) =>
-                ["button", {type:"button", id:buttons[bid].id,
-                            onclick:mdfs("cmt.buttonHandler", buttons[bid].id)},
+                ["button", {type:"button", id:bid,
+                            onclick:mdfs("cmt.buttonHandler", bid)},
                  buttons[bid].name])); }
         function togDialog (togstate, mode, dispf) {
             ost.song = null;
@@ -1420,6 +1271,7 @@ app.player = (function () {
             if(togstate === "off" || odiv.style.display !== "none") {
                 odiv.style.display = "none";
                 return; }
+            mgrs.kwd.toggleExpansion("off");
             ost.song = stat.song;  //dialog update reference
             const ppmdiv = jt.byId("panplaydiv");
             odiv.style.display = "block";
@@ -1431,15 +1283,22 @@ app.player = (function () {
                  [["div", {id:"pposidiv"}, 
                    app.deck.dispatch("sop", "songIdentHTML", ost.song)],
                   dispf()]]); }
+        function allowablePercolatingEvent (event) {
+            return (event.target && event.target.id &&
+                    event.target.id.startsWith("tunerad")); }
+            
     return {
         cleanCommentText: function (txt) {
             txt = txt || "";
             if(txt) {
                 txt = txt.replace(/Amazon.com Song ID: \d+/, "").trim(); }
             return txt; },
-        closeOverlay: function () { togDialog("off"); },
+        closeOverlay: function (event) {
+            if(!allowablePercolatingEvent(event)) {
+                togDialog("off"); } },
         ignoreClick: function (event) {
-            jt.evtend(event); },
+            if(!allowablePercolatingEvent(event)) {
+                jt.evtend(event); } },
         toggleCommentDisplay: function (togstate) {
             togDialog(togstate, "comment", function () {
                 const html = jt.tac2html(
@@ -1457,11 +1316,18 @@ app.player = (function () {
                     if(cta) {
                         cta.focus(); } }, 150);
                 return html; }); },
-        updateCommentIndicator: function () {
-            jt.byId("togcommentimg").src = "img/comment.png";
-            if(mgrs.cmt.cleanCommentText(stat.song.nt)) {
-                jt.byId("togcommentimg").src = "img/commentact.png"; } },
-        togSongShareDialog: function (togstate) {
+        updateIndicators: function () {
+            const tuneimg = jt.byId("tuneimg");
+            if(tuneimg) {
+                tuneimg.src = "img/tunefork.png";  //reset
+                if(tuningDisplayMode(stat.song.nt) !== "P") {
+                    tuneimg.src = "img/tuneforkact.png"; } }
+            const commentimg = jt.byId("togcommentimg");
+            if(commentimg) {
+                commentimg.src = "img/comment.png";  //reset
+                if(mgrs.cmt.cleanCommentText(stat.song.nt)) {
+                    commentimg.src = "img/commentact.png"; } } },
+        toggleSongShare: function (togstate) {
             togDialog(togstate, "share", function () { return jt.tac2html(
                 [["div", {id:"sharedispdiv"},
                   [["div", ["img", {id:"sharesrcimg",
@@ -1470,6 +1336,100 @@ app.player = (function () {
                                     src:"img/sharrow.png"}]],
                    ["div", {id:"shbdiv"}, buttonsHTML()]]],
                  ["div", {id:"sharestatdiv"}]]); }); },
+        toggleTuningOpts: function (togstate) {
+            togDialog(togstate, "tuning", function () {
+                const html = jt.tac2html(
+                    ["div", {id:"tunefqdispdiv"},
+                     [["div", {id:"frequencyoptionsdiv"},
+                       sfos.map((fo) =>
+                           ["div", {cla:"tuneoptiondiv"},
+                            [["input", {type:"radio", id:"tunerad" + fo.v,
+                                        name:"tuneoption", value:fo.v,
+                                        checked:jt.toru(isSelVal(fo.v)),
+                                        onclick:mdfs("cmt.updateSongFrequency",
+                                                     "event")}],
+                             ["label", {fo:"tunerad" + fo.v}, fo.t]]])],
+                      ["div", {id:"tuningdetdiv"}, 
+                       ["div", {id:"tunedetdiv"},
+                        [["div", {id:"prevplaydupesdiv"},
+                          prevPlayAndDupesHTML()],
+                         ["div", {id:"playcountdiv"},
+                          "Digger plays: " + stat.song.pc],
+                         ["div", {id:"genresdiv"}, genreDispHTML()],
+                         ["div", {id:"songurldiv"},
+                          "Source: " + stat.song.path],
+                         ["div", {id:"albtireddiv"}]]]]]]);
+                setTimeout(showTiredAlbumButton, 500);
+                return html; }); },
+        updateSongFrequency: function (event) {
+            var rbv = event.target.value;
+            if(!isSubcatValue(rbv, stat.song.fq)) {  //value changed
+                stat.song.fq = rbv;
+                showTiredAlbumButton();
+                mgrs.cmt.updateIndicators();
+                noteSongModified(); } },
+        reflectChangedSongFrequency: function (ignore /*fld*/, val) {
+            const button = jt.byId("tunerad" + tuningDisplayMode(val));
+            if(button && !button.checked) {
+                //stat.song.fq already updated, just reflecting the value
+                showTiredAlbumButton();
+                mgrs.cmt.updateIndicators();
+                button.checked = true; } },
+        snoozeAllSongsOnAlbum: function () {
+            const divid = "albtiredconfdiv";
+            const div = jt.byId(divid);
+            if(div.innerHTML) {  //already displayed, toggle off
+                div.innerHTML = "";
+                return; }
+            jt.out(divid, jt.tac2html(
+                ["Mark all songs tired on \"" + ost.song.ab + "\"?",
+                 ["div", {id:"abactoptsdiv"},
+                  ["button", {type:"button",
+                              onclick:mdfs("cmt.snoozeAlbumSongsProc")},
+                   "Update Songs"]]])); },
+        snoozeAlbumSongsProc: function () {
+            jt.out("abactoptsdiv", "Processing...");
+            app.svc.fetchSongs(
+                function (songs) {
+                    var updsongs = [];
+                    jt.out("abactoptsdiv", "Marking...");
+                    const locmod = new Date().toISOString();
+                    Object.values(songs).forEach(function (s) {
+                        if(s.ab === ost.song.ab && s.ar === ost.song.ar) {
+                            if(subcats.B.indexOf(s.fq) < 0) {  //not tired
+                                s.fq = "B";
+                                s.locmod = locmod;
+                                updsongs.push(s); } } });
+                    if(!updsongs.length) {
+                        jt.out("abactoptsdiv", "All songs marked as tired.");
+                        return; }
+                    jt.out("abactoptsdiv", "Updating " + updsongs.length +
+                           " songs...");
+                    app.svc.dispatch("gen", "updateMultipleSongs", updsongs,
+                        function (upds) {
+                            app.deck.dispatch("alb", "noteUpdatedAlbumSongs",
+                                              upds);
+                            jt.out("abactoptsdiv", String(updsongs.length) +
+                                   " songs updated."); },
+                        function (code, errtxt) {
+                            jt.out("abactoptsdiv", "Song update failed " +
+                                   code + ": " + errtxt); }); },
+                function (code, errtxt) {
+                    jt.out("abactoptsdiv", "Song retrieval failed " + code +
+                           ": " + errtxt); }); },
+        bumpTired: function (song) {  //general utility
+            var tfqidx = subcats.B.indexOf(stat.song.fq);
+            if(tfqidx < 0) {  //not currently marked as tired
+                song.fq = "B";
+                return true; }
+            if(tfqidx >= 0 && tfqidx < subcats.B.length - 1) {
+                song.fq = subcats.B[tfqidx + 1];
+                return true; }
+            return false; },
+        bumpCurrentIfTired: function () {
+            if(stat.song && stat.song.fq) {  //already marked as tired
+                if(mgrs.cmt.bumpTired(stat.song)) {  //made tireder
+                    noteSongModified(); } } },
         buttonHandler: function (bid) {
             jt.byId(bid).disabled = true;
             ost.btdonef = function () { jt.byId(bid).disabled = false; };
@@ -1477,7 +1437,7 @@ app.player = (function () {
         resetDisplay: function (caller) {
             jt.log("cmt.resetDisplay called from " + (caller || "Unknown"));
             togDialog("off");
-            mgrs.cmt.updateCommentIndicator(); }
+            mgrs.cmt.updateIndicators(); }
     };  //end mgrs.cmt returned functions
     }());
 
@@ -1675,7 +1635,7 @@ app.player = (function () {
     mgrs.gen = (function () {
         const uichg = [  //fields changeable in the player UI with update funcs
             {fld:"fq", uf:function (val) {
-                mgrs.tun.changeTuningField("fq", val, true); }},
+                mgrs.cmt.reflectChangedSongFrequency("fq", val); }},
             {fld:"al", uf:function (val) {
                 mgrs.pan.updateControl("al", val); }},
             {fld:"el", uf:function (val) {
@@ -1715,7 +1675,7 @@ app.player = (function () {
                            ["div", {cla:"playerbdiv"},
                             ["a", {id:"togsharelink", href:"#share",
                                    title:"Share",
-                                   onclick:mdfs("cmt.togSongShareDialog")},
+                                   onclick:mdfs("cmt.toggleSongShare")},
                              ["img", {id:"togshareimg", cla:"plbimg inv",
                                       src:"img/share.png"}]]],
                            ["div", {cla:"playerbdiv"},
@@ -1730,7 +1690,7 @@ app.player = (function () {
                       [["div", {id:"alpandragdiv", cla:"pandragdiv"}],
                        ["div", {id:"elpandragdiv", cla:"pandragdiv"}]]]]]]],
                  ["div", {id:"panplayoverlaydiv", style:"display:none",
-                          onclick:mdfs("cmt.closeOverlay")}]]));
+                          onclick:mdfs("cmt.closeOverlay", "event")}]]));
             mgrs.pan.makePanControls();
             //toggle controls are rebuilt after data loads, not needed yet
             mgrs.rat.makeRatingValueControl(); },
@@ -1739,9 +1699,9 @@ app.player = (function () {
             //player calls contf if is ready, otherwise contf is ignored and it
             //is up to the player to start playback after it is ready.
             mgrs.aud.verifyPlayer(function () {
-                mgrs.tun.toggleTuningOpts("off");
+                mgrs.cmt.toggleTuningOpts("off");
                 mgrs.cmt.toggleCommentDisplay("off");
-                mgrs.cmt.togSongShareDialog("off");
+                mgrs.cmt.toggleSongShare("off");
                 stat.status = "";
                 if(!mgrs.slp.shouldSleepNow()) {
                     const ns = app.deck.getNextSong();
@@ -1751,7 +1711,7 @@ app.player = (function () {
                     stat.stale = stat.song;
                     stat.song = ns;
                     mgrs.gen.logCurrentlyPlaying("player.gen.next");
-                    mgrs.cmt.updateCommentIndicator();
+                    mgrs.cmt.updateIndicators();
                     mgrs.aud.playAudio(); } }); },
         illuminateAndFade: function (divid, ms) {
             var elem = jt.byId(divid);
@@ -1775,7 +1735,7 @@ app.player = (function () {
                 mgrs.slp.resume(); }
             else {
                 jt.log("noting skip and calling next");
-                mgrs.tun.bumpCurrentIfTired();  //bump fq value if tired
+                mgrs.cmt.bumpCurrentIfTired();  //bump fq value if tired
                 stat.song.pd = "skipped";
                 mgrs.gen.next(); } },
         deckUpdated: function (/*mgrname*/) {

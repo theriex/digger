@@ -526,7 +526,7 @@ app.deck = (function () {
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         snooze: function (ignore /*mgrnm*/, idx) {
             var song = ds[idx];
-            app.player.dispatch("tun", "bumpTired", song);
+            app.player.dispatch("cmt", "bumpTired", song);
             mgrs.dk.markSongPlayed(song);
             song.pd = "snoozed";
             ds.splice(idx, 1);
