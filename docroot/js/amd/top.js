@@ -2173,7 +2173,7 @@ app.top = (function () {
                   acts.filter((a) => a.ty === "info")
                   .map((a) =>
                       ["div", {cla:"pathdiv"}, mgrs.locla[a.htmlfs]()])],
-                 ["div", {cla:"dlgbuttonsdiv"},
+                 ["div", {cla:"dlgbstight"},
                   acts.filter((a) => a.ty === "btn")
                   .map((a) =>
                       ["button", {type:"button", id:a.id, title:a.tt,

@@ -1364,7 +1364,8 @@ app.player = (function () {
         updateSongFrequency: function (event) {
             var rbv = event.target.value;
             if(!isSubcatValue(rbv, stat.song.fq)) {  //value changed
-                stat.song.fq = rbv;
+                ost.song.fq = rbv;    //for local reference
+                stat.song.fq = rbv;   //for updated song save
                 showTiredAlbumButton();
                 mgrs.cmt.updateIndicators();
                 noteSongModified(); } },

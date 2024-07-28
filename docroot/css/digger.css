@@ -78,7 +78,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 
 .buttonico { max-height:36px; vertical-align:middle; padding:0px 5px; }
 #topdlgdiv { max-height:180px; overflow:scroll; }
-.dlgbuttonsdiv { text-align:center; padding-bottom:10px; }
+.dlgbuttonsdiv, .dlgbstight { text-align:center; padding-bottom:10px; }
+.dlgbstight button { margin:5px 10px 0px 0px; }
 .statdiv { font-size:small; }
 #toponelinestatdiv { max-height:1em; overflow:hidden; white-space:nowrap; }
 #toponelinestatdiv, #topstatdiv, #topdlgdiv { padding:0px 15px; }
