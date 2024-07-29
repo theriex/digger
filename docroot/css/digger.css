@@ -68,7 +68,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   background-size: cover;
   background-repeat: no-repeat; }
 #pantopdiv { padding-bottom:0px; border-radius:0px 0px 30px 30px; }
-#pandbdiv { padding:10px 6px 0px 6px; }
 #pandeckdiv { padding:10px 6px 4px 6px; height:430px; max-height:430px;
   overflow:hidden; border-radius:30px; }
 .inv { }
@@ -104,15 +103,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .expoptdiv { font-size:medium; padding:5px 0px 5px 8px; }
 #exportfileindiv { margin-left:20px; }
 
-.statespan { padding-right:5px; }
-.counterlabel { font-size:medium; font-style:italic; padding-right:5px; }
 .countspan { font-size:medium; padding-right:5px; }
-.mergemsgdiv { font-size:small; }
 .cldiv { font-size:small; }
 
-.kwseldiv { display:inline-block; margin-right:5px; }
-.kwdselnum { font-size:small; }
-#restartwithseldiv { margin-top:10px; }
 #kwupdtablediv { min-width:200px; }
 #kwdseltable { margin:5px auto; }
 .kwdtr { font-size:small; }
@@ -130,7 +123,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .bmdsonglinkdiv { font-size:small; }
 
 .formattr { font-size:small; text-align:right; }
-.cblab { font-size:small; }
 #afgtopdiv { font-size:small; padding-left:4px; }
 #afgcontdiv { position:relative; padding-bottom:10px; }
 #afgextradiv { font-size:small; text-align:right; padding-right:10px; }
@@ -138,11 +130,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #wkactdaysel { margin-left:8px; }
 #formfunctogdiv { float:left; margin:5px 0px 0px 30px; }
 #dmsoConfirmDiv { text-align:left; }
-#privacceptlabel { font-size:small; }
 .fhselspan { color:#FFAB00; }
 .formvalspan { font-size:medium; color:#666; font-style:italic;
   margin-left:2px; }
-.dachoicediv { min-width:100px; }
 #mfsrchdiv { text-align:right; font-size:small; }
 #mfsrchstatdiv { padding: 2px 5ps; }
 #fgaoverlaydiv { position:absolute; top:0px; left:0px; }
@@ -158,28 +148,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .donenotediv { font-size:small; }
 #msgstatdiv { font-size:small; padding:16px 0px 2px 0px; }
 #msgstatdiv button { background:transparent; }
-
-.musflinksspan { font-size:small; }
-.sepcomspan { padding:0px 5px 0px 0px; }
-#musflabelspan { font-size:medium; font-weight:bold; }
-#musfinfonamespan { font-size:medium; }
-
-.mflediv { display:inline-block; padding:0px 3px; }
-.dispnamespan { display:inline-block; min-width:64px; max-width:64px;
-  vertical-align:middle; }
-.dhcspan, .obcspan { display:inline-block; min-width:40px;
-  vertical-align:middle;}
-.dhcspan { text-align:right; }
-.obcspan { text-align:left; }
-#addmfdiv { margin-top:6px; }
-#mfsdiv { font-size:medium; }
-#mfbdiv { display:inline-block; padding:0px 0px 0px 6px; }
-#mfsubstatdiv { padding:4px 0px 0px 0px; }
-#mfsubformdiv label { margin-right:4px; }
-#mfsubformdiv input { margin-right:4px; }
-#mfsubformbdiv, #mfinvdonebdiv { display:inline-block; }
-#mfinvitelink { font-weight:bold; font-size:large; }
-
 
 #ciheadingdiv { font-size:small; padding:0px 0px 7px 0px; font-style:italic; }
 .filenamespan { font-style:normal; }
@@ -205,9 +173,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   border-radius:8px; }
 #tuneopta { margin-right:10px; }
 .tuneoptiondiv { display:inline-block; font-size:small; padding-right:24px; }
-.tuneoptdetattr, .spotdetattr { text-align:right; font-size:small;
-  font-style:italic; margin:0px 10px 0px 0px; }
-.tuneoptdetval, .spotdetval { text-align:left; font-size:small; }
 .tunactimg { max-height:22px; }
 #tunedetdiv { margin-top:8px; position:relative; }
 #prevplaydiv, #songurldiv, #playcountdiv, #genresdiv { font-size:x-small; }
@@ -217,11 +182,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #albtiredconfdiv { background:whitesmoke; padding:5px; border-radius:10px;
   width:300px; }
 #pmsgdiv { font-size:small; font-weight:bold; }
-#abactbuttonsdiv { text-align:center; padding:2px 0px 6px 0px; }
-#abactdiv { font-size:small; }
 #abactoptsdiv { text-align:center; padding-bottom:10px; }
-#spotdetactdiv { font-size:small; max-width:290px; }
-#tunedetwrktable { padding:0px 0px 0px 22px; }
 #audioplayerdiv { display:flex; justify-content:left; align-items:center;
   min-height:50px; padding-left:25px; }  /* mobile playback UI fits with pad */
 #audiodiv { display:inline-block; }
@@ -253,15 +214,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #pandragcontdiv { position:absolute; top:0px; left:25px; }
 .pandragdiv { position:absolute; left:0px; top:0px; cursor:pointer; }
 .panddecdiv { position:absolute; left:0px; top:0px; }
-.pandrgbdiv { position:absolute; left:0px; top:0px; }
 
 #panplaydiv { position:relative; }
-#panplaymousingdiv { position:relative; 
-  user-select: none; /* supported by Chrome and Opera */
-  -webkit-user-select: none; /* Safari */
-  -khtml-user-select: none; /* Konqueror HTML */
-  -moz-user-select: none; /* Firefox */
-  -ms-user-select: none; /* Internet Explorer/Edge */ }
+#panplaymousingdiv { position:relative; user-select: none; }
 #mediaoverlaydiv { position:absolute; top:0px; left:2px; background:#ffab00;
   padding:8px 12px; font-size:medium; border-radius:14px; }
 #keysratdiv { margin-left:-2px; margin-top:7px; }
@@ -279,7 +234,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
-#commentdiv { text-align:center; }
 #commentdispdiv { position:absolute; top:48px; left:10px; }
 #commentta { padding:3px 5px; background:#f3dfb6; border:1px solid #333; }
 #sleepdiv { position:absolute; top:11px; left:105px; width:200px;
@@ -300,18 +254,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #sharrowimg { height:58px; }
 #sharestatdiv { position:absolute; top:60px; left:20px; background:#ffab00;
   padding:2px; }
-
-#sharedlgdiv { position:relative; padding:12px; margin:0px auto;
-  background:#ffab00; color:#111111; display:table; margin:0px auto;}
-#ssdtitlediv { text-align:center; color:#9a6e16; }
-#ssdclosexdiv { position:absolute; top:8px; right:8px; }
-#ssdidentdiv { padding:5px 0px; }
-.sdfprediv { font-size:small; font-style:italic; }
-.sdfvaldiv { font-size:large; font-weight:bold; }
-#ssdkwdsdiv { padding:5px 0px; margin-top:5px; }
-.implabeldiv { font-size:small; font-style:italic; }
-.impvaldiv { font-size:medium; font-weight:bold; }
-#ssdactdiv { padding-top:5px; }
 
 
 #pluidiv { background:#333; margin:2px 0px 6px 0px; padding:10px 0px;
@@ -336,15 +278,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 /****************************************/
 /* Filter Panel */
 
-#panfiltdiv {
-  user-select: none; /* supported by Chrome and Opera */
-  -webkit-user-select: none; /* Safari */
-  -khtml-user-select: none; /* Konqueror HTML */
-  -moz-user-select: none; /* Firefox */
-  -ms-user-select: none; /* Internet Explorer/Edge */ }
-.paneltitlediv { font-size:x-small; text-align:center; letter-spacing:1.2em; 
-  font-weight:bold; margin-bottom:2px; }
-#fpecspan { display:inline-block; transition:all 0.2s; }
+#panfiltdiv { user-select: none; }
 #rangesdiv { display:flex; justify-content:space-around; }
 .rangectrldiv { display:inline-block; position:relative; }
 .rangetopdispdiv { position:relative }
@@ -362,10 +296,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .rangelowlabeldiv { left:7px; }
 .rangehighlabeldiv { right:7px; }
 .rangesurfdiv svg { position:absolute; left:0px; top:0px; }
-.vnobdiv { position:absolute; top:0px; left:0px; }
-.hnobdiv { position:absolute; top:0px; left:0px; }
 .mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer; }
-.rngslidebg { position:absolute; top:0px; left:0px; }
 #kwtogsdiv { text-align:center; overflow:hidden; margin-top:-6px; }
 .kwtogdiv { display:inline-block; font-size:medium; padding:0px 0px 5px 0px; }
 .kwtcontdiv { cursor:pointer; position:relative; width:72px; }
@@ -414,7 +345,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #srchresdiv { overflow:scroll; padding:4px 5px 11px; }
 .srchresmatchvspan { font-weight:bold; }
 .srchxpctoga { padding-right:5px; }
-.rsltarchildrendiv { padding-left:8px; }
 .rsltabchildrendiv { padding-left:16px; }
 #toghistb { margin-left:-16px; margin-right:16px; }
 #toginfob { margin-left:-8px; margin-right:8px; }
@@ -433,7 +363,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .decksongactdiv { position:absolute; top:0px; left:20px; z-index:1;
   background:rgba(144, 144, 144, 0.6); padding:0px 8px; border-radius:5px; }
 .sopa { margin:0px 30px; }
-.sopx, .sopfrsugdiv { color:white; background:#999; }
 .dsoidiv { display:inline-flex; width:28px; height:28px; border-radius:14px;
   align-items:center; justify-content:center;
   background:rgba(64, 64, 64, 0.6); }
@@ -446,24 +375,19 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #albplaydiv { overflow:scroll; }
 .sgalbdiv { padding:8px 5px; }
 .sgalbarspan { font-style:italic; }
-.albumsongdiv { font-size:smaller; margin:5px 0px; }
 .albumsonglink { display:block; font-size:smaller; padding:0px 0px 2px 15px; }
 .albumarrow { padding-right:3px; vertical-align:middle; }
 .vtab, .vtabsel { display:inline-block; font-size:small; padding:2px 6px;
   margin:0px 10px 0px 0px; border-radius:5px; border:1px solid black; }
 .vtab { }
 .vtabsel { background:#ffab00; }
-#deckvtabsdiv { padding:0px 0px 6px 0px; letter-spacing:0.2em; }
-#deckvcontdiv { }
 
 /****************************************/
 /* Manual */
 
 code { font-size:medium; }
-.nobullul { list-style-type:none; }
 .manimg, .manimginv { max-height:20px; margin:0px 5px; }
 .manimginv { filter:invert(100%); }
-.mansmimg { max-height:20px; }
 .manmdimg { max-height:25px; }
 .manlgimg { max-height:40px; padding-bottom:4px; }
 .manrcimg { max-height:100px; padding-bottom:4px; }
