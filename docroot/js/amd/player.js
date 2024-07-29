@@ -1284,7 +1284,7 @@ app.player = (function () {
                    app.deck.dispatch("sop", "songIdentHTML", ost.song)],
                   dispf()]]); }
         function allowablePercolatingEvent (event) {
-            return (event.target && event.target.id &&
+            return (event && event.target && event.target.id &&
                     event.target.id.startsWith("tunerad")); }
             
     return {
