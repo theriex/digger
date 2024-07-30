@@ -60,7 +60,7 @@ mv Digger.dmg ../../diggerhub/site/public/downloads
 #   - paste relnotes, rollout
 # https://appstoreconnect.apple.com/
 #   1. node copyfiles.js  # from ~/general/dev/diggerIOS/ref
-#   2. xcode|Product|Archive -> upload
+#   2. xcode any iOS device, Product|Archive -> upload
 #   3. add new app version on appstoreconnect
 # diggerhub:
 #   - deploy the updated site and executables
