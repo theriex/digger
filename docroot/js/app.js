@@ -704,7 +704,8 @@ return {
             return new Date(tms).toISOString(); }
         function fakeLastPlayed (s) {
             const daysecs = 24 * 60 * 60;
-            const rndsecs = Math.floor(Math.random() * 31) * daysecs;
+            const rndday = Math.floor(Math.random() * 31)
+            const rndsecs = (rndday + 91) * daysecs;
             //set modified later to avoid trying to write it to hub
             s.lp = timestampMinusSeconds(rndsecs);  //modified is later
             s.modified = timestampMinusSeconds(rndsecs - 2); }
@@ -726,6 +727,8 @@ return {
                 songdat[path].el = 70;
                 songdat[path].rv = 8;
                 songdat[path].kws = kwds;
+                songdat[path].fq = "B";  //light up tuning fork
+                songdat[path].nt = "Placeholder comment to light indicator";
                 fakeLastPlayed(songdat[path]);
                 songdat[path].dsId = nextFakeDbId(); } }
         function getSongData () {

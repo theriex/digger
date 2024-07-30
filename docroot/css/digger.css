@@ -278,9 +278,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 /****************************************/
 /* Filter Panel */
 
-#panfiltdiv { user-select: none; }
+#panfiltdiv { user-select:none; }
 #rangesdiv { display:flex; justify-content:space-around; }
-.rangectrldiv { display:inline-block; position:relative; }
+.rangectrldiv { display:inline-block; position:relative; user-select:none; }
 .rangetopdispdiv { position:relative }
 .rangebgraddiv { position:absolute; top:0px; left:0px;
   outline:2px solid #777; }
@@ -296,7 +296,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .rangelowlabeldiv { left:7px; }
 .rangehighlabeldiv { right:7px; }
 .rangesurfdiv svg { position:absolute; left:0px; top:0px; }
-.mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer; }
+.mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer;
+  user-select:none; }
 #kwtogsdiv { text-align:center; overflow:hidden; margin-top:-6px; }
 .kwtogdiv { display:inline-block; font-size:medium; padding:0px 0px 5px 0px; }
 .kwtcontdiv { cursor:pointer; position:relative; width:72px; }

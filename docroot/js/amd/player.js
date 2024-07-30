@@ -678,7 +678,8 @@ app.player = (function () {
             mgrs.pan.updateControl("al", stat.song.al);
             mgrs.pan.updateControl("el", stat.song.el);
             stat.song.rv = stat.song.rv || 0;  //verify numeric value
-            mgrs.rat.adjustPositionFromRating(stat.song.rv); },
+            mgrs.rat.adjustPositionFromRating(stat.song.rv);
+            mgrs.cmt.updateIndicators(); },
         playAudio: function () {
             stat.status = "playing";
             jt.log("player.aud.playAudio " + JSON.stringify(stat.song));
@@ -1320,7 +1321,7 @@ app.player = (function () {
             const tuneimg = jt.byId("tuneimg");
             if(tuneimg) {
                 tuneimg.src = "img/tunefork.png";  //reset
-                if(tuningDisplayMode(stat.song.nt) !== "P") {
+                if(tuningDisplayMode(stat.song.fq) !== "P") {
                     tuneimg.src = "img/tuneforkact.png"; } }
             const commentimg = jt.byId("togcommentimg");
             if(commentimg) {
