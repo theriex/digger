@@ -134,7 +134,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .formvalspan { font-size:medium; color:#666; font-style:italic;
   margin-left:2px; }
 #mfsrchdiv { text-align:right; font-size:small; }
-#mfsrchstatdiv { padding: 2px 5ps; }
+#mfsrchstatdiv { padding: 2px 5px; }
 #fgaoverlaydiv { position:absolute; top:0px; left:0px; }
 .fgacelldiv, .fgacelldivnum { display:inline-block; font-size:small;
   padding:0px 10px 0px 0px; width:100%; font-weight:bold; }
@@ -190,9 +190,9 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   border: 2px solid #777; border-radius:10px;}
 .bgtransitionfade { transition:background-color 750ms; }
 
-#mediadiv { margin-bottom:4px; }
-#impressiondiv { position:relative; }
-#panpotsdiv { position:relative; padding-left:25px; }
+#mediadiv { margin-bottom:4px; user-select:none; }
+#impressiondiv { position:relative; user-select:none; }
+#panpotsdiv { position:relative; padding-left:25px; user-select:none; }
 .pandiv { display:inline-block; position:relative; }
 #alpandiv { margin-right:7px; }
 .pancontdiv { width:140px; height:40px; cursor:pointer;
@@ -211,19 +211,21 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .panrightlabdiv { right:5px; }
 .panbackimg { max-height:44px; }
 .panfaceimg { max-height:40px; }
-#pandragcontdiv { position:absolute; top:0px; left:25px; }
-.pandragdiv { position:absolute; left:0px; top:0px; cursor:pointer; }
+#pandragcontdiv { position:absolute; top:0px; left:25px; user-select:none; }
+.pandragdiv { position:absolute; left:0px; top:0px; cursor:pointer;
+  user-select:none; }
 .panddecdiv { position:absolute; left:0px; top:0px; }
 
 #panplaydiv { position:relative; }
-#panplaymousingdiv { position:relative; user-select: none; }
+#panplaymousingdiv { position:relative; user-select:none; }
 #mediaoverlaydiv { position:absolute; top:0px; left:2px; background:#ffab00;
   padding:8px 12px; font-size:medium; border-radius:14px; }
-#keysratdiv { margin-left:-2px; margin-top:7px; }
+#keysratdiv { margin-left:-2px; margin-top:7px; user-select:none; }
 #kwdsdiv { display:inline-block; }
 .buttondlgdiv { display:inline-block; }
 .buttondlgdiv button { margin:4px; }
-#starsnbuttonsdiv { padding:10px 0px 2px 22px; position:relative; }
+#starsnbuttonsdiv { padding:10px 0px 2px 22px; position:relative;
+  user-select:none; }
 #rvdiv { display:inline-block; padding-left:8px; }
 #playerbuttonsdiv { display:inline-block; vertical-align:top; }
 .playerbdiv { display:inline-block; position:relative; }
@@ -237,11 +239,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #commentdispdiv { position:absolute; top:48px; left:10px; }
 #commentta { padding:3px 5px; background:#f3dfb6; border:1px solid #333; }
 #sleepdiv { position:absolute; top:11px; left:105px; width:200px;
-  background:rgba(256, 171, 0, 0.7); padding:0px 8px; border-radius:5px;
+  background:rgba(255, 171, 0, 0.7); padding:0px 8px; border-radius:5px;
   text-align:right; font-size:medium; }
 
 #panplayoverlaydiv { position:absolute; top:0px; left:0px; 
-  background:rgba(256, 171, 0, 0.7);}
+  background:rgba(255, 171, 0, 0.7);}
 #ppocontdiv { background:rgba(200, 200, 200, 0.9); position:relative;
   border-radius:20px; margin:5px; height:160px; width:345px; }
 #pposidiv { position:absolute; top:5px; left:5px; }
@@ -304,7 +306,6 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .kwtoglabel { position:absolute; left:6px; top:0px; transform-origin:top left;
   transform:rotate(90deg) translate(0%, -100%);
   max-width:58px; overflow:hidden; font-size:14px; margin-top:5px; }
-.kwtbdiv { postion:absolute; right:20px; top:0px; }
 #kwdseltogdiv { display:inline-block; margin:0px 8px 0px -8px; }
 
 #ratdiv { margin:0px 5px 0px 0px; text-align:center; }
