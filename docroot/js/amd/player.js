@@ -1340,7 +1340,7 @@ app.player = (function () {
         toggleTuningOpts: function (togstate) {
             togDialog(togstate, "tuning", function () {
                 const html = jt.tac2html(
-                    ["div", {id:"tunefqdispdiv"},
+                    ["div", {id:"tunefqdispdiv", cla:"togdlgabspos"},
                      [["div", {id:"frequencyoptionsdiv"},
                        sfos.map((fo) =>
                            ["div", {cla:"tuneoptiondiv"},
@@ -1432,6 +1432,8 @@ app.player = (function () {
             if(stat.song && stat.song.fq) {  //already marked as tired
                 if(mgrs.cmt.bumpTired(stat.song)) {  //made tireder
                     noteSongModified(); } } },
+        toggleOtherDisplay: function (togstate, mode, dispf) {
+            togDialog(togstate, mode, dispf); },
         buttonHandler: function (bid) {
             jt.byId(bid).disabled = true;
             ost.btdonef = function () { jt.byId(bid).disabled = false; };
@@ -1579,14 +1581,15 @@ app.player = (function () {
         startSleep: function (msg, logreason) {
             if(!mgrs.slp.isNowSleeping()) {
                 jt.log("slp.startSleep reason: " + logreason); }
-            const odiv = jt.byId("mediaoverlaydiv");
-            odiv.style.top = (jt.byId("playertitle").offsetHeight + 2) + "px";
-            odiv.style.display = "block";
-            odiv.innerHTML = jt.tac2html(
-                [msg, ["a", {href:"#playnext", id:"sleepresumelink",
+            mgrs.cmt.resetDisplay("slp.startSleep");
+            mgrs.cmt.toggleOtherDisplay("on", "sleeping", function () {
+                return jt.tac2html(
+                    ["div", {id:"nowsleepingresumediv", cla:"togdlgabspos"},
+                     [msg, 
+                      "&nbsp;",
+                      ["a", {href:"#playnext", id:"sleepresumelink",
                              onclick:mdfs("slp.resume")},
-                       "Resume playback"],
-                 " &nbsp; &nbsp; "]);
+                       "Resume playback"]]]); });
             //resuming with the space bar can cause conflict with play/pause
             //hook for the player, leaving playback stopped.  If that causes
             //an error, or the spacebarhook is not reset, hitting the space
