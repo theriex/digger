@@ -55,13 +55,17 @@ mv Digger.icns Digger/Digger.app/Contents/Resources/
 mv Digger.dmg ../../diggerhub/site/public/downloads
 
 # https://play.google.com/console/
-#   - Create new release
-#   - Android Studio|Build|Generate Signed Bundle, drop upload to site
-#   - paste relnotes, rollout
+#   1. node makelinks.js delete  # from ~/general/dev/diggerdroid/ref
+#   2. node makelinks.js
+#   3. Create new release on play store
+#   4. Android Studio|Build|Generate Signed Bundle, drop upload to site
+#   5. paste relnotes, rollout
 # https://appstoreconnect.apple.com/
-#   1. node copyfiles.js  # from ~/general/dev/diggerIOS/ref
-#   2. xcode any iOS device, Product|Archive -> upload
-#   3. add new app version on appstoreconnect
+#   1. node copyfiles.js delete  # from ~/general/dev/diggerIOS/ref
+#   2. node copyfiles.js
+#   3. xcode any iOS device, Product|Archive -> upload
+#   4. add new app version on appstoreconnect
+#   5. paste relnotes, rollout
 # diggerhub:
 #   - deploy the updated site and executables
 #   - verify downloaded Digger.dmg Applications folder alias is preserved
