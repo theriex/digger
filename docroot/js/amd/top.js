@@ -201,7 +201,8 @@ app.top = (function () {
             //received account + any songs that need to be saved locally.
             //svc processing has already persisted local data so just need
             //to reflect the updated account and songs in the runtime.
-            var changed = mgrs.aaa.reflectAccountChangeInRuntime(updates[0]);
+            mgrs.aaa.hubCommsCompleted(true);
+            const changed = mgrs.aaa.reflectAccountChangeInRuntime(updates[0]);
             if(changed) { //need to rebuild display with updated info
                 mgrs.aaa.notifyAccountChanged(); }
             const songs = updates.slice(1);
@@ -1328,6 +1329,7 @@ app.top = (function () {
         var dfltigfolds = [];  //Noisy folders that are typically not songs
         var cfg = null;  //runtime config object
         var curracct = null;
+        var hubcomms = false;
         function resetCurrentAccountRef () {
             curracct = cfg.acctsinfo.accts.find((x) =>
                 x.dsId === cfg.acctsinfo.currid);
@@ -1339,6 +1341,7 @@ app.top = (function () {
         getConfig: function () { return cfg; },
         getAcctsInfo: function () { return cfg.acctsinfo; },
         getDefaultKeywordDefinitions: function () { return dfltkeywords; },
+        hubCommsCompleted: function (complete) { hubcomms = complete; },
         setConfig: function (config) {
             cfg = config;
             dfltigfolds = cfg.dfltigfolds || dfltigfolds;
@@ -1365,6 +1368,7 @@ app.top = (function () {
             resetCurrentAccountRef(); },
         reflectAccountChangeInRuntime: function (acct, token) {
             mgrs.hcu.deserializeAccount(acct);  //verify deserialized
+            acct.hubVersion = (hubcomms? acct.hubVersion : "");
             const changed = mgrs.hcu.accountDisplayDiff(curracct, acct);
             token = token || curracct.token;
             mgrs.aaa.verifyConfig();  //make sure guest account available
