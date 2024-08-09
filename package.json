@@ -1,6 +1,6 @@
 {
   "name": "digger",
-  "version": "1.0.0",
+  "version": "1.3.8",
   "description": "Contextual music library access server",
   "main": "digger.js",
   "bin": "digger.js",
@@ -45,7 +45,7 @@
     "type": "git",
     "url": "git+https://github.com/theriex/digger.git"
   },
-  "author": "",
+  "author": "Eric Parker",
   "license": "GPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/theriex/digger/issues"

@@ -5,6 +5,7 @@
 #   ./Digger/Digger.app/Contents/Info.plist CFBundleVersion (numeric, no 'v')
 #   ../server/db.js diggerVersion (string, preceding 'v')
 #   ../../diggerhub/site/py/util.py version (string, preceding 'v')
+#   ../package.json version
 # Verify compiled client versions are >=:
 #   ../../diggerdroid/app/build.gradle versionName (no 'v'), bump versionCode
 #   xcode, proj nav view, top diggerIOS
@@ -18,7 +19,7 @@
 node ../../diggerhub/build/cachev.js
 node cachev.js
 
-# Create the default platform executables
+# Read ../package.json and create Linux, macOS and Windows executables
 pkg ../
 # Browsers won't download .exe files directly so zip it
 zip -r -X digger-win.zip digger-win.exe

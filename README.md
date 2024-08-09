@@ -20,19 +20,23 @@ Digger copies the default [config.json](https://github.com/theriex/digger/blob/m
  * spawn: Optional command to run when digger starts up.
 
 
-
 ## Install
 
-To run from source, follow these steps:
+To install Digger directly from source:
+  1. Download the digger source and switch to that folder.
+  2. Install [node.js](https://nodejs.org/en/download/) if you don't already have it already.
+  3. Install the supporting packages:
 
-Setup:
-1. Download the digger source code or git clone the project.
-2. If haven't already, install [node.js](https://nodejs.org/en/download/)
-3. npm install
+    npm install node-fetch@2
+    npm i music-metadata
+    npm install node-static
+    npm i -S formidable
 
-Whenever you want music
-1. node digger.js
-2. Open [http://localhost:6980](http://localhost:6980)
+Run digger from the folder where you downloaded it:
+
+    node digger.js
+
+Open [http://localhost:6980](http://localhost:6980)
 
 
 ## Status
