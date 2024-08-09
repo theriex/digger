@@ -32,8 +32,10 @@ app.deck = (function () {
             const mar = simplifiedMatch(song.ar).toLowerCase();
             Object.entries(sbp).forEach(function ([p, s]) {
                 if(p !== song.path &&  //original song is not a dupe
-                   s.ti.toLowerCase().startsWith(mti) &&
-                   s.ar.toLowerCase().startsWith(mar)) {
+                   s.ti && s.ti.toLowerCase().startsWith(mti) &&
+                   s.ar && s.ar.toLowerCase().startsWith(mar) &&
+                   (!s.fq || (!s.fq.includes("D") &&
+                              !s.fq.includes("U")))) {
                     if(markplayed) {
                         //not updating s.pc/fq since not actually played
                         if(!s.lp || s.lp < song.lp) {
