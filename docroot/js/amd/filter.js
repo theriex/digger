@@ -411,7 +411,7 @@ app.filter = (function () {
                 {tx:"Tagged Only", ti:"Only pull songs with keywords."},
                 {tx:"Untagged Only", ti:"Only pull songs with no keywords."}],
                  idx:0, bid:"incluntb"}};
-        function writeHTML (divid) {
+        function writeHTML (divid) {  //e.g. "ratdiv"
             var elems = Object.entries(tgds).map(function ([dn, dd]) {
                 return ["button", {type:"button", id:dd.bid,
                                    style:"color:" + ctrls.activecolor,
