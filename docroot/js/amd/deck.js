@@ -658,7 +658,7 @@ app.deck = (function () {
                 if(nowplayingsong) {  //might not be playing if no music
                     songs.unshift(nowplayingsong); } } // len > sqmax is valid.
             return songs; },
-        endedDueToSleep: function () {  //can click to resume if more songs
+        moreSongsToPlay: function () {  //true if more songs on deck
             return mgrs.dk.songs().length; },
         getNextSong: function () {
             jt.log("getNextSong from deck");
@@ -856,7 +856,7 @@ app.deck = (function () {
                 if(!includeContextSongs) {  //don't include current song
                     songs = songs.slice(1); } }
             return songs; },
-        endedDueToSleep: function () {  //can click to resume if more alb tracks
+        moreSongsToPlay: function () {  //true if have more album tracks
             return (aid[cak] && aid[cak].src === "pmq" &&
                     //if on last song and playback ended, nothing left to resume
                     aid[cak].ci < aid[cak].songs.length - 1); },
@@ -1285,9 +1285,8 @@ app.deck = (function () {
             if(fmt !== "ssd") {  //return paths if not simplified song details
                 ret.qsi = ret.qsi.map((s) => s.path); }
             return ret; },
-        endedDueToSleep: function () {
-            //guess if app independent mobile playback stopped due to sleep
-            return mgrs[songSeqMgrName].endedDueToSleep(); },
+        moreSongsToPlay: function () {  //returns true if playback can continue
+            return mgrs[songSeqMgrName].moreSongsToPlay(); },
         deckstate: function (dmx) {  //interim rapid restore info (minimal data)
             var state = {ssmn:songSeqMgrName};
             dmx = dmx || 0;  //must be numeric, verify not undefined.
@@ -1342,7 +1341,7 @@ return {
     isPlayable: function (s) { return (!s.fq || !s.fq.match(/^[DUI]/)); },
     isDeckable: function (s) { return (!s.fq || !s.fq.match(/^[RMDUI]/)); },
     getPlaybackState: mgrs.gen.getPlaybackState,
-    endedDueToSleep: mgrs.gen.endedDueToSleep,
+    moreSongsToPlay: mgrs.gen.moreSongsToPlay,
     getState: mgrs.gen.deckstate,
     setState: mgrs.gen.restore,
     stableDeckLength: mgrs.ws.stableDeckLength,

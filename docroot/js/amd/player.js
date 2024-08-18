@@ -979,7 +979,7 @@ app.player = (function () {
                      title:"Add selected keywords to all Album songs",
                      onclick:mdfs("kwd.togkwds2alb")},
                    [["img", {cla:"tunactimg inv", src:"img/keys.png"}],
-                    "&nbsp;&#x21e8;&nbsp;", //rightwards white arrow
+                    "&nbsp;<b>&#x21d2;</b>&nbsp;", //rightwards double arrow
                     ["img", {cla:"tunactimg inv", src:"img/album.png"}]]],
                   ["div", {id:"kwds2albconfdiv"}]]]); }
         function humanReadKwds (kwdcsv) {
@@ -1204,9 +1204,10 @@ app.player = (function () {
         function resStat(txt) {
             jt.log("player.cmt.resStat: " + txt);
             jt.out(modeps[ost.mode].statd, jt.tac2html(
-                [["div", {id:"pdlgstattxtdiv"}, txt],
-                 ["a", {href:"#done", onclick:mdfs("cmt.closeOverlay")},
-                  "Ok"]]));
+                ["div", {id:"resstatcontdiv"},
+                 [["div", {id:"pdlgstattxtdiv"}, txt],
+                  ["a", {href:"#done", onclick:mdfs("cmt.closeOverlay")},
+                   "Ok"]]]));
             ost.btdonef(); }
         function showTiredAlbumButton () {
             jt.out("albtireddiv", "");
@@ -1217,7 +1218,7 @@ app.player = (function () {
                                   title:"Mark all songs on this album as tired",
                                   onclick:mdfs("cmt.snoozeAllSongsOnAlbum")},
                        [["img", {cla:"tunactimg inv", src:"img/album.png"}],
-                        "&nbsp;&#x21e8;&nbsp;", //rightwards white arrow
+                        "&nbsp;<b>&#x21d2;</b>&nbsp;", //rightwards double arrow
                         ["img", {cla:"tunactimg inv", src:"img/snzblk.png"}]]],
                       ["div", {id:"albtiredconfdiv"}]]])); } }
         const buttons = {
@@ -1289,6 +1290,7 @@ app.player = (function () {
                     event.target.id.startsWith("tunerad")); }
             
     return {
+        getMode: function () { return ost.mode; },
         cleanCommentText: function (txt) {
             txt = txt || "";
             if(txt) {
@@ -1384,11 +1386,12 @@ app.player = (function () {
                 div.innerHTML = "";
                 return; }
             jt.out(divid, jt.tac2html(
-                ["Mark all songs tired on \"" + ost.song.ab + "\"?",
-                 ["div", {id:"abactoptsdiv"},
-                  ["button", {type:"button",
-                              onclick:mdfs("cmt.snoozeAlbumSongsProc")},
-                   "Update Songs"]]])); },
+                ["div", {id:"albtiredconfcontdiv"},
+                 ["Mark all songs tired on \"" + ost.song.ab + "\"?",
+                  ["div", {id:"abactoptsdiv"},
+                   ["button", {type:"button",
+                               onclick:mdfs("cmt.snoozeAlbumSongsProc")},
+                    "Mark All Songs Tired"]]]])); },
         snoozeAlbumSongsProc: function () {
             jt.out("abactoptsdiv", "Processing...");
             app.svc.fetchSongs(
@@ -1605,6 +1608,7 @@ app.player = (function () {
             jt.log("slp.reset reason: " + reason);
             sst.ctrl = "off";
             sst.count = 0;
+            mgrs.cmt.closeOverlay();
             clearOverlayMessage();
             updateSleepActiveCheckbox();
             updateSleepCountInput();
@@ -1612,9 +1616,10 @@ app.player = (function () {
             mgrs.slp.toggleSleepDisplay("close"); },
         resume: function () {
             mgrs.slp.reset("slp.resume");
-            const cap = mgrs.aud.currentAudioPlayer();
-            jt.log("slp.resume calling " + cap + ".sleep cancel");
-            mgrs[cap].sleep(1000, "cancel"); },
+            setTimeout(function () {  //restart playback after UI updated
+                const cap = mgrs.aud.currentAudioPlayer();
+                jt.log("slp.resume calling " + cap + ".sleep cancel");
+                mgrs[cap].sleep(1000, "cancel"); }, 150); },
         limitToSleepQueueMax: function (qm) {  //queue max
             if(sst.ctrl !== "on") {
                 return qm; }
@@ -1623,14 +1628,14 @@ app.player = (function () {
             return queuelen; },
         updateStatusInfo: function (state/*, pos, dur, path*/) {
             if(state === "ended" && sst.ctrl === "on") {
-                if(app.deck.endedDueToSleep()) {  //have songs to resume with
+                if(app.deck.moreSongsToPlay()) {
                     mgrs.slp.startSleep("Sleeping...", "deck ended"); }
                 //see mgr comment on IOS sleep after 2nd to last song
                 else {  //nothing to resume playback with, clear sleep state.
                     mgrs.slp.reset("slp.updateStatusInfo normal end"); } }
             else if(state === "playing") {
-                const odiv = jt.byId("mediaoverlaydiv");
-                if(odiv && odiv.style.display === "block") {
+                if(mgrs.cmt.getMode() === "sleeping") {
+                    mgrs.cmt.closeOverlay();
                     noteExternalResume(); } } }
     };  //end mgrs.slp returned functions
     }());

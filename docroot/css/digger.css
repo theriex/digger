@@ -169,18 +169,19 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .ptico { vertical-align:middle; height:18px; max-height:18px; cursor:pointer;
   padding:1px; }
 .togdlgabspos { position:absolute; top:48px; left:10px; }
-#frequencyoptionsdiv { text-align:center; background:whitesmoke;
+#frequencyoptionsdiv { text-align:center; background:whitesmoke; width:300px;
   border-radius:8px; }
 #tuneopta { margin-right:10px; }
-.tuneoptiondiv { display:inline-block; font-size:small; padding-right:24px; }
+.tuneoptiondiv { display:inline-block; font-size:small;
+  padding:0px 14px 0px 3px; }
 .tunactimg { max-height:22px; }
 #tunedetdiv { margin-top:8px; position:relative; }
 #prevplaydiv, #songurldiv, #playcountdiv, #genresdiv { font-size:x-small; }
 #dupesdispdiv { padding-left:32px; }
 #albtireddiv { position:absolute; top:-70px; left:0px; text-align:center;
   width:300px; }
-#albtiredconfdiv { background:whitesmoke; padding:5px; border-radius:10px;
-  width:300px; }
+#albtiredconfcontdiv { background:whitesmoke; padding:5px; border-radius:10px;
+  width:300px; font-size:medium; }
 #pmsgdiv { font-size:small; font-weight:bold; }
 #abactoptsdiv { text-align:center; padding-bottom:10px; }
 #audioplayerdiv { display:flex; justify-content:left; align-items:center;
@@ -260,9 +261,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #sharedispdiv #shbdiv { justify-content:space-between; }
 #sharesrcimg {height:44px; margin-right:4px; }
 #sharrowimg { height:58px; }
-#sharestatdiv { position:absolute; top:60px; left:20px; background:#ffab00;
-  padding:2px; }
-
+#sharestatdiv { position:absolute; top:60px; left:20px; }
+#resstatcontdiv { background:#ffab00; padding:8px; border-radius:12px; }
 
 #pluidiv { background:#333; margin:2px 0px 6px 0px; padding:10px 0px;
   min-width:290px; max-width:290px; user-select:none; }
