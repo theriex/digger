@@ -1295,7 +1295,7 @@ app.player = (function () {
             txt = txt || "";
             if(txt) {
                 txt = txt.replace(/Amazon.com Song ID: \d+/, "").trim();
-                txt = txt.replace(/copyright \d\d\d\d .*/ig, "").trim();
+                txt = txt.replace(/copyright \d\d\d\d .*/ig, "").trim(); }
             return txt; },
         closeOverlay: function (event) {
             if(!allowablePercolatingEvent(event)) {
