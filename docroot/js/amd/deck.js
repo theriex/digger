@@ -512,7 +512,8 @@ app.deck = (function () {
             ds = songs;
             if(upds) { //make array of all deck songs in upds, remove nulls
                 ds = (ds.map((s) => upds[s.path])).filter((s) => s); }
-            jt.log("dk.setSongs " + ds.slice(0, 7).map((s) => s.ti).join(", "));
+            jt.log("dk.setSongs " + ds.slice(0, 7).map((s) => s.ti).join(", ") +
+                   ((ds.length > 7)? "..." + ds.length + " more" : ""));
             mgrs.sop.displaySongs("dk", "decksongsdiv", ds); },
         songByIndex: function (idx) { return ds[idx]; },
         playSongNow: function (song) {
