@@ -555,8 +555,12 @@ app.filter = (function () {
                     settings = ca.settings; }
                 else {
                     jt.log("filter.stg settings initialized empty");
-                    settings = {}; } }
-        }
+                    settings = {}; } } }
+        function summarizeRangeControl (rc) {
+            rc.sumname = rc.pn;  //e.g. "Approachability"
+            if(rc.stat) {
+                rc.sumname += " " + rc.stat.mnrv + "-" + rc.stat.mxrv; }
+            return rc; }
     return {
         settings: function () { return settings; },
         filterValueChanged: function () {  //waits until controls stop moving
@@ -585,16 +589,18 @@ app.filter = (function () {
                         jt.log("stg.saveSettings " + code + ": " +
                                errtxt); }); }, 5 * 1000); },
         arrayOfAllFilters: function (mode) {
-            var filts = [ctrls.al, ctrls.el];
+            var filts = [];
+            filts.push(summarizeRangeControl(ctrls.al))
+            filts.push(summarizeRangeControl(ctrls.el))
             if(ctrls.kts) {
                 ctrls.kts.forEach(function (kt) {
                     if(!mode) {
                         filts.push(kt); }
                     else if(mode === "active" && kt.tog !== "off") {
-                        kt.actname = "+";
+                        kt.sumname = "+";
                         if(kt.tog === "neg") {
-                            kt.actname = "-"; }
-                        kt.actname += kt.pn;
+                            kt.sumname = "-"; }
+                        kt.sumname += kt.pn;
                         filts.push(kt); } }); }
             filts.push(ctrls.rat);
             filts.push(ctrls.fq);
@@ -633,10 +639,8 @@ app.filter = (function () {
             var sep = "_";
             var summary = mgrs.dsc.summarizeFiltering();
             if(summary.fq === "on") {
-                if(ctrls.al.actname) {  //particularly Easy or Hard
-                    name += sep + ctrls.al.actname; }
-                if(ctrls.el.actname) {  //particularly Chill or Amped
-                    name += sep + ctrls.el.actname; }
+                name += sep + "A" + summary.almin + "to" + summary.almax;
+                name += sep + "E" + summary.elmin + "to" + summary.elmax;
                 if(summary.poskws) {
                     name += sep + formatCSV(summary.poskws, sep); }
                 if(summary.negkws) {

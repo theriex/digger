@@ -371,9 +371,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #toghistb { margin-left:-16px; margin-right:16px; }
 #toginfob { margin-left:-8px; margin-right:8px; }
 #deckhistorydiv { position:absolute; top:0px; left:0px; }
-#fresframediv { position:absolute; top:0px; left:32px; padding:2px 16px; }
+#fresframediv { position:absolute; top:0px; left:12px; padding:2px 16px; }
 #deckfresdiv { padding:2px 5px; background:#ffce69; color:#666; }
-.dinfrecdiv { font-size:medium; }
+.dinfrectd { text-align:right; }
+.dinfrectspan { font-size:medium; }
 .dinfrecnspan { font-size:small; }
 #ddccontentdiv { position:relative; }
 #decksongsdiv { overflow:scroll; }

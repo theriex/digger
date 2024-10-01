@@ -157,17 +157,21 @@ app.deck = (function () {
             app.filter.filters("active").forEach(function (ftr) {
                 wrk.songs = wrk.songs.filter((song) => ftr.match(song));
                 if(runcounts) {
-                    mgrs.ws.appendInfoCount(ftr.actname || ftr.pn); } });
+                    mgrs.ws.appendInfoCount(ftr.sumname || ftr.pn); } });
             if(runcounts) {
                 wrk.availcount = wrk.songs.length; } }
     return {
         appendInfoCount: function (phasename, count) {
             count = count || wrk.songs.length;
             wrk.fcs.push({filter:phasename, sc:count});
-            jt.out("deckfresdiv", jt.tac2html(wrk.fcs.map((fc) =>
-                ["div", {cla:"dinfrecdiv"},
-                 [["span", {cla:"dinfrectspan"}, fc.filter + ": "],
-                  ["span", {cla:"dinfrecnspan"}, String(fc.sc)]]]))); },
+            jt.out("deckfresdiv", jt.tac2html(
+                ["table", {id:"filtsumtable"},
+                 wrk.fcs.map((fc) =>
+                     ["tr",
+                      [["td", {cla:"dinfrectd"},
+                        ["span", {cla:"dinfrectspan"}, fc.filter + ": "]],
+                       ["td",
+                        ["span", {cla:"dinfrecnspan"}, String(fc.sc)]]]])])); },
         filterSongs: function () {
             wrk.fcs = [];  //clear filter control status messages
             if(app.svc.okToPlay) {  //have plat/situation song filtering func
@@ -462,7 +466,8 @@ app.deck = (function () {
             var msgs = ["No matching songs found"];
             //modify filtering
             const filts = app.filter.filters("active");
-            if(filts.some((f) => f.actname && f.actname.match(/[+\-]/g))) {
+            if(filts.some((f) => f.sumname && f.sumname.match(/^[+\-]/))) {
+                //found a filter summary name like "+Office"
                 msgs.push("Try turning off keyword filters"); }
             else if(filts.some((f) =>
                 f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {
