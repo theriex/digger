@@ -657,7 +657,8 @@ app.player = (function () {
                (errmsg.indexOf("could not be decoded") >= 0)) {
                 jt.log("mgrs.aud.handlePlayerError skipping song...");
                 playerrs[stat.song.path] = errmsg;
-                setTimeout(app.player.skip, 4000); } },
+                setTimeout(function () {  //possible to fail 1+ songs in a row
+                    app.player.skip("rapidok"); }, 4000); } },
         updateSongTitleDisplay: function () {
             var tunesrc = "img/tunefork.png";
             const tuneimg = jt.byId("tuneimg");
@@ -1732,15 +1733,16 @@ app.player = (function () {
                 elem.style.backgroundColor = "transparent"; }, ms);
             setTimeout(function () {
                 elem.classList.remove("bgtransitionfade"); }, ms + 750); },
-        skip: function () {
+        skip: function (rapidok) {
             var st = Date.now();
             if(stat.skiptime && ((st - stat.skiptime) < 7000)) {
                 //On a phone, the skip button can be unresponsive for several
                 //seconds if the UI is setting up binding to the music playback
                 //service.  Avoid accidental double skip from repress.
                 return; }
+            if(!rapidok) {
+                stat.skiptime = st; }
             mgrs.gen.illuminateAndFade("nextsongdiv", 5000);
-            stat.skiptime = st;
             if(mgrs.slp.isNowSleeping()) {
                 jt.log("skip calling slp.resume");
                 mgrs.slp.resume(); }
