@@ -483,7 +483,7 @@ app.player = (function () {
             debouncing = false; }
         function clearSongDisplay () {
             mgrs.cmt.toggleTuningOpts("off");
-            mgrs.cmt.resetDisplay("mob clear");  //close comment if open
+            mgrs.cmt.resetDisplay("mob.clearSong");  //close comment if open
             jt.out("playtitletextspan", "---"); }
         function handleStatusQueryCallback (status) {
             jt.log("handleStatusQueryCallback status.path: " + status.path);
@@ -533,7 +533,7 @@ app.player = (function () {
                     stat.song = dbo.songs[status.path];
                     if(!stat.song) {  //foreign media, or wait for media read
                         return jt.log("mob.nPS ignoring unknown song media"); }
-                    mgrs.cmt.resetDisplay("PBI");  //update comment indicator
+                    mgrs.cmt.resetDisplay("mob.notePlaybackStatus");
                     mgrs.aud.updateSongDisplay();  //update controls display
                     app.deck.popForward(stat.song.path);
                     app.deck.rebuildHistory(); }); } },
@@ -1658,7 +1658,7 @@ app.player = (function () {
             {fld:"rv", uf:mgrs.rat.adjustPositionFromRating},
             {fld:"nt", uf:function (val) {
                 stat.song.nt = val;
-                mgrs.cmt.resetDisplay("gen"); }}];
+                mgrs.cmt.resetDisplay("gen.uichg"); }}];
     return {
         initializeDisplay: function () {
             jt.log("player.gen.initializeDisplay");
