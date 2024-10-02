@@ -81,7 +81,9 @@ app.top = (function () {
                 verstat.loc = curracct.diggerVersion;
                 if(!verstat.notice && verstat.hub > verstat.loc) {
                     verstat.notice = true;
-                    mgrs.gen.togtopdlg("la"); }
+                    const indvplats = ["IOS", "Android"];
+                    if(!indvplats.contains(app.svc.plat("audsrc"))) {
+                        mgrs.gen.togtopdlg("la"); } }
                 else {
                     verstat.notice = false; } } },
         getVersionStatus: function () {
