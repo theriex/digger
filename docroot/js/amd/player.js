@@ -503,6 +503,7 @@ app.player = (function () {
                         mgrs.aud.updateSongDisplay();
                         mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos,
                                                 pbi.dur);
+                        app.deck.dispatch("hst", "noteSongPlayed", stat.song);
                         app.deck.playbackStatus(status); }); } }
             cbf(status); }  //call back whether song found or not
     return {
