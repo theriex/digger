@@ -959,8 +959,9 @@ app.deck = (function () {
             mgrs.dk.removeFromDeck(npp);  //excise from deck if in it
             const idx = aid[cak].songs.findIndex((s) => s.path === npp);
             if(idx < 0) {  //no longer playing album
+                jt.log("alb.popForward not on album, returning ddc.popForward");
                 mgrs.gen.dispMode("ddc");
-                return null; }
+                return mgrs.ddc.popForward(npp); }
             app.player.dispatch("slp", "reduceSleepCount", idx - aid[cak].ci);
             aid[cak].ci = idx;
             const song = aid[cak].songs[idx];
@@ -1309,8 +1310,12 @@ app.deck = (function () {
             const prefix = songSeqMgrName + ".popForward " + npp;
             if(pfsg) {
                 jt.log(prefix + ": " + pfsg.ti); }
-            else {
-                jt.log(prefix + " song not found"); }
+            else {  //song not on current album or currently on deck
+                const sd = mgrs.sdt.getSongsDict();
+                if(sd && sd[npp]) {
+                    jt.log(prefix + " no pop " + sd[npp].ti); }
+                else {
+                    jt.log(prefix + " song not found."); } }
             return pfsg; },
         playbackStatus: function (status) {
             return mgrs[songSeqMgrName].playbackStatus(status); },

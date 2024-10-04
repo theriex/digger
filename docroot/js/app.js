@@ -10,6 +10,7 @@ var app = (function () {
                   {cn:"node", pn:"Mac/Win/*nix", aud:"Browser"}];
     const slib = {wms:50,  //support lib wait milliseconds (doubles on retry)
                   tmo:null};
+    const flags = {dataInitialized:false};
 
     function globkey (e) {
         //jt.log("globkey charCode: " + e.charCode + ", keyCode: " + e.keyCode);
@@ -396,7 +397,9 @@ return {
             const oh = jt.byId("contentdiv").offsetHeight;  //736px default
             const cmdiv = jt.byId("contentmargindiv");
             cmdiv.style.backgroundSize = "564px " + (oh + 20) + "px"; });
+        flags.dataInitialized = true;
     },
+    dataIntialized: function () { return flags.dataInitialized; },
 
 
     //!UNPACKED BY appdat.py unescape_song_fields
@@ -704,7 +707,7 @@ return {
             return new Date(tms).toISOString(); }
         function fakeLastPlayed (s) {
             const daysecs = 24 * 60 * 60;
-            const rndday = Math.floor(Math.random() * 31)
+            const rndday = Math.floor(Math.random() * 31);
             const rndsecs = (rndday + 91) * daysecs;
             //set modified later to avoid trying to write it to hub
             s.lp = timestampMinusSeconds(rndsecs);  //modified is later

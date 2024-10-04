@@ -527,6 +527,7 @@ app.player = (function () {
                 mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
                 app.deck.playbackStatus(status); }  //album positioning
             else {  //song changed. most likely svc has moved forward N songs.
+                jt.log("notePlaybackStatus reacting to song change");
                 updatePBI(status);
                 clearSongDisplay();
                 app.svc.loadDigDat(function (dbo) {  //load updated song(s) lp
@@ -537,6 +538,9 @@ app.player = (function () {
                     mgrs.cmt.resetDisplay("mob.notePlaybackStatus");
                     mgrs.aud.updateSongDisplay();  //update controls display
                     app.deck.popForward(stat.song.path);
+                    //on IOS the song may bave been started outside of Digger
+                    //so need to ensure it is marked as played for history.
+                    app.deck.dispatch("dk", "markSongPlayed", stat.song);
                     app.deck.rebuildHistory(); }); } },
         handlePlayFailure: function (errstat, errtxt) {
             //mobile should not encounter unsupported media types, so all
