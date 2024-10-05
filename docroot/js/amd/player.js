@@ -474,6 +474,7 @@ app.player = (function () {
         var pbi = null; //playback state information
         var debouncing = false;
         var pscf = null;  //playback status callback func
+        var flags = {startupCheckForPlayingSong:""};
         function updatePBI (status) {
             stat.stale = null;
             pbi.state = status.state;  //"playing"/"paused"/"ended"
@@ -487,6 +488,7 @@ app.player = (function () {
             jt.out("playtitletextspan", "---"); }
         function handleStatusQueryCallback (status) {
             jt.log("handleStatusQueryCallback status.path: " + status.path);
+            flags.startupCheckForPlayingSong = "done";
             const cbf = pscf;
             pscf = null;
             if(status.path && !status.song) {  //discovered a playing song
@@ -560,10 +562,15 @@ app.player = (function () {
                     dispmsg = (errtxt.slice(0, ridx + dtxt.length) +
                                "Permission denied"); } }
             jt.out("mediadiv", dispmsg); },
+        getFlag: function (flagname) {
+            return flags[flagname]; },
         ////calls from mgrs.plui
-        refreshPlayState: function () {  //calls back to notePlaybackStatus
+        refreshPlayState: function (flag) {
+            if(flag === "startupCheckForPlayingSong") {
+                flags.startupCheckForPlayingSong = "calling"; }
             //use timeout to yield to plui tickf processing
             setTimeout(function () {
+                //result returned to notePlaybackStatus
                 pbi = pbi || {};
                 pbi.tsend = Date.now() + 100;
                 app.svc.dispatch("mp", "requestStatusUpdate"); }, 100); },
@@ -700,11 +707,11 @@ app.player = (function () {
             if(!mgrs[cap].playbackStatusCallLatency) {
                 return 0; }
             return mgrs[cap].playbackStatusCallLatency(); },
-        checkIfPlaying: function (contf) {  //contf
-            if(cap === "mob") {  //possible to be playing prior to app launch
+        checkIfPlaying: function (contf) {
+            if(cap === "mob") {  //possible song playing prior to app launch
                 jt.log("checkIfPlaying calling for player status");
                 mgrs.mob.setPlaybackStatusCallback(contf);
-                mgrs.mob.refreshPlayState(); }
+                mgrs.mob.refreshPlayState("startupCheckForPlayingSong"); }
             else {  //no need to check, just call through immediately
                 contf(stat); } },
         verifyPlayer: function (contf) {

@@ -399,7 +399,7 @@ return {
             cmdiv.style.backgroundSize = "564px " + (oh + 20) + "px"; });
         flags.dataInitialized = true;
     },
-    dataIntialized: function () { return flags.dataInitialized; },
+    dataInitialized: function () { return flags.dataInitialized; },
 
 
     //!UNPACKED BY appdat.py unescape_song_fields
