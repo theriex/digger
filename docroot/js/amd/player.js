@@ -722,11 +722,10 @@ app.player = (function () {
                       ["div", {id:"playertuningdiv"}],
                       ["div", {id:"audioplayerdiv"},
                        [["div", {id:"audiodiv"}],
-                        ["div", {id:"nextsongdiv"},
-                         ["a", {href:"#skip", title:"Skip To Next Song",
-                                onclick:jt.fs("app.player.skip()")},
+                        ["div", {id:"nextsongdiv", title:"Skip To Next Song",
+                                 onclick:jt.fs("app.player.skip()")},
                           ["img", {src:"img/skip.png",
-                                   cla:"ptico inv"}]]]]]]])); }
+                                   cla:"ptico inv"}]]]]]])); }
             mgrs[cap].verifyPlayer(contf); }
     };  //end mgrs.aud returned functions
     }());
@@ -1740,11 +1739,15 @@ app.player = (function () {
         illuminateAndFade: function (divid, ms) {
             var elem = jt.byId(divid);
             elem.style.backgroundColor = "#FFAB00";
-            elem.classList.add("bgtransitionfade");
+            //adding the classList happens async and can take a while, which
+            //delays the backgroundColor set from being rendered.  Separate:
             setTimeout(function () {
-                elem.style.backgroundColor = "transparent"; }, ms);
-            setTimeout(function () {
-                elem.classList.remove("bgtransitionfade"); }, ms + 750); },
+                elem.classList.add("bgtransitionfade");
+                setTimeout(function () {
+                    elem.style.backgroundColor = "transparent"; }, ms);
+                setTimeout(function () {
+                    elem.classList.remove("bgtransitionfade"); }, ms + 750); },
+                       100); },
         skip: function (rapidok) {
             var st = Date.now();
             if(stat.skiptime && ((st - stat.skiptime) < 7000)) {
@@ -1755,14 +1758,16 @@ app.player = (function () {
             if(!rapidok) {
                 stat.skiptime = st; }
             mgrs.gen.illuminateAndFade("nextsongdiv", 5000);
-            if(mgrs.slp.isNowSleeping()) {
-                jt.log("skip calling slp.resume");
-                mgrs.slp.resume(); }
-            else {
-                jt.log("noting skip and calling next");
-                mgrs.cmt.bumpCurrentIfTired();  //bump fq value if tired
-                stat.song.pd = "skipped";
-                mgrs.gen.next(); } },
+            //let button visual response happen before processing
+            setTimeout(function () {
+                if(mgrs.slp.isNowSleeping()) {
+                    jt.log("skip calling slp.resume");
+                    mgrs.slp.resume(); }
+                else {
+                    jt.log("noting skip and calling next");
+                    mgrs.cmt.bumpCurrentIfTired();  //bump fq value if tired
+                    stat.song.pd = "skipped";
+                    mgrs.gen.next(); } }, 50); },
         deckUpdated: function (/*mgrname*/) {
             mgrs.aud.checkIfPlaying(function (pinfo) {
                 //mgrname is now out of scope and undefined at least on Android
