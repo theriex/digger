@@ -1,4 +1,4 @@
-/*global app, jt */
+/*global app, jt, Spotify */
 /*jslint browser, white, long, unordered */
 
 //Server communications for local/web
@@ -7,18 +7,210 @@ app.svc = (function () {
 
     var mgrs = {};  //general container for managers
     function mdfs (mgrfname, ...args) {  //module dispatch function string
-        return app.dfs("svc", mgrfname, args);
-    }
-    function errstat (src, code, errtxt) {
-        var msg = src + " " + code + ": " + errtxt;
-        jt.log(msg);
-        jt.out("statspan", msg);
-    }
-    function txSongsJSON (songs) {
-        songs = songs.map((song) => app.txSong(song));
-        return JSON.stringify(songs);
+        return app.util.dfs("svc", mgrfname, args);
     }
 
+    ////////////////////////////////////////
+    // Server running on same computer/LAN as browser
+    ////////////////////////////////////////
+
+    //local audio interface uses standard audio element
+    mgrs.loa = (function () {
+        var sq = [];  //songs queued for playback
+        var np = null;  //now playing song
+        function updateLastPlayedTimestamp (pwsid, song) {
+            song = app.pdat.songsDict()[song.path];  //get current reference
+            song.lp = new Date().toISOString();
+            app.pdat.writeDigDat(pwsid || "svc.loa.playNextSong"); }
+        function playNextSong (pwsid) {
+            if(!sq.length) {
+                return jt.log("mgrs.loa.playNextSong no songs left in queue"); }
+            np = sq.shift();
+            updateLastPlayedTimestamp(pwsid, np);
+            app.player.notifySongChanged(np, "playing");
+            const player = jt.byId("playeraudio");
+            player.src = "/audio?path=" + jt.enc(np.path);
+            //player.play returns a Promise, check result via then.
+            player.play().then(
+                function (ignore /*successvalue*/) {
+                    jt.log("Playing " + np.path + " \"" + np.ti + "\""); },
+                function (errorvalue) {
+                    mgrs.loa.handlePlayerError(errorvalue); }); }
+        function bumpPlayerLeftIfOverhang () {
+            var player = jt.byId("playeraudio");
+            var playw = player.offsetWidth;
+            var maxw = jt.byId("panplaydiv").offsetWidth;
+            maxw -= (2 * 6) + (2 * 8);  //padding and border
+            if(playw > maxw) {
+                const shift = Math.round(-0.5 * (playw - maxw));
+                player.style.marginLeft = shift + "px"; } }
+    return {
+        initialize: function () {
+            app.boot.addApresModulesInitTask("initAudioElement", function () {
+                if(!jt.byId("playeraudio")) {
+                    jt.out("audiodiv", jt.tac2html(
+                        ["audio", {id:"playeraudio", controls:"controls",
+                                   autoplay:"autoplay"},  //might not happen
+                         "WTF? Your browser doesn't support audio.."]));
+                    jt.on("playeraudio", "ended", function () {
+                        playNextSong("app.svc.audio.ended"); }); }
+                bumpPlayerLeftIfOverhang(); }); },
+        playSongQueue: function (pwsid, songs) {
+            if(np && np.path === songs[0].path) {  //already playing first song
+                sq = songs.slice(1); }  //update queue
+            else {
+                sq = songs;
+                playNextSong(pwsid); } },
+        requestPlaybackStatus: function (cbf) {
+            cbf(np, "playing"); },
+        handlePlayerError: function (errval) {  //DOMException or text or obj
+            const errmsg = String(errval);  //error name and detail text
+            const song = app.player.nowPlayingSong();
+            jt.log("mgrs.loa Play error " + errmsg + " " + song.path);
+            //NotAllowedError is normal on app start. Autoplay is generally
+            //disabled until the user has interacted with the player.
+            if(errmsg.indexOf("NotAllowedError") >= 0) {
+                const player = jt.byId("playeraudio");
+                if(!player.duration) {  //clicking play should trigger error
+                    jt.log("Song has no duration."); }
+                return; }
+            //NotSupportedError means file is unplayable by the current
+            //player, but might be ok.  For example on MacOS, Safari handles
+            //an .m4a but Firefox doesn't.  Best to continue to the next song,
+            //assuming this is an anomaly and the next song will likely play.
+            if((errmsg.indexOf("NotSupportedError") >= 0) ||
+               (errmsg.indexOf("could not be decoded") >= 0)) {
+                jt.log("mgrs.aud.handlePlayerError skipping song...");
+                song.pd = "error " + jt.ellipsis(errmsg, 210);
+                //Wait before continuing playback so it doesn't seem like
+                //"play now" just played the wrong song.  Error is visible
+                //from history view.  Possible to fail several songs in a row.
+                setTimeout(playNextSong, 4000); } }
+    };  //end mgrs.loa returned functions
+    }());
+
+
+    //Local manager handles local server interactions
+    mgrs.loc = (function () {
+        var loadproc = null;
+        function errstat (src, code, errtxt) {
+            var msg = src + " " + code + ": " + errtxt;
+            jt.log(msg);
+            jt.out("statspan", msg); }
+        function timeEstimateReadText () {
+            var et = "";
+            const dbo = app.pdat.dbObj();
+            if(dbo.scanstart && dbo.scanned) {
+                jt.log("dbo.scanstart: " + dbo.scanstart);
+                jt.log("  dbo.scanned: " + dbo.scanned);
+                const start = jt.isoString2Time(dbo.scanstart);
+                const end = jt.isoString2Time(dbo.scanned);
+                const diffms = end.getTime() - start.getTime();
+                const elapsed = Math.round(diffms / (10 * 60)) / 100;
+                et = "(last scan took about " + elapsed + " minutes)"; }
+            return et; }
+        function confirmRead () {
+            jt.out(loadproc.divid, jt.tac2html(
+                [["div", {cla:"cldiv"}, "Confirm: Re-read all music files in"],
+                 ["div", {cla:"statdiv", id:"musicfolderdiv"},
+                  app.pdat.configObj.musicPath],
+                 ["div", {cla:"cldiv"}, timeEstimateReadText()],
+                 ["div", {cla:"dlgbuttonsdiv"},
+                  [["button", {type:"button", onclick:mdfs("loc.cancelRead")},
+                    "Cancel"],
+                   ["button", {type:"button",
+                               onclick:mdfs("loc.readSongFiles")},
+                    "Go!"]]]])); }
+        function checkForReadErrors (info) {
+            if(info.status === "badMusicPath") {
+                jt.err("bad musicPath " + info.musicpath);
+                app.top.dispatch("cfg", "launch"); }
+            else {
+                app.top.dispatch("locla", "noteLibraryLoaded"); } }
+        function monitorReadTotal () {
+            jt.call("GET", app.util.cb("/songscount"), null,
+                function (info) {
+                    loadproc.stat = info.status;
+                    if(info.status === "reading") {  //work ongoing, monitor
+                        app.top.dispCount(info.count, "total");
+                        jt.out(loadproc.divid, info.lastrpath);
+                        setTimeout(monitorReadTotal, 300); }
+                    else {  //read complete
+                        mgrs.loc.cancelRead();  //clear loadproc
+                        checkForReadErrors(info); } },
+                function (code, errtxt) {
+                    errstat("svc.loc.monitorReadTotal", code, errtxt); },
+                jt.semaphore("svc.loc.monitorReadTotal")); }
+        function rebuildSongData (updobj) {
+            app.top.dispCount(updobj.songcount, "total");
+            Object.entries(updobj.songs).forEach(function ([path, song]) {
+                if(!song.ar) {  //missing artist, ti probably full path
+                    const pes = path.split("/");
+                    song.ti = pes[pes.length - 1];
+                    if(pes.length >= 3) {
+                        song.ar = pes[pes.length - 3];
+                        song.ab = pes[pes.length - 2]; }
+                    else if(pes.length >= 2) {
+                        song.ar = pes[pes.length - 2]; } } });
+            if(loadproc && loadproc.divid) {  //called from full rebuild
+                jt.out(loadproc.divid, ""); }
+            app.top.markIgnoreSongs(updobj.songs);  //respect ignore folders
+            const dbo = app.pdat.dbObj();
+            dbo.scanned = new Date().toISOString();
+            dbo.songcount = Object.keys(updobj.songs).length;
+            dbo.songs = updobj.songs;
+            app.pdat.writeDigDat("svc.loc.rebuildSongData"); }
+    return {
+        readConfig: function (contf, errf) {
+            jt.call("GET", app.util.cb("/readConfig"), null,
+                    contf, errf); },
+        readDigDat: function (contf, errf) {
+            jt.call("GET", app.util.cb("/readDigDat"), null,
+                    contf, errf); },
+        writeConfig: function (cfg, contf, errf) {
+            var data = jt.objdata({cfg:JSON.stringify(cfg)});
+            jt.call("POST", "/writeConfig", data, contf, errf,
+                    jt.semaphore("svc.loc.writeConfig")); },
+        writeDigDat: function (dbo, contf, errf) {
+            var data = jt.objdata({dbo:JSON.stringify(dbo)});
+            jt.call("POST", "/writeDigDat", data, contf, errf,
+                    jt.semaphore("svc.loc.writeDigDat")); },
+        loadLibrary: function (procdivid, cnf, procdonef) {
+            procdivid = procdivid || "toponelinestatdiv";
+            if(loadproc && loadproc.stat !== "ready") {
+                return jt.log("loc.loadLibrary already in progress"); }
+            loadproc = {divid:procdivid, donef:procdonef};
+            if(!cnf) { return mgrs.loc.readSongFiles(); }
+            confirmRead(); },
+        readSongFiles: function () {
+            jt.out("topdlgdiv", "");  //clear confirmation prompt if displayed
+            if(loadproc.stat === "reading") {
+                return; }  //already reading
+            loadproc.stat = "reading";
+            setTimeout(monitorReadTotal, 800);  //monitor after GET
+            jt.call("GET", app.util.cb("/readsongs"), null, rebuildSongData,
+                function (code, errtxt) {
+                    if(code !== 409) {  //read already in progress, ignore
+                        errstat("svc.loc.readSongFiles", code, errtxt); } },
+                jt.semaphore("svc.loc.readSongFiles")); },
+        cancelRead: function () {
+            jt.out(loadproc.divid, "");
+            loadproc = null; },
+        changeConfig: function (configChangeFields, contf, errf) {
+            jt.call("POST", "/cfgchg", jt.objdata(configChangeFields),
+                    contf, errf, jt.semaphore("loc.changeConfig")); },
+        passthroughHubCall: function (dets) {
+            jt.call(dets.verb, "hub" + dets.verb.toLowerCase() + "-" + dets.url,
+                    dets.dat, dets.contf, dets.errf,
+                    jt.semaphore("svc.loc." + dets.endpoint)); },
+        docContent: function (docurl, contf, errf) {
+            const up = jt.objdata({docurl:jt.enc(docurl)});
+            jt.request("GET", app.util.cb(app.util.dr("/doctext"), up, "day"),
+                       null, contf, errf,
+                       jt.semaphore("mgrs.loc.docContent")); }
+    };  //end mgrs.loc returned functions
+    }());
+            
 
     //Copy export manager copies local songs to local export area
     mgrs.cpx = (function () {
@@ -35,7 +227,7 @@ app.svc = (function () {
                 mgrs.cpx.monitorExportStatus(xob); } },
         monitorExportStatus: function () {
             setTimeout(function () {
-                jt.call("GET", app.cb("/plistexp"), null,
+                jt.call("GET", app.util.cb("/plistexp"), null,
                         mgrs.cpx.statusUpdate,
                         cfs.errf,
                         jt.semaphore("cpx.monitorExportStatus")); },
@@ -47,6 +239,212 @@ app.svc = (function () {
                     jt.semaphore("exp.copyPlaylist"));
             mgrs.cpx.monitorExportStatus(); }
     };  //end mgrs.cpx returned functions
+    }());
+
+
+    ////////////////////////////////////////
+    // DiggerHub server and web service audio
+    ////////////////////////////////////////
+
+    //Spotify audio interface
+    //developer.spotify.com/documentation/web-playback-sdk/reference/
+    mgrs.spa = (function () {
+        var sdkstate = null;
+        var playername = "Digger Spotify Player";
+        var swpi = null;  //Spotify Web Player instance
+        var pstat = "";   //current player status
+        var pdid = "";    //Spotify Web Player device Id
+        var pbi = {  //playback state information
+            song:null,  //Digger song to be playing
+            wpso:null,  //Latest returned WebPlayerState object
+            pos:0,      //current play position ms
+            dur:0,      //song duration ms
+            state:""};  //"playing" or "paused"
+        function pmsg (tac) {  //display a player message (major status or err)
+            app.svc.dispatch("spc", "playerMessage", tac); }
+    return {
+        token: function (contf) {  //verify token info, or contf(token)
+            return app.svc.dispatch("spc", "token", contf); },
+        sdkload: function () {
+            if(sdkstate === "loaded") { return true; }
+            if(!sdkstate) {
+                sdkstate = "loading";
+                pmsg("Loading Spotify SDK...");
+                window.onSpotifyWebPlaybackSDKReady = function () {
+                    sdkstate = "loaded";
+                    pmsg("Spotify Player Loaded. Starting...");
+                    app.player.next(); };
+                setTimeout(function () {  //this can take a while to load
+                    var script = document.createElement("script");
+                    script.id = "diggerspasdk";
+                    script.async = true;
+                    script.src = "https://sdk.scdn.co/spotify-player.js";
+                    document.body.appendChild(script); },
+                           50); }
+            return false; },
+        swpconn: function () {
+            if(swpi && pstat === "connected") { return true; }
+            if(!swpi) {
+                pmsg("Creating Spotify Web Player...");
+                swpi = new Spotify.Player({name:playername,
+                                           getOAuthToken:mgrs.spa.token});
+                mgrs.spa.addPlayerListeners(); }
+            if(pstat !== "connecting") {  //not already trying to connect
+                pmsg("Connecting to Spotify Web Player...");
+                pstat = "connecting";
+                swpi.connect().then(function (result) {
+                    if(result) {  //result === true
+                        pstat = "connected";
+                        mgrs.spa.updatePlayState("paused");  //reset display
+                        pmsg("Spotify Web Player Connected.");
+                        //could still get an error if not premium or whatever
+                        setTimeout(mgrs.spa.verifyPlaying, 500); }
+                    else {
+                        pstat = "connfail";
+                        pmsg(["a", {href:"#Reconnect",
+                                    onclick:jt.fs("app.player.next()")},
+                              "Reconnect Spotify Web Player"]); } })
+                    .catch(function (err) {
+                        jt.log("swpconn swpi.connect catch: " + err); }); }
+            return false; },
+        getPlayerStatus: function () { return pstat; },
+        verifyPlayer: function (contf) {
+            if(pstat === "connected") {
+                if(app.svc.dispatch("spc", "tokenTimeOk")) {
+                    return contf(); }
+                pstat = "tokexpired"; }
+            //Need to verify signin before getting token. No login on main page
+            //prior to launch anymore.
+            const steps = ["token", "sdkload", "swpconn"];
+            if(steps.every((step) => mgrs.spa[step]())) {
+                contf(); } },
+        autoplayErr: function (err, mtxt) {
+            jt.log("autoplayErr " + err + ": " + mtxt);
+            if(app.svc.dispatch("spc", "isRefreshToken")) {
+                mgrs.slp.startSleep("Token renewed, autoplay disabled."); } },
+        addPlayerListeners: function () {
+            var listeners = {
+                "ready":function (obj) {  //obj has only the device_id in it
+                    pdid = obj.device_id;
+                    mgrs.spa.verifyPlaying(); },
+                "not_ready":function (obj) {
+                    pdid = obj.device_id;
+                    pstat = "notready";
+                    pbi.state = "";  //will need to call playSong again
+                    pmsg("Spotify Web Player not ready. Reconnecting...");
+                    //app.svc.dispatch("spc", "refreshToken");  //not available
+                    app.player.next(); },
+                "player_state_changed":function (obj) {
+                    mgrs.spa.noteWebPlaybackState(obj); }};
+            var errors = {
+                initialization_error:"Spotify Web Player initialization failed",
+                authentication_error:"Spotify Premium authentication failed",
+                account_error:"Could not validate Spotify Premium account",
+                playback_error:"Spotify Track playback failed"};
+            var makeErrorFunction = function (err, txt) {
+                return function (msg) {
+                    var mtxt = msg.message || "No Spotify message text";
+                    if(mtxt.toLowerCase().includes("autoplay")) {
+                        return mgrs.spa.autoplayErr(err, mtxt); }
+                    pstat = err;
+                    swpi.disconnect();  //returns a promise. Ignoring.
+                    pmsg([txt + ": " + mtxt + " ",
+                          ["a", {href:"#Retry",
+                                 onclick:jt.fs("app.player.next()")},
+                           "Retry"]]); }; };
+            Object.entries(errors).forEach(function ([err, txt]) {
+                listeners[err] = makeErrorFunction(err, txt); });
+            Object.entries(listeners).forEach(function ([e, f]) {
+                var added = swpi.addListener(e, f);
+                jt.log("Spotify " + e + " listener: " + added); }); },
+        noteWebPlaybackState: function (wpso) {
+            if(!wpso) { return; }  //ignore if seek crashes
+            if(pbi.spid && wpso.track_window.current_track.id !== pbi.spid) {
+                mgrs.spa.switchToSpotifyTrack(wpso); }  //changed from Spotify
+            pbi.wpso = wpso;  //object may be live, but helpful for debug
+            pbi.state = (pbi.wpso.paused ? "paused" : "playing");
+            pbi.pos = pbi.wpso.position;
+            pbi.dur = pbi.wpso.duration;
+            const st = pbi.wpso.track_window.current_track;
+            pbi.spid = st.id;
+            pbi.det = {title:st.name, artist:st.artists[0].name,
+                       album:st.album.name};
+            mgrs.spa.updatePlayState(pbi.state); },
+        spotifyTrackDetails: function () {
+            return pbi.det || {title:"", artist:"", album:""}; },
+        switchToSpotifyTrack: function (/*wpso*/) {
+            mgrs.cmt.toggleTuningOpts("off");
+            mgrs.cmt.toggleCommentDisplay("off");
+            mgrs.cmt.toggleSongShare("off");
+            // const st = wpso.track_window.current_track;
+            // const tid = "z:" + st.id;
+            // pmso.song = {dsId:"spotify" + tid, ti:st.name,
+            //              ar:st.artists[0].name, ab:st.album.name,
+            //              spdn:(st.disc_number || 1),
+            //              sptn:(st.track_number || 1), spid:tid,
+            //              srcid:1, //reserved value for Spotify sourced Songs
+            //              al:49, el:49, kws:"", rv:5, fq:"N", nt:"", pc:1,
+            //              lp:new Date().toISOString()};
+            // app.svc.dispatch("web", "addSongsToPool", [updsong]);
+            mgrs.uiu.updateSongDisplay(); },
+        refreshPlayState: function () {
+            swpi.getCurrentState().then(function (wpso) {
+                if(!wpso) {  //might be dead, might be still setting up
+                    pbi.rpsfails = (pbi.rpsfails || 0) + 1;
+                    if(pbi.rpsfails < 3) {
+                        jt.log("rpsfail " + pbi.rpsfails + " retrying...");
+                        return setTimeout(mgrs.spa.refreshPlayState, 500); }
+                    jt.log("rpsfail assuming token expired");
+                    pstat = "retriesexceeded";
+                    pmsg("Spotify Web Player disconnected. Reconnecting...");
+                    return app.player.next(); }
+                mgrs.spa.noteWebPlaybackState(wpso); }); },
+        updatePlayState: function (state) {
+            pbi.state = state;
+            mgrs.plui.updateDisplay(mgrs.spa, pbi.state, pbi.pos, pbi.dur); },
+        pause: function () {
+            swpi.pause().then(function () {
+                mgrs.spa.updatePlayState("paused"); }); },
+        resume: function () {
+            swpi.resume().then(function () {
+                mgrs.spa.updatePlayState("playing"); }); },
+        seek: function (ms) {
+            ms = ms || 1;  //Spotify seek doesn't like zero milliseconds
+            swpi.seek(ms).then(function () {
+                mgrs.spa.updatePlayState(pbi.state, ms, pbi.dur); }); },
+        verifyPlaying: function () {
+            app.top.dispatch("webla", "spimpNeeded", "playstart");
+            if(pbi.state !== "playing") {
+                if(pbi.song) {
+                    return mgrs.spa.playSong(pbi.song); }
+                app.player.next(); } },
+        handlePlayFailure: function (stat, err) {
+            const msg = stat + ": " + err;
+            app.svc.dispatch("spc", "playerMessage", "Playback failed " + msg);
+            mgrs.spa.pause();  //stop playback of previously loaded song
+            const odiv = jt.byId("mediaoverlaydiv");
+            odiv.style.top = (jt.byId("playertitle").offsetHeight + 2) + "px";
+            odiv.style.display = "block";
+            odiv.innerHTML = "Song currently unavailable, skipping...";
+            setTimeout(function () {
+                jt.out("mediaoverlaydiv", "");
+                jt.byId("mediaoverlaydiv").style.display = "none";
+                app.player.next(); }, 3000);
+            app.svc.dispatch("web", "playbackError",
+                             {type:"spid", spid:pbi.song.spid, error:msg}); },
+        playSong: function (song) {
+            pbi.song = song;
+            if(pstat !== "connected" || !pdid) {
+                return; }  //playback starts after connection setup complete.
+            //autoplay is generally blocked, but may happen if the state is
+            //refreshed after hitting the play button.
+            pbi.spuri = "spotify:track:" + pbi.song.spid.slice(2);
+            app.svc.dispatch("spc", "sjc", `me/player/play?device_id=${pdid}`,
+                             "PUT", {uris:[pbi.spuri]},
+                             function () {
+                                 jt.log("Playing " + pbi.spuri); },
+                             mgrs.spa.handlePlayFailure); }
+    };  //end mgrs.spa returned functions
     }());
 
 
@@ -173,7 +571,7 @@ app.svc = (function () {
                 const b64dat = du.replace(/^data:image.+;base64,/, "");
                 jt.log("b64dat length: " + b64dat.length);
                 mgrs.spc.upldimgb64(relurl, b64dat, contf, errf); };
-            img.src = app.dr(source); },
+            img.src = app.util.dr(source); },
         upldimgb64: function (relurl, b64dat, contf, errf) {
             errf = errf || function (stat, msg) {
                 jt.log("spc.upldimgb64 error " + stat + ": " + msg); };
@@ -222,7 +620,7 @@ app.svc = (function () {
                               return {name:t.name, tid:t.id,
                                       dn:t.disc_number, tn:t.track_number}; })};
             const dat = {abinf:JSON.stringify(cabi)};
-            jt.call("POST", app.dr("/api/spabimp"), app.authdata(dat),
+            jt.call("POST", app.util.dr("/api/spabimp"), app.util.authdata(dat),
                     function (songs) {  //all songs now in hub db
                         var pool = mgrs.web.songs();
                         var merged = [];
@@ -243,198 +641,11 @@ app.svc = (function () {
 
 
 
-    //Local manager handles local server interaction
-    mgrs.loc = (function () {
-        var config = null;
-        var dbo = null;
-        var loadproc = null;
-    return {
-        monitorReadTotal: function () {
-            jt.call("GET", app.cb("/songscount"), null,
-                    function (info) {
-                        loadproc.stat = info.status;
-                        if(info.status === "reading") {  //work ongoing, monitor
-                            app.top.dispCount(info.count, "total");
-                            jt.out(loadproc.divid, info.lastrpath);
-                            setTimeout(mgrs.loc.monitorReadTotal, 500); }
-                        else {  //read complete
-                            //app.deck.updateDeck(); handled by dbread return
-                            mgrs.loc.cancelRead();  //clear loadproc
-                            mgrs.loc.checkForReadErrors(info); } },
-                    function (code, errtxt) {
-                        errstat("svc.loc.monitorReadTotal", code, errtxt); },
-                    jt.semaphore("svc.loc.monitorReadTotal")); },
-        checkForReadErrors: function (info) {
-            if(info.status === "badMusicPath") {
-                jt.err("bad musicPath " + info.musicpath);
-                app.top.dispatch("cfg", "launch"); }
-            else {
-                app.top.dispatch("locla", "noteLibraryLoaded"); } },
-        rebuildSongData: function (databaseobj) {
-            dbo = databaseobj;
-            app.top.dispCount(dbo.songcount, "total");
-            Object.entries(dbo.songs).forEach(function ([path, song]) {
-                if(!song.ar) {  //missing artist, ti probably full path
-                    const pes = path.split("/");
-                    song.ti = pes[pes.length - 1];
-                    if(pes.length >= 3) {
-                        song.ar = pes[pes.length - 3];
-                        song.ab = pes[pes.length - 2]; }
-                    else if(pes.length >= 2) {
-                        song.ar = pes[pes.length - 2]; } } });
-            app.top.markIgnoreSongs();
-            app.top.rebuildKeywords();
-            if(loadproc && loadproc.divid) {  //called from full rebuild
-                jt.out(loadproc.divid, ""); }
-            app.deck.songDataChanged("rebuildSongData"); },
-        readSongFiles: function () {
-            jt.out("topdlgdiv", "");  //clear confirmation prompt if displayed
-            if(loadproc.stat === "reading") {
-                return; }  //already reading
-            loadproc.stat = "reading";
-            setTimeout(mgrs.loc.monitorReadTotal, 800);  //monitor after GET
-            jt.call("GET", app.cb("/dbread"), null,
-                    function (databaseobj) {
-                        mgrs.loc.rebuildSongData(databaseobj); },
-                    function (code, errtxt) {
-                        if(code !== 409) {  //read already in progress, ignore
-                            errstat("svc.loc.readSongFiles", code, errtxt); } },
-                    jt.semaphore("svc.loc.readSongFiles")); },
-        timeEstimateReadText: function () {
-            var et = "";
-            if(dbo.scanstart && dbo.scanned) {
-                jt.log("dbo.scanstart: " + dbo.scanstart);
-                jt.log("  dbo.scanned: " + dbo.scanned);
-                const start = jt.isoString2Time(dbo.scanstart);
-                const end = jt.isoString2Time(dbo.scanned);
-                const diffms = end.getTime() - start.getTime();
-                const elapsed = Math.round(diffms / (10 * 60)) / 100;
-                et = "(last scan took about " + elapsed + " minutes)"; }
-            return et; },
-        cancelRead: function () {
-            jt.out(loadproc.divid, "");
-            loadproc = null; },
-        confirmRead: function () {
-            jt.out(loadproc.divid, jt.tac2html(
-                [["div", {cla:"cldiv"}, "Confirm: Re-read all music files in"],
-                 ["div", {cla:"statdiv", id:"musicfolderdiv"},
-                  config.musicPath],
-                 ["div", {cla:"cldiv"}, mgrs.loc.timeEstimateReadText()],
-                 ["div", {cla:"dlgbuttonsdiv"},
-                  [["button", {type:"button", onclick:mdfs("loc.cancelRead")},
-                    "Cancel"],
-                   ["button", {type:"button",
-                               onclick:mdfs("loc.readSongFiles")},
-                    "Go!"]]]])); },
-        loadLibrary: function (procdivid, cnf, procdonef) {
-            procdivid = procdivid || "topdlgdiv";
-            if(loadproc && loadproc.stat !== "ready") {
-                return jt.log("loc.loadLibrary already in progress"); }
-            loadproc = {divid:procdivid, donef:procdonef};
-            if(!cnf) { return mgrs.loc.readSongFiles(); }
-            mgrs.loc.confirmRead(); },
-        getConfig: function () { return config; },
-        noteUpdatedAcctsInfo: function(acctsinfo) {
-            config.acctsinfo = acctsinfo; },
-        changeConfig: function (configChangeFields, contf, errf) {
-            jt.call("POST", "/cfgchg", jt.objdata(configChangeFields),
-                    contf, errf, jt.semaphore("loc.changeConfig")); },
-        songs: function () { return dbo.songs; },
-        fetchSongs: function (contf, ignore /*errf*/) {
-            setTimeout(function () {
-                contf(dbo.songs); }, 200); },
-        fetchAlbum: function (song, contf) {
-            var lsi = song.path.lastIndexOf("/");  //last separator index
-            if(lsi < 0) {
-                lsi = song.path.lastIndexOf("\\"); }
-            const pp = song.path.slice(0, lsi + 1);  //path prefix
-            const abs = Object.values(dbo.songs)  //album songs
-            //simple ab match won't work (e.g. "Greatest Hits").  ab + ar fails
-            //if the artist name varies (e.g. "main artist featuring whoever".
-                .filter((s) => s.path.startsWith(pp))
-                .sort(function (a, b) {  //assuming filename start with track#
-                    return a.path.localeCompare(b.path); });
-            jt.log("svc.loc.fetchAlbum song.path " + song.path);
-            abs.forEach(function (s) {
-                jt.log("    " + s.path); });
-            contf(song, abs); },
-        majorError: function (code, errtxt) {
-            if(!code && !errtxt) { //local server unreachable
-                jt.out("modindspan", "offline");
-                jt.err("Digger server unavailable. Close this page and launch the Digger app."); }
-            else {
-                jt.err("/savesongs failed " + code + ": " + errtxt); } },
-        saveSongs: function (songs, contf, errf) {
-            const data = jt.objdata({songs:JSON.stringify(songs)});
-            jt.call("POST", "/savesongs", data, contf,
-                    function (code, errtxt) {
-                        if(!errf) {
-                            mgrs.loc.majorError(code, errtxt); }
-                        else {
-                            errf(code, errtxt); } },
-                    jt.semaphore("mgrs.loc.saveSongs")); },
-        noteUpdatedSongData: function (updsong) {  //already saved, reflect loc
-            var song = dbo.songs[updsong.path];
-            if(song) {
-                app.copyUpdatedSongData(song, updsong); }
-            else {  //hub sync might send something not available locally
-                jt.log("noteUpdatedSongData ignoring non-local song: " +
-                       JSON.stringify(updsong)); }
-            return song || updsong; },
-        updateAccount: function (acctsinfo, contf, errf) {
-            var data = jt.objdata({acctsinfo:JSON.stringify(acctsinfo)});
-            jt.call("POST", "/acctsinfo", data, contf, errf,
-                    jt.semaphore("svc.loc.updateAccount")); },
-        hubSyncDat: function (data, contf, errf) {
-            jt.call("POST", "/hubsync", data, contf, errf,
-                    jt.semaphore("svc.loc.hubSynchronize")); },
-        makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
-            jt.call(verb, "/" + endpoint, data, contf, errf,
-                    jt.semaphore("svc.loc." + endpoint)); },
-        writeConfig: function (cfg, contf, errf) {
-            var data = jt.objdata({cfg:JSON.stringify(cfg)});
-            jt.call("POST", "/wrtcfg", data, contf, errf,
-                    jt.semaphore("svc.loc.cfgupd")); },
-        fanGroupAction: function (data, contf, errf) {
-            jt.call("POST", "/fangrpact", data, contf, errf,
-                    jt.semaphore("svc.loc.fanGroupAction")); },
-        fanCollab: function (data, contf, errf) {
-            jt.call("POST", "/fancollab", data, contf, errf,
-                    jt.semaphore("svc.loc.fanCollab")); },
-        fanMessage: function (data, contf, errf) {
-            jt.call("POST", "/fanmsg", data, contf, errf,
-                    jt.semaphore("svc.loc.fanMessage")); },
-        loadInitialData: function (contf, errf) {
-            jt.call("GET", app.cb("/startdata"), null,
-                    function (startdata) {
-                        config = startdata.config;
-                        dbo = startdata.songdata;
-                        mgrs.gen.initialDataLoaded(startdata);
-                        app.top.dispCount(dbo.songcount, "total");
-                        if(!dbo.scanned) {
-                            setTimeout(mgrs.loc.loadLibrary, 50); }
-                        contf(); },
-                    errf,
-                    jt.semaphore("svc.loc.loadInitialData")); },
-        docContent: function (docurl, contf, errf) {
-            const up = jt.objdata({docurl:jt.enc(docurl)});
-            jt.request("GET", app.cb(app.dr("/doctext"), up, "day"), null,
-                       contf, errf, jt.semaphore("mgrs.loc.docContent")); }
-    };  //end mgrs.loc returned functions
-    }());
-            
-
     //Web manager handles web server interaction
     mgrs.web = (function () {
         //var libs = {};  //active libraries to match against for song retrieval
         var pool = {};  //locally cached songs by title/artist/album key
         var lastfvsj = null;  //most recent fetch values json
-        function makeStartDataAndContinue (contf) {
-            const startdata = {config:app.top.dispatch("aaa", "getConfig"),
-                               songdata:{version:"vDiggerHub",
-                                         songs:pool}};
-            mgrs.gen.initialDataLoaded(startdata);
-            contf(startdata); }
     return {
         key: function (song) {
             if(!song.path) {  //history filters by path, verify value exists
@@ -447,7 +658,7 @@ app.svc = (function () {
             return {config:{acctsinfo:{currid:auth.dsId, accts:[auth]}},
                     songdata:{version:auth.hubVersion,
                               songs:pool}}; },
-        loadInitialData: function (contf, ignore /*errf*/) {
+        initialSetup: function () {
             jt.out("countspan", "DiggerHub");
             jt.byId("countspan").style.fontStyle = "italic";
             jt.byId("countspan").style.opacity = 0.6;
@@ -458,27 +669,20 @@ app.svc = (function () {
                                                 atk[0]);
                     app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
                                      acct, atk[1]);
-                    makeStartDataAndContinue(contf); },
+                    app.pdat.svcModuleInitialized(); },
                 function () {  //not signed in
-                    makeStartDataAndContinue(contf); }); },
+                    app.pdat.svcModuleInitialized(); }); },
         addSongsToPool: function (songs) {
             songs.forEach(function (song) {
                 const sk = mgrs.web.key(song);
                 if(pool[sk]) {
-                    app.copyUpdatedSongData(pool[sk], song); }
+                    app.util.copyUpdatedSongData(pool[sk], song); }
                 else {
                     pool[sk] = song; } }); },
         reflectUpdatedSongIfInPool: function (song) {
             var sk = mgrs.web.key(song);
             if(pool[sk]) {
-                app.copyUpdatedSongData(pool[sk], song); } },
-        noteUpdatedSongData: function (song) {
-            var sk = mgrs.web.key(song);
-            if(pool[sk]) {
-                app.copyUpdatedSongData(pool[sk], song); }
-            else {
-                pool[sk] = song; }
-            return pool[sk]; },
+                app.util.copyUpdatedSongData(pool[sk], song); } },
         poolAvailable: function () {
             var startOfDay = Date.now() - (24 * 60 * 60 * 1000);
             startOfDay = new Date(startOfDay).toISOString();
@@ -503,8 +707,8 @@ app.svc = (function () {
                 lastfvsj = fvsj;
                 mgrs.web.callSongFetch(fvsj, contf, errf); } },
         callSongFetch: function (fvsj, contf, errf) {
-            const ps = app.authdata({fvs:fvsj});
-            jt.call("GET", app.cb(app.dr("/api/songfetch"), ps), null,
+            const ps = app.util.authdata({fvs:fvsj});
+            jt.call("GET", app.util.cb(app.util.dr("/api/songfetch"), ps), null,
                     function (songs) {
                         mgrs.web.addSongsToPool(songs);
                         contf(pool); },
@@ -512,32 +716,20 @@ app.svc = (function () {
                     jt.semaphore("mgrs.web.fetchSongs")); },
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
-        saveSongs: function (songs, contf, errf) {
-            var updobj = {songs:txSongsJSON(songs)};  //100 songs ~= 61k
-            jt.call("POST", "api/savesongs", app.authdata(updobj),
-                    contf, errf, jt.semaphore("mgrs.web.saveSongs")); },
-        makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
-            jt.call(verb, "/api/" + endpoint, data, contf, errf,
-                    jt.semaphore("svc.web." + endpoint)); },
+        passthroughHubCall: function (dets) {
+            jt.call(dets.verb, "/api/" + dets.url, dets.dat,
+                    dets.contf, dets.errf,
+                    jt.semaphore("svc.web." + dets.endpoint)); },
         writeConfig: function (cfg, contf) {
             //nothing to do, account info already saved on server
             setTimeout(function () { contf(cfg); }, 50); },
-        fanGroupAction: function (data, contf, errf) {
-            jt.call("POST", "/api/fangrpact", data, contf, errf,
-                    jt.semaphore("svc.web.fanGroupAction")); },
-        fanCollab: function (data, contf, errf) {
-            jt.call("POST", "/api/fancollab", data, contf, errf,
-                    jt.semaphore("svc.web.fanCollab")); },
-        fanMessage: function (data, contf, errf) {
-            jt.call("POST", "/api/fanmsg", data, contf, errf,
-                    jt.semaphore("svc.web.fanMessage")); },
         postSupportRequest: function (subj, body, contf, errf) {
-            var data = app.authdata({subj:jt.enc(subj),
-                                         body:jt.enc(body)});
+            var data = app.util.authdata({subj:jt.enc(subj),
+                                          body:jt.enc(body)});
             jt.call("POST", "/api/emsupp", data, contf, errf,
                     jt.semaphore("mgrs.web.emsupp")); },
         playbackError: function (data) {
-            jt.call("POST", "/api/playerr", app.authdata(data),
+            jt.call("POST", "/api/playerr", app.util.authdata(data),
                     function () {
                         jt.log("playbackError reported " +
                                JSON.stringify(data)); },
@@ -545,8 +737,10 @@ app.svc = (function () {
                         jt.log("playbackError reporting failed."); }); },
         docContent: function (docurl, contf, errf) {
             const up = jt.objdata({docurl:jt.enc(docurl)});
-            jt.request("GET", app.cb(app.dr("/api/doctext"), up, "day"), null,
-                       contf, errf, jt.semaphore("mgrs.web.docContent")); }
+            jt.request("GET", app.util.cb(app.util.dr("/api/doctext"), up,
+                                          "day"),
+                       null, contf, errf,
+                       jt.semaphore("mgrs.web.docContent")); }
     };  //end mgrs.web returned functions
     }());
 
@@ -557,15 +751,14 @@ app.svc = (function () {
             hdm: "loc",   //host data manager "loc" or "web", default local
             musicPath: "editable",  //can change where music files are found
             dbPath: "editable",  //can change where rating info is saved
-            audsrc: "Browser"};  //audio source for music
+            audsrc: "Browser",   //audio source for music
+            audmgr: "loa"};      //audio manager for playback calls
         var dwurl = "https://diggerhub.com/digger";
         var hdm = "loc";  //host data manager.  either loc or web
-        var stat = {idl:false};
         function isLocalDev (url) {
             return url &&
                 url.match(/https?:\/\/(localhost|127.0.0.1):80\d\d\/digger/); }
-    return {
-        initplat: function (overhdm) {
+        function initplat (overhdm) {
             if(overhdm) {
                 platconf.hdm = overhdm; }
             else {
@@ -573,56 +766,40 @@ app.svc = (function () {
                 if(url.startsWith(dwurl) || isLocalDev(url)) {
                     platconf.hdm = "web";
                     //support different web audio via app.startParams values
+                    platconf.audmgr = "spa";
                     platconf.audsrc = "Spotify"; }
                 else {  //localhost or LAN
                     platconf.hdm = "loc"; } }
-            hdm = platconf.hdm; },
-        plat: function (key) { return platconf[key]; },
-        updateMultipleSongs: function (songs, contf, errf) {
-            return mgrs.loc.saveSongs(songs, contf, errf); },
-        initialDataLoaded: function (startdata) {
-            if(stat.idl) {
-                return jt.log("initial data already loaded"); }
-            app.initialDataLoaded(startdata); },
-        initialDataSuccess: function () {
-            jt.log("Initial data loaded"); },
-        initialDataFailed: function (code, errtxt) {
-            jt.err("Initial data load failed " + code + ": " + errtxt); },
+            hdm = platconf.hdm; }
+    return {
         initialize: function () {
-            mgrs.gen.initplat();
-            //At a minimum, load the current account so settings are available.
-            jt.log("svc.gen.initialize setting up for loadInitialData");
-            setTimeout(function () {
-                mgrs[hdm].loadInitialData(mgrs.gen.initialDataSuccess,
-                                          mgrs.gen.initialDataFailed); },
-                       200); },
+            initplat();
+            if(hdm === "loc") {
+                app.pdat.addApresDataNotificationTask("svc.loc.loadLibrary",
+                                                      mgrs.loc.loadLibrary); }
+            Object.entries(mgrs).forEach(function ([name, mgr]) {
+                if(name !== "gen" && mgr.initialize) {
+                    jt.log("initializing svc." + name);
+                    mgr.initialize(); } });
+            app.pdat.svcModuleInitialized(); },
+        plat: function (key) { return platconf[key]; },
+        readConfig: function (contf, errf) {
+            mgrs[hdm].readConfig(contf, errf); },
+        readDigDat: function (contf, errf) {
+            mgrs[hdm].readDigDat(contf, errf); },
+        writeConfig: function (config, ignore/*optobj*/, contf, errf) {
+            mgrs[hdm].writeConfig(config, contf, errf); },
+        writeDigDat: function (digdat, ignore/*optobj*/, contf, errf) {
+            mgrs[hdm].writeDigDat(digdat, contf, errf); },
+        passthroughHubCall: function (dets) {
+            mgrs[hdm].passthroughHubCall(dets); },
+        docContent: function (docurl, contf) {
+            mgrs[hdm].docContent(docurl, contf, function (code, errtxt) {
+                contf("Doc error " + code + ": " + errtxt); }); },
         loadLibrary: function (libname, divid, cnf, donef) {
             switch(libname) {
             case "local": return mgrs.loc.loadLibrary(divid, cnf, donef);
             default: jt.log("Unknown libname: " + libname); } },
-        songs: function () {  //return currently cached songs
-            return mgrs[hdm].songs(); },
-        fetchSongs: function (contf, errf) {  //retrieve more songs
-            mgrs[hdm].fetchSongs(contf, errf); },
-        fetchAlbum: function (song, contf, errf) {
-            mgrs[hdm].fetchAlbum(song, contf, errf); },
-        saveSongs: function (songs, contf, errf) {
-            mgrs[hdm].saveSongs(songs, contf, errf); },
-        noteUpdatedSongData: function (song) {
-            return mgrs[hdm].noteUpdatedSongData(song); },
-        docContent: function (docurl, contf) {
-            mgrs[hdm].docContent(docurl, contf, function (code, errtxt) {
-                contf("Doc error " + code + ": " + errtxt); }); },
-        makeHubAcctCall: function (verb, endpoint, data, contf, errf) {
-            mgrs[hdm].makeHubAcctCall(verb, endpoint, data, contf, errf); },
-        writeConfig: function (cfg, contf, errf) {
-            mgrs[hdm].writeConfig(cfg, contf, errf); },
-        fanGroupAction: function (data, contf, errf) {
-            mgrs[hdm].fanGroupAction(data, contf, errf); },
-        fanCollab: function (data, contf, errf) {
-            mgrs[hdm].fanCollab(data, contf, errf); },
-        fanMessage: function (data, contf, errf) {
-            mgrs[hdm].fanMessage(data, contf, errf); },
         copyToClipboard: function (txt, contf, errf) {
             navigator.clipboard.writeText(txt).then(contf, errf); }
     };  //end mgrs.gen returned functions
@@ -631,16 +808,18 @@ app.svc = (function () {
 return {
     init: function () { mgrs.gen.initialize(); },
     plat: function (key) { return mgrs.gen.plat(key); },
-    songs: function () { return mgrs.gen.songs(); },
-    fetchSongs: function (cf, ef) { mgrs.gen.fetchSongs(cf, ef); },
-    fetchAlbum: function (s, cf, ef) { mgrs.gen.fetchAlbum(s, cf, ef); },
-    saveSongs: function (s, cf, ef) { mgrs.gen.saveSongs(s, cf, ef); },
-    noteUpdatedState: function (/*label*/) { return; },  //mobile view restart
+    readConfig: mgrs.gen.readConfig,
+    readDigDat: mgrs.gen.readDigDat,
+    writeConfig: mgrs.gen.writeConfig,
+    writeDigDat: mgrs.gen.writeDigDat,
+    playSongQueue: function (pwsid, sq) {
+        mgrs[mgrs.gen.plat("audmgr")].playSongQueue(pwsid, sq); },
+    requestPlaybackStatus: function (cbf) {
+        mgrs[mgrs.gen.plat("audmgr")].requestPlaybackStatus(cbf); },
     urlOpenSupp: function () { return true; }, //ok to open urls in new tab
     docContent: function (du, cf) { mgrs.gen.docContent(du, cf); },
     topLibActionSupported: function () { return true; },
     defaultCollectionStyle: function () { return "permanentCollection"; },
-    writeConfig: function (cfg, cf, ef) { mgrs.gen.writeConfig(cfg, cf, ef); },
     dispatch: function (mgrname, fname, ...args) {
         return mgrs[mgrname][fname].apply(app.svc, args); }
 };  //end of returned functions

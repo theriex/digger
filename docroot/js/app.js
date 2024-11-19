@@ -5,434 +5,388 @@ var jt = {};
 var app = (function () {
     "use strict";
 
-    const pdis = [{cn:"ios", pn:"iOS", aud:"IOS"},
-                  {cn:"droid", pn:"Android", aud:"Android"},
-                  {cn:"node", pn:"Mac/Win/*nix", aud:"Browser"}];
-    const slib = {wms:50,  //support lib wait milliseconds (doubles on retry)
-                  tmo:null};
-    const flags = {dataInitialized:false};
+    var mgrs = {};   //app implementation support modules
 
-    function globkey (e) {
-        //jt.log("globkey charCode: " + e.charCode + ", keyCode: " + e.keyCode);
-        if(e && (e.charCode === 32 || e.keyCode === 32)) {  //space bar
-            const edtags = ["textarea", "input"];
-            const tname = e.target.tagName;
-            if(tname && edtags.indexOf(tname.toLowerCase()) < 0) {
-                if(app.spacebarhookfunc) {
-                    app.spacebarhookfunc(); } } }
-    }
-
-
-    function activatePlatformSpecificDivs (docdiv) {
-        const audsrc = app.svc.plat("audsrc");
-        const actp = pdis.find((pdi) => pdi.aud === audsrc);
-        const pods = docdiv.getElementsByClassName("platoptsdiv");
-        Array.from(pods).forEach(function (pod, podi) {
-            Array.from(pod.children).forEach(function (pd) {
-                pd.id=pd.className + podi; });
-            const seldiv = document.createElement("div");
-            seldiv.className = "platselcontdiv";
-            seldiv.innerHTML = jt.tac2html(
-                ["div", {cla:"platseldiv"},
-                 pdis.map((pdi) =>
-                     ["div", {cla:"platseloptdiv"},
-                      ["a", {href:"#" + pdi.cn,
-                             onclick:jt.fs("app.displayPlat('" + pdi.cn + "'" +
-                                           "," + podi + ")")},
-                       pdi.pn]])]);
-            pod.prepend(seldiv);
-            app.displayPlat(actp.cn, podi); });
-    }
-
-
-    function activateExpansionDivs (docdiv) {
-        const xpds = docdiv.getElementsByClassName("expandiv");
-        Array.from(xpds).forEach(function (xpd, xpdi) {
-            const h3 = xpd.children.item(0);
-            const xd = xpd.children.item(1);
-            xd.id = "expandiv" + xpdi;
-            h3.innerHTML = jt.tac2html(
-                [["div", {cla:"expansionindicatordiv", id:"expidiv" + xpdi},
-                  ["a", {href:"#expand", id:"xptoga" + xpdi,
-                         onclick:jt.fs("app.togexp(" + xpdi + ")")},
-                   "+"]],
-                 h3.innerHTML]);
-            xd.style.display = "none"; });
-    }
-
-
-    function init2 () {
-        app.amdtimer.load.end = new Date();
-        jt.log = console.log;  //overridden again in filter.dcm.init
-        jt.log("window.innerWidth/Height: " + window.innerWidth + " x " +
-               window.innerHeight);
-        jt.on(document, "keydown", globkey);
-        app.startParams = jt.parseParams("String");
-        app.startPath = window.location.pathname.toLowerCase();
-        if(diggerapp.context === "local" || app.startPath === "/digger") {
-            if(diggerapp.context === "web") {
-                jt.byId("topsectiondiv").style.display = "none"; }
-            jt.out("outercontentdiv", jt.tac2html(
-                ["div", {id:"contentframingdiv"},
-                 ["div", {id:"contentmargindiv"},
-                  ["div", {id:"contentdiv"},
-                   [["div", {cla:"paneldiv", id:"pantopdiv"}],
-                    ["div", {cla:"paneldiv", id:"panplaydiv"}],
-                    ["div", {cla:"paneldiv", id:"pandeckdiv"}],
-                    ["div", {id:"appoverlaydiv"}]]]]]));
-            if(app.startPath === "/digger") {  //web startup needs auth info
-                app.login.init(false); }  //calls initDiggerModules
+    //docs manager handles documentation display support
+    mgrs.docs = (function () {
+        const pdis = [{cn:"ios", pn:"iOS", aud:"IOS"},
+                      {cn:"droid", pn:"Android", aud:"Android"},
+                      {cn:"node", pn:"Mac/Win/*nix", aud:"Browser"}];
+        function activatePlatformSpecificDivs (docdiv) {
+            const audsrc = app.svc.plat("audsrc");
+            const actp = pdis.find((pdi) => pdi.aud === audsrc);
+            const pods = docdiv.getElementsByClassName("platoptsdiv");
+            Array.from(pods).forEach(function (pod, podi) {
+                Array.from(pod.children).forEach(function (pd) {
+                    pd.id=pd.className + podi; });
+                const seldiv = document.createElement("div");
+                seldiv.className = "platselcontdiv";
+                seldiv.innerHTML = jt.tac2html(
+                    ["div", {cla:"platseldiv"},
+                     pdis.map((pdi) =>
+                         ["div", {cla:"platseloptdiv"},
+                          ["a", {href:"#" + pdi.cn,
+                                 onclick:jt.fs("app.docs.displayPlat('" +
+                                               pdi.cn + "'," + podi + ")")},
+                           pdi.pn]])]);
+                pod.prepend(seldiv);
+                app.docs.displayPlat(actp.cn, podi); }); }
+        function activateExpansionDivs (docdiv) {
+            const xpds = docdiv.getElementsByClassName("expandiv");
+            Array.from(xpds).forEach(function (xpd, xpdi) {
+                const h3 = xpd.children.item(0);
+                const xd = xpd.children.item(1);
+                xd.id = "expandiv" + xpdi;
+                h3.innerHTML = jt.tac2html(
+                    [["div", {cla:"expansionindicatordiv", id:"expidiv" + xpdi},
+                      ["a", {href:"#expand", id:"xptoga" + xpdi,
+                             onclick:jt.fs("app.docs.togexp(" + xpdi + ")")},
+                       "+"]],
+                     h3.innerHTML]);
+                xd.style.display = "none"; }); }
+        function docDynamicContent () {
+            const lut = jt.byId("privlut");
+            if(lut) {
+                lut.innerHTML = jt.colloquialDate(lut.innerHTML); }
+            const docdiv = jt.byId("docdispdiv");
+            activatePlatformSpecificDivs(docdiv);
+            activateExpansionDivs(docdiv); }
+    return {
+        togexp: function (idx) {  //offset index within document
+            const ta = jt.byId("xptoga" + idx);
+            const xd = jt.byId("expandiv" + idx);
+            if(ta.innerHTML.indexOf("+") >= 0) {
+                ta.innerHTML = "-";
+                xd.style.display = "block"; }
             else {
-                app.initDiggerModules(); } }
-        else if(diggerapp.context === "web") {
-            app.login.init(); }
-    }
-
-return {
-    overlaydiv: "appoverlaydiv",
-    init: function () {
-        var ox = window.location.href;
-        if(!diggerapp.context === "web") {
-            if((ox.toLowerCase().indexOf("https:") !== 0) &&  //not secure
-               (ox.search(/:\d080/) < 0)) {  //and not local dev
-                window.location.href = "https:" + ox.slice(ox.indexOf("/"));
-                return; } }  //stop and let the redirect happen.
-        if(ox.indexOf("android") >= 0) {
-            app.docroot = "https://appassets.androidplatform.net/assets/"; }
-        else if(ox.indexOf("diggerIOS.app") >= 0) {
-            app.docroot = ox.slice(0, ox.lastIndexOf("/")); }
-        else {
-            app.docroot = ox.split("/").slice(0, 3).join("/") + "/"; }
-        if(typeof(jtminjsDecorateWithUtilities) !== "function") {
-            if(slib.tmo) {
-                clearTimeout(slib.tmo);
-                slib.tmo = null; }
-            slib.wms = slib.wms * 2;
-            const bsd = document.getElementById("bootstatdiv");
-            if(bsd) {
-                bsd.innerHTML = "Support library load retry in " +
-                    (slib.wms / 1000) + " seconds..."; }
-            slib.tmo = setTimeout(app.init, slib.wms);
-            return; }
-        jtminjsDecorateWithUtilities(jt);
-        jt.out("bootstatdiv", "Loading app modules...");
-        const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
-        app.amdtimer = {};
-        app.amdtimer.load = { start: new Date() };
-        jt.loadAppModules(app, loadfs, app.docroot, init2, "?v=240926");
-    },
-
-
-    restart: init2,
-
-
-    initDiggerModules: function () {
-        diggerapp.modules.forEach(function (md) {
-            if(md.type === "dm") {
-                app[md.name].init(); } });
-    },
-
-
-    fileVersion: function () {
-        return "v=240926";  //updated as part of release process
-    },
-
-
-    togexp: function (idx) {  //offset index within document
-        const ta = jt.byId("xptoga" + idx);
-        const xd = jt.byId("expandiv" + idx);
-        if(ta.innerHTML.indexOf("+") >= 0) {
-            ta.innerHTML = "-";
-            xd.style.display = "block"; }
-        else {
-            ta.innerHTML = "+";
-            xd.style.display = "none"; }
-    },
-
-
-    //divdesc can be a string divid to display/hide, or a toggle group spec:
-    // {rootids:[srcdivroot, srcdivroot2...]
-    //  clicked:srcdivroot}
-    //The toggleable content group clicked element is "tcgc" + srcdivroot
-    //The toggleable content group display element is "tcgd" + srcdivroot
-    //Clicked elements have "tcgcactive" or "tcgcinactive" classes added
-    togdivdisp: function (divdesc, display) {
-        var dispelem = null;
-        if(divdesc.rootids) {
-            dispelem = jt.byId("tcgd" + divdesc.clicked); }
-        else {
-            dispelem = jt.byId(divdesc); }
-        if(!display) {
-            display = dispelem.style.display;
-            if(display === "none") {
-                display = "block"; }
-            else {
-                display = "none"; } }
-        if(divdesc.rootids) {
-            divdesc.rootids.forEach(function (rid) {
-                var tcgce = jt.byId("tcgc" + rid);
-                var tcgde = jt.byId("tcgd" + rid);
-                if(rid === divdesc.clicked) {
-                    tcgce.classList.remove("tcgcinactive");
-                    tcgce.classList.add("tcgcactive");
-                    tcgde.style.display = display; }
+                ta.innerHTML = "+";
+                xd.style.display = "none"; } },
+        displayPlat: function (selcn, idx) {
+            pdis.forEach(function (pdi) {
+                const div = jt.byId(pdi.cn + idx);
+                if(pdi.cn === selcn) {
+                    div.style.display = "block"; }
                 else {
-                    if(display === "block") {
-                        tcgce.classList.add("tcgcinactive"); }
-                    else {
-                        tcgce.classList.remove("tcgcinactive"); }
-                    tcgce.classList.remove("tcgcactive");
-                    tcgde.style.display = "none"; } }); }
-        else {
-            dispelem.style.display = display; }
-    },
-
-
-    //Return the argument list as a string of arguments suitable for appending
-    //to manager dispatch onwhatever function text.
-    paramstr: function (args) {
-        var ps = "";
-        if(args && args.length) {
-            ps = args.reduce(function (acc, arg) {
-                if((typeof arg === "string") && (arg !== "event")) {
-                    arg = "'" + arg + "'"; }
-                return acc + "," + arg; }, ""); }  //always start with comma
-        return ps;
-    },
-
-
-    //Dispatch function string.  Return an onwhatever function string.
-    dfs: function (module, mgrfname, args) {
-        var pstr = app.paramstr(args); var fstr;
-        mgrfname = mgrfname.split(".");
-        fstr = "app." + module + ".dispatch('" + mgrfname[0] + "','" +
-            mgrfname[1] + "'" + pstr + ")";
-        if(pstr !== ",event") {  //don't return false from event hooks
-            fstr = jt.fs(fstr); }
-        return fstr;
-    },
-
-
-    //make a cache busted url out of the endpoint and params
-    cb: function (endpoint, params, toklev) {
-        var url = endpoint + "?";
-        toklev = toklev || "second";
-        params = params || "";
-        if(typeof params === "object") {
-            params = jt.objdata(params); }
-        if(params) {
-            url += params + "&"; }
-        url += jt.ts("cb=", toklev);
-        return url;
-    },
-
-
-    authdata: function (obj) { //return obj post data, with an/at added
-        var digacc = app.top.dispatch("aaa", "getAccount");
-        var authdat = jt.objdata({an:digacc.email, at:digacc.token});
-        if(obj) {
-            authdat += "&" + jt.objdata(obj); }
-        return authdat;
-    },
-
-
-    haveHubCredentials: function () {
-        var digacc = app.top.dispatch("aaa", "getAccount");
-        if(digacc && digacc.dsId !== "101" && digacc.token &&
-           app.top.dispatch("ppc", "policyAccepted")) {
-            return true; }
-        return false;
-    },
-
-
-    //app.docroot is initialized with a terminating '/' so it can be
-    //concatenated directly with a relative path, but remembering and
-    //relying on whether a slash is required is annoying.  Double slashes
-    //are usually handled properly but can be a source of confusion, so this
-    //strips off any preceding slash in the relpath.
-    dr: function (relpath) {
-        if(relpath.startsWith("/")) {
-            relpath = relpath.slice(1); }
-        return app.docroot + relpath;
-    },
-
-
-    //Extract plain text from errmsg.  Controlled server errors return
-    //reasonable text errors, but server crashes and anything handled by the
-    //container may return full html pages which take up huge space in the 
-    //UI when rendered.  This logs the original and returns best guess text.
-    pt: function (errmsg) {
-        errmsg = errmsg || "";
-        const lcmsg = errmsg.toLowerCase();
-        if(lcmsg.indexOf("<html") >= 0) {
-            jt.log("app.pt original html errmsg: " + errmsg);
-            const hidx = lcmsg.indexOf("<h1>");
-            if(hidx >= 0) {
-                errmsg = errmsg.slice(hidx + 4);
-                const ci = errmsg.indexOf("</");
-                if(ci >= 0) {
-                    errmsg = errmsg.slice(0, ci); } }
-            jt.log("app.pt returning: " + errmsg); }
-        return errmsg;
-    },
-
-
-    subPlaceholders: function (divid, extlnk, body) {
-        const dom = "diggerhub.com";
-        const bot = "@" + dom;
-        const docpre = "https://" + dom + "/docs/";
-        const repls = [
-            {plc:"MANUAL", txt:"Manual", url:docpre + "manual.html"},
-            {plc:"TERMS", txt:"Terms", url:docpre + "terms.html"},
-            {plc:"PRIVACY", txt:"Privacy", url:docpre + "privacy.html"},
-            {plc:"SUPPORT", txt:"Support", url:docpre + "support.html"},
-            {plc:"PRIVPOLICY", txt:"privacy policy",
-             url:docpre + "privacy.html"},
-            {plc:"OPENSOURCE", txt:"open source",
-             url:"https://github.com/theriex/digger"},
-            {plc:"ISSUESONGITHUB", txt:"issues on GitHub",
-             url:"https://github.com/theriex/digger/issues"},
-            {plc:"SUPPEMAIL", txt:"support" + bot,
-             url:"mailto:support" + bot},
-            {plc:"EPINOVA", txt:"epinova.com", url:"https://epinova.com"},
-            {plc:"APPLOG", txt:"Digger App Log", aa: {
-                href:"#showlog", title:"Show Digger app exec log",
-                onclick:jt.fs("app.filter.showLog('" + app.overlaydiv + "')")}},
-            {plc:"SENDLOGSUPPLINK", txt:"Send it to support",
-             url:"mailto:support" + bot + "?subject=" +
-             jt.dquotenc("Problem running Digger") + "&body=" +
-             jt.dquotenc(app.filter.dispatch("dcm", "emFormat")) + "%0A%0A"}];
-        repls.forEach(function (repl) {
-            var link = repl.url;
-            if(repl.aa) { //anchor attributes provided
-                link = jt.tac2html(["a", repl.aa, repl.txt]); }
-            else if(link.startsWith(docpre)) {  //internal doc url
-                link = jt.tac2html(["a", {href:link, onclick:jt.fs(
-                    "app.displayDoc('" + divid + "','" + link + "')")},
-                                    repl.txt]); }
-            else if(extlnk) {  //external links supported by UI
-                link = jt.tac2html(["a", {href:link, onclick:jt.fs(
-                    "window.open('" + link + "')")}, repl.txt]); }
-            else {  //links not supported
-                if(link.startsWith("mailto")) {
-                    link = repl.txt; }
-                else {  //regular link
-                    link = repl.txt + " (" + repl.url + ")"; } }
-            body = body.replace(new RegExp(repl.plc, "g"), link); });
-        return body;
-    },
-
-
-    docStaticContent: function (divid, html) {
-        jt.out(divid, jt.tac2html(
-            ["div", {id:"docdispdiv"},
-             [["div", {id:"docdispxdiv"},
-               ["a", {href:"#close",
-                      onclick:jt.fs("app.displayDoc('" + divid + "')")},
-                "X"]],
-              ["div", {id:"docdispbodydiv"}, html]]]));
-    },
-
-
-    docDynamicContent: function () {
-        const lut = jt.byId("privlut");
-        if(lut) {
-            lut.innerHTML = jt.colloquialDate(lut.innerHTML); }
-        const docdiv = jt.byId("docdispdiv");
-        activatePlatformSpecificDivs(docdiv);
-        activateExpansionDivs(docdiv);
-    },
-
-
-    displayPlat: function (selcn, idx) {
-        pdis.forEach(function (pdi) {
-            const div = jt.byId(pdi.cn + idx);
-            if(pdi.cn === selcn) {
-                div.style.display = "block"; }
+                    div.style.display = "none"; } }); },
+        displayDoc: function (divid, docurl) {  //full url or doc filename
+            if(!docurl) {
+                return jt.out(divid, ""); }
+            jt.out(divid, "Loading " + docurl + "...");
+            app.svc.docContent(docurl, function (body) {
+                if(!body) {
+                    body = docurl + " unavailable"; }
+                if(body.indexOf("<body>") >= 0 &&
+                   body.indexOf("</body>") >= 0) {
+                    body = body.slice(body.indexOf("<body>") + 6,
+                                      body.indexOf("</body>")); }
+                const mbp = "| MANUAL | TERMS | PRIVACY | SUPPORT |";
+                body = jt.tac2html(["div", {id:"docmenubardiv"}, mbp]) + body;
+                body = body.replace(/src="\.\.\//g, "src=\"");  //droid etc
+                body = app.docs.subPlaceholders(divid, app.svc.urlOpenSupp(),
+                                                body);
+                app.docs.docStaticContent(divid, body);
+                docDynamicContent(); }); },
+        subPlaceholders: function (divid, extlnk, body) {
+            const dom = "diggerhub.com";
+            const bot = "@" + dom;
+            const docpre = "https://" + dom + "/docs/";
+            const repls = [
+                {plc:"MANUAL", txt:"Manual", url:docpre + "manual.html"},
+                {plc:"TERMS", txt:"Terms", url:docpre + "terms.html"},
+                {plc:"PRIVACY", txt:"Privacy", url:docpre + "privacy.html"},
+                {plc:"SUPPORT", txt:"Support", url:docpre + "support.html"},
+                {plc:"PRIVPOLICY", txt:"privacy policy",
+                 url:docpre + "privacy.html"},
+                {plc:"OPENSOURCE", txt:"open source",
+                 url:"https://github.com/theriex/digger"},
+                {plc:"ISSUESONGITHUB", txt:"issues on GitHub",
+                 url:"https://github.com/theriex/digger/issues"},
+                {plc:"SUPPEMAIL", txt:"support" + bot,
+                 url:"mailto:support" + bot},
+                {plc:"EPINOVA", txt:"epinova.com", url:"https://epinova.com"},
+                {plc:"APPLOG", txt:"Digger App Log", aa: {
+                    href:"#showlog", title:"Show Digger app exec log",
+                    onclick:jt.fs("app.filter.showLog('" + app.overlaydiv +
+                                  "')")}},
+                {plc:"SENDLOGSUPPLINK", txt:"Send it to support",
+                 url:"mailto:support" + bot + "?subject=" +
+                 jt.dquotenc("Problem running Digger") + "&body=" +
+                 jt.dquotenc(app.filter.dispatch("dcm", "emFormat")) +
+                 "%0A%0A"}];
+            repls.forEach(function (repl) {
+                var link = repl.url;
+                if(repl.aa) { //anchor attributes provided
+                    link = jt.tac2html(["a", repl.aa, repl.txt]); }
+                else if(link.startsWith(docpre)) {  //internal doc url
+                    link = jt.tac2html(["a", {href:link, onclick:jt.fs(
+                        "app.docs.displayDoc('" + divid + "','" + link + "')")},
+                                        repl.txt]); }
+                else if(extlnk) {  //external links supported by UI
+                    link = jt.tac2html(["a", {href:link, onclick:jt.fs(
+                        "window.open('" + link + "')")}, repl.txt]); }
+                else {  //links not supported
+                    if(link.startsWith("mailto")) {
+                        link = repl.txt; }
+                    else {  //regular link
+                        link = repl.txt + " (" + repl.url + ")"; } }
+                body = body.replace(new RegExp(repl.plc, "g"), link); });
+            return body; },
+        docStaticContent: function (divid, html) {
+            jt.out(divid, jt.tac2html(
+                ["div", {id:"docdispdiv"},
+                 [["div", {id:"docdispxdiv"},
+                   ["a", {href:"#close",
+                          onclick:jt.fs("app.docs.displayDoc('" + divid +
+                                        "')")},
+                    "X"]],
+                  ["div", {id:"docdispbodydiv"}, html]]])); },
+        //divdesc can be a string divid to display/hide, or a toggle group spec:
+        // {rootids:[srcdivroot, srcdivroot2...]
+        //  clicked:srcdivroot}
+        //The toggleable content group clicked element is "tcgc" + srcdivroot
+        //The toggleable content group display element is "tcgd" + srcdivroot
+        //Clicked elements have "tcgcactive" or "tcgcinactive" classes added
+        togdivdisp: function (divdesc, display) {
+            var dispelem = null;
+            if(divdesc.rootids) {
+                dispelem = jt.byId("tcgd" + divdesc.clicked); }
             else {
-                div.style.display = "none"; } });
-    },
+                dispelem = jt.byId(divdesc); }
+            if(!display) {
+                display = dispelem.style.display;
+                if(display === "none") {
+                    display = "block"; }
+                else {
+                    display = "none"; } }
+            if(divdesc.rootids) {
+                divdesc.rootids.forEach(function (rid) {
+                    var tcgce = jt.byId("tcgc" + rid);
+                    var tcgde = jt.byId("tcgd" + rid);
+                    if(rid === divdesc.clicked) {
+                        tcgce.classList.remove("tcgcinactive");
+                        tcgce.classList.add("tcgcactive");
+                        tcgde.style.display = display; }
+                    else {
+                        if(display === "block") {
+                            tcgce.classList.add("tcgcinactive"); }
+                        else {
+                            tcgce.classList.remove("tcgcinactive"); }
+                        tcgce.classList.remove("tcgcactive");
+                        tcgde.style.display = "none"; } }); }
+            else {
+                dispelem.style.display = display; } }
+    };  //end mgrs.docs returned access interface
+    }());
 
 
-    displayDoc: function (divid, docurl) {  //full url or doc filename
-        if(!docurl) {
-            return jt.out(divid, ""); }
-        jt.out(divid, "Loading " + docurl + "...");
-        app.svc.docContent(docurl, function (body) {
-            if(!body) { body = docurl + " unavailable"; }
-            if(body.indexOf("<body>") >= 0 && body.indexOf("</body>") >= 0) {
-                body = body.slice(body.indexOf("<body>") + 6,
-                                  body.indexOf("</body>")); }
-            const mbp = "| MANUAL | TERMS | PRIVACY | SUPPORT |";
-            body = jt.tac2html(["div", {id:"docmenubardiv"}, mbp]) + body;
-            body = body.replace(/src="\.\.\//g, "src=\"");  //droid etc
-            body = app.subPlaceholders(divid, app.svc.urlOpenSupp(), body);
-            app.docStaticContent(divid, body);
-            app.docDynamicContent(); });
-    },
+    //boot manager handles code loading and initialization
+    mgrs.boot = (function () {
+        var amits = [];  //apres modules init tasks
+        const slib = {wms:50,  //support lib wait millis (doubles on retry)
+                      tmo:null};
+        const amdtimer = {load:{}, appinit:{}, diggerinit:{}};
+        function globkey (e) {
+            if(e && (e.charCode === 32 || e.keyCode === 32)) {  //space bar
+                const edtags = ["textarea", "input"];
+                const tname = e.target.tagName;
+                if(tname && edtags.indexOf(tname.toLowerCase()) < 0) {
+                    if(app.spacebarhookfunc) {
+                        app.spacebarhookfunc(); } } } }
+        function nextApresModulesInitTask () {
+            setTimeout(function () {
+                if(amits.length) {
+                    const task = amits.shift();
+                    jt.log("nextApresModulesInitTask " + task.name);
+                    task.tf();
+                    nextApresModulesInitTask(); } }, 50); }
+    return {
+        addApresModulesInitTask: function (taskname, taskfunction) {
+            amits.push({name:taskname, tf:taskfunction}); },
+        initDiggerModules: function () {
+            //diggerapp is defined globally by index.html
+            amdtimer.diggerinit.start = new Date();
+            diggerapp.modules.forEach(function (md) {
+                if(md.type === "dm") {
+                    app[md.name].init(); } });
+            nextApresModulesInitTask();
+            amdtimer.diggerinit.end = new Date(); },
+        initAppModules: function () {
+            const now = new Date();
+            if(!amdtimer.load.end) {
+                amdtimer.load.end = now; }
+            amdtimer.appinit.start = now;
+            jt.log = console.log;  //overridden again in filter.dcm.init
+            jt.log("window.innerWidth/Height: " + window.innerWidth + " x " +
+                   window.innerHeight);
+            jt.on(document, "keydown", globkey);
+            app.startParams = jt.parseParams("String");
+            app.startPath = window.location.pathname.toLowerCase();
+            if(diggerapp.context === "local" || app.startPath === "/digger") {
+                if(diggerapp.context === "web") {
+                    jt.byId("topsectiondiv").style.display = "none"; }
+                jt.out("outercontentdiv", jt.tac2html(
+                    ["div", {id:"contentframingdiv"},
+                     ["div", {id:"contentmargindiv"},
+                      ["div", {id:"contentdiv"},
+                       [["div", {cla:"paneldiv", id:"pantopdiv"}],
+                        ["div", {cla:"paneldiv", id:"panplaydiv"}],
+                        ["div", {cla:"paneldiv", id:"pandeckdiv"}],
+                        ["div", {id:"appoverlaydiv"}]]]]]));
+                if(app.startPath === "/digger") {  //web startup needs auth info
+                    app.login.init(false); }  //calls initDiggerModules
+                else {
+                    app.boot.initDiggerModules(); } }
+            else if(diggerapp.context === "web") {
+                app.login.init(); }
+            amdtimer.appinit.end = new Date(); },
+        loadCodeModules: function () {
+            var ox = window.location.href;
+            if(!diggerapp.context === "web") {
+                if((ox.toLowerCase().indexOf("https:") !== 0) &&  //not secure
+                   (ox.search(/:\d080/) < 0)) {  //and not local dev
+                    window.location.href = "https:" + ox.slice(ox.indexOf("/"));
+                    return; } }  //stop and let the redirect happen.
+            if(ox.indexOf("android") >= 0) {
+                app.docroot = "https://appassets.androidplatform.net/assets/"; }
+            else if(ox.indexOf("diggerIOS.app") >= 0) {
+                app.docroot = ox.slice(0, ox.lastIndexOf("/")); }
+            else {
+                app.docroot = ox.split("/").slice(0, 3).join("/") + "/"; }
+            if(typeof(jtminjsDecorateWithUtilities) !== "function") {
+                if(slib.tmo) {
+                    clearTimeout(slib.tmo);
+                    slib.tmo = null; }
+                slib.wms = slib.wms * 2;
+                const bsd = document.getElementById("bootstatdiv");
+                if(bsd) {
+                    bsd.innerHTML = "Support library load retry in " +
+                        (slib.wms / 1000) + " seconds..."; }
+                slib.tmo = setTimeout(app.init, slib.wms);
+                return; }
+            jtminjsDecorateWithUtilities(jt);
+            jt.out("bootstatdiv", "Loading app modules...");
+            const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
+            amdtimer.load.start = new Date();
+            jt.loadAppModules(app, loadfs, app.docroot, 
+                              mgrs.boot.initAppModules, "?v=240926"); }
+    }; //end mgrs.boot returned access interface
+    }());
 
 
-    //copy field values from srcSong into destSong. Argument order similar
-    //to Object.assign
-    copyUpdatedSongData: function (destSong, srcSong) {
-        const songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
-                            "el", "al", "kws", "rv", "fq", "lp", "nt",
-                            "pc", "pd", "dsId", "modified", "locmod"];
-        songfields.forEach(function (fld) {
-            if(srcSong.hasOwnProperty(fld)) {  //don't copy undefined values
-                destSong[fld] = srcSong[fld]; } });
-    },
-
-
-    //common startup utility to let modules know app data now available
-    initialDataLoaded: function (startdata) {
-        startdata.songdata.dbts = new Date().toISOString();  //stale data flag
-        const uims = ["top",      //display login name
-                      "filter",   //restore filters to previous settings
-                      "deck"];    //choose appropriate display
-        uims.forEach(function (uim) {
-            app[uim].initialDataLoaded(startdata); });
-        app.player.dispatch("aud", "verifyPlayer", function () {
-            //resize the framing background to match the height of the panels
-            const oh = jt.byId("contentdiv").offsetHeight;  //736px default
-            const cmdiv = jt.byId("contentmargindiv");
-            cmdiv.style.backgroundSize = "564px " + (oh + 20) + "px"; });
-        flags.dataInitialized = true;
-    },
-    dataInitialized: function () { return flags.dataInitialized; },
-
-
-    //!UNPACKED BY appdat.py unescape_song_fields
-    //Even a serialized song can run afoul of web security rules due to
-    //paths, titles or other fields containing parenthetical expressions or
-    //other triggering patterns.  For UPLOAD, remove any problematic temp
-    //fields and escape whatever triggers security blocks.
-    txSong: function (song) {
-        var delflds = ["mrd", "smti", "smar", "smab", "locmod"];
-        //THIS MUST MATCH appdat.py unescape_song_fields
-        var escflds = ["path", "ti", "ar", "ab", "nt"];
-        //Web Security Reserved Words that must be escaped to be let through
-        var wsrw = ["having", "select", "union", "within"];
-        song = JSON.parse(JSON.stringify(song));
-        delflds.forEach(function (fld) { delete song[fld]; });
-        escflds.forEach(function (fld) {  //replace parens with HTML chars
-            if(song[fld]) {
-                song[fld] = song[fld].replace(/\(/g, "ESCOPENPAREN");
-                song[fld] = song[fld].replace(/\)/g, "ESCCLOSEPAREN");
-                song[fld] = song[fld].replace(/'/g, "ESCSINGLEQUOTE");
-                song[fld] = song[fld].replace(/&/g, "ESCAMPERSAND");
-                wsrw.forEach(function (rw) {
-                    song[fld] = song[fld].replace(
-                        new RegExp(rw, "gi"), function (match) {
-                            const rev = match.split("").reverse().join("");
-                            return "WSRW" + rev; }); });
-            } });
-        return song;
-    },
-
+    //util manager handles app utility functions common across modules
+    mgrs.util = (function () {
+    return {
+        //Convert an argument list to a string of arguments suitable for
+        //appending to manager dispatch on___ function text.
+        paramstr: function (args) {
+            var ps = "";
+            if(args && args.length) {
+                ps = args.reduce(function (acc, arg) {
+                    if((typeof arg === "string") && (arg !== "event")) {
+                        arg = "'" + arg + "'"; }
+                    return acc + "," + arg; }, ""); }  //always start with comma
+            return ps; },
+        //Dispatch function string.  Return an on___ function string.
+        dfs: function (module, mgrfname, args) {
+            var pstr = app.util.paramstr(args); var fstr;
+            mgrfname = mgrfname.split(".");
+            fstr = "app." + module + ".dispatch('" + mgrfname[0] + "','" +
+                mgrfname[1] + "'" + pstr + ")";
+            if(pstr !== ",event") {  //don't return false from event hooks
+                fstr = jt.fs(fstr); }
+            return fstr; },
+        //make a cache busted url out of the endpoint and params
+        cb: function (endpoint, params, toklev) {
+            var url = endpoint + "?";
+            toklev = toklev || "second";
+            params = params || "";
+            if(typeof params === "object") {
+                params = jt.objdata(params); }
+            if(params) {
+                url += params + "&"; }
+            url += jt.ts("cb=", toklev);
+            return url; },
+        //return obj post data, with an/at added
+        authdata: function (obj) {
+            var digacc = app.top.dispatch("aaa", "getAccount");
+            var authdat = jt.objdata({an:digacc.email, at:digacc.token});
+            if(obj) {
+                authdat += "&" + jt.objdata(obj); }
+            return authdat; },
+        //return true if the current user is signed in on DiggerHub
+        haveHubCredentials: function () {
+            var digacc = app.top.dispatch("aaa", "getAccount");
+            if(digacc && digacc.dsId !== "101" && digacc.token &&
+               app.top.dispatch("ppc", "policyAccepted")) {
+                return true; }
+            return false; },
+        //app.docroot is initialized with a terminating '/' so it can be
+        //concatenated directly with a relative path, but remembering and
+        //relying on whether a slash is required is annoying.  Double slashes
+        //are usually handled properly but can be a source of confusion, so this
+        //strips off any preceding slash in the relpath.
+        dr: function (relpath) {
+            if(relpath.startsWith("/")) {
+                relpath = relpath.slice(1); }
+            return app.docroot + relpath; },
+        //Extract plain text from errmsg.  Controlled server errors return
+        //reasonable text errors, but server crashes and anything handled by the
+        //container may return full html pages which take up huge space in the 
+        //UI when rendered.  This logs the original and returns best guess text.
+        pt: function (errmsg) {
+            errmsg = errmsg || "";
+            const lcmsg = errmsg.toLowerCase();
+            if(lcmsg.indexOf("<html") >= 0) {
+                jt.log("app.util.pt original html errmsg: " + errmsg);
+                const hidx = lcmsg.indexOf("<h1>");
+                if(hidx >= 0) {
+                    errmsg = errmsg.slice(hidx + 4);
+                    const ci = errmsg.indexOf("</");
+                    if(ci >= 0) {
+                        errmsg = errmsg.slice(0, ci); } }
+                jt.log("app.util.pt returning: " + errmsg); }
+            return errmsg; },
+        //copy field values from srcSong into destSong. Argument order similar
+        //to Object.assign
+        copyUpdatedSongData: function (destSong, srcSong) {
+            const songfields = ["dsType", "batchconv", "aid", "ti", "ar", "ab",
+                                "el", "al", "kws", "rv", "fq", "lp", "nt",
+                                "pc", "pd", "dsId", "modified", "locmod"];
+            songfields.forEach(function (fld) {
+                if(srcSong.hasOwnProperty(fld)) {  //don't copy undefined values
+                    destSong[fld] = srcSong[fld]; } }); },
+        //!UNPACKED BY appdat.py unescape_song_fields
+        //Even a serialized song can run afoul of web security rules due to
+        //paths, titles or other fields containing parenthetical expressions or
+        //other triggering patterns.  For UPLOAD, remove any problematic temp
+        //fields and escape whatever triggers security blocks.
+        txSong: function (song) {
+            var delflds = ["mrd", "smti", "smar", "smab", "locmod"];
+            //THIS MUST MATCH appdat.py unescape_song_fields
+            var escflds = ["path", "ti", "ar", "ab", "nt"];
+            //Web Security Reserved Words that must be escaped to be let through
+            var wsrw = ["having", "select", "union", "within"];
+            song = JSON.parse(JSON.stringify(song));
+            delflds.forEach(function (fld) { delete song[fld]; });
+            escflds.forEach(function (fld) {  //replace parens with HTML chars
+                if(song[fld]) {
+                    song[fld] = song[fld].replace(/\(/g, "ESCOPENPAREN");
+                    song[fld] = song[fld].replace(/\)/g, "ESCCLOSEPAREN");
+                    song[fld] = song[fld].replace(/'/g, "ESCSINGLEQUOTE");
+                    song[fld] = song[fld].replace(/&/g, "ESCAMPERSAND");
+                    wsrw.forEach(function (rw) {
+                        song[fld] = song[fld].replace(
+                            new RegExp(rw, "gi"), function (match) {
+                                const rev = match.split("").reverse().join("");
+                                return "WSRW" + rev; }); });
+                } });
+            return song; }
+    }; //end mgrs.util returned access interface
+    }());
+    
 
     //Demo data handler for simulator screenshots
-    scr: (function () {
+    mgrs.scr = (function () {
         var active = false;  //true if stubbed calls should return demo data
         var initialized = false;  //initial data setup flag
         var songdat = null;  //working space for song data
@@ -765,7 +719,7 @@ return {
         function updateSvcDataSongs (sd) {
             const dbo = app.svc.dispatch("loc", "getDatabase");
             Object.entries(dbo.songs).forEach(function ([p, s]) {
-                app.copyUpdatedSongData(s, sd[p]); });
+                app.util.copyUpdatedSongData(s, sd[p]); });
             jt.log("dbo: " + JSON.stringify(dbo).slice(0,3000)); }
     return {
         fakePlaySong: function (path) {
@@ -796,9 +750,108 @@ return {
                     callback(result); }
                 return true; }
             return false; }
-    };  //end scr returned functions
-    }())
+    };  //end mgrs.scr returned access interface
+    }());
 
 
+    //persistent data manager handles reading, writing, runtime caching, and
+    //update notifications for configuration and song data.
+    mgrs.pdat = (function () {
+        const rtdat = {
+            config:{datobj:null, listeners:[]},   //~/.digger_config.json
+            digdat:{datobj:null, listeners:[]}};  //~/digdat.json
+        var adnts = [];  //apres data notification tasks
+        function nextApresDataTask () {
+            setTimeout(function () {
+                if(adnts.length) {
+                    const task = adnts.shift();
+                    jt.log("nextApresDataTask " + task.name);
+                    task.tf();
+                    nextApresDataTask(); } }, 50); }
+        function notifyUpdateListeners (pwsid, type) {
+            rtdat[type].listeners.forEach(function (listener) {
+                if(listener.pwsid !== pwsid) {  //no loop back to writer
+                    listener.cbf(rtdat[type].datobj); } });
+            if(type === "digdat") {
+                nextApresDataTask(); } }
+        function setConfigAndNotify (pwsid, config) {
+            rtdat.config.datobj = config;
+            notifyUpdateListeners(pwsid, "config"); }
+        function setDigDatAndNotify (pwsid, digdat) {
+            rtdat.digdat.datobj = digdat;
+            notifyUpdateListeners(pwsid, "digdat"); }
+    return {
+        //persistent data access interface:
+        addConfigListener: function (writesrcid, callbackf) {
+            rtdat.config.listeners.push({pwsid:writesrcid, cbf:callbackf}); },
+        addDigDatListener: function (writesrcid, callbackf) {
+            rtdat.digdat.listeners.push({pwsid:writesrcid, cbf:callbackf}); },
+        writeConfig: function (callerstr, optobj, contf, errf) {
+            jt.log("pdat.writeConfig " + (callerstr || "Unknown"));
+            app.svc.writeConfig(rtdat.config.datobj, optobj,
+                function (writtenconf) {
+                    if(contf) {
+                        contf(writtenconf); }
+                    setConfigAndNotify(callerstr, writtenconf); },
+                (errf || function (code, errtxt) {
+                    jt.log("pdat.writeConfig " + code + ": " + errtxt); })); },
+        writeDigDat: function (callerstr, optobj, contf, errf) {
+            jt.log("pdat.writeDigDat " + (callerstr || "Unknown"));
+            app.svc.writeDigDat(rtdat.digdat.datobj, optobj,
+                function (writtendbo) {
+                    if(contf) {
+                        contf(writtendbo); }
+                    setDigDatAndNotify(callerstr, writtendbo); },
+                (errf || function (code, errtxt) {
+                    jt.log("pdat.writeDigDat " + code + ": " + errtxt); })); },
+        //data coordination work management
+        addApresDataNotificationTask: function (taskname, taskfunction) {
+            adnts.push({name:taskname, tf:taskfunction}); },
+        svcModuleInitialized: function () {
+            //svc is responsible for returning up-to-date config and digdat
+            //data, including updated song.lp values if available.
+            setTimeout(function () {  //finish intitialization call stack
+                app.svc.readConfig(  //load config first
+                    function (config) {
+                        setConfigAndNotify("svcinit", config);
+                        app.svc.readDigDat(  //load digdat after config avail
+                            function (digdat) {
+                                setDigDatAndNotify("svcinit", digdat); },
+                            function (code, errtxt) {
+                                jt.err("svcModuleInitialized readDigDat " +
+                                       code + ": " + errtxt); }); },
+                    function (code, errtxt) {
+                        jt.err("svcModuleInitialized readConfig " +
+                               code + ": " + errtxt); }); }, 50); },
+        //convenience accessors (after data available)
+        dbObj: function () { return rtdat.digdat.datobj; },
+        configObj: function () { return rtdat.config.datobj; },
+        songDataVersion: function () { return rtdat.digdat.datobj.version; },
+        songsDict: function () { return rtdat.digdat.datobj.songs || {}; },
+        uips: function (subcat) {
+            var datobj = rtdat.digdat.datobj;
+            if(!datobj) {  //digdat not read yet
+                jt.log("pdat.uips pre-data call returning temp placeholder");
+                datobj = {}; }
+            datobj.uips = datobj.uips || {};
+            if(subcat) {
+                datobj.uips[subcat] = datobj.uips[subcat] || {};
+                return datobj.uips[subcat]; }
+            return uips; }
+    };  //end mgrs.pdat returned access interface
+    }());
+
+return {
+    overlaydiv: "appoverlaydiv",
+    spacebarhookfunc: null,
+    docs: mgrs.docs,
+    boot: mgrs.boot,
+    util: mgrs.util,
+    scr: mgrs.scr,
+    pdat: mgrs.pdat,
+    init: mgrs.boot.loadCodeModules,
+    fileVersion: function () {
+        return "v=240926";  //updated as part of release process
+    }
 };  //end returned functions
 }());

@@ -152,15 +152,15 @@ module.exports = (function () {
     //The config file read expected to always succeed. The user's home
     //directory is supposed to be used for this sort of thing, and the
     //default config is copied in as needed.
-    function readConfigurationFile (contf) {
+    function readConfigFile (contf) {
         var cfp = getConfigFileName();
         fs.readFile(cfp, "utf8", function (err, data) {
             if(err) {
-                console.log("readConfigurationFile error reading " + cfp);
+                console.log("readConfigFile error reading " + cfp);
                 throw err; }
             conf = JSON.parse(data);
             cleanLoadedConfig();
-            // console.log("readConfigurationFile conf: " +
+            // console.log("readConfigFile conf: " +
             //             JSON.stringify(conf, null, 2));
             if(contf) {
                 contf(conf); } });
@@ -202,22 +202,10 @@ module.exports = (function () {
 
 
     function initialize (contf) {
-        readConfigurationFile(function (conf) {
+        readConfigFile(function (conf) {
             readDatabaseFile(function () {
                 if(contf) {
                     contf(conf); } }); });
-    }
-
-
-    function serveConfig (ignore /*req*/, res) {
-        res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify(conf));
-    }
-
-
-    function startupData (ignore /*req*/, res) {
-        res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify({config:conf, songdata:dbo}));
     }
 
 
@@ -328,6 +316,8 @@ module.exports = (function () {
             song.ar = tags.artist || song.ar;
             song.ab = tags.album || song.ab || "Singles";
             song.ti = tags.title || song.ti;
+            song.mddn = (tags.disk && tags.disk.no) || 0;
+            song.mdtn = (tags.track && tags.track.no) || 0;
             song.genrejson = "";
             if(tags.genre) {
                 song.genrejson = JSON.stringify(tags.genre); }
@@ -341,16 +331,16 @@ module.exports = (function () {
     }
 
 
-    function consoleDumpMetadata (md) {
-        if(!md) {
-            return console.log("No md"); }
-        const mdc = md.common;
-        if(mdc) {
-            delete mdc.picture;
-            return console.log("md.common: " +
-                               JSON.stringify(md.common, null, 2)); }
-        console.log("md: " + JSON.stringify(md, null, 2));
-    }
+    // function consoleDumpMetadata (md) {
+    //     if(!md) {
+    //         return console.log("No md"); }
+    //     const mdc = md.common;
+    //     if(mdc) {
+    //         delete mdc.picture;
+    //         return console.log("md.common: " +
+    //                            JSON.stringify(md.common, null, 2)); }
+    //     console.log("md: " + JSON.stringify(md, null, 2));
+    // }
 
 
     //create or update the song corresponding to the given a full file path.
@@ -410,11 +400,14 @@ module.exports = (function () {
     }
 
 
-    //Walk the file tree, starting at the root.
+    //Walk the file tree, starting at the root.  Return the updated dbo, but
+    //leave it for the app to write so that the log can show if a previous
+    //save gets overwritten, and digdat update listeners in the app are
+    //notified as usual.
     function walkFiles (ws) {
         if(!ws.files.length) {
             dbo.scanned = new Date().toISOString();  //note completion time.
-            writeDatabaseObject();
+            //writeDatabaseObject();  //caller writes result merged data
             ws.response.writeHead(200, {"Content-Type": "application/json"});
             ws.response.end(JSON.stringify(dbo));
             state = "ready";
@@ -435,7 +428,10 @@ module.exports = (function () {
     }
 
 
-    function readFiles (req, res) {
+    //The app can call wwwWriteDigDat while wwwReadSongFiles is ongoing, so
+    //it is possible the dbo object being updated here could end up being an
+    //older version of what is actually saved in digdat.
+    function wwwReadSongFiles (req, res) {
         var root; var msg;
         if(state === "reading") {
             msg = "readFiles already in progress";
@@ -465,7 +461,7 @@ module.exports = (function () {
     }
 
 
-    function songCount (ignore /*req*/, res) {
+    function wwwSongCount (ignore /*req*/, res) {
         res.writeHead(200, {"Content-Type": "application/json"});
         res.end(JSON.stringify({count:dbo.songcount,
                                 status:state,
@@ -568,65 +564,6 @@ module.exports = (function () {
     }
 
 
-    function makeMergeDictionary () {
-        mrg.dict = {};
-        Object.keys(dbo.songs).forEach(function (key) {
-            var song = dbo.songs[key];
-            var cankey = canonicalKeyForSong(song);
-            mrg.dict[cankey] = key; });
-        crepTimeout(mergeDataChunk, 50);
-    }
-
-
-    function mergeData (data, ignore /*req*/, res) {
-        mrg.stat.state = "merging";
-        if(!data || !data.trim().length) {
-            mrg.stat.errmsg = "No data sent"; }
-        else {
-            try {
-                mrg.obj = JSON.parse(data);
-            } catch(e) {
-                mrg.stat.errmsg = String(e);
-            } }
-        if(mrg.stat.errmsg) {
-            res.writeHead(200, {"Content-Type": "text/html"});
-            res.end("Error: " + mrg.stat.errmsg); }
-        else {
-            crepTimeout(makeMergeDictionary, 50);
-            res.writeHead(200, {"Content-Type": "text/html"});
-            res.end("Received."); }
-    }
-
-
-    function mergeFile (req, res) {
-        mrg.stat = {batchsize:500, pausems:200, idx:0, merged:0,
-                    state:"starting", errmsg:""};
-        if(req.method === "GET") {
-            res.writeHead(200, {"Content-Type": "text/html"});
-            res.end("Ready"); }
-        else {  //POST
-            const form = new formidable.IncomingForm();  //utf-8 by default
-            form.uploadDir = ".";
-            // console.log("mergeFile uploadDir: " + form.uploadDir);
-            form.parse(req, function (err, ignore /*fields*/, files) {
-                if(err) {
-                    throw err; }
-                //have file with no contents if no file specified.
-                const mpath = files.mergefilein.path;
-                mrg.stat.state = "received";
-                fs.readFile(mpath, "utf8", function (err, data) {
-                    if(err) {
-                        throw err; }
-                    mergeData(data, req, res); }); }); }
-    }
-
-
-    function mergeStatus (ignore /*req*/, res) {
-        res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify(mrg.stat));
-    }
-
-
     function resError (res, msg, code) {
         code = code || 400;
         console.log("db resError " + code + ": " + msg);
@@ -640,52 +577,6 @@ module.exports = (function () {
         if(rp.startsWith("/")) {
             rp = rp.slice(1); }
         return conf.musicPath + "/" + rp;
-    }
-
-
-    //srcSong is expected to be complete.  If a field value is not provided,
-    //then the default value is copied to dstSong so it is ready to write.
-    function copySongFields (destSong, srcSong) {  //like Object.assign
-        const ldfs = [
-            {f:"aid", u:"hubonly", d:""},
-            {f:"path", u:"required"},
-            {f:"ti", u:"required"},
-            {f:"ar", u:"required"},
-            {f:"ab", u:"optional", d:"Singles"},
-            {f:"smti", u:"hubonly"},
-            {f:"smar", u:"hubonly"},
-            {f:"smab", u:"hubonly"},
-            {f:"el", u:"optional", d:49},
-            {f:"al", u:"optional", d:49},
-            {f:"kws", u:"optional", d:""},
-            {f:"rv", u:"optional", d:5},
-            {f:"fq", u:"optional", d:"N"},
-            {f:"nt", u:"optional", d:""},
-            {f:"lp", u:"optional", d:""},
-            {f:"pd", u:"optional", d:""},
-            {f:"pc", u:"optional", d:0},
-            {f:"srcid", u:"optional", d:""},
-            {f:"srcrat", u:"optional", d:""},
-            {f:"spid", u:"hubonly"},
-            {f:"mrd", u:"locdbonly"},
-            {f:"locmod", u:"optional", d:""}];
-        ldfs.forEach(function (fd) {
-            switch(fd.u) {
-            case "required":
-                if(!srcSong[fd.f]) {
-                    throw new Error("Field " + fd.f + " required for " +
-                                    (srcSong.path || "unknown song")); }
-                destSong[fd.f] = srcSong[fd.f];
-                break;
-            case "optional":
-                destSong[fd.f] = srcSong[fd.f] || fd.d;
-                break;
-            case "hubonly":
-                delete destSong[fd.f];  //clean up if present
-                break; } });
-        normalizeIntegerValues(destSong);
-        //clear srcid/srcrat if user has changed rating (their song now)
-        require("./hub.js").verifyFanRating(destSong);
     }
 
 
@@ -703,28 +594,6 @@ module.exports = (function () {
             console.log("writeUpdatedSongs finished.");
             ws.resp.writeHead(200, {"Content-Type": "application/json"});
             ws.resp.end(JSON.stringify(ws.rsgs)); }
-    }
-
-
-    function saveSongs (req, res) {
-        var updat = new formidable.IncomingForm();
-        var ws = {resp:res, songs:[], rsgs:[]};
-        updat.parse(req, function (err, fields) {
-            try {
-                if(err) {
-                    console.log("saveSongs form error: " + err); }
-                const upds = JSON.parse(fields.songs);
-                upds.forEach(function (updSong) {
-                    const dbSong = dbo.songs[updSong.path];
-                    if(!dbSong) {
-                        throw new Error("Song path " + updSong.path +
-                                        " not found in dbo"); }
-                    copySongFields(dbSong, updSong);
-                    ws.songs.push(dbSong); });
-                writeUpdatedSongs(ws);
-            } catch(e) {
-                resError(res, "saveSongs error: " + e, 400);
-            } });
     }
 
 
@@ -781,7 +650,7 @@ module.exports = (function () {
     }
 
 
-    function serveAudio (pu, req, res) {
+    function serveAudio (req, res, pu) {
         var rspec; var rescode; var resb;
         const fn = path.join(conf.musicPath, pu.query.path);
         if(caud.path !== fn) {
@@ -790,8 +659,8 @@ module.exports = (function () {
             const ext = fn.slice(fn.lastIndexOf(".")).toLowerCase();
             caud.ct = fects[ext] || "audio/" + ext.slice(1); }
         const resh = {"Content-Type": caud.ct,
-                    "Content-Length": caud.buf.length,
-                    "Accept-Ranges": "bytes"};
+                      "Content-Length": caud.buf.length,
+                      "Accept-Ranges": "bytes"};
         rescode = 200;
         resb = caud.buf;
         //console.log(req.headers);
@@ -864,24 +733,42 @@ module.exports = (function () {
     }
 
 
-    function doctext (pu, ignore /*req*/, res) {
+    function getDocContent (ignore /*req*/, res, pu) {
         var fn = decodeURIComponent(pu.query.docurl);
         var sidx = fn.lastIndexOf("/");
         if(sidx >= 0) {
             fn = fn.slice(sidx + 1); }
         fn = path.join(getAppDir(), "docroot", "docs", fn);
-        console.log("doctext reading " + fn);
+        console.log("getDocContent reading " + fn);
         const text = jslf(fs, "readFileSync", fn, "utf8");
         res.writeHead(200, {"Content-Type": "text/plain; charset=UTF-8"});
         res.end(text);
     }
 
 
-    function writeConfig (req, res) {
+    function returnJSON (res, obj) {
+        res.writeHead(200, {"Content-Type": "application/json"});
+        res.end(JSON.stringify(obj));
+    }
+
+
+    function wwwReadConfig (ignore /*req*/, res) {
+        readConfigFile(function (config) {
+            returnJSON(res, config); });
+    }
+
+
+    function wwwReadDigDat (ignore /*req*/, res) {
+        readDatabaseFile(function (digdat) {
+            returnJSON(res, digdat); });
+    }
+
+
+    function wwwWriteConfig (req, res) {
         const updat = new formidable.IncomingForm();
         updat.parse(req, function (err, fields) {
             if(err) {
-                return resError(res, "writeConfig form error: " + err); }
+                return resError(res, "wwwwriteConfig form error: " + err); }
             try {
                 conf = JSON.parse(fields.cfg);
                 writeConfigurationFile();
@@ -889,6 +776,21 @@ module.exports = (function () {
                 return resError(res, e.toString()); }
             res.writeHead(200, {"Content-Type": "application/json"});
             res.end(JSON.stringify(conf)); });
+    }
+
+
+    function wwwWriteDigDat (req, res) {
+        var updat = new formidable.IncomingForm();
+        updat.parse(req, function (err, fields) {
+            if(err) {
+                console.log("wwwWriteDigDat form error: " + err); }
+            try {
+                dbo = JSON.parse(fields.dbo);
+                writeDatabaseObject();
+            } catch(e) {
+                return resError(res, e.toString()); }
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(JSON.stringify(dbo)); });
     }
 
 
@@ -909,18 +811,16 @@ module.exports = (function () {
         isMusicFile: function (fn) { return isMusicFile(fn); },
         mdtagsFromPath: function (rpath) { return mdtagsFromPath(rpath); },
         //server endpoints
-        config: function (req, res) { return serveConfig(req, res); },
-        startdata: function (req, res) { return startupData(req, res); },
-        dbread: function (req, res) { return readFiles(req, res); },
-        songscount: function (req, res) { return songCount(req, res); },
-        mergefile: function (req, res) { return mergeFile(req, res); },
-        mergestat: function (req, res) { return mergeStatus(req, res); },
-        savesongs: function (req, res) { return saveSongs(req, res); },
-        plistexp: function (req, res) { return playlistExport(req, res); },
-        audio: function (pu, req, res) { return serveAudio(pu, req, res); },
-        version: function (req, res) { return serveVersion(req, res); },
-        cfgchg: function (req, res) { return changeConfig(req, res); },
-        doctext: function (pu, req, res) { return doctext(pu, req, res); },
-        wrtcfg: function (req, res) { return writeConfig(req, res); }
+        readConfig: wwwReadConfig,
+        readDigDat: wwwReadDigDat,
+        writeConfig: wwwWriteConfig,
+        writeDigDat: wwwWriteDigDat,
+        readsongs: wwwReadSongFiles,
+        songscount: wwwSongCount,
+        plistexp: playlistExport,
+        audio: serveAudio,
+        version: serveVersion,
+        cfgchg: changeConfig,
+        doctext: getDocContent
     };
 }());

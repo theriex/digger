@@ -106,54 +106,45 @@ db.init(function (conf) {
 
     function createWebServer () {
         websrv.server = http.createServer(function (req, rsp) {
-        try {
-            const quieturls = ["/songscount", "/mergestat", "/savesongs"];
+            const epts = {
+                "/readConfig":{v:"GET", h:db.readConfig},
+                "/readDigDat":{v:"GET", h:db.readDigDat},
+                "/writeConfig":{v:"POST", h:db.writeConfig},
+                "/writeDigDat":{v:"POST", h:db.writeDigDat},
+                "/cfgchg":{v:"POST", h:db.cfgchg},
+                "/version":{v:"GET", h:db.version},
+                "/readsongs":{v:"GET", h:db.readsongs},
+                "/songscount":{v:"GET", h:db.songscount},
+                "/plistexp":{v:"POST", h:db.plistexp},
+                "/audio":{v:"GET", h:db.audio},
+                "/doctext":{v:"GET", h:db.doctext},
+                "/exitnow":{v:"GET", h:stopServer}};
             const pu = parsedURL(req.url);
-            if(!quieturls.includes(pu.baseurl)) {
-                console.log(req.url); }
-            //POST requests (with optional GET support):
-            switch(pu.baseurl) {
-            case "/mergefile": db.mergefile(req, rsp); break;
-            case "/savesongs": db.savesongs(req, rsp); break;
-            case "/plistexp": db.plistexp(req, rsp); break;
-            case "/cfgchg": db.cfgchg(req, rsp); break;
-            case "/wrtcfg": db.wrtcfg(req, rsp); break;
-            case "/acctsinfo": hub.acctsinfo(req, rsp); break;
-            case "/newacct": hub.newacct(req, rsp); break;
-            case "/acctok": hub.acctok(req, rsp); break;
-            case "/updacc": hub.updacc(req, rsp); break;
-            case "/deleteme": hub.deleteme(req, rsp); break;
-            case "/hubsync": hub.hubsync(req, rsp); break;
-            case "/fangrpact": hub.fangrpact(req, rsp); break;
-            case "/fancollab": hub.fancollab(req, rsp); break;
-            case "/fanmsg": hub.fanmsg(req, rsp); break;
-            case "/nosugg": hub.nosugg(req, rsp); break;
-            default: //handle after request is fully stabilized
-                req.addListener("end", function () {
-                    //GET requests:
-                    try {
-                        switch(pu.baseurl) {
-                        case "/version": db.version(req, rsp); break;
-                        case "/config": db.config(req, rsp); break;
-                        case "/startdata": db.startdata(req, rsp); break;
-                        case "/dbread": db.dbread(req, rsp); break;
-                        case "/songscount": db.songscount(req, rsp); break;
-                        case "/mergestat": db.mergestat(req, rsp); break;
-                        case "/suggdown": hub.suggdown(pu, req, rsp); break;
-                        case "/mailpwr": hub.mailpwr(pu, req, rsp); break;
-                        case "/audio": db.audio(pu, req, rsp); break;
-                        case "/doctext": db.doctext(pu, req, rsp); break;
-                        case "/exitnow": stopServer(); break;
-                        default:
-                            fileserver.serve(req, rsp); }
-                    } catch(geterr) {
-                        console.error(geterr); }
-                }).resume(); }
-        } catch(posterr) {
-            console.error(posterr); } });
+            console.log(new Date().toISOString().slice(11) + " " + req.url);
+            try {
+                if(pu.baseurl.startsWith("hubpost-")) {
+                    hub.passthroughHubPost(req, rsp, pu); }
+                else if(epts[pu.baseurl] &&
+                        epts[pu.baseurl].v === "POST") {
+                    epts[pu.baseurl].h(req, rsp, pu); }
+                else {
+                    req.addListener("end", function () {  //request stabilized
+                        try {
+                            if(pu.baseurl.startsWith("hubget-")) {
+                                hub.passthroughHubGet(req, rsp, pu); }
+                            else if(epts[pu.baseurl] &&
+                                    epts[pu.baseurl].v === "GET") {
+                                epts[pu.baseurl].h(req, rsp, pu); }
+                            else {
+                                fileserver.serve(req, rsp); }
+                        } catch(geterr) {
+                            console.error(geterr); }
+                    }).resume(); }
+            } catch(posterr) {
+                console.error(posterr); } });
         return websrv.server;
     }
-
+                
 
     function startWebServer (text) {
         if(!websrv.digurl) {

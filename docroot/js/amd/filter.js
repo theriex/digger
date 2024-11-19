@@ -10,9 +10,10 @@ app.filter = (function () {
                  el:{fld:"el", pn:"Energy Level",
                      low:"Chill", high:"Amped"},
                  rat:{pn:"Minimum Rating"},
-                 fq:{pn:"Frequency Eligible"}};
+                 fq:{pn:"Frequency Eligible"},
+                 filtersReady:false};  //true after settings available
     var ranger = {dims:{x:0, y:0, w:160, h:120},
-                  dflt:{x:50, y:65},  //pcnt values as used in account settings
+                  dflt:{x:50, y:62},  //pcnt values as used in account settings
                   gradient:{left:"0cd8e5", right:"faee0a"},
                   svg:{vb:{w:200, h:100},
                        asw:5,  //axis stroke width
@@ -26,7 +27,7 @@ app.filter = (function () {
     //General container for all managers, used for dispatch
     var mgrs = {};
     function mdfs (mgrfname, ...args) {  //module dispatch function string
-        return app.dfs("filter", mgrfname, args);
+        return app.util.dfs("filter", mgrfname, args);
     }
 
 
@@ -197,7 +198,8 @@ app.filter = (function () {
             setCurtainWidths(x, y, cid);
             setCtrlSurfaceValues(x, y, cid);
             mgrs.stg.filterValueChanged();
-            app.deck.filtersChanged("range"); }
+            if(ctrls.filtersReady) {
+                app.deck.filtersChanged("range"); } }
         function pcnts2Coords (pc) {
             const tc = {x:pc.x, y:pc.y};
             tc.y = 100 - tc.y;   //re-invert so top of rect is zero
@@ -417,12 +419,12 @@ app.filter = (function () {
                                    style:"color:" + ctrls.activecolor,
                                    onclick:mdfs("mruc.toggle", dn)},
                         dd.vs[dd.idx].tx]; });
-            elems.unshift(["div", {id:"toginfob"}]);  //used by deck.ddc
-            elems.unshift(["div", {id:"toghistb"}]);  //used by deck.ddc
+            elems.unshift(["div", {id:"toginfob"}]);  //used by deck.csa
+            elems.unshift(["div", {id:"toghistb"}]);  //used by deck.csa
             elems.push(["div", {id:"fqftogdiv"}]);
             jt.out(divid, jt.tac2html(elems));
-            app.deck.dispatch("ddc", "makeHistoryToggle");
-            app.deck.dispatch("ddc", "makeInfoToggle"); }
+            app.deck.dispatch("csa", "makeHistoryToggle");
+            app.deck.dispatch("csa", "makeInfoToggle"); }
     return {
         minrat2idx: function (rv) {
             var idx = 0;
@@ -444,8 +446,9 @@ app.filter = (function () {
             if(button) {
                 button.innerHTML = tdef.vs[tdef.idx].tx;
                 button.title = tdef.vs[tdef.idx].ti;
-                mgrs.stg.filterValueChanged();  //save updated tag filter value
-                app.deck.filtersChanged("pull filter " + dn); } },
+                if(ctrls.filtersReady) {
+                    mgrs.stg.filterValueChanged();  //save upd tag filt value
+                    app.deck.filtersChanged("pull filter " + dn); } } },
         makeFilter: function () {
             ctrls.rat.settings = function () {
                 return {tp:"minrat", u:tgds.tgf.idx,
@@ -519,8 +522,9 @@ app.filter = (function () {
             else {
                 button.title = "Song play frequency filtering disabled.";
                 button.style.background = "transparent"; }
-            mgrs.stg.filterValueChanged();  //save updated freq filter value
-            app.deck.filtersChanged("freq filter"); },
+            if(ctrls.filtersReady) {
+                mgrs.stg.filterValueChanged();  //save updated freq filter value
+                app.deck.filtersChanged("freq filter"); } },
         makeFilter: function () {
             ctrls.fq.settings = function () {
                 return {tp:"fqb", v:fqb}; };
@@ -542,56 +546,47 @@ app.filter = (function () {
     }());
 
 
-    //Settings manager handles changes to account settings (current filter
-    //settings and other custom values for the account).
+    //Settings manager handles changes to filter settings
     mgrs.stg = (function () {
-        var settings = null;
         var tmofilt = null;
         var tmosave = null;
-        function verifySettingsInitialized () {
-            if(!settings) {
-                const ca = app.top.dispatch("aaa", "getAccount");
-                if(ca && ca.settings) {
-                    settings = ca.settings; }
-                else {
-                    jt.log("filter.stg settings initialized empty");
-                    settings = {}; } } }
         function summarizeRangeControl (rc) {
             rc.sumname = rc.pn;  //e.g. "Approachability"
             if(rc.stat) {
-                rc.sumname += " " + rc.stat.mnrv + "-" + rc.stat.mxrv; }
+                rc.sumname += " (" + rc.stat.mnrv + ":" + rc.stat.mxrv + ")"; }
             return rc; }
-    return {
-        settings: function () { return settings; },
-        filterValueChanged: function () {  //waits until controls stop moving
-            if(!ctrls.filtersReady) { //ignore spurious startup events
-                return; }
-            //app.deck.filtersChanged(); filters handle notifications
-            if(tmofilt) {  //reset the filtering timer if currently waiting
-                clearTimeout(tmofilt); }
-            tmofilt = setTimeout(function () {
-                tmofilt = null;
-                mgrs.stg.saveSettings(); }, 700); },
-        saveSettings: function () {
+        function saveSettings () {
             if(tmosave) {
                 clearTimeout(tmosave); }
             tmosave = setTimeout(function () {
                 tmosave = null;
-                verifySettingsInitialized();
-                settings.ctrls = mgrs.stg.arrayOfAllFilters()
+                mgrs.stg.settings().ctrls = mgrs.stg.arrayOfAllFilters()
                     .map((filt) => filt.settings());
-                const acct = app.top.dispatch("aaa", "getAccount");
-                acct.settings = settings;
-                app.top.dispatch("aaa", "updateCurrAcct", acct, acct.token,
-                    function () {
-                        jt.log("stg.saveSettings completed"); },
-                    function (code, errtxt) {
-                        jt.log("stg.saveSettings " + code + ": " +
-                               errtxt); }); }, 5 * 1000); },
+                app.pdat.writeDigDat("filter.stg.saveSettings"); },
+                                 5000); }  //enough time to avoid disk churn
+        function digDatUpdated (/*digdat*/) {
+            if(!ctrls.filtersReady) {  //need to initialize ctrl displays
+                mgrs.stg.rebuildAllControls(); }
+            ctrls.filtersReady = true; } //settings initialized, UI ready
+    return {
+        initialize: function () {
+            app.pdat.addDigDatListener("filter.stg", digDatUpdated); },
+        settings: function () {
+            if(!ctrls.filtersReady) { return null; }
+            return app.pdat.uips("filter"); },
+        filterValueChanged: function () {  //waits until controls stop moving
+            if(!ctrls.filtersReady) { //ignore spurious startup events
+                return; }
+            if(tmofilt) {  //reset the filtering timer if currently waiting
+                clearTimeout(tmofilt); }
+            tmofilt = setTimeout(function () {
+                tmofilt = null;
+                saveSettings(); },
+                                 700); },  //enough time to avoid notice churn
         arrayOfAllFilters: function (mode) {
             var filts = [];
-            filts.push(summarizeRangeControl(ctrls.al))
-            filts.push(summarizeRangeControl(ctrls.el))
+            filts.push(summarizeRangeControl(ctrls.al));
+            filts.push(summarizeRangeControl(ctrls.el));
             if(ctrls.kts) {
                 ctrls.kts.forEach(function (kt) {
                     if(!mode) {
@@ -605,15 +600,12 @@ app.filter = (function () {
             filts.push(ctrls.rat);
             filts.push(ctrls.fq);
             return filts; },
-        rebuildAllControls: function (ready) {
-            settings = null;  //reset to force account info check
-            verifySettingsInitialized();
-            ctrls.filtersReady = false;  //turn off to avoid spurious events
+        rebuildAllControls: function () {
             mgrs.rng.rebuildControls();
             mgrs.kft.rebuildControls();
             mgrs.mruc.init("ratdiv");
-            ctrls.filtersReady = ready;
-            app.deck.filtersChanged("filters rebuilt"); }
+            if(ctrls.filtersReady) {
+                app.deck.filtersChanged("filters rebuilt"); } }
     };  //end of mgrs.stg returned functions
     }());
 
@@ -766,6 +758,7 @@ app.filter = (function () {
             buf.splice(0, buf.length); }  //leave cleared
     return {
         init: function () {
+            return;  //log to console for initial debugging
             testLogCollapse();
             jt.log = logMessage;  //catch all app console output
             window.onerror = function(msg, url, line, col, ignore /*error*/) {
@@ -777,7 +770,7 @@ app.filter = (function () {
         emFormat: function () {
             var txt = "Describe what was happening with Digger at the time:" +
                 "\n\n\n\n----------------------------------------\n\nDigger " +
-                app.top.dispatch("gen", "songDataVersion") +
+                app.pdat.songDataVersion() +
                 " excerpt of console log:\n\n" +
                 buf.map((ln) =>
                     ln.t + " " + (ln.c? " (" + ln.c + ") " : "") + ln.m)
@@ -795,10 +788,10 @@ app.filter = (function () {
                 function () {
                     jt.log("filter.dcm.copyToClipboard failed."); }); },
         showLog: function (divid) {
-            app.docStaticContent(divid, jt.tac2html(
+            app.docs.docStaticContent(divid, jt.tac2html(
                 ["div", {id:"logdispdiv"},
                  [["div", {id:"logdispheaderdiv"},
-                   ["Digger " + app.top.dispatch("gen", "songDataVersion"),
+                   ["Digger " + app.pdat.songDataVersion(),
                     " &nbsp; ",
                     ["button", {type:"button", id:"c2cbutton",
                                 onclick:mdfs("dcm.copyToClipboard")},
@@ -847,9 +840,12 @@ app.filter = (function () {
 
 
 return {
-    init: function () { return; },
+    init: function () {
+        Object.entries(mgrs).forEach(function ([name, mgr]) {
+            if(mgr.initialize) {
+                jt.log("initializing filter." + name);
+                mgr.initialize(); } }); },
     initializeInterface: function () { mgrs.gen.initializeInterface(); },
-    initialDataLoaded: function () { mgrs.stg.rebuildAllControls(true); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
     summary: function () { return mgrs.dsc.summarizeFiltering(); },
