@@ -396,6 +396,7 @@ app.deck = (function () {
             if(!jt.byId("panfiltdiv")) {
                 mgrs.csa.initDisplay(); }
             mgrs.util.setPanelResultHeight("csaqueuediv", "panfiltdiv");
+            mgrs.util.setPanelResultHeight("deckhistorydiv", "panfiltdiv");
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
                 verifyQueuedPlayback(); }
             else {  //sequence manager has changed, need to take control

@@ -379,8 +379,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .dinfrectspan { font-size:medium; }
 .dinfrecnspan { font-size:small; }
 #csacontentdiv { position:relative; }
-#csaqueuediv { overflow:scroll; }
-#csaqueuediv, #deckhistorydiv { padding:5px; }
+#csaqueuediv, #deckhistorydiv { padding:5px; overflow:scroll; }
 /* title font-size inherited from containing element for player layout */
 .songtitlediv { position:relative; padding:0px 0px 4px 0px; }
 .dsarspan { font-size:small; }
