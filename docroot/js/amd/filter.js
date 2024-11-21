@@ -770,7 +770,7 @@ app.filter = (function () {
         emFormat: function () {
             var txt = "Describe what was happening with Digger at the time:" +
                 "\n\n\n\n----------------------------------------\n\nDigger " +
-                app.pdat.songDataVersion() +
+                app.safeAppVersion() +
                 " excerpt of console log:\n\n" +
                 buf.map((ln) =>
                     ln.t + " " + (ln.c? " (" + ln.c + ") " : "") + ln.m)

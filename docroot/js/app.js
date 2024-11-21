@@ -850,6 +850,9 @@ return {
     scr: mgrs.scr,
     pdat: mgrs.pdat,
     init: mgrs.boot.loadCodeModules,
+    safeAppVersion: function () {
+        if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
+        return app.fileVersion(); },
     fileVersion: function () {
         return "v=240926";  //updated as part of release process
     }

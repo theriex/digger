@@ -1219,7 +1219,7 @@ app.top = (function () {
                     {an:acct.email, at:acct.token,
                      tzoff:new Date().getTimezoneOffset()}),
                 contf:function () {
-                    jt.out("dmsoConfirmDiv", "Account deletion confirmation instructions have been sent to " + acct.email + ". Follow the instructions in the email and respond to verify you are the account owner."); },
+                    jt.out("dmsoConfirmDiv", "Account deletion confirmation instructions have been sent to " + acct.email + ". Follow the instructions in the email verifying you are the account owner."); },
                 errf:function (code, errtxt) {
                     jt.out("Deletion failed, please contact support, " + code +
                            ": " + errtxt); }}); },
@@ -1400,7 +1400,7 @@ app.top = (function () {
                 cfg.acctsinfo.accts.unshift(acct);
                 cfg.acctsinfo.currid = acct.dsId; }
             mgrs.aaa.reflectAccountChangeInRuntime(acct, token);
-            app.pdat.writeConfig("top.aaa.updateCurrAcct",
+            app.pdat.writeConfig("top.aaa.updateCurrAcct", null,
                 function (writtenconf) {
                     cfg = writtenconf;
                     resetCurrentAccountRef();
@@ -1411,7 +1411,7 @@ app.top = (function () {
             cfg.acctsinfo.accts = cfg.acctsinfo.accts.filter((a) =>
                 a.dsId !== acct.dsId);
             cfg.acctsinfo.currid = "101";
-            app.pdat.writeConfig("top.aaa.removeAccount",
+            app.pdat.writeConfig("top.aaa.removeAccount", null,
                 function (writtenconf) {
                     cfg = writtenconf;
                     resetCurrentAccountRef();
@@ -1432,10 +1432,12 @@ app.top = (function () {
             return "Dark"; },
         reflectDarkMode: function (mode) {
             mode = mode || mgrs.aaa.getDarkMode();
-            if(mode === "dark") {
-                jt.byId("darkmodecss").disabled = false; }
-            else {
-                jt.byId("darkmodecss").disabled = true; }
+            const dmcss = jt.byId("darkmodecss");
+            if(dmcss) {
+                if(mode === "dark") {
+                    dmcss.disabled = false; }
+                else {
+                    dmcss.disabled = true; } }
             const button = jt.byId("darkmodebutton");
             if(button) {
                 button.innerHTML =
@@ -1448,7 +1450,7 @@ app.top = (function () {
                 else {
                     mode = "light"; } }
             cfg.darkmode = mode;
-            app.pdat.writeConfig("top.aaa.toggleDarkMode",
+            app.pdat.writeConfig("top.aaa.toggleDarkMode", null,
                 function (writtenconf) {
                     cfg = writtenconf;
                     mgrs.aaa.reflectDarkMode(cfg.darkmode); },
@@ -1465,7 +1467,7 @@ app.top = (function () {
             return dbpt; },
         setCollectionStyle: function (dbpt) {
             cfg.dbPersistence = dbpt;
-            app.pdat.writeConfig("top.aaa.setCollectionStyle",
+            app.pdat.writeConfig("top.aaa.setCollectionStyle", null,
                 function (writtenconf) {
                     cfg = writtenconf;
                     mgrs.lcm.displayLocalCarryInfo(); },

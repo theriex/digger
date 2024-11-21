@@ -122,7 +122,7 @@ db.init(function (conf) {
             const pu = parsedURL(req.url);
             console.log(new Date().toISOString().slice(11) + " " + req.url);
             try {
-                if(pu.baseurl.startsWith("hubpost-")) {
+                if(pu.baseurl.startsWith("/hubpost-")) {
                     hub.passthroughHubPost(req, rsp, pu); }
                 else if(epts[pu.baseurl] &&
                         epts[pu.baseurl].v === "POST") {
@@ -130,7 +130,7 @@ db.init(function (conf) {
                 else {
                     req.addListener("end", function () {  //request stabilized
                         try {
-                            if(pu.baseurl.startsWith("hubget-")) {
+                            if(pu.baseurl.startsWith("/hubget-")) {
                                 hub.passthroughHubGet(req, rsp, pu); }
                             else if(epts[pu.baseurl] &&
                                     epts[pu.baseurl].v === "GET") {

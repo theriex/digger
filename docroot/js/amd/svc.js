@@ -646,7 +646,25 @@ app.svc = (function () {
         //var libs = {};  //active libraries to match against for song retrieval
         var pool = {};  //locally cached songs by title/artist/album key
         var lastfvsj = null;  //most recent fetch values json
+        var digdat = null;
     return {
+        readConfig: function (contf/*, errf*/) {
+            var config = app.top.dispatch("aaa", "getConfig");
+            if(!config) {
+                app.top.dispatch("aaa", "verifyConfig"); }
+            config = app.top.dispatch("aaa", "getConfig");
+            contf(config); },
+        readDigDat: function (contf, errf) {
+            digdat = digdat || {songs:{}};
+            jt.request("GET", app.util.cb(app.util.dr("/api/version"),
+                                          "", "day"), null,
+                function (version) {
+                    digdat.version = version;
+                    contf(digdat); },
+                function (code, errtxt) {
+                    jt.log("svc.web.readDigDat " + code + ": " + errtxt);
+                    digdat.version = app.fileVersion();
+                    contf(digdat); }); },
         key: function (song) {
             if(!song.path) {  //history filters by path, verify value exists
                 song.path = song.ti + (song.ar || "") + (song.ab || "");
@@ -659,9 +677,6 @@ app.svc = (function () {
                     songdata:{version:auth.hubVersion,
                               songs:pool}}; },
         initialSetup: function () {
-            jt.out("countspan", "DiggerHub");
-            jt.byId("countspan").style.fontStyle = "italic";
-            jt.byId("countspan").style.opacity = 0.6;
             app.top.dispatch("aaa", "verifyConfig");  //init a default config
             app.login.dispatch("ap", "signInUsingCookie",
                 function (atk) {
@@ -772,8 +787,8 @@ app.svc = (function () {
                     platconf.hdm = "loc"; } }
             hdm = platconf.hdm; }
     return {
-        initialize: function () {
-            initplat();
+        initialize: function (overhdm) {
+            initplat(overhdm);
             if(hdm === "loc") {
                 app.pdat.addApresDataNotificationTask("svc.loc.loadLibrary",
                                                       mgrs.loc.loadLibrary); }
@@ -806,7 +821,7 @@ app.svc = (function () {
     }());
 
 return {
-    init: function () { mgrs.gen.initialize(); },
+    init: function (overhdm) { mgrs.gen.initialize(overhdm); },
     plat: function (key) { return mgrs.gen.plat(key); },
     readConfig: mgrs.gen.readConfig,
     readDigDat: mgrs.gen.readDigDat,

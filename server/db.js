@@ -33,7 +33,6 @@ module.exports = (function () {
     var dbo = null;
     var state = "initializing";
     var mostRecentRelativePathRead = "";
-    var mrg = {stat:null, obj:null, dict:null};
     var exp = {stat:null, spec:null};
     var caud = {path:"", buf:null};
 
@@ -467,100 +466,6 @@ module.exports = (function () {
                                 status:state,
                                 lastrpath:mostRecentRelativePathRead,
                                 musicpath:conf.musicPath}));
-    }
-
-
-    function canonicalKeyForSong (song) {
-        return song.ar + "|" + song.ab + "|" + song.ti;
-    }
-
-
-    function csvmerge(a, b) {
-        a = a || "";
-        b = b || "";
-        if(a) {
-            a = a.split(","); }
-        else {
-            a = []; }
-        if(b) {
-            b = b.split(","); }
-        else {
-            b = []; }
-        b.forEach(function (kwd) {
-            if(a.indexOf(kwd) < 0) {
-                a.push(kwd); } });
-        return a.join(",");
-    }
-
-
-    //The merge is an outer join.  Reason being that if you are merging your
-    //own data from one location to another, you don't want to lose info
-    //just because you have fewer songs on another machine.  The outer join
-    //approach also makes sense in terms of general discovery and utility,
-    //though there is a risk of accumulating information you don't need.
-    //Could add a flag to the form to do an inner join if needed, then just
-    //skip adding.
-    function mergeEntry (key, dat) {
-        var dbd; var prefix;
-        if(!key || !dat) {
-            return console.log("bad mergeEntry " + key + ": " + dat); }
-        normalizeIntegerValues(dat);
-        dbd = dbo.songs[key];
-        if(!dbd) {
-            const cankey = canonicalKeyForSong(dat);
-            const dbkey = mrg.dict[cankey];
-            if(dbkey) {
-                dbd = dbo.songs[dbkey]; } }
-        if(dbd) {  //supplement local entry if better info
-            //fq: use dat frequency if db is default and dat is not.
-            if((dat.fq && dat.fq.indexOf("N") < 0 && dat.fq.indexOf("P") < 0) &&
-               (dbd.fq.indexOf("N") >= 0 || dbd.fq.indexOf("P") >= 0)) {
-                prefix = "";  //preserve existing marker prefix if any
-                if(dbd.fq.startsWith("U") || dbd.fq.startsWith("D")) {
-                    prefix = dbd.fq.slice(0, 1); }
-                dbd.fq = dat.fq;
-                if(dbd.fq.length > 1) {  //get rid of any "U" or "D" prefix
-                    dbd.fq = dbd.fq.slice(1); }
-                dbd.fq = prefix + dbd.fq; }
-            //rv: use dat rating if db unspecified and dat has a value
-            if(!dbd.rv && dat.rv) {
-                dbd.rv = dat.rv; }
-            //al: If there is a non-default value, then use it
-            if((!dbd.al || dbd.al === 49) && (dat.al && dat.al !== 49)) {
-                dbd.al = dat.al; }
-            //el: If there is a non-default value, then use it
-            if((!dbd.el || dbd.el === 49) && (dat.el && dat.el !== 49)) {
-                dbd.el = dat.el; }
-            //kws: outer join keywords for maximum search leverage
-            dbd.kws = csvmerge(dbd.kws, dat.kws);
-            //nt: pull in comment text only if nothing set locally
-            if((!dbd.nt || !dbd.nt.trim()) && dat.nt) {
-                dbd.nt = dat.nt; } }
-        else {  //entry not in current db (so no song file). Add entry.
-            dat.fq = dat.fq || "P";
-            if(dat.fq.length > 1) {  //remove any "U" or "D" prefix
-                dat.fq = dat.fq.slice(1); }
-            dat.fq = "D" + dat.fq;  //no song file or would have had entry
-            dbo.songs[key] = dat; }
-        mrg.stat.merged += 1;
-    }
-
-
-    function mergeDataChunk () {
-        var keys = Object.keys(mrg.obj.songs);
-        var key = "";
-        mrg.stat.cb = mrg.stat.batchsize;
-        while(mrg.stat.idx < keys.length) {
-            key = keys[mrg.stat.idx];
-            mergeEntry(key, mrg.obj.songs[key]);
-            mrg.stat.idx += 1;
-            mrg.stat.cb -= 1;
-            if(mrg.stat.cb <= 0) {  //done with this batch
-                crepTimeout(mergeDataChunk, mrg.stat.pausems);
-                break; } }
-        if(mrg.stat.idx >= keys.length) {
-            writeDatabaseObject();
-            mrg.stat.state = "ready"; }
     }
 
 

@@ -7,7 +7,7 @@ module.exports = (function () {
     "use strict";
 
     var hs = "https://diggerhub.com";
-    //var hs = "http://localhost:8080";
+    //var hs = "http://localhost:8080";  //"localhost" synonymn might not work
     //var hs = "http://127.0.0.1:8080";
 
 
@@ -36,7 +36,8 @@ module.exports = (function () {
 
 
     function hubPostFields (res, url, fldsobj) {
-        var ctx = {url:hs + "/api/" + url.slice(8),
+        const hpup = "/hubpost-";  //hub post url prefix
+        var ctx = {url:hs + "/api/" + url.slice(hpup.length),
                    rqs:{method:"POST",
                         headers:{"Content-Type":
                                  "application/x-www-form-urlencoded"},
@@ -45,6 +46,7 @@ module.exports = (function () {
         fetch(ctx.url, ctx.rqs)
             .then(function (hubr) {
                 ctx.code = hubr.status;
+                console.log("hubPostFields hubr.status: " + hubr.status);
                 return hubr.text(); })
             .then(function (btxt) {
                 if(ctx.code !== 200) {
@@ -84,11 +86,13 @@ module.exports = (function () {
 
 
     function hubget (ignore/*req*/, res, pu) {
+        const hgup = "/hubget-";  //hub get url prefix
         pu.query.cb = pu.query.cb || makeCacheBustToken();
         const uq = Object.entries(pu.query)
             .map(function ([a, v]) { return a + "=" + encodeURIComponent(v); })
             .join("&");
-        const ctx = {url:hs + "/api/" + pu.baseurl.slice(7) + "?" + uq};
+        const ctx = {url:hs + "/api/" + pu.baseurl.slice(hgub.length) +
+                     "?" + uq};
         console.log("hubget " + ctx.url);
         fetch(ctx.url)
             .then(function (hubr) {
