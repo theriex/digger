@@ -61,8 +61,11 @@ app.svc = (function () {
             else {
                 sq = songs;
                 playNextSong(pwsid); } },
-        requestPlaybackStatus: function (cbf) {
-            cbf(np, "playing"); },
+        requestPlaybackStatus: function () {
+            setTimeout(function () {
+                app.player.dispatch("uiu", "receivePlaybackStatus",
+                                    {path:(np? np.path : ""),
+                                     state:"playing"}); }, 50); },
         handlePlayerError: function (errval) {  //DOMException or text or obj
             const errmsg = String(errval);  //error name and detail text
             const song = app.player.nowPlayingSong();
@@ -261,10 +264,10 @@ app.svc = (function () {
             dur:0,      //song duration ms
             state:""};  //"playing" or "paused"
         function pmsg (tac) {  //display a player message (major status or err)
-            app.svc.dispatch("spc", "playerMessage", tac); }
+            mgrs.spc.playerMessage(tac); }
     return {
         token: function (contf) {  //verify token info, or contf(token)
-            return app.svc.dispatch("spc", "token", contf); },
+            return mgrs.spc.token(contf); },
         sdkload: function () {
             if(sdkstate === "loaded") { return true; }
             if(!sdkstate) {
@@ -310,7 +313,7 @@ app.svc = (function () {
         getPlayerStatus: function () { return pstat; },
         verifyPlayer: function (contf) {
             if(pstat === "connected") {
-                if(app.svc.dispatch("spc", "tokenTimeOk")) {
+                if(mgrs.spc.tokenTimeOk()) {
                     return contf(); }
                 pstat = "tokexpired"; }
             //Need to verify signin before getting token. No login on main page
@@ -320,7 +323,7 @@ app.svc = (function () {
                 contf(); } },
         autoplayErr: function (err, mtxt) {
             jt.log("autoplayErr " + err + ": " + mtxt);
-            if(app.svc.dispatch("spc", "isRefreshToken")) {
+            if(mgrs.spc.isRefreshToken()) {
                 mgrs.slp.startSleep("Token renewed, autoplay disabled."); } },
         addPlayerListeners: function () {
             var listeners = {
@@ -332,7 +335,7 @@ app.svc = (function () {
                     pstat = "notready";
                     pbi.state = "";  //will need to call playSong again
                     pmsg("Spotify Web Player not ready. Reconnecting...");
-                    //app.svc.dispatch("spc", "refreshToken");  //not available
+                    //mgrs.spc.refreshToken();  //not available
                     app.player.next(); },
                 "player_state_changed":function (obj) {
                     mgrs.spa.noteWebPlaybackState(obj); }};
@@ -385,7 +388,7 @@ app.svc = (function () {
             //              srcid:1, //reserved value for Spotify sourced Songs
             //              al:49, el:49, kws:"", rv:5, fq:"N", nt:"", pc:1,
             //              lp:new Date().toISOString()};
-            // app.svc.dispatch("web", "addSongsToPool", [updsong]);
+            // mgrs.web.addSongsToPool([updsong]);
             mgrs.uiu.updateSongDisplay(); },
         refreshPlayState: function () {
             swpi.getCurrentState().then(function (wpso) {
@@ -401,7 +404,7 @@ app.svc = (function () {
                 mgrs.spa.noteWebPlaybackState(wpso); }); },
         updatePlayState: function (state) {
             pbi.state = state;
-            mgrs.plui.updateDisplay(mgrs.spa, pbi.state, pbi.pos, pbi.dur); },
+            mgrs.plui.updateTransportControls(pbi); },
         pause: function () {
             swpi.pause().then(function () {
                 mgrs.spa.updatePlayState("paused"); }); },
@@ -420,7 +423,7 @@ app.svc = (function () {
                 app.player.next(); } },
         handlePlayFailure: function (stat, err) {
             const msg = stat + ": " + err;
-            app.svc.dispatch("spc", "playerMessage", "Playback failed " + msg);
+            mgrs.spc.playerMessage("Playback failed " + msg);
             mgrs.spa.pause();  //stop playback of previously loaded song
             const odiv = jt.byId("mediaoverlaydiv");
             odiv.style.top = (jt.byId("playertitle").offsetHeight + 2) + "px";
@@ -430,8 +433,8 @@ app.svc = (function () {
                 jt.out("mediaoverlaydiv", "");
                 jt.byId("mediaoverlaydiv").style.display = "none";
                 app.player.next(); }, 3000);
-            app.svc.dispatch("web", "playbackError",
-                             {type:"spid", spid:pbi.song.spid, error:msg}); },
+            mgrs.web.playbackError({type:"spid", spid:pbi.song.spid,
+                                    error:msg}); },
         playSong: function (song) {
             pbi.song = song;
             if(pstat !== "connected" || !pdid) {
@@ -439,11 +442,11 @@ app.svc = (function () {
             //autoplay is generally blocked, but may happen if the state is
             //refreshed after hitting the play button.
             pbi.spuri = "spotify:track:" + pbi.song.spid.slice(2);
-            app.svc.dispatch("spc", "sjc", `me/player/play?device_id=${pdid}`,
-                             "PUT", {uris:[pbi.spuri]},
-                             function () {
-                                 jt.log("Playing " + pbi.spuri); },
-                             mgrs.spa.handlePlayFailure); }
+            mgrs.spc.sjc(`me/player/play?device_id=${pdid}`,
+                         "PUT", {uris:[pbi.spuri]},
+                         function () {
+                             jt.log("Playing " + pbi.spuri); },
+                         mgrs.spa.handlePlayFailure); }
     };  //end mgrs.spa returned functions
     }());
 
@@ -654,7 +657,7 @@ app.svc = (function () {
                 app.top.dispatch("aaa", "verifyConfig"); }
             config = app.top.dispatch("aaa", "getConfig");
             contf(config); },
-        readDigDat: function (contf, errf) {
+        readDigDat: function (contf/*, errf*/) {
             digdat = digdat || {songs:{}};
             jt.request("GET", app.util.cb(app.util.dr("/api/version"),
                                           "", "day"), null,
@@ -766,6 +769,8 @@ app.svc = (function () {
             hdm: "loc",   //host data manager "loc" or "web", default local
             musicPath: "editable",  //can change where music files are found
             dbPath: "editable",  //can change where rating info is saved
+            urlOpenSupp: "true",  //ok to open urls in new tab
+            defaultCollectionStyle: "permanentCollection",
             audsrc: "Browser",   //audio source for music
             audmgr: "loa"};      //audio manager for playback calls
         var dwurl = "https://diggerhub.com/digger";
@@ -829,13 +834,18 @@ return {
     writeDigDat: mgrs.gen.writeDigDat,
     playSongQueue: function (pwsid, sq) {
         mgrs[mgrs.gen.plat("audmgr")].playSongQueue(pwsid, sq); },
-    requestPlaybackStatus: function (cbf) {
-        mgrs[mgrs.gen.plat("audmgr")].requestPlaybackStatus(cbf); },
-    urlOpenSupp: function () { return true; }, //ok to open urls in new tab
+    requestPlaybackStatus: function () {
+        mgrs[mgrs.gen.plat("audmgr")].requestPlaybackStatus(); },
+    passthroughHubCall: mgrs.gen.passthroughHubCall,
+    copyToClipboard: mgrs.gen.copyToClipboard,
     docContent: function (du, cf) { mgrs.gen.docContent(du, cf); },
     topLibActionSupported: function () { return true; },
-    defaultCollectionStyle: function () { return "permanentCollection"; },
-    dispatch: function (mgrname, fname, ...args) {
-        return mgrs[mgrname][fname].apply(app.svc, args); }
+    extensionInterface: function (name) { switch(name) {
+        case "edconf": return mgrs.loc;
+        case "libload": return mgrs.loc;
+        case "hublocal": return mgrs.web;
+        case "spotcall": return mgrs.spc;
+        case "copyexp": return mgrs.cpx;
+        default: return null; } }
 };  //end of returned functions
 }());

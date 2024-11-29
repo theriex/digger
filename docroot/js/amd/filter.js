@@ -776,7 +776,7 @@ app.filter = (function () {
                 .join("\n\n");
             return txt; },
         copyToClipboard: function () {
-            app.svc.dispatch("gen", "copyToClipboard", buf.map((ln) =>
+            app.svc.copyToClipboard(buf.map((ln) =>
                     ln.t + " " + (ln.c? " (" + ln.c + ") " : "") + ln.m)
                     .join("\n"),
                 function () {
@@ -853,8 +853,11 @@ return {
     movelisten: function (d, s, p) { attachMovementListeners(d, s, p); },
     showLog: function (divid) { mgrs.dcm.showLog(divid); },
     dispatch: function (mgrname, fname, ...args) {
-        return mgrs[mgrname][fname].apply(app.filter, args); }
-
-
+        try {
+            return mgrs[mgrname][fname].apply(app.filter, args);
+        } catch(e) {
+            jt.log("filter.dispatch " + mgrname + "." + fname + " " + e +
+                   " " + e.stack);
+        } }
 };  //end of returned functions
 }());

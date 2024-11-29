@@ -106,7 +106,7 @@ app.top = (function () {
                        code + ": " + errtxt); };
             dets.endpoint = endpoint;  //short reference for routing
             dets.url = dets.url || endpoint;
-            app.svc.dispatch("gen", "passthroughHubCall", dets); },
+            app.svc.passthroughHubCall(dets); },
         verifyClientVersion: function () {
             var curracct = mgrs.aaa.getAccount();
             if(curracct.hubVersion && curracct.diggerVersion) {
@@ -926,7 +926,7 @@ app.top = (function () {
             switch(labname) {
             case "privaccept":
                 return app.docs.subPlaceholders(
-                    app.overlaydiv, app.svc.urlOpenSupp(),
+                    app.overlaydiv, app.svc.plat("urlOpenSupp"),
                     "I'm ok with the PRIVPOLICY");
             default: return "Unknown label type: " + labname; } }
         function makeInput (acct, aff) {
@@ -1426,8 +1426,8 @@ app.top = (function () {
                 mgrs.igf.redrawIgnoreFolders(); } },
         getDarkMode: function () {  //returns either "dark" or "light"
             return cfg.darkmode || "light"; },
-        getDarkModeButtonDisplayName: function (cfg) {
-            if(cfg.darkmode === "dark") {
+        getDarkModeButtonDisplayName: function () {
+            if(cfg && cfg.darkmode === "dark") {
                 return "Light"; }
             return "Dark"; },
         reflectDarkMode: function (mode) {
@@ -1441,7 +1441,7 @@ app.top = (function () {
             const button = jt.byId("darkmodebutton");
             if(button) {
                 button.innerHTML =
-                    mgrs.aaa.getDarkModeButtonDisplayName(cfg); } },
+                    mgrs.aaa.getDarkModeButtonDisplayName(); } },
         toggleDarkMode: function (mode) {
             if(!mode) {
                 mode = mgrs.aaa.getDarkMode();
@@ -1460,8 +1460,8 @@ app.top = (function () {
         getCollectionStyle: function () {
             var dbpt = cfg.dbPersistence;
             if(!dbpt) {
-                if(app.svc.defaultCollectionStyle) {
-                    dbpt = app.svc.defaultCollectionStyle(); }
+                if(app.svc.plat("defaultCollectionStyle")) {
+                    dbpt = app.svc.plat("defaultCollectionStyle"); }
                 else {  //mobile platforms are assumed to be localCopy
                     dbpt = "localCopy"; } }
             return dbpt; },
@@ -1531,7 +1531,8 @@ app.top = (function () {
             cfo.musicPath = jt.byId("mlibin").value;
             cfo.dbPath = jt.byId("dbfin").value;
             //delete the existing config file and write the new one
-            app.svc.dispatch("loc", "changeConfig", cfo,
+            const ecso = app.svc.extensionInterface("edconf");
+            ecso.changeConfig(cfo,
                 function () { mgrs.cfg.restart(); },
                 function (code, errtxt) {
                     jt.out("configstatdiv", "Config update failed " +
@@ -2259,8 +2260,8 @@ app.top = (function () {
             if(slfrc) { return; }
             slfrc = new Date().toISOString();
             setTimeout(function () {
-                app.svc.dispatch("loc", "loadLibrary", "toponelinestatdiv"); },
-                       200); },
+                const llp = app.svc.extensionInterface("libload");
+                llp.loadLibrary("toponelinestatdiv"); }, 200); },
         noteLibraryLoaded: function () {
             slfrc = new Date().toISOString(); }
     };  //end mgrs.locla returned functions
@@ -2315,7 +2316,8 @@ app.top = (function () {
         songCount: function () {
             var scs = app.login.getAuth().settings.songcounts;
             if(!scs || scs.posschg > scs.fetched) {
-                app.svc.dispatch("web", "getSongTotals",
+                const hlco = app.svc.extensionInterface("hublocal");
+                hlco.getSongTotals(
                     function () {
                         jt.out("spscval", mgrs.webla.songCount()); },
                     function (code, errtxt) {
@@ -2341,13 +2343,14 @@ app.top = (function () {
                             impstat("spimp note " + code + ": " + errtxt);
                             spip.mode = "done"; }); } }
             impstat("merging...");
-            app.svc.dispatch("web", "spotifyImport", spip.mode, obj.items,
+            const hlco = app.svc.extensionInterface("hublocal");
+            hlco.spotifyImport(spip.mode, obj.items,
                 function (results) {
                     var stat = getSpi();
                     jt.out("spalbcountspan", stat.offsets.albums);
                     jt.out("sptrkcountspan", stat.offsets.tracks);
                     const songs = results.slice(1);
-                    app.svc.dispatch("web", "addSongsToPool", songs);
+                    hlco.addSongsToPool(songs);
                     mgrs.webla.spimpProcess(); },
                 function (code, errtxt) {
                     spip.mode = "done";
@@ -2359,7 +2362,8 @@ app.top = (function () {
             if(spip.mode === "scheduled") { spip.mode = "albums"; }
             impstat("checking " + spip.mode + "...");
             const spurl = `me/${spip.mode}?offset=${stat.offsets[spip.mode]}`;
-            app.svc.dispatch("spc", "sjc", spurl, "GET", null,
+            const scco = app.svc.extensionInterface("spotcall");
+            scco.sjc(spurl, "GET", null,
                 function (obj) {
                     mgrs.webla.handleSpotifyLibraryData(obj); },
                 function (code, msg) {
@@ -2508,7 +2512,8 @@ app.top = (function () {
                 dat[key] = jt.byId(attrs.id)[attrs.vs]; });
             dat.songs = JSON.stringify(  //array of song paths
                 dksongs.slice(0, dat.count).map((s) => s.path));
-            app.svc.dispatch("cpx", "exportSongs", dat,
+            const ceco = app.svc.extensionInterface("copyexp");
+            ceco.exportSongs(dat,
                 function (xob) {  //interim status display
                     mgrs.locxp.displayExportProgress(xob); },
                 function (xob) {  //completion
@@ -2596,26 +2601,29 @@ app.top = (function () {
                          code + ": " + errtxt); }); },
         uploadPlaylistImage: function () {
             stat("Uploading playlist image...");
-            app.svc.dispatch("spc", "upldimg", `playlists/${xpi.spid}/images`,
-                             "img/appiconcropped.jpg",
-                             mgrs.webxp.notePlaylistWritten,
-                             function (stat, msg) {
-                                 jt.log("Playlist image upload failed " + stat +
-                                        ": " + msg);
-                                 mgrs.webxp.notePlaylistWritten(); }); },
+            const scco = app.svc.extensionInterface("spotcall");
+            scco.upldimg(`playlists/${xpi.spid}/images`,
+                         "img/appiconcropped.jpg",
+                         mgrs.webxp.notePlaylistWritten,
+                         function (stat, msg) {
+                             jt.log("Playlist image upload failed " + stat +
+                                    ": " + msg);
+                             mgrs.webxp.notePlaylistWritten(); }); },
         writePlaylistContent: function () {
             stat("Writing songs to playlist...");
             const spuris = dksongs.slice(0, xpi.xttl).map((s) =>
                 "spotify:track:" + s.spid.slice(2));
             xpi.wrttl = spuris.length;  //deck might have had fewer
-            app.svc.dispatch("spc", "sjc", `playlists/${xpi.spid}/tracks`,
-                             "PUT", {uris:spuris},
-                             mgrs.webxp.uploadPlaylistImage,
-                             makeErrFunc("Write tracks")); },
+            const scco = app.svc.extensionInterface("spotcall");
+            scco.sjc(`playlists/${xpi.spid}/tracks`,
+                     "PUT", {uris:spuris},
+                     mgrs.webxp.uploadPlaylistImage,
+                     makeErrFunc("Write tracks")); },
         verifyPlaylistId: function () {
             stat("Verifying playlist...", true);
+            const scco = app.svc.extensionInterface("spotcall");
             if(xpi.spid) {  //fetch the playlist to verify it exists
-                app.svc.dispatch("spc", "sjc", `playlists/${xpi.spid}`,
+                scco.sjc(`playlists/${xpi.spid}`,
                     "GET", null,
                     function (obj) {
                         spl = obj;
@@ -2629,7 +2637,7 @@ app.top = (function () {
                 stat("Creating new playlist...", true);
                 const data = {name:xpi.name,
                               description:app.filter.dispatch("dsc", "desc")};
-                app.svc.dispatch("spc", "sjc", `users/${spud}/playlists`,
+                scco.sjc(`users/${spud}/playlists`,
                     "POST", data,
                     function (obj) {
                         spl = obj;
@@ -2643,7 +2651,8 @@ app.top = (function () {
                 return stat("Name your playlist"); }
             if(!(xpi.xttl >= 1 && xpi.xttl <= xpmax)) {
                 return stat("Bad input for how many songs to export."); }
-            app.svc.dispatch("spc", "userprof", function (userprof) {
+            const scco = app.svc.extensionInterface("spotcall");
+            scco.userprof(function (userprof) {
                 spud = userprof.id;
                 mgrs.webxp.verifyPlaylistId(); }); },
         xpnChange: function () {
@@ -2790,7 +2799,7 @@ return {
             return mgrs[mgrname][fname].apply(app.top, args);
         } catch(e) {
             jt.log("top.dispatch " + mgrname + "." + fname + " " + e +
-                   " " + new Error("stack trace").stack);
+                   " " + e.stack);
         } }
 };  //end of module returned functions
 }());

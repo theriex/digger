@@ -5,7 +5,7 @@ app.player = (function () {
     "use strict";
 
     var pmso = {  //player module state object  (not persistent)
-        status:"",    //"playing", "paused", "ended"
+        state:"",    //"playing", "paused", "ended"
         song:null };    //currently playing song object
     var ctrls = {};  //module level container for UI control elements
     const mgrs = {};  //general container for managers
@@ -54,9 +54,9 @@ app.player = (function () {
     return {
         initialize: function () {
             app.pdat.addDigDatListener("player.scm", digDatUpdated); },
-        changeCurrentlyPlayingSong: function (song, status) {
+        changeCurrentlyPlayingSong: function (song, state) {
             pmso.song = song;
-            pmso.status = status || "";
+            pmso.state = state || "";
             mgrs.uiu.updateSongDisplay();
             app.deck.currentlyPlayingSongChanged(); },
         noteSongModified: function (cid) {  //caller Id string
@@ -619,7 +619,7 @@ app.player = (function () {
         const buttons = {
             sg2cbb: {name:"Clipboard", handler:function () {
                 const txt = clipboardSongDescription(ost.song);
-                app.svc.dispatch("gen", "copyToClipboard", txt,
+                app.svc.copyToClipboard(txt,
                     function () {
                         resStat("Details copied to clipboard."); },
                     function () {  //no helpful error info, and none returned
@@ -630,7 +630,7 @@ app.player = (function () {
                 if(!mgrs.cmt.cleanCommentText(ost.song.nt)) {
                     return resStat("Write a comment to share"); }
                 const start = new Date(Date.now() - 2000).toISOString();
-                app.svc.dispatch("gen", "fanMessage",
+                app.svc.fanMessage(
                     app.util.authdata({action:"share", idcsv:ost.song.dsId}),
                     function (msgs) {
                         if(!msgs.length) {
@@ -837,11 +837,14 @@ app.player = (function () {
     //Player UI manager creates and maintains a playback UI in audiodiv.
     //Instantiated by platform svc as needed for audio.
     mgrs.plui = (function () {
-        var state = "paused";
-        var bimg = "img/play.png";
-        var prog = {pos:0, dur:0, w:200, left:16, //CSS pluiprogbgdiv left
-                    divs:["pluiprogbgdiv", "pluiprogclickdiv"],
-                    tickcount:1, svco:null};
+        var pbco = null;  //playback control object
+        const ppb = {st:"paused", img:"img/play.png", wrk:""};
+        const prog = {pos:0, dur:0, w:200, left:16, //CSS pluiprogbgdiv left
+                      divs:["pluiprogbgdiv", "pluiprogclickdiv"],
+                      mf:4,  //max float: #secs allowed without calling pbco
+                      fb:5,  //float border: #secs from start/end for fast check
+                      fc:0,  //float count: #calls without real stat data
+                      tmo: null};  //timer for next call
         function mmss (ms) {
             var sep = ":";
             ms = Math.round(ms / 1000);
@@ -849,56 +852,7 @@ app.player = (function () {
             if(secs <= 9) {
                 sep += "0"; }
             return String(Math.floor(ms / 60)) + sep + secs; }
-        function tickf () { //poll to react to external play/pause/skip etc
-            // jt.log("tickf " + prog.tickcount + " " + state + " " +
-            //        prog.pos + " of " + prog.dur);
-            prog.ticker = null;  //always clear hearbeat indicator
-            if(!prog.tickcount      //call for status if it's been 4 seconds
-               || (state === "playing" &&  //or playing and close to start/end
-                   ((prog.pos < 2000) ||
-                    (prog.dur - prog.pos < 2000)))) {
-                prog.svco.refreshPlayState(); }
-            if(state === "playing") {  //tick 1 sec fwd
-                prog.pos = Math.min(prog.pos + 1000, prog.dur); }
-            mgrs.plui.updatePosIndicator();  //reflect new position
-            prog.tickcount = (prog.tickcount + 1) % 4;
-            if(jt.byId("pluidiv")) { //interface still available
-                prog.ticker = setTimeout(tickf, 1000); } }
-    return {
-        verifyHeartbeat: function () {
-            if(!prog.ticker) {  //restart heartbeat
-                prog.tickcount = 1;
-                prog.ticker = setTimeout(tickf, 1000); } },
-        reflectPlaybackState: function (pbs, skiptick) {
-            mgrs.plui.verifyInterface();
-            if((pbs === "paused") ||  //may be resumed via external controls
-               (pbs === "ended"))  {  //showing a pause ctrl makes no sense
-                bimg = "img/play.png"; }
-            else {  //playing
-                bimg = "img/pause.png"; }
-            jt.byId("pluibimg").src = bimg;
-            if(!skiptick) {
-                mgrs.plui.verifyHeartbeat();
-                mgrs.plui.updatePosIndicator(); } }, //reflect position
-        togglePlaybackState: function () {
-            if(state === "paused") {
-                prog.svco.resume();
-                state = "playing"; }
-            else {  //playing
-                prog.svco.pause();
-                state = "paused"; }
-            mgrs.plui.reflectPlaybackState(state); },
-        seek: function (event) {
-            var clickrect = event.target.getBoundingClientRect();
-            var x = event.clientX - clickrect.left;
-            var ms = Math.round(x / prog.w * prog.dur);
-            if(ms < 5000) { ms = 0; }  //close enough, restart from beginning
-            prog.svco.seek(ms); },
-        stopTicker: function () {
-            if(prog.ticker) {
-                clearTimeout(prog.ticker);
-                prog.ticker = null; } },
-        updatePosIndicator: function () {
+        function updatePosIndicator () {
             //update progress bar
             var prw = 0; var progdiv = jt.byId("pluiprogdiv");
             if(!progdiv) {
@@ -918,14 +872,38 @@ app.player = (function () {
                  6) + "px";
             const posw = posdiv.getBoundingClientRect().width;
             const left = (prog.left + prw) - Math.floor(posw / 2);
-            posdiv.style.left = left + "px"; },
-        initInterface: function () {
+            posdiv.style.left = left + "px"; }
+        function updatePlaybackControlImage (state) {
+            if(state === "playing") {
+                ppb.img = "img/pause.png"; }
+            else { //"paused", "ended", ""
+                ppb.img = "img/play.png"; }
+            jt.byId("pluibimg").src = ppb.img; }
+        function scheduleTransportStateRecheck () {
+            if(prog.tmo) {  //clear previously scheduled tick in case active
+                clearTimeout(prog.ticker); }
+            prog.tmo = null;  //for debugging state clarity
+            if(prog.fc < prog.mf &&           //haven't exceeded max float
+               prog.pos > prog.fb * 1000 &&   //not too close to song start,
+               prog.pos < (prog.dur - prog.fb) * 1000) {  //or song end
+                prog.tmo = setTimeout(function () {  //UI only float call
+                    prog.pos += 1000;  //move forward one tick
+                    prog.fc += 1;      //note this was a floating call
+                    updatePosIndicator(); }, 1000);
+                return; }
+            //need to call for hard status return
+            prog.tmo = setTimeout(pbco.requestPlaybackStatus, 1000); }
+    return {
+        initInterface: function (playbackControlObject, maxFloatSeconds) {
             if(!jt.byId("audiodiv")) {
                 return jt.log("mgrs.plui.initInterface has no audiodiv"); }
+            pbco = playbackControlObject;
+            prog.mf = maxFloatSeconds || prog.mf;
+            prog.fb = prog.mf + 1;
             jt.out("audiodiv", jt.tac2html(
                 ["div", {id:"pluidiv"},
                  [["div", {id:"pluibdiv"},
-                   ["img", {id:"pluibimg", src:bimg,
+                   ["img", {id:"pluibimg", src:ppb.img,
                             onclick:mdfs("plui.togglePlaybackState")}]],
                   ["div", {id:"pluiprogdispdiv"},
                    [["div", {id:"pluiprogbgdiv"}],
@@ -939,171 +917,35 @@ app.player = (function () {
                              onclick:mdfs("plui.seek", "event")}]]]]]));
             prog.divs.forEach(function (divid) {
                 jt.byId(divid).style.width = prog.w + "px"; });
-            mgrs.plui.updatePosIndicator(); },
-        verifyInterface: function () {
-            if(!jt.byId("pluidiv")) { //interface not set up yet
-                mgrs.plui.initInterface(); }
-            if(prog.svco) {  //no tickf until service control object set
-                mgrs.plui.verifyHeartbeat(); } },
-        updateDisplay: function (svco, pbstate, position, duration) {
-            prog.svco = svco;
-            prog.pos = position;
-            prog.dur = duration;
-            mgrs.plui.verifyInterface();
             app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
-            //ticker may have stopped if playing new song.  state can change
-            //due to external controls like bluetooth.  monitor to react.
-            if(state !== pbstate) {
-                jt.log("player.plui.updateDisplay reflecting: " + pbstate);
-                state = pbstate;
-                mgrs.plui.reflectPlaybackState(state); }
-            mgrs.plui.updatePosIndicator(); }
+            updatePosIndicator(); },
+        updateTransportControls: function (status) {
+            ppb.wrk = "";  //no longer processing pause/resume
+            ppb.st = status.state;
+            updatePlaybackControlImage(ppb.st);
+            prog.pos = status.pos;
+            prog.dur = status.dur;
+            prog.fc = 0;  //hard status data provided, not a floating tick
+            updatePosIndicator();
+            if(status.path && status.state !== "ended") {
+                scheduleTransportStateRecheck(); } },
+        togglePlaybackState: function () {
+            //update UI image first, then call pbco and get updated status
+            if(ppb.st === "paused") {
+                updatePlaybackControlImage("playing");
+                ppb.wrk = "resuming";
+                pbco.resume(); }
+            else {  //playing
+                updatePlaybackControlImage("paused");
+                ppb.wrk = "pausing";
+                pbco.pause(); } },
+        seek: function (event) {
+            var clickrect = event.target.getBoundingClientRect();
+            var x = event.clientX - clickrect.left;
+            var ms = Math.round(x / prog.w * prog.dur);
+            if(ms < 5000) { ms = 0; }  //close enough, restart from beginning
+            pbco.seek(ms); }
     };  //end mgrs.plui returned functions
-    }());
-
-
-    //Mobile device general audio interface
-    mgrs.mob = (function () {
-        var pbi = null; //playback state information
-        var debouncing = false;
-        var pscf = null;  //playback status callback func
-        var flags = {startupCheckForPlayingSong:""};
-        function updatePBI (status) {
-            pmso.stale = null;
-            pbi.state = status.state;  //"playing"/"paused"/"ended"
-            pbi.pos = status.pos;  //current play position ms
-            pbi.dur = status.dur || pbi.dur;  //song duration if provided
-            mgrs.slp.updateStatusInfo(pbi.state, pbi.pos, pbi.dur, status.path);
-            debouncing = false; }
-        function clearSongDisplay () {
-            mgrs.cmt.toggleTuningOpts("off");
-            mgrs.cmt.resetDisplay("mob.clearSong");  //close comment if open
-            jt.out("playtitletextspan", "---"); }
-        function handleStatusQueryCallback (status) {
-            jt.log("handleStatusQueryCallback status.path: " + status.path);
-            flags.startupCheckForPlayingSong = "done";
-            const cbf = pscf;
-            pscf = null;
-            if(status.path && !status.song) {  //discovered a playing song
-                const sd = app.pdat.songsDict();
-                if(sd && sd[status.path]) {  //known song, play it.
-                    const song = sd[status.path];
-                    app.deck.dispatch("csa", "playGivenSong", song); }
-                else {  //other unknown media, rebuild and play
-                    app.deck.dispatch("csa", "filtersChanged"); } }
-            cbf(status); }  //call back whether song found or not
-    return {
-        ////calls from svc.mp
-        notePlaybackStatus: function (status) {
-            pbi.treceive = Date.now();  //note latency
-            if(pmso.stale && pmso.stale.path === status.path) {
-                return jt.log("mob.nPS ignoring stale stat from prev song"); }
-            if(pmso.song && (!status.path || !status.state ||
-                             status.state === "unknown")) {
-                jt.log("mob.notePlaybackStatus retrying bad status return: " +
-                       JSON.stringify(status) + ", stat: " +
-                       JSON.stringify(pmso));
-                return mgrs.mob.refreshPlayState(); }
-            if(pscf) {  //checkIfPlaying call return, not tickf
-                return handleStatusQueryCallback(status); }
-            if(pmso.song && pmso.song.path === status.path) {
-                if(pbi.state !== status.state) {
-                    mgrs.plui.reflectPlaybackState(status.state); }
-                updatePBI(status);
-                mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
-                app.deck.playbackStatus(status); }  //album positioning
-            else {  //song changed. most likely svc has moved forward N songs.
-                jt.log("notePlaybackStatus reacting to song change");
-                updatePBI(status);
-                clearSongDisplay();
-                app.svc.loadDigDat(function (dbo) {  //load updated song(s) lp
-                    dbo.dbts = new Date().toISOString();  //for stale data chk
-                    pmso.song = dbo.songs[status.path];
-                    if(!pmso.song) {  //foreign media, or wait for media read
-                        return jt.log("mob.nPS ignoring unknown song media"); }
-                    mgrs.cmt.resetDisplay("mob.notePlaybackStatus");
-                    mgrs.uiu.updateSongDisplay(); }); } },
-        handlePlayFailure: function (errstat, errtxt) {
-            //mobile should not encounter unsupported media types, so all
-            //media should generally play.  Could be a deleted file, or media
-            //service is bad broke or audio display is dead or whatever.
-            var dispmsg = jt.tac2html(
-                [errstat + ": " + errtxt + "&nbsp; ", 
-                 ["a", {href:"#rebuild",
-                        onclick:app.util.dfs("svc", "loc.loadLibrary",
-                                             ["topdlgdiv", "rebuild"])},
-                  "Rebuild Library"]]);
-            const perms = ["EACCES", "(Permission denied)"];
-            if(perms.some((p) => errtxt.indexOf(p) >= 0)) {
-                const dtxt = ", msg: ";
-                const ridx = errtxt.indexOf(dtxt);
-                if(ridx > 0) {  //have previous path in message
-                    dispmsg = (errtxt.slice(0, ridx + dtxt.length) +
-                               "Permission denied"); } }
-            jt.out("mediadiv", dispmsg); },
-        getFlag: function (flagname) {
-            return flags[flagname]; },
-        ////calls from mgrs.plui
-        refreshPlayState: function (flag) {
-            if(flag === "startupCheckForPlayingSong") {
-                flags.startupCheckForPlayingSong = "calling"; }
-            //use timeout to yield to plui tickf processing
-            setTimeout(function () {
-                //result returned to notePlaybackStatus
-                pbi = pbi || {};
-                pbi.tsend = Date.now() + 100;
-                app.svc.dispatch("mp", "requestStatusUpdate"); }, 100); },
-        pause: function () {
-            //jt.log("mgrs.mob.pause debouncing " + debouncing);
-            if(!debouncing) {
-                mgrs.plui.reflectPlaybackState("paused");
-                debouncing = true;
-                app.svc.dispatch("mp", "pause"); } },
-        resume: function () {
-            //jt.log("mgrs.mob.resume debouncing " + debouncing);
-            if(!debouncing) {
-                mgrs.plui.reflectPlaybackState("playing", "noticker");
-                debouncing = true;
-                app.svc.dispatch("mp", "resume"); } },
-        seek: function (ms) {
-            app.svc.dispatch("mp", "seek", ms); },
-        sleep: function (count, cmd, cbf) {
-            app.svc.dispatch("mp", "sleep", count, cmd, cbf); },
-        ////calls from mgrs.aud
-        playSong: function (ps) {
-            pbi = {song:ps, pos:0, dur:ps.duration || 0, state:"playing"};
-            //verify song playback display and kick off ticker as needed
-            mgrs.plui.updateDisplay(mgrs.mob, pbi.state, pbi.pos, pbi.dur);
-            app.svc.dispatch("mp", "playSong", ps.path);
-            mgrs.mob.refreshPlayState(); },
-        verifyPlayer: function (contf) {
-            mgrs.plui.verifyInterface();
-            contf(); },
-        setPlaybackStatusCallback: function (contf) {
-            pscf = contf; },
-        ////general funcs
-        rebuildIfSongPlaying: function (updsg) {  //song updated from hub
-            if(updsg && pmso.song && pmso.song.path === updsg.path) {
-                const chgflds = mgrs.gen.listChangedFields(pmso.song, updsg);
-                pmso.song = updsg;
-                if(chgflds.length) {  //have interim changes during sync
-                    try {
-                        chgflds.forEach(function (chg) {
-                            jt.log("Restoring UI " + chg.fld + ": " + chg.val);
-                            chg.uf(chg.val); });
-                    } catch(e) {
-                        jt.log("Not all UI fields restored: " + e);
-                    } }
-                //cmt.resetDisplay not needed since UI fields kept.
-                mgrs.uiu.updateSongDisplay(); } },
-        playbackStatusCallLatency: function () {
-            var lat = 300;  //better than zero if just guessing
-            if(pbi && pbi.tsend && pbi.treceive) {
-                jt.log("playbackSatusCallLatency " + JSON.stringify(pbi));
-                lat = pbi.treceive - pbi.tsend; }
-            lat = Math.min(lat, 500);  //anything over a half second is crap
-            return lat; }
-    };  //end mgrs.mob returned functions
     }());
 
 
@@ -1158,7 +1000,7 @@ app.player = (function () {
             if(stat.checkedts)  {  //sleep was activated
                 shiftPlayedSongsFromQueue(stat);
                 if(!stat.rempaths.length) {  //should be sleeping now
-                    if(pmso.status === "playing") {
+                    if(pmso.state === "playing") {
                         dlgNoteExternalPlayback(); }
                     else {  //not playing, paused or ended
                         dlgNoteSleepResume(); } }
@@ -1237,6 +1079,16 @@ app.player = (function () {
 
     //user interface utilties
     mgrs.uiu = (function () {
+        const pbstates = ["playing", "paused", "ended"];  //"" if unknown
+        var pbsh = {  //playback status handling
+            ongoing: false,  //true while waiting for a response
+            contf: null, //optional successful status return callback func
+            tcall: 0,    //time of outbound platform call
+            tresp: 0,    //time of inbound platform response
+            path: "",    //path for currently playing song
+            state: "",   //one of pbstates
+            pos: 0,      //current playback position in milliseconds
+            dur: 0};     //total duration of playing song in milliseconds
         function adjustFramingBackgroundHeight () {  //match height of panels
             const oh = jt.byId("contentdiv").offsetHeight;  //dflt 736px
             const cmdiv = jt.byId("contentmargindiv");
@@ -1244,7 +1096,7 @@ app.player = (function () {
         function updateSongTitleDisplay () {
             var tunesrc = "img/tunefork.png";
             const tuneimg = jt.byId("tuneimg");
-            if(tuneimg) {
+            if(tuneimg) {  //might have been lit up, keep what's there
                 tunesrc = tuneimg.src; }
             jt.out("playertitle", jt.tac2html(
                 ["div", {cla:"songtitlediv"},
@@ -1256,6 +1108,35 @@ app.player = (function () {
                   ["span", {id:"playtitletextspan"},
                    app.deck.dispatch("util", "songIdentHTML",
                                      pmso.song)]]])); }
+        function reflectUpdatedStatusInfo () {
+            //If pmso.song is null, or pmso.song.path === pbsh.path, then
+            //digdat is up to date.  Otherwise digdat may be stale and must
+            //be reloaded to ensure the latest song.lp values are available.
+            //Meanwhile the UI needs updating, even if it is temporarily
+            //working with stale digdat data.
+            if(pmso.song && pmso.song.path !== pbsh.path) {
+                app.pdat.reloadDigDat(); }  //async
+            if(!pbsh.path) {
+                pmso.song = null; }
+            else {
+                pmso.song = app.pdat.songsDict()[pbsh.path]; }
+            pmso.state = pbsh.state;
+            updateSongTitleDisplay();
+            mgrs.plui.updateTransportControls(pbsh); }
+        function corruptedStatusData (status) {
+            //playback queue finished: status path:"", state:"ended".
+            if(!status || typeof status !== "object") {
+                jt.log("rcvPBStat non-object status parameter " + status);
+                return "corrupted"; }
+            if(pmso.stale && pmso.stale.path === status.path) {
+                jt.log("rcvPBStat ignoring stale stat from prev song");
+                return "stale"; }
+            if(!status.path && !status.state) {
+                jt.log("rcvPBStat retrying invalid status path/state: " +
+                       JSON.stringify(status));
+                mgrs.uiu.requestPlaybackStatus(pbsh.contf);
+                return "invalid"; }
+            return ""; }
         function initPlayerUIBaseElements () {
             jt.out("mediadiv", jt.tac2html(
                 ["div", {id:"playerdiv"},
@@ -1291,7 +1172,39 @@ app.player = (function () {
             mgrs.pan.updateControl("el", pmso.song.el);
             pmso.song.rv = pmso.song.rv || 0;  //verify numeric value
             mgrs.rat.adjustPositionFromRating(pmso.song.rv);
-            mgrs.cmt.updateIndicators(); }
+            mgrs.cmt.updateIndicators(); },
+        //All app UI playback status request calls go out to svc via
+        //uiu.requestPlaybackStatus, and svc returns all playback status
+        //data via uiu.receivePlaybackStatus.  Call/Receive is ordered
+        //transactional.  Queuing is neither necessary nor desirable.
+        requestPlaybackStatus: function (contf) {
+            if(pbsh.ongoing) {
+                jt.log("WARNING: Unordered uiu.requestPlayback call.");
+                jt.log("previous ongoing call overwritten."); }
+            pbsh.ongoing = true;
+            pbsh.contf = contf || null;
+            pbsh.tcall = Date.now();
+            pbsh.tresp = 0;
+            pbsh.path = "";
+            pbsh.state = "";
+            pbsh.pos = 0;
+            pbsh.dur = 0;
+            app.svc.requestPlaybackStatus(); },
+        receivePlaybackStatus: function (status) {
+            //When the Digger interface initializes on a mobile platform,
+            //playback may be ongoing from the platform service, and
+            //javascript timers may still be hanging around waiting to
+            //resume from the last time the webview was active.
+            if(!corruptedStatusData(status)) {
+                pbsh.tresp = Date.now();
+                pbsh.path = status.path || "";  //may be "" if no song playing
+                pbsh.state = status.state;   //may be "" if no song
+                if(pbsh.state && pbstates.indexOf(pbsh.state < 0)) {
+                    jt.log("rcvPBStat invalid status.state: " + pbsh.state); }
+                pbsh.pos = status.pos;
+                pbsh.dur = status.dur;
+                reflectUpdatedStatusInfo();
+                pbsh.rcvf(pbsh); } }
     };  //end mgrs.uiu returned interface
     }());
 
@@ -1357,36 +1270,36 @@ app.player = (function () {
             //Set the playback queue to the given songs and start playback
             //of the first song.  If the first song is already playing,
             //platform implementations should preserve play/pause state and
-            //current playback position to the extent possible.  Song.lp
-            //must be updated (and saved in digdat.json) as playback of each
-            //song starts.  The given pwsid should be used when updating lp
-            //for the first song played, subsequent song plays should use
-            //the service pwsid.
+            //current playback position, avoiding any audio interruption.
+            //Song.lp *must* be updated (and saved in digdat.json) as
+            //playback of each song starts.  The given pwsid must be used
+            //when updating songs[0].lp and calling app.pdat.writeDigDat.
+            //Subsequent song writes must NOT re-use pwsid, and may write
+            //digdat.json independently of the app UI.
             if(!songs || !songs.length) {
                 return jt.log("app.playSongQueue called without songs"); }
             songs = songs.slice(0, app.player.playQueueMax);
             app.svc.playSongQueue(pwsid, songs); },
-        requestPlaybackStatus: function (contf) {
+        reqUpdatedPlaybackStat: function (contf) {
             //Verify playback status is up-to-date and call back
-            app.svc.requestPlaybackStatus(function (song, status) {
-                if(song) {
-                    if(!pmso.song || pmso.song.path !== song.path) {
-                        app.player.notifySongChanged(song, status); }
-                    else {  //still playing same song
-                        pmso.status = status; } }
+            const psbc = pmso.song;  //playing song before call
+            mgrs.uiu.requestPlaybackStatus(function (status) {
+                if((!psbc && status.path) ||  //no song before but playing now
+                   (psbc && psbc.path !== status.path)) {  //song changed
+                    app.player.notifySongChanged(pmso, status.state); }
                 contf(pmso); }); },
-        notifySongChanged: function (song, status) {
+        notifySongChanged: function (song, state) {
             if(!app.pdat.dbObj()) {
                 return jt.log("notifySongChanged ignored, no database yet."); }
             const sd = app.pdat.songsDict();
             const dbsg = sd[song.path];
             if(!dbsg) {  //use foreign song instance for display
                 jt.log("notifySongChanged song not found: " + song.path);
-                return mgrs.scm.changeCurrentlyPlayingSong(song, status); }
+                return mgrs.scm.changeCurrentlyPlayingSong(song, state); }
             if(pmso.song && pmso.song.path === dbsg.path) {
-                pmso.status = pmso.status || status;
+                pmso.state = pmso.state || state;
                 return jt.log("notifySongChanged ignoring non-change call"); }
-            mgrs.scm.changeCurrentlyPlayingSong(song, status); },
+            mgrs.scm.changeCurrentlyPlayingSong(song, state); },
         skip: function (rapidok) {
             if(!rapidok) {  //not handling a playback error or similar
                 //On a phone, the skip button can be unresponsive for several
@@ -1432,7 +1345,7 @@ return {
     playSongQueue: mgrs.gen.playSongQueue,
     playQueueMax: 180,  //~9hrs without UI interaction
     nowPlayingSong: function () { return pmso.song; },
-    reqUpdatedPlaybackStat: mgrs.gen.requestPlaybackStatus,
+    reqUpdatedPlaybackStat: mgrs.gen.reqUpdatedPlaybackStat,
     notifySongChanged: mgrs.gen.notifySongChanged,
     skip: mgrs.gen.skip,
     logCurrentlyPlaying: mgrs.gen.logCurrentlyPlaying,
@@ -1441,7 +1354,7 @@ return {
             return mgrs[mgrname][fname].apply(app.player, args);
         } catch(e) {
             jt.log("player.dispatch " + mgrname + "." + fname + " " + e +
-                   " " + new Error("stack trace").stack);
+                   " " + e.stack);
         } }
 };  //end of returned functions
 }());

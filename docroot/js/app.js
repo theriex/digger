@@ -82,8 +82,8 @@ var app = (function () {
                 const mbp = "| MANUAL | TERMS | PRIVACY | SUPPORT |";
                 body = jt.tac2html(["div", {id:"docmenubardiv"}, mbp]) + body;
                 body = body.replace(/src="\.\.\//g, "src=\"");  //droid etc
-                body = app.docs.subPlaceholders(divid, app.svc.urlOpenSupp(),
-                                                body);
+                body = app.docs.subPlaceholders(
+                    divid, app.svc.plat("urlOpenSupp"), body);
                 app.docs.docStaticContent(divid, body);
                 docDynamicContent(); }); },
         subPlaceholders: function (divid, extlnk, body) {
@@ -717,10 +717,9 @@ var app = (function () {
                 mr.push(si); });
             rets.requestMediaRead = JSON.stringify(mr); }
         function updateSvcDataSongs (sd) {
-            const dbo = app.svc.dispatch("loc", "getDatabase");
-            Object.entries(dbo.songs).forEach(function ([p, s]) {
+            Object.entries(app.pdat.songsDict()).forEach(function ([p, s]) {
                 app.util.copyUpdatedSongData(s, sd[p]); });
-            jt.log("dbo: " + JSON.stringify(dbo).slice(0,3000)); }
+            jt.log("sd: " + JSON.stringify(sd).slice(0,3000)); }
     return {
         fakePlaySong: function (path) {
             ratedSongs = true;
@@ -749,7 +748,28 @@ var app = (function () {
                 if(callback) {
                     callback(result); }
                 return true; }
-            return false; }
+            return false; },
+        //service override functions
+        readConfig: function (impfunc, contf, errf) {
+            if(!active) { return impfunc(contf, errf); }
+            contf({"acctsinfo": {currid:"101",
+                                 //accts:[dfltacct, demoacct]}},
+                                 accts:[dfltacct]}}); },
+        requestPlaybackStatus: function (impfunc) {
+            if(!active) { return impfunc(); }
+            jt.log("app.scr.requestPlaybackStatus no action"); },
+        playSongQueue: function (impfunc) {
+            if(!active) { return impfunc(); }
+            jt.log("app.scr.playSongQueue no action"); },
+        pause: function (impfunc) {
+            if(!active) { return impfunc(); }
+            jt.log("app.scr.pause no action"); },
+        resume: function (impfunc) {
+            if(!active) { return impfunc(); }
+            jt.log("app.scr.resume no action"); },
+        seek: function (impfunc, ms) {
+            if(!active) { return impfunc(ms); }
+            jt.log("app.scr.seek no action"); }
     };  //end mgrs.scr returned access interface
     }());
 
@@ -778,6 +798,10 @@ var app = (function () {
             rtdat.config.datobj = config;
             notifyUpdateListeners(pwsid, "config"); }
         function setDigDatAndNotify (pwsid, digdat) {
+            var stat = app.top.dispatch("dbc", "verifyDatabase", digdat);
+            if(!stat.verified) {  //note issue(s) and try continue
+                jt.log("setDigDatAndNotify verifyDatabase errors: " +
+                       JSON.stringify(stat)); }
             rtdat.digdat.datobj = digdat;
             notifyUpdateListeners(pwsid, "digdat"); }
     return {
@@ -823,6 +847,14 @@ var app = (function () {
                     function (code, errtxt) {
                         jt.err("svcModuleInitialized readConfig " +
                                code + ": " + errtxt); }); }, 50); },
+        reloadDigDat: function () {
+            setTimeout(function () {
+                app.svc.readDigDat(
+                    function (digdat) {
+                        setDigDatAndNotify("reloadDigDat", digdat); },
+                    function (code, errtxt) {
+                        jt.err("reloadDigDat " + code + ": " +
+                               errtxt); }); }, 50); },
         //convenience accessors (after data available)
         dbObj: function () { return rtdat.digdat.datobj; },
         configObj: function () { return rtdat.config.datobj; },
@@ -837,7 +869,7 @@ var app = (function () {
             if(subcat) {
                 datobj.uips[subcat] = datobj.uips[subcat] || {};
                 return datobj.uips[subcat]; }
-            return uips; }
+            return datobj.uips; }
     };  //end mgrs.pdat returned access interface
     }());
 

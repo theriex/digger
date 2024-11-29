@@ -228,7 +228,7 @@ const jtminjsDecorateWithUtilities = function (utilityObject) {
     uo.assert = function (testval) {
         if (!testval) {
             uo.err("An application integrity check has failed. Please reload the page in your browser.");
-            throw ("uo.assert");
+            throw new Error("uo.assert");
         }
     };
 

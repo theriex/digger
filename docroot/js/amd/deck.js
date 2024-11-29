@@ -150,15 +150,17 @@ app.deck = (function () {
                         delete sba[artist]; } }); }
             return rsq; },
         songIdentHTML: function (song) {
-            var idh = [["span", {cla:"dstispan", "data-dsId":song.dsId,
-                                 style:(app.deck.isUnrated(song)?
-                                        "" : "font-weight:bold;")},
-                        song.ti],
-                       " - ",
-                       ["span", {cla:"dsarspan"}, song.ar || "Unknown"]];
-            if(song.ab) {
+            var idh = [];
+            if(song) {
+                idh.push(["span", {cla:"dstispan", "data-dsId":song.dsId,
+                                   style:(app.deck.isUnrated(song)?
+                                          "" : "font-weight:bold;")},
+                          song.ti]);
                 idh.push(" - ");
-                idh.push(["span", {cla:"dsabspan"}, song.ab || ""]); }
+                idh.push(["span", {cla:"dsarspan"}, song.ar || "Unknown"]);
+                if(song.ab) {
+                    idh.push(" - ");
+                    idh.push(["span", {cla:"dsabspan"}, song.ab || ""]); } }
             return jt.tac2html(idh); },
         execQSO: function (action, mgrnm, idx) {
             //options overlay already cleared from event percolation..
@@ -300,7 +302,8 @@ app.deck = (function () {
             asq = deckset.asq;
             asq.paths = asq.paths || [];
             asq.ts = asq.ts || new Date().toISOString();
-            asq.idx = asq.idx || -1; }
+            if(!(asq.idx >= 0)) {  //undefined or non-numeric value
+                asq.idx = -1; } }
         function verifyNowPlayingSong (npStatusChecked) {
             const np = app.player.nowPlayingSong();
             if(np) {
@@ -315,7 +318,29 @@ app.deck = (function () {
                     jt.log("deck.csa check playing " + asq.paths[asq.idx]);
                     app.player.reqUpdatedPlaybackStat(function (/*stat*/) {
                         verifyNowPlayingSong(true); }); } } }
+        function remainingQueuedSongsValid () {
+            if(asq.idx < 0) {
+                jt.log("remainingQueuedSongsValid invalid idx: " + asq.idx);
+                return false; }
+            if(!asq.paths.length) {
+                jt.log("remainingQueuedSongsValid no songs in queue");
+                return false; }
+            const sd = app.pdat.songsDict();
+            const rems = asq.paths.slice(asq.idx + 1).map((p) => sd[p]);
+            if(!rems.length) {
+                jt.log("remainingQueuedSongsValid no songs remaining");
+                return false; }
+            const remqlen = rems.length;
+            const tempfcs = fcs;   //hold previous full rebuild counts
+            const frs = mgrs.util.filterByFilters(rems, fcs);
+            fcs = tempfcs;  //restore previous rebuild counts
+            if(remqlen !== frs.length) {
+                jt.log("remainingQueuedSongsValid some songs invalidated");
+                return false; }
+            return true; }
         function verifyQueuedPlayback () {
+            if(!remainingQueuedSongsValid()) {
+                return rebuildPlaybackQueue(); }
             asq.idx = mgrs.util.findIndexByLastPlayedTimestamp(asq.paths);
             if(asq.idx < 0) {  //playback has not followed queue
                 jt.log("csa.digDatUpdated playback did not follow queue");
@@ -362,8 +387,10 @@ app.deck = (function () {
             rebuildPlaybackQueue(song); },
         filtersChanged: function () {
             rebuildPlaybackQueue(); },
-        songByIndex: function (idx) {
-            return app.pdat.songsDict()[asq.paths[idx]]; },
+        songByIndex: function (idx) {  //index of song in visible queue
+            //asq[idx] references now playing song. +1 is first song in queue
+            const pathidx = asq.idx + 1 + idx;
+            return app.pdat.songsDict()[asq.paths[pathidx]]; },
         emptyQueueDisplay: function () {
             var msgs = ["No matching songs found"];
             //modify filtering
@@ -430,7 +457,8 @@ app.deck = (function () {
                         if(song.lp > abd[key].mrp) {
                             abd[key].mrp = song.lp; }
                         abd[key].songs.push(song); } } });
-            suggestedAlbums = Object.values(abd);
+            suggestedAlbums = Object.values(abd)
+                .filter((a) => a.songs.length >= 3);  //not a single from a comp
             suggestedAlbums.forEach(function (a) {
                 a.rmw = (jt.isoString2Time(a.lrp).getTime() +
                          jt.isoString2Time(a.mrp).getTime()); });
@@ -554,7 +582,8 @@ app.deck = (function () {
             apq = deckset.apq;
             apq.paths = apq.paths || [];
             apq.ts = apq.ts || new Date().toISOString();
-            apq.idx = apq.idx || -1; }
+            if(!(apq.idx >= 0)) {  //undefined or non-numeric value
+                apq.idx = -1; } }
         function digDatUpdated (/*digdat*/) {
             restoreAlbumPlaybackSettings();
             const deckset = app.pdat.uips("deck");
@@ -936,6 +965,11 @@ return {
     isPlayable: function (s) { return (!s.fq || !s.fq.match(/^[DUI]/)); },
     isDeckable: function (s) { return (!s.fq || !s.fq.match(/^[RMDUI]/)); },
     dispatch: function (mgrname, fname, ...args) {
-        return mgrs[mgrname][fname].apply(app.deck, args); }
+        try {
+            return mgrs[mgrname][fname].apply(app.deck, args);
+        } catch(e) {
+            jt.log("deck.dispatch " + mgrname + "." + fname + " " + e +
+                   " " + e.stack);
+        } }
 };  //end of module returned functions
 }());
