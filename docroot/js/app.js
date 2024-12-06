@@ -755,11 +755,14 @@ var app = (function () {
             contf({"acctsinfo": {currid:"101",
                                  //accts:[dfltacct, demoacct]}},
                                  accts:[dfltacct]}}); },
+        readDigDat: function (impfunc, contf, errf) {
+            if(!active) { return impfunc(contf, errf); }
+            contf(makeDigDat()); },
         requestPlaybackStatus: function (impfunc) {
             if(!active) { return impfunc(); }
             jt.log("app.scr.requestPlaybackStatus no action"); },
-        playSongQueue: function (impfunc) {
-            if(!active) { return impfunc(); }
+        playSongQueue: function (impfunc, pwsid, sq) {
+            if(!active) { return impfunc(pwsid, sq); }
             jt.log("app.scr.playSongQueue no action"); },
         pause: function (impfunc) {
             if(!active) { return impfunc(); }

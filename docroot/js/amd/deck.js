@@ -140,8 +140,20 @@ app.deck = (function () {
                               sc:songs.length}); }); }
             updateSelectionFilteringInfoDisplay(fcs);
             return songs; },
-        sba2queue: function (sba) {  //song arrays by artist
+        sba2queue: function (sba, salrp) {  //song arrays by artist
             var rsq = [];  //resulting song queue
+            if(salrp) {  //sort artists by least recently played
+                const alp = {};  //artists last played, even if not playable
+                Object.values(app.pdat.songsDict()).forEach(function (s) {
+                    if(s.ar) {
+                        alp[s.ar] = alp[s.ar] || "";
+                        if(s.lp > alp[s.ar]) {
+                            alp[s.ar] = s.lp; } } });
+                const sas = Object.keys(sba).map(function (ar) {
+                    return {artist:ar, mrp:alp[ar], songs:sba[ar]}; })
+                      .sort((a, b) => a.mrp.localeCompare(b.mrp));
+                sba = {};
+                sas.forEach(function (sa) { sba[sa.artist] = sa.songs; }); }
             //consume sba round robin into a single queue of songs
             while(Object.keys(sba).length > 0) {  //have artists with songs
                 Object.keys(sba).forEach(function (artist) {
@@ -293,7 +305,7 @@ app.deck = (function () {
                 sba[s.ar] = sba[s.ar] || [];
                 if(!sba[s.ar].find((existing) => s.path === existing.path)) {
                     sba[s.ar].push(s); } });
-            songs = mgrs.util.sba2queue(sba)
+            songs = mgrs.util.sba2queue(sba, !asq.paths.length)
                 .slice(0, app.player.playQueueMax);
             replaceQueueAndPlay(songs, pfsg); }
         function restoreAutoplaySelectionQueueSettings () {
@@ -445,7 +457,9 @@ app.deck = (function () {
             var abd = {};  //albums dictionary
             if(suggestedAlbums) { return; }  //already calculated
             Object.values(app.pdat.songsDict()).forEach(function (song) {
-                if(app.deck.isPlayable(song)) {
+                if(app.deck.isPlayable(song) &&
+                   song.ar && song.ar !== "Unknown" &&
+                   song.ab && song.ab !== "Singles") {
                     const key = makeAlbumKey(song);
                     if(key) {
                         abd[key] = abd[key] || {
@@ -550,7 +564,8 @@ app.deck = (function () {
         function setPathsAndIndexFromSong (song) {
             apq.paths = Object.values(app.pdat.songsDict())
                 .filter((s) => s.ar === song.ar && s.ab === song.ab)
-                .sort(trackOrderComparator)
+                .sort(trackOrderComparator)  //order tracks, then remove dupes
+                .filter((s, idx, arr) => !idx || s.ti !== arr[idx - 1].ti)
                 .map((s) => s.path);
             apq.idx = apq.paths.findIndex((p) => p === song.path); }
         function playAlbumFromIndex () {

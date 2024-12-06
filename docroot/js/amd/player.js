@@ -838,12 +838,12 @@ app.player = (function () {
     //Instantiated by platform svc as needed for audio.
     mgrs.plui = (function () {
         var pbco = null;  //playback control object
-        const ppb = {st:"paused", img:"img/play.png", wrk:""};
+        const ppb = {st:"paused", img:"img/play.png", wrk:"", started:false};
         const prog = {pos:0, dur:0, w:200, left:16, //CSS pluiprogbgdiv left
                       divs:["pluiprogbgdiv", "pluiprogclickdiv"],
                       mf:4,  //max float: #secs allowed without calling pbco
                       fb:5,  //float border: #secs from start/end for fast check
-                      fc:0,  //float count: #calls without real stat data
+                      rt:0,  //received tick (timestamp in millis)
                       tmo: null};  //timer for next call
         function mmss (ms) {
             var sep = ":";
@@ -879,20 +879,39 @@ app.player = (function () {
             else { //"paused", "ended", ""
                 ppb.img = "img/play.png"; }
             jt.byId("pluibimg").src = ppb.img; }
-        function scheduleTransportStateRecheck () {
+        function withinFloatTime () {
+            if(!prog.rt) { return false; }  //need a real progress tick first
+            if(Date.now() < prog.rt + prog.mf * 1000) {
+                return true; }
+            return false; }
+        function nearBeginningOrEnd () {
+            return ((prog.pos < prog.fb * 1000) ||
+                    (prog.pos > (prog.dur - prog.fb) * 1000)); }
+        function clearTicker (requireFullStatus) {
             if(prog.tmo) {  //clear previously scheduled tick in case active
                 clearTimeout(prog.ticker); }
             prog.tmo = null;  //for debugging state clarity
-            if(prog.fc < prog.mf &&           //haven't exceeded max float
-               prog.pos > prog.fb * 1000 &&   //not too close to song start,
-               prog.pos < (prog.dur - prog.fb) * 1000) {  //or song end
+            if(requireFullStatus) {
+                prog.rt = 0; } } //disable floating tick
+        function scheduleTransportStateRecheck () {
+            if(prog.tmo) { return; }  //wait for existing timed tick
+            clearTicker();
+            if(withinFloatTime() && !nearBeginningOrEnd()) {
                 prog.tmo = setTimeout(function () {  //UI only float call
-                    prog.pos += 1000;  //move forward one tick
-                    prog.fc += 1;      //note this was a floating call
-                    updatePosIndicator(); }, 1000);
+                    clearTicker();
+                    if(ppb.st === "playing") {
+                        prog.pos += 1000; } //move forward one tick
+                    jt.log("scheduleTransportStateRecheck float tick");
+                    updatePosIndicator();
+                    scheduleTransportStateRecheck(); }, 1000);
                 return; }
-            //need to call for hard status return
-            prog.tmo = setTimeout(pbco.requestPlaybackStatus, 1000); }
+            jt.log("scheduleTransportStateRecheck full status request");
+            //need to call for hard status return. Use common util rather
+            //than pbco to avoid collisions and common errors.
+            prog.tmo = setTimeout(function () {
+                clearTicker();
+                mgrs.uiu.requestPlaybackStatus("plui.stateCheck"); },
+                                  1000); }  //one second is one tick
     return {
         initInterface: function (playbackControlObject, maxFloatSeconds) {
             if(!jt.byId("audiodiv")) {
@@ -919,18 +938,21 @@ app.player = (function () {
                 jt.byId(divid).style.width = prog.w + "px"; });
             app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             updatePosIndicator(); },
+        playbackInitiated: function () { ppb.started = true; },
         updateTransportControls: function (status) {
             ppb.wrk = "";  //no longer processing pause/resume
             ppb.st = status.state;
             updatePlaybackControlImage(ppb.st);
             prog.pos = status.pos;
             prog.dur = status.dur;
-            prog.fc = 0;  //hard status data provided, not a floating tick
+            prog.rt = Date.now();
             updatePosIndicator();
-            if(status.path && status.state !== "ended") {
-                scheduleTransportStateRecheck(); } },
+            //If triggered externally, playback may start, or restart after
+            //"ended", without notice.  For the UI to react, it must poll.
+            scheduleTransportStateRecheck(); },
         togglePlaybackState: function () {
             //update UI image first, then call pbco and get updated status
+            clearTicker(true);
             if(ppb.st === "paused") {
                 updatePlaybackControlImage("playing");
                 ppb.wrk = "resuming";
@@ -944,6 +966,9 @@ app.player = (function () {
             var x = event.clientX - clickrect.left;
             var ms = Math.round(x / prog.w * prog.dur);
             if(ms < 5000) { ms = 0; }  //close enough, restart from beginning
+            prog.pos = ms;         //update pos now, seek call not instant
+            updatePosIndicator();
+            clearTicker(true);
             pbco.seek(ms); }
     };  //end mgrs.plui returned functions
     }());
@@ -1080,15 +1105,7 @@ app.player = (function () {
     //user interface utilties
     mgrs.uiu = (function () {
         const pbstates = ["playing", "paused", "ended"];  //"" if unknown
-        var pbsh = {  //playback status handling
-            ongoing: false,  //true while waiting for a response
-            contf: null, //optional successful status return callback func
-            tcall: 0,    //time of outbound platform call
-            tresp: 0,    //time of inbound platform response
-            path: "",    //path for currently playing song
-            state: "",   //one of pbstates
-            pos: 0,      //current playback position in milliseconds
-            dur: 0};     //total duration of playing song in milliseconds
+        const reqsrcs = {};  //playback status handling
         function adjustFramingBackgroundHeight () {  //match height of panels
             const oh = jt.byId("contentdiv").offsetHeight;  //dflt 736px
             const cmdiv = jt.byId("contentmargindiv");
@@ -1108,13 +1125,17 @@ app.player = (function () {
                   ["span", {id:"playtitletextspan"},
                    app.deck.dispatch("util", "songIdentHTML",
                                      pmso.song)]]])); }
-        function reflectUpdatedStatusInfo () {
+        function reflectUpdatedStatusInfo (pbsh) {
+            jt.log("uiu.reflectUpdatedStatusInfo " + JSON.stringify(pbsh));
             //If pmso.song is null, or pmso.song.path === pbsh.path, then
             //digdat is up to date.  Otherwise digdat may be stale and must
             //be reloaded to ensure the latest song.lp values are available.
             //Meanwhile the UI needs updating, even if it is temporarily
             //working with stale digdat data.
-            if(pmso.song && pmso.song.path !== pbsh.path) {
+            if(pmso.song && pbsh.path && pmso.song.path !== pbsh.path) {
+                if(app.pdat.dbObj()) {
+                    mgrs.gen.notifySongChanged(app.pdat.songsDict()[pbsh.path],
+                                               pbsh.state); }
                 app.pdat.reloadDigDat(); }  //async
             if(!pbsh.path) {
                 pmso.song = null; }
@@ -1131,11 +1152,12 @@ app.player = (function () {
             if(pmso.stale && pmso.stale.path === status.path) {
                 jt.log("rcvPBStat ignoring stale stat from prev song");
                 return "stale"; }
-            if(!status.path && !status.state) {
-                jt.log("rcvPBStat retrying invalid status path/state: " +
-                       JSON.stringify(status));
-                mgrs.uiu.requestPlaybackStatus(pbsh.contf);
-                return "invalid"; }
+            //Empty status.path may be bad data, or an indication no song is
+            //playing yet.  Empty status.state is may be bad data, or unknown
+            //playback state due to nothing playing yet.  Warn if status.state
+            //is a bad value to help with service integration development.
+            if(status.state && pbstates.indexOf(status.state) < 0) {
+                jt.log("rcvPBStat invalid status.state: " + status.state); }
             return ""; }
         function initPlayerUIBaseElements () {
             jt.out("mediadiv", jt.tac2html(
@@ -1173,38 +1195,43 @@ app.player = (function () {
             pmso.song.rv = pmso.song.rv || 0;  //verify numeric value
             mgrs.rat.adjustPositionFromRating(pmso.song.rv);
             mgrs.cmt.updateIndicators(); },
-        //All app UI playback status request calls go out to svc via
-        //uiu.requestPlaybackStatus, and svc returns all playback status
-        //data via uiu.receivePlaybackStatus.  Call/Receive is ordered
-        //transactional.  Queuing is neither necessary nor desirable.
-        requestPlaybackStatus: function (contf) {
-            if(pbsh.ongoing) {
-                jt.log("WARNING: Unordered uiu.requestPlayback call.");
-                jt.log("previous ongoing call overwritten."); }
-            pbsh.ongoing = true;
-            pbsh.contf = contf || null;
-            pbsh.tcall = Date.now();
-            pbsh.tresp = 0;
-            pbsh.path = "";
-            pbsh.state = "";
-            pbsh.pos = 0;
-            pbsh.dur = 0;
+        //Playback status requests go out via uiu.requestPlaybackStatus and
+        //data is returned via uiu.receivePlaybackStatus.  Returned data may
+        //be invalid.  Response time varies.  Platforms that drop calls rely
+        //on player polling to catch up.
+        requestPlaybackStatus: function (srcid, callbackf) {
+            //jt.log("uiu.requestPlaybackStatus " + srcid);
+            reqsrcs[srcid] = {
+                contf:callbackf || null,
+                tcall:Date.now(), tresp:0,
+                path:"", state:"", pos:0, dur:0};
             app.svc.requestPlaybackStatus(); },
         receivePlaybackStatus: function (status) {
+            var reflected = false;
+            if(corruptedStatusData(status)) { return; }
             //When the Digger interface initializes on a mobile platform,
             //playback may be ongoing from the platform service, and
             //javascript timers may still be hanging around waiting to
             //resume from the last time the webview was active.
-            if(!corruptedStatusData(status)) {
-                pbsh.tresp = Date.now();
-                pbsh.path = status.path || "";  //may be "" if no song playing
-                pbsh.state = status.state;   //may be "" if no song
-                if(pbsh.state && pbstates.indexOf(pbsh.state < 0)) {
-                    jt.log("rcvPBStat invalid status.state: " + pbsh.state); }
-                pbsh.pos = status.pos;
-                pbsh.dur = status.dur;
-                reflectUpdatedStatusInfo();
-                pbsh.rcvf(pbsh); } }
+            if(Object.keys(reqsrcs).every((key) => reqsrcs[key] === null)) {
+                jt.log("uiu.receivePlaybackStatus ignoring unrequested " +
+                       JSON.stringify(status));
+                return; }
+            Object.keys(reqsrcs).forEach(function (key) {
+                const pbsh = reqsrcs[key];
+                if(pbsh) {  //have pending request to process
+                    jt.log("uiu.receivePlaybackStatus " + key);
+                    pbsh.tresp = Date.now();
+                    pbsh.path = status.path || "";
+                    pbsh.state = status.state;   //may be "" if no song
+                    pbsh.pos = status.pos;
+                    pbsh.dur = status.dur;
+                    if(!reflected) {
+                        reflectUpdatedStatusInfo(pbsh);
+                        reflected = true; }
+                    if(pbsh.contf) {
+                        pbsh.contf(pbsh); }
+                    reqsrcs[key] = null; } }); } //end request
     };  //end mgrs.uiu returned interface
     }());
 
@@ -1283,7 +1310,7 @@ app.player = (function () {
         reqUpdatedPlaybackStat: function (contf) {
             //Verify playback status is up-to-date and call back
             const psbc = pmso.song;  //playing song before call
-            mgrs.uiu.requestPlaybackStatus(function (status) {
+            mgrs.uiu.requestPlaybackStatus("gen.requpd", function (status) {
                 if((!psbc && status.path) ||  //no song before but playing now
                    (psbc && psbc.path !== status.path)) {  //song changed
                     app.player.notifySongChanged(pmso, status.state); }
