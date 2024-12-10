@@ -530,19 +530,6 @@ app.deck = (function () {
     //Album manager handles album display and playback.
     mgrs.alb = (function () {
         var apq = {paths:[], ts:"", idx:-1};  //album playback queue
-        function trackOrderComparator (a, b) {
-            //sort by metadata disk number first
-            if(a.mddn && !b.mddn) { return -1; }
-            if(!a.mddn && b.mddn) { return 1; }
-            if(a.mddn && b.mddn && a.mddn !== b.mddn) {
-                return a.mddn - b.mddn; }
-            //disk numbers equivalent, sort by track number
-            if(a.mdtn && !b.mdtn) { return -1; }
-            if(!a.mdtn && b.mdtn) { return 1; }
-            if(a.mdtn && b.mdtn && a.mdtn !== b.mdtn) {
-                return a.mdtn - b.mdtn; }
-            //track numbers equivalent, sort by path
-            return a.path.localeCompare(b.path); }
         function makeAlbumSongDiv (song, idx, npi) {
             if(idx === npi) {  //index is the now playing song index
                 return [["img", {src:"img/arrow12right.png",
@@ -568,7 +555,7 @@ app.deck = (function () {
         function setPathsAndIndexFromSong (song) {
             apq.paths = Object.values(app.pdat.songsDict())
                 .filter((s) => s.ar === song.ar && s.ab === song.ab)
-                .sort(trackOrderComparator)  //order tracks, then remove dupes
+                .sort(mgrs.alb.trackOrderComparator)  //sort, then dedupe
                 .filter((s, idx, arr) => !idx || s.ti !== arr[idx - 1].ti)
                 .map((s) => s.path);
             apq.idx = apq.paths.findIndex((p) => p === song.path); }
@@ -611,6 +598,19 @@ app.deck = (function () {
     return {
         initialize: function () {
             app.pdat.addDigDatListener("deck.alb", digDatUpdated); },
+        trackOrderComparator: function (a, b) {
+            //sort by metadata disk number first
+            if(a.mddn && !b.mddn) { return -1; }
+            if(!a.mddn && b.mddn) { return 1; }
+            if(a.mddn && b.mddn && a.mddn !== b.mddn) {
+                return a.mddn - b.mddn; }
+            //disk numbers equivalent, sort by track number
+            if(a.mdtn && !b.mdtn) { return -1; }
+            if(!a.mdtn && b.mdtn) { return 1; }
+            if(a.mdtn && b.mdtn && a.mdtn !== b.mdtn) {
+                return a.mdtn - b.mdtn; }
+            //track numbers equivalent, sort by path
+            return a.path.localeCompare(b.path); },
         playAlbum: function (song, fromBeginning) {
             mgrs.gen.setSongSeqMgrName("alb");  //verify set (search from csa)
             setPathsAndIndexFromSong(song);
@@ -689,20 +689,26 @@ app.deck = (function () {
                     rslt[s.ar] = rslt[s.ar] ||
                         {matched:(mf.f === "ar"),
                          t:"ar", si:idx, es:{}};
-                    const artist = rslt[s.ar];
+                    const artist = rslt[s.ar];  //add albums to artist
                     artist.es[s.ab] = artist.es[s.ab] ||
                         {matched:(mf.f === "ab" || s.ab.match(srx)),
                          t:"ab", si:idx, es:{}};
-                    const album = artist.es[s.ab];
+                    const album = artist.es[s.ab];  //add songs to album
                     album.es[s.ti] = album.es[s.ti] ||  //dupe possible
                         {matched:(mf.f === "ti" || s.ti.match(srx) ||
                                   mf === "nt" || s.ti.match(srx)),
-                         t:"ti", si:idx};
+                         t:"ti", si:idx, mddn:s.mddn, mdtn:s.mdtn,
+                         path:s.path};
                     //const title = album.es[s.ti];
                     updateCounts(s.ar, s.ab, s.ti); } }); }
         function makeResultTAC (dict, parentMatched) {
             const sks = Object.keys(dict).sort(
-                function (a, b) { return a.localeCompare(b); });
+                function (a, b) {
+                    if(dict[a].t === "ti") {
+                        return mgrs.alb.trackOrderComparator(dict[a],
+                                                             dict[b]); }
+                    else {
+                        return a.localeCompare(b); } });
             return sks.map(function (fv) {
                 const det = dict[fv];
                 const dln = {xpc:"",
