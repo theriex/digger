@@ -280,6 +280,11 @@ app.deck = (function () {
             //asq.idx is currently playing song, display rest
             const songs = asq.paths.slice(asq.idx + 1).map((p) => sd[p]);
             mgrs.util.displayQueuedSongs("csa", "csaqueuediv", songs); }
+        function playQueueFromIndex () {
+            const sd = app.pdat.songsDict();
+            const songs = asq.paths.slice(asq.idx).map((p) => sd[p]);
+            redrawPlaylistDisplay();
+            app.player.playSongQueue("deck.csa", songs); }
         function replaceQueueAndPlay (songs, pfsg) {
             const np = app.player.nowPlayingSong();
             if(pfsg) {  //start playback with provided song
@@ -389,12 +394,11 @@ app.deck = (function () {
         playNextSong: function () {
             if(asq.idx >= 0 && asq.idx < asq.paths.length - 1) {
                 asq.idx += 1;
-                const sd = app.pdat.songsDict();
-                const songs = asq.paths.slice(asq.idx).map((p) => sd[p]);
-                redrawPlaylistDisplay();
-                app.player.playSongQueue("deck.csa", songs); }
+                playQueueFromIndex(); }
             else {
                 jt.log("deck.csa.playNextSong: no songs left to play"); } },
+        replayQueue: function () {
+            playQueueFromIndex(); },
         playGivenSong: function (song) {
             rebuildPlaybackQueue(song); },
         filtersChanged: function () {
@@ -624,6 +628,8 @@ app.deck = (function () {
             if(apq.idx < apq.paths.length - 1) {
                 apq.idx += 1;
                 playAlbumFromIndex(); } },
+        replayQueue: function () {
+            playAlbumFromIndex(); },
         initDisplay: function () {
             jt.out("albdispdiv", jt.tac2html(
                 [["div", {id:"albsuggsframediv"},
@@ -940,6 +946,8 @@ app.deck = (function () {
             mgrs[songSeqMgrName].activateDisplay(); },
         playNextSong: function () {
             mgrs[songSeqMgrName].playNextSong(); },
+        replayQueue: function () {
+            mgrs[songSeqMgrName].replayQueue(); },
         initDisplay: function () {
             jt.out("pandeckdiv", jt.tac2html(
                 [["div", {id:"deckheaderdiv"},
@@ -975,7 +983,8 @@ return {
                 mgr.initialize(); } }); },
     filtersChanged: mgrs.csa.filtersChanged,
     currentlyPlayingSongChanged: mgrs.gen.currentlyPlayingSongChanged,
-    playNextSong: mgrs.gen.playNextSong,
+    playNextSong: mgrs.gen.playNextSong,  //player skip
+    replayQueue: mgrs.gen.replayQueue,    //player sleep activation
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
     isPlayable: function (s) { return (!s.fq || !s.fq.match(/^[DUI]/)); },
     isDeckable: function (s) { return (!s.fq || !s.fq.match(/^[RMDUI]/)); },

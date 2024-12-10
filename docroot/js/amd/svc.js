@@ -18,17 +18,45 @@ app.svc = (function () {
     mgrs.loa = (function () {
         var sq = [];  //songs queued for playback
         var np = null;  //now playing song
+        const ape = {  //audioplayer event tracking
+            seekedt:0,      //Date.now() of last "seeked" event notification
+            cooloff:2000,   //2 second mousing about chill period
+            endedtmo:null}; //timeout for "ended" event notification
+        function apeSeeked () { ape.seekedt = Date.now(); }
+        function apeEnded () {
+            if(Date.now() - ape.seekedt < ape.cooloff) {
+                jt.log("apeEnded " + (ape.seekedt? "resetting" : "setting") +
+                       " timer");
+                if(ape.endedtmo) {
+                    clearTimeout(ape.endedtmo); }
+                ape.endedtmo = setTimeout(function () {
+                    ape.endedtmo = null;
+                    apeEnded(); }, ape.cooloff); }
+            else {
+                const player = jt.byId("playeraudio");
+                const secsrem = player.duration - player.currentTime;
+                if(secsrem * 1000 > ape.cooloff) {
+                    jt.log("apeEnded ignoring ended notification with " +
+                           secsrem + " seconds left to play"); }
+                else {
+                    jt.log("apeEnded calling playNextSong");
+                    playNextSong("app.svc.audio.ended"); } } }
         function updateLastPlayedTimestamp (pwsid, song) {
             song = app.pdat.songsDict()[song.path];  //get current reference
             song.lp = new Date().toISOString();
             app.pdat.writeDigDat(pwsid || "svc.loa.playNextSong"); }
         function playNextSong (pwsid) {
+            const player = jt.byId("playeraudio");
             if(!sq.length) {
+                app.player.notifySongChanged(np, "ended");
+                //if you drag the seek past the end of the currently playing
+                //track, then "ended" will be triggered but playback will
+                //continue from position 0 (FF 133 MacOS 14.6.1).
+                player.pause();  //avoid any unexpected continuation
                 return jt.log("mgrs.loa.playNextSong no songs left in queue"); }
             np = sq.shift();
             updateLastPlayedTimestamp(pwsid, np);
             app.player.notifySongChanged(np, "playing");
-            const player = jt.byId("playeraudio");
             player.src = "/audio?path=" + jt.enc(np.path);
             //player.play returns a Promise, check result via then.
             player.play().then(
@@ -52,12 +80,13 @@ app.svc = (function () {
                         ["audio", {id:"playeraudio", controls:"controls",
                                    autoplay:"autoplay"},  //might not happen
                          "WTF? Your browser doesn't support audio.."]));
-                    jt.on("playeraudio", "ended", function () {
-                        playNextSong("app.svc.audio.ended"); }); }
+                    jt.on("playeraudio", "seeked", apeSeeked);
+                    jt.on("playeraudio", "ended", apeEnded); }
                 bumpPlayerLeftIfOverhang(); }); },
         playSongQueue: function (pwsid, songs) {
             if(np && np.path === songs[0].path) {  //already playing first song
-                sq = songs.slice(1); }  //update queue
+                sq = songs.slice(1);  //update queue
+                updateLastPlayedTimestamp(pwsid, songs[0]); }
             else {
                 sq = songs;
                 playNextSong(pwsid); } },
