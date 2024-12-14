@@ -119,6 +119,9 @@ app.player = (function () {
                                   adjustRatingFromPosition);
             adjustRatingFromPosition(0, 0, "reflectonly"); },  //init empty
         adjustPositionFromRating: function (rv) {
+            if(typeof rv !== "number") {
+                jt.log("player.rat.adjustPositionFromRating non-numeric rv");
+                rv = 0; }
             adjustRatingFromPosition(Math.round((rv * stw) / 2),
                                      0, "relectonly"); }
     };  //end mgrs.rat returned functions
@@ -673,7 +676,8 @@ app.player = (function () {
             ost.song = null;
             ost.mode = mode || "";
             const odiv = jt.byId(ost.odi);
-            if(togstate === "off" || odiv.style.display !== "none") {
+            if(togstate === "off" || (odiv.style.display !== "none" &&
+                                      togstate !== "on")) {
                 odiv.style.display = "none";
                 return; }
             mgrs.kwd.toggleExpansion("off");
@@ -854,13 +858,14 @@ app.player = (function () {
     //Instantiated by platform svc as needed for audio.
     mgrs.plui = (function () {
         var pbco = null;  //playback control object
-        const ppb = {st:"paused", img:"img/play.png", wrk:"", started:false};
+        const ppb = {st:"paused", img:"img/play.png", wrk:""};
         const prog = {pos:0, dur:0, w:200, left:16, //CSS pluiprogbgdiv left
                       divs:["pluiprogbgdiv", "pluiprogclickdiv"],
                       mf:4,  //max float: #secs allowed without calling pbco
                       fb:5,  //float border: #secs from start/end for fast check
                       rt:0,  //received tick (timestamp in millis)
-                      tmo: null};  //timer for next call
+                      tmo: null,  //timer for next tick call
+                      mode:"active"};  //"inactive" in sleep mode
         function mmss (ms) {
             var sep = ":";
             ms = Math.round(ms / 1000);
@@ -912,6 +917,9 @@ app.player = (function () {
         function scheduleTransportStateRecheck () {
             if(prog.tmo) { return; }  //wait for existing timed tick
             clearTicker();
+            if(prog.mode !== "active") {
+                jt.log("scheduleTransportStateRecheck mode " + prog.mode);
+                return; }
             if(withinFloatTime() && !nearBeginningOrEnd()) {
                 prog.tmo = setTimeout(function () {  //UI only float call
                     clearTicker();
@@ -954,7 +962,6 @@ app.player = (function () {
                 jt.byId(divid).style.width = prog.w + "px"; });
             app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             updatePosIndicator(); },
-        playbackInitiated: function () { ppb.started = true; },
         updateTransportControls: function (status) {
             ppb.wrk = "";  //no longer processing pause/resume
             ppb.st = status.state;
@@ -985,7 +992,14 @@ app.player = (function () {
             prog.pos = ms;         //update pos now, seek call not instant
             updatePosIndicator();
             clearTicker(true);
-            pbco.seek(ms); }
+            pbco.seek(ms); },
+        pollingMode: function (statestr) {
+            prog.mode = statestr;
+            jt.log("plui.pollingMode " + prog.mode);
+            if(prog.mode === "active") {
+                scheduleTransportStateRecheck(); }
+            else {
+                clearTicker(); } }
     };  //end mgrs.plui returned functions
     }());
 
@@ -1039,6 +1053,8 @@ app.player = (function () {
             jt.byId("togsleepimg").src = (sst.act? "img/sleepactive.png"
                                           : "img/sleep.png"); }
         function sleepCompletionDialog (msg) {
+            mgrs.slp.toggleSleepDisplay("close");  //deactivate controls if open
+            mgrs.plui.pollingMode("inactive");
             mgrs.cmt.toggleOtherDisplay("on", "sleep", function () {
                 return jt.tac2html(
                     ["div", {id:"sleepmsgdispdiv", cla:"togdlgabspos"},
@@ -1051,7 +1067,6 @@ app.player = (function () {
             const sst = sleepstate();
             if(!sst.act) { return; }    //not sleeping, nothing to do
             if(!pmso.song) { return; }  //can't check sleeping if no song
-            mgrs.slp.toggleSleepDisplay("close");  //deactivate controls if open
             const sd = app.pdat.songsDict();
             sst.rempaths = sst.rempaths.map((p) => sd[p])
                 .filter((s) => !s.lp || s.lp < sst.rempts)
@@ -1059,10 +1074,10 @@ app.player = (function () {
             sst.cnt = sst.rempaths.length;
             if(!sst.cnt) {  //no more remaining, playing last song or done
                 if(pmso.song.path === sst.lspbs) {
-                    if(pmso.state === "playing") {
-                        jt.log("Sleep waiting for last song to finish"); }
-                    else {  //normal sleep
-                        sleepCompletionDialog(scms.lastpl); } }
+                    if(pmso.state === "ended") {
+                        sleepCompletionDialog(scms.lastpl); }
+                    else {
+                        jt.log("Sleep waiting for last song to finish"); } }
                 else {  //some unexpected song is now playing
                     sleepCompletionDialog(scms.unexpl); } }
             updateSleepMainButtonDisplay(); } //reflect updated state
@@ -1077,7 +1092,8 @@ app.player = (function () {
             mgrs.cmt.toggleOtherDisplay("off");
             turnSleepOff();
             updateSleepMainButtonDisplay();
-            app.deck.replayQueue(); },  //remove prev maxAllowedQueueLength
+            mgrs.plui.pollingMode("active");
+            app.deck.playNextSong(); },
         updateSleepState: function (src, overrideUIControls) {
             turnSleepOff();  //clear any previous activation settings
             const sst = sleepstate();
@@ -1114,10 +1130,12 @@ app.player = (function () {
             const sst = sleepstate();
             if(!sst.act) {  //not activated, and not resuming from sleep
                 return app.player.playQueueMax; }  //return standard max limit
-            if(songs.length < sst.cnt + 1) {  //playback will end before sleep
-                turnSleepOff();
+            if((songs.length < sst.cnt + 1) ||  //playback will end before sleep
+               (sst.lspbs && (sst.lspbs !==            //lspbs previously set
+                              songs[sst.cnt].path))) { //and not the same now
+                turnSleepOff();  //writeDigDat call pending with play
                 updateSleepMainButtonDisplay();
-                app.pdat.writeDigDat("slp.maxAQL");
+                //call to writeDigdat already
                 return app.player.playQueueMax; }  //return standard max limit
             sst.lspbs = songs[sst.cnt].path;
             sst.rempts = new Date().toISOString();
@@ -1169,6 +1187,7 @@ app.player = (function () {
             else {
                 pmso.song = app.pdat.songsDict()[pbsh.path]; }
             pmso.state = pbsh.state;
+            mgrs.slp.notePlayerStateChange();
             updateSongTitleDisplay();
             mgrs.plui.updateTransportControls(pbsh); }
         function corruptedStatusData (status) {
@@ -1219,7 +1238,6 @@ app.player = (function () {
             updateSongTitleDisplay();
             mgrs.pan.updateControl("al", pmso.song.al);
             mgrs.pan.updateControl("el", pmso.song.el);
-            pmso.song.rv = pmso.song.rv || 0;  //verify numeric value
             mgrs.rat.adjustPositionFromRating(pmso.song.rv);
             mgrs.cmt.updateIndicators(); },
         //Playback status requests go out via uiu.requestPlaybackStatus and
@@ -1351,6 +1369,7 @@ app.player = (function () {
                 jt.log("notifySongChanged song not found: " + song.path);
                 return mgrs.scm.changeCurrentlyPlayingSong(song, state); }
             if(pmso.song && pmso.song.path === dbsg.path) {
+                mgrs.uiu.updateSongDisplay();  //verify ctrls up to date
                 pmso.state = state;  //notification provides latest state
                 mgrs.slp.notePlayerStateChange();
                 return jt.log("notifySongChanged ignoring non-change call"); }

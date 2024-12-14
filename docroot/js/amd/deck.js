@@ -147,7 +147,7 @@ app.deck = (function () {
                 Object.values(app.pdat.songsDict()).forEach(function (s) {
                     if(s.ar) {
                         alp[s.ar] = alp[s.ar] || "";
-                        if(s.lp > alp[s.ar]) {
+                        if(s.lp > alp[s.ar]) {  //true if s.lp defined and >
                             alp[s.ar] = s.lp; } } });
                 const sas = Object.keys(sba).map(function (ar) {
                     return {artist:ar, mrp:alp[ar], songs:sba[ar]}; })
