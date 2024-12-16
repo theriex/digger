@@ -57,7 +57,7 @@ app.player = (function () {
         changeCurrentlyPlayingSong: function (song, state) {
             pmso.song = song;
             pmso.state = state || "";
-            mgrs.uiu.updateSongDisplay();
+            mgrs.uiu.updateSongDisplay("scm.changeCurrentlyPlayingSong");
             mgrs.slp.notePlayerStateChange();
             app.deck.currentlyPlayingSongChanged(); },
         noteSongModified: function (cid) {  //caller Id string
@@ -993,6 +993,9 @@ app.player = (function () {
             updatePosIndicator();
             clearTicker(true);
             pbco.seek(ms); },
+        recheckStatus: function () {
+            if(pbco) {  //initialized
+                scheduleTransportStateRecheck(); } },
         pollingMode: function (statestr) {
             prog.mode = statestr;
             jt.log("plui.pollingMode " + prog.mode);
@@ -1184,7 +1187,9 @@ app.player = (function () {
             if(!pbsh.path) {
                 pmso.resetPlaceholderControlObject();
                 pmso.song = null; }
-            else {
+            else {  //have pbsh.path
+                if(pmso.expecting && pmso.expecting.path === pbsh.path) {
+                    pmso.expecting = null; } //got expected song status.
                 pmso.song = app.pdat.songsDict()[pbsh.path]; }
             pmso.state = pbsh.state;
             mgrs.slp.notePlayerStateChange();
@@ -1198,10 +1203,12 @@ app.player = (function () {
             if(pmso.stale && pmso.stale.path === status.path) {
                 jt.log("rcvPBStat ignoring stale stat from prev song");
                 return "stale"; }
-            //Empty status.path may be bad data, or an indication no song is
-            //playing yet.  Empty status.state is may be bad data, or unknown
-            //playback state due to nothing playing yet.  Warn if status.state
-            //is a bad value to help with service integration development.
+            //empty status.path usually indicates nothing playing yet.
+            if(pmso.expecting && !status.path) {
+                jt.log("rcvPBStat ignoring empty status, expecting " +
+                       pmso.expecting.path);
+                return "expecting"; }
+            //Warn if bad status.state val to help with svc integration dev
             if(status.state && pbstates.indexOf(status.state) < 0) {
                 jt.log("rcvPBStat invalid status.state: " + status.state); }
             return ""; }
@@ -1233,7 +1240,9 @@ app.player = (function () {
                 setTimeout(function () {
                     elem.classList.remove("bgtransitionfade"); }, ms + 750); },
                        100); },
-        updateSongDisplay: function (/*callerstr*/) {
+        updateSongDisplay: function (callerstr) {
+            jt.log("updateSongDisplay " + callerstr + " " + pmso.state + " " +
+                   pmso.cto().ti + " (" + pmso.cto().path + ")");
             mgrs.kwd.rebuildToggles();
             updateSongTitleDisplay();
             mgrs.pan.updateControl("al", pmso.song.al);
@@ -1253,7 +1262,9 @@ app.player = (function () {
             app.svc.requestPlaybackStatus(); },
         receivePlaybackStatus: function (status) {
             var reflected = false;
-            if(corruptedStatusData(status)) { return; }
+            if(corruptedStatusData(status)) {
+                mgrs.plui.recheckStatus();
+                return; }
             //When the Digger interface initializes on a mobile platform,
             //playback may be ongoing from the platform service, and
             //javascript timers may still be hanging around waiting to
@@ -1297,6 +1308,23 @@ app.player = (function () {
             {fld:"nt", uf:function (val) {
                 pmso.cto().nt = val;
                 mgrs.cmt.resetDisplay("gen.uichg"); }}];
+        function previewSongDisplay (song, state) {
+            //The currently playing song and the playback state do not
+            //change until the platform player says so.  In the meantime,
+            //the UI needs to update to avoid lag and old data.
+            const cs = pmso.song;         //save current values
+            const st = pmso.state;
+            pmso.song = song;             //change to what they will be
+            pmso.state = state;
+            mgrs.uiu.updateSongDisplay("previewSongDisplay");
+            pmso.song = cs;               //reset current values
+            pmso.state = st;
+            //update stale and expecting for status message tracking
+            pmso.stale = null;
+            pmso.expecting = null;
+            if(pmso.song && pmso.song.path !== song.path) {
+                pmso.stale = pmso.song;   //avoid leftover status returns
+                pmso.expecting = song; } }  //avoid empty status returns
     return {
         initializeDisplay: function () {
             jt.log("player.gen.initializeDisplay");
@@ -1351,7 +1379,10 @@ app.player = (function () {
             if(!songs || !songs.length) {
                 return jt.log("app.playSongQueue called without songs"); }
             songs = songs.slice(0, mgrs.slp.maxAllowedQueueLength(songs));
-            app.svc.playSongQueue(pwsid, songs); },
+            previewSongDisplay(songs[0], "playing");
+            setTimeout(function () {  //let UI update before calling svc
+                app.svc.playSongQueue(pwsid, songs); },  //may check pmso.song
+                       50); },
         reqUpdatedPlaybackStat: function (contf) {
             //Verify playback status is up-to-date and call back
             const psbc = pmso.song;  //playing song before call
@@ -1363,13 +1394,15 @@ app.player = (function () {
         notifySongChanged: function (song, state) {
             if(!app.pdat.dbObj()) {
                 return jt.log("notifySongChanged ignored, no database yet."); }
+            pmso.stale = null;          //clear any prior tracking based on
+            pmso.expecting = null;      //what was queue driven
             const sd = app.pdat.songsDict();
             const dbsg = sd[song.path];
             if(!dbsg) {  //use foreign song instance for display
                 jt.log("notifySongChanged song not found: " + song.path);
                 return mgrs.scm.changeCurrentlyPlayingSong(song, state); }
             if(pmso.song && pmso.song.path === dbsg.path) {
-                mgrs.uiu.updateSongDisplay();  //verify ctrls up to date
+                mgrs.uiu.updateSongDisplay("gen.notifySongChanged");
                 pmso.state = state;  //notification provides latest state
                 mgrs.slp.notePlayerStateChange();
                 return jt.log("notifySongChanged ignoring non-change call"); }
