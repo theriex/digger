@@ -221,7 +221,7 @@ const jtminjsDecorateWithUtilities = function (utilityObject) {
 
 
     uo.err = function (text) {
-        alert(text);
+        uo.log("Error: " + text);
     };
 
 
