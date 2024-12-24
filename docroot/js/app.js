@@ -851,12 +851,14 @@ var app = (function () {
                         jt.err("svcModuleInitialized readConfig " +
                                code + ": " + errtxt); }); }, 50); },
         reloadDigDat: function () {
+            jt.log("pdat.reloadDigDat setting timeout");
             setTimeout(function () {
                 app.svc.readDigDat(
                     function (digdat) {
+                        jt.log("pdat.reloadDigDat complete. Notifying.");
                         setDigDatAndNotify("reloadDigDat", digdat); },
                     function (code, errtxt) {
-                        jt.err("reloadDigDat " + code + ": " +
+                        jt.err("pdat.reloadDigDat " + code + ": " +
                                errtxt); }); }, 50); },
         //convenience accessors (after data available)
         dbObj: function () { return rtdat.digdat.datobj; },

@@ -921,28 +921,28 @@ app.player = (function () {
                 jt.log("scheduleTransportStateRecheck mode " + prog.mode);
                 return; }
             if(withinFloatTime() && !nearBeginningOrEnd()) {
+                jt.log("scheduleTransportStateRecheck float tick");
                 prog.tmo = setTimeout(function () {  //UI only float call
                     clearTicker();
                     if(ppb.st === "playing") {
                         prog.pos += 1000; } //move forward one tick
-                    jt.log("scheduleTransportStateRecheck float tick");
                     updatePosIndicator();
-                    scheduleTransportStateRecheck(); }, 1000);
-                return; }
-            jt.log("scheduleTransportStateRecheck full status request");
-            //need to call for hard status return. Use common util rather
-            //than pbco to avoid collisions and common errors.
-            prog.tmo = setTimeout(function () {
-                clearTicker();
-                mgrs.uiu.requestPlaybackStatus("plui.stateCheck"); },
-                                  1000); }  //one second is one tick
+                    scheduleTransportStateRecheck(); }, 1000); }
+            else {
+                jt.log("scheduleTransportStateRecheck full status request");
+                //need to call for hard status return. Use common util
+                //rather than pbco to avoid collisions and common errors.
+                prog.tmo = setTimeout(function () {
+                    clearTicker();
+                    mgrs.uiu.requestPlaybackStatus("plui.stateCheck"); },
+                                      1000); } } //one second is one tick
     return {
         initInterface: function (playbackControlObject, maxFloatSeconds) {
             if(!jt.byId("audiodiv")) {
                 return jt.log("mgrs.plui.initInterface has no audiodiv"); }
             pbco = playbackControlObject;
             prog.mf = maxFloatSeconds || prog.mf;
-            prog.fb = prog.mf + 1;
+            prog.fb = prog.mf + 2;  //lag can take a sec
             jt.out("audiodiv", jt.tac2html(
                 ["div", {id:"pluidiv"},
                  [["div", {id:"pluibdiv"},
@@ -996,6 +996,9 @@ app.player = (function () {
         recheckStatus: function () {
             if(pbco) {  //initialized
                 scheduleTransportStateRecheck(); } },
+        latestPosition: function () {
+            if(!pbco) { return -1; }
+            return prog.pos; },
         pollingMode: function (statestr) {
             prog.mode = statestr;
             jt.log("plui.pollingMode " + prog.mode);
@@ -1024,7 +1027,14 @@ app.player = (function () {
             sst.rempts = sst.rempts || "";  //timestamp rempaths last updated
             sst.lspbs = sst.lspbs || "";   //last song path before sleep
             return sst; }
-        function turnSleepOff () {
+        function turnSleepOff (scope) {
+            if(scope === "uindb") {
+                const scb = jt.byId("sleepactivecb");
+                if(scb) {
+                    scb.checked = false; }
+                const sel = jt.byId("sleepcountsel");
+                if(sel) {
+                    sel.value = 0; } }
             const sst = sleepstate();
             sst.act = "";
             sst.cnt = 0;
@@ -1066,18 +1076,33 @@ app.player = (function () {
                        ["button", {type:"button", 
                                    onclick:mdfs("slp.ackSleepProcDone")},
                         "Ok"]]]]); }); }
-        function checkIfSleeping () {
+        function inferEnded () {
             const sst = sleepstate();
-            if(!sst.act) { return; }    //not sleeping, nothing to do
-            if(!pmso.song) { return; }  //can't check sleeping if no song
+            return (sst.act === "active" &&  //sleep is active
+                    sst.lspbs &&    //have noted last song before sleep
+                    pmso.song &&    //have currently playing song
+                    sst.lspbs === pmso.song.path &&  //on last song before sleep
+                    pmso.state === "paused" &&  //playback is paused
+                    mgrs.plui.latestPosition() === 0); } //pos rewound to start
+        function remainingPathsToPlay (sst) {
             const sd = app.pdat.songsDict();
-            sst.rempaths = sst.rempaths.map((p) => sd[p])
-                .filter((s) => !s.lp || s.lp < sst.rempts)
-                .map((s) => s.path);
+            const songs = sst.rempaths.map((p) => sd[p]);
+            const npy = songs.filter((s) => !s.lp || s.lp < sst.rempts);
+            jt.log("slp.remainingPathsToPlay " + sst.rempts + " rempaths:");
+            npy.forEach(function (s) {
+                jt.log("    " + s.lp + " " + s.path + " " +
+                       jt.ellipsis(s.ti, 30)); });
+            return npy.map((s) => s.path); }
+        function checkIfSleeping (caller) {
+            const logpre = caller + " checkIfSleeping ";
+            const sst = sleepstate();
+            if(!sst.act) { return jt.log(logpre + "Sleep not active"); }
+            if(!pmso.song) { return jt.log(logpre + "No playing song"); }
+            sst.rempaths = remainingPathsToPlay(sst);
             sst.cnt = sst.rempaths.length;
             if(!sst.cnt) {  //no more remaining, playing last song or done
                 if(pmso.song.path === sst.lspbs) {
-                    if(pmso.state === "ended") {
+                    if((pmso.state === "ended") || inferEnded()) {
                         sleepCompletionDialog(scms.lastpl); }
                     else {
                         jt.log("Sleep waiting for last song to finish"); } }
@@ -1085,20 +1110,20 @@ app.player = (function () {
                     sleepCompletionDialog(scms.unexpl); } }
             updateSleepMainButtonDisplay(); } //reflect updated state
         function digDatUpdated (/*digdat*/) {
-            checkIfSleeping(); }
+            checkIfSleeping("digDatUpdated"); }
     return {
         initialize: function () {
             app.pdat.addDigDatListener("player.slp", digDatUpdated); },
         notePlayerStateChange: function () {
-            checkIfSleeping(); },
+            checkIfSleeping("notePlayerStateChange"); },
         ackSleepProcDone: function () {
             mgrs.cmt.toggleOtherDisplay("off");
-            turnSleepOff();
+            turnSleepOff("uindb");
             updateSleepMainButtonDisplay();
             mgrs.plui.pollingMode("active");
             app.deck.playNextSong(); },
         updateSleepState: function (src, overrideUIControls) {
-            turnSleepOff();  //clear any previous activation settings
+            turnSleepOff("dbonly");  //clear any previous activation settings
             const sst = sleepstate();
             if(overrideUIControls) {
                 sst.act = "active";
@@ -1108,7 +1133,10 @@ app.player = (function () {
                 if(src === "changecount") {  //count change implies activation
                     scb.checked = true; }
                 sst.act = (scb.checked? "active" : "");
-                sst.cnt = parseInt(jt.byId("sleepcountsel").value, 10);
+                if(sst.act === "active") {
+                    sst.cnt = parseInt(jt.byId("sleepcountsel").value, 10); }
+                else {
+                    sst.cnt = 0; }
                 mgrs.slp.toggleSleepDisplay("close"); }
             updateSleepMainButtonDisplay();
             jt.log("updateSleepState " + JSON.stringify(sst));
@@ -1136,7 +1164,7 @@ app.player = (function () {
             if((songs.length < sst.cnt + 1) ||  //playback will end before sleep
                (sst.lspbs && (sst.lspbs !==            //lspbs previously set
                               songs[sst.cnt].path))) { //and not the same now
-                turnSleepOff();  //writeDigDat call pending with play
+                turnSleepOff("uindb");  //writeDigDat call pending with play
                 updateSleepMainButtonDisplay();
                 //call to writeDigdat already
                 return app.player.playQueueMax; }  //return standard max limit
@@ -1180,6 +1208,7 @@ app.player = (function () {
             //Meanwhile the UI needs updating, even if it is temporarily
             //working with stale digdat data.
             if(pmso.song && pbsh.path && pmso.song.path !== pbsh.path) {
+                jt.log("reflectUpdatedStatusInfo song has changed");
                 if(app.pdat.dbObj()) {
                     mgrs.gen.notifySongChanged(app.pdat.songsDict()[pbsh.path],
                                                pbsh.state); }

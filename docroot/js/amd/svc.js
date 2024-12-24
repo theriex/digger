@@ -44,6 +44,8 @@ app.svc = (function () {
         function updateLastPlayedTimestamp (pwsid, song) {
             song = app.pdat.songsDict()[song.path];  //get current reference
             song.lp = new Date().toISOString();
+            song.pc = song.pc || 0;
+            song.pc += 1;
             app.pdat.writeDigDat(pwsid || "svc.loa.playNextSong"); }
         function playNextSong (pwsid) {
             const player = jt.byId("playeraudio");
