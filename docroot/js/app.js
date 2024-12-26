@@ -824,6 +824,7 @@ var app = (function () {
                     jt.log("pdat.writeConfig " + code + ": " + errtxt); })); },
         writeDigDat: function (callerstr, optobj, contf, errf) {
             jt.log("pdat.writeDigDat " + (callerstr || "Unknown"));
+            rtdat.digdat.datobj.awts = new Date().toISOString(); //app write ts
             app.svc.writeDigDat(rtdat.digdat.datobj, optobj,
                 function (writtendbo) {
                     if(contf) {

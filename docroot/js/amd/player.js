@@ -5,9 +5,10 @@ app.player = (function () {
     "use strict";
 
     var pmso = {  //player module state object  (not persistent)
-        state:"",    //"playing", "paused", "ended"
-        song:null };    //currently playing song object
-    var ctrls = {};  //module level container for UI control elements
+        state:"",     //"playing", "paused", "ended"
+        song:null,    //currently playing song object
+        mrscnts:""};  //most recent song change notice timestamp
+    var ctrls = {};   //module level container for UI control elements
     const mgrs = {};  //general container for managers
     function mdfs (mgrfname, ...args) {  //module dispatch function string
         return app.util.dfs("player", mgrfname, args);
@@ -26,7 +27,7 @@ app.player = (function () {
     //numerous writeDigDat calls.
     mgrs.scm = (function () {
         function digDatUpdated (digdat) {
-            if(pmso.song) {
+            if(pmso.song && digdat.awts >= pmso.mrscnts) {
                 pmso.song = digdat.songs[pmso.song.path];
                 if(!pmso.smq || !pmso.smq.length) {  //no pending updates
                     mgrs.uiu.updateSongDisplay("digDatUpdated"); } } }
@@ -1025,7 +1026,8 @@ app.player = (function () {
             sst.cnt = sst.cnt || 0;   //play cnt more songs after np
             sst.rempaths = sst.rempaths || [];  //song paths left to play
             sst.rempts = sst.rempts || "";  //timestamp rempaths last updated
-            sst.lspbs = sst.lspbs || "";   //last song path before sleep
+            sst.nppsa = sst.nppsa || "";  //now playing path when sleep set
+            sst.lspbs = sst.lspbs || "";  //last song path before sleep
             return sst; }
         function turnSleepOff (scope) {
             if(scope === "uindb") {
@@ -1072,26 +1074,35 @@ app.player = (function () {
                 return jt.tac2html(
                     ["div", {id:"sleepmsgdispdiv", cla:"togdlgabspos"},
                      [msg,
-                      ["div", {cla:"dlgbuttonsdiv"},
+                      ["div", {id:"acksleepbuttonsdiv", cla:"dlgbuttonsdiv"},
                        ["button", {type:"button", 
                                    onclick:mdfs("slp.ackSleepProcDone")},
                         "Ok"]]]]); }); }
-        function inferEnded () {
-            const sst = sleepstate();
-            return (sst.act === "active" &&  //sleep is active
-                    sst.lspbs &&    //have noted last song before sleep
-                    pmso.song &&    //have currently playing song
-                    sst.lspbs === pmso.song.path &&  //on last song before sleep
-                    pmso.state === "paused" &&  //playback is paused
-                    mgrs.plui.latestPosition() === 0); } //pos rewound to start
+        function playbackHasEnded (sst) {
+            //ended after last song in queue (proper platform ending state)
+            if(pmso.song.path === sst.lspbs && pmso.state === "ended") {
+                jt.log("playbackHasEnded: standard platform end state");
+                return true; }
+            //paused and rewound after playing last song in queue
+            if(pmso.song.path === sst.lspbs && pmso.state === "paused" &&
+               mgrs.plui.latestPosition() === 0) {
+                jt.log("playbackHasEnded: paused and rewound after last song");
+                return true; }
+            //paused and rewound to first song in playback queue (iOS)
+            if(pmso.song.path === sst.nppsa && pmso.state === "paused" &&
+               mgrs.plui.latestPosition() === 0) {
+                jt.log("playbackHasEnded: paused and playback queue rtz");
+                return true; }
+            return false; }
         function remainingPathsToPlay (sst) {
             const sd = app.pdat.songsDict();
             const songs = sst.rempaths.map((p) => sd[p]);
             const npy = songs.filter((s) => !s.lp || s.lp < sst.rempts);
-            jt.log("slp.remainingPathsToPlay " + sst.rempts + " rempaths:");
-            npy.forEach(function (s) {
-                jt.log("    " + s.lp + " " + s.path + " " +
-                       jt.ellipsis(s.ti, 30)); });
+            if(npy.length) {  //log remaining for countdown tracing
+                jt.log("slp.remainingPathsToPlay " + sst.rempts + " rempaths:");
+                npy.forEach(function (s) {
+                    jt.log("    " + s.lp + " " + s.path + " " +
+                           jt.ellipsis(s.ti, 30)); }); }
             return npy.map((s) => s.path); }
         function checkIfSleeping (caller) {
             const logpre = caller + " checkIfSleeping ";
@@ -1101,12 +1112,18 @@ app.player = (function () {
             sst.rempaths = remainingPathsToPlay(sst);
             sst.cnt = sst.rempaths.length;
             if(!sst.cnt) {  //no more remaining, playing last song or done
-                if(pmso.song.path === sst.lspbs) {
-                    if((pmso.state === "ended") || inferEnded()) {
-                        sleepCompletionDialog(scms.lastpl); }
+                if(pmso.state === "playing" && pmso.song.path === sst.lspbs) {
+                    jt.log(logpre + " waiting for last song to finish"); }
+                else if(playbackHasEnded(sst)) {
+                    if(jt.byId("acksleepbuttonsdiv")) {
+                        jt.log(logpre + " already slept, dlg displayed"); }
                     else {
-                        jt.log("Sleep waiting for last song to finish"); } }
-                else {  //some unexpected song is now playing
+                        sleepCompletionDialog(scms.lastpl); } }
+                else {  //switched to some unexpected song and/or playing
+                    jt.log("slp unexpected case " + pmso.state + " " +
+                           pmso.song.path + ", lspbs: " + sst.lspbs +
+                           ", nppsa: " + sst.nppsa + ", latestPosition: " +
+                           mgrs.plui.latestPosition());
                     sleepCompletionDialog(scms.unexpl); } }
             updateSleepMainButtonDisplay(); } //reflect updated state
         function digDatUpdated (/*digdat*/) {
@@ -1118,6 +1135,7 @@ app.player = (function () {
             checkIfSleeping("notePlayerStateChange"); },
         ackSleepProcDone: function () {
             mgrs.cmt.toggleOtherDisplay("off");
+            jt.out("sleepmsgdispdiv", "");  //clear dlg message content if avail
             turnSleepOff("uindb");
             updateSleepMainButtonDisplay();
             mgrs.plui.pollingMode("active");
@@ -1168,6 +1186,7 @@ app.player = (function () {
                 updateSleepMainButtonDisplay();
                 //call to writeDigdat already
                 return app.player.playQueueMax; }  //return standard max limit
+            sst.nppsa = songs[0].path;
             sst.lspbs = songs[sst.cnt].path;
             sst.rempts = new Date().toISOString();
             sst.rempaths = songs.slice(1, sst.cnt + 1).map((s) => s.path);
@@ -1200,6 +1219,18 @@ app.player = (function () {
                   ["span", {id:"playtitletextspan"},
                    app.deck.dispatch("util", "songIdentHTML",
                                      pmso.song)]]])); }
+        function noteUpdatedSongStatus (pbsh) {
+            if(!pbsh.path) {
+                pmso.resetPlaceholderControlObject();
+                pmso.song = null; }
+            else {  //have pbsh.path
+                if(pmso.expecting && pmso.expecting.path === pbsh.path) {
+                    pmso.expecting = null; } //got expected song status.
+                pmso.song = app.pdat.songsDict()[pbsh.path]; }
+            pmso.state = pbsh.state;
+            updateSongTitleDisplay();
+            mgrs.plui.updateTransportControls(pbsh);
+            mgrs.slp.notePlayerStateChange(); }
         function reflectUpdatedStatusInfo (pbsh) {
             jt.log("uiu.reflectUpdatedStatusInfo " + JSON.stringify(pbsh));
             //If pmso.song is null, or pmso.song.path === pbsh.path, then
@@ -1210,20 +1241,12 @@ app.player = (function () {
             if(pmso.song && pbsh.path && pmso.song.path !== pbsh.path) {
                 jt.log("reflectUpdatedStatusInfo song has changed");
                 if(app.pdat.dbObj()) {
+                    noteUpdatedSongStatus(pbsh);
                     mgrs.gen.notifySongChanged(app.pdat.songsDict()[pbsh.path],
                                                pbsh.state); }
                 app.pdat.reloadDigDat(); }  //async
-            if(!pbsh.path) {
-                pmso.resetPlaceholderControlObject();
-                pmso.song = null; }
-            else {  //have pbsh.path
-                if(pmso.expecting && pmso.expecting.path === pbsh.path) {
-                    pmso.expecting = null; } //got expected song status.
-                pmso.song = app.pdat.songsDict()[pbsh.path]; }
-            pmso.state = pbsh.state;
-            mgrs.slp.notePlayerStateChange();
-            updateSongTitleDisplay();
-            mgrs.plui.updateTransportControls(pbsh); }
+            else {
+                noteUpdatedSongStatus(pbsh); } }
         function corruptedStatusData (status) {
             //playback queue finished: status path:"", state:"ended".
             if(!status || typeof status !== "object") {
@@ -1423,6 +1446,7 @@ app.player = (function () {
         notifySongChanged: function (song, state) {
             if(!app.pdat.dbObj()) {
                 return jt.log("notifySongChanged ignored, no database yet."); }
+            pmso.mrscnts = new Date().toISOString();
             pmso.stale = null;          //clear any prior tracking based on
             pmso.expecting = null;      //what was queue driven
             const sd = app.pdat.songsDict();
