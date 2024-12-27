@@ -36,7 +36,7 @@ app.player = (function () {
             const updobj = pmso.smq.shift();
             const updsong = updobj.songcopy;
             if(digdat) {  //save was successful, have updated data
-                if(updsong.path === pmso.song.path) {  //still playing song
+                if(pmso.song && pmso.song.path === updsong.path) { //now playing
                     pmso.song = digdat.songs[updsong.path];
                     mgrs.uiu.updateSongDisplay(updobj.source); } }
             if(pmso.smq.length) {  //more updates to write
@@ -1118,7 +1118,10 @@ app.player = (function () {
                     if(jt.byId("acksleepbuttonsdiv")) {
                         jt.log(logpre + " already slept, dlg displayed"); }
                     else {
-                        sleepCompletionDialog(scms.lastpl); } }
+                        sleepCompletionDialog(scms.lastpl);
+                        //verify deck positioned on last track
+                        mgrs.scm.changeCurrentlyPlayingSong(
+                            app.pdat.songsDict()[sst.lspbs], "ended") } }
                 else {  //switched to some unexpected song and/or playing
                     jt.log("slp unexpected case " + pmso.state + " " +
                            pmso.song.path + ", lspbs: " + sst.lspbs +

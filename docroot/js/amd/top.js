@@ -2464,7 +2464,7 @@ app.top = (function () {
                 if(fld.max) {
                     song[fld.fn] = Math.min(song[fld.fn], fld.max); } }); },
         verifyDatabase: function (dbo) {
-            stat = {verified:true, errs:[], count:0};
+            stat = {verified:true, errs:[], count:0, badps:[]};
             if(!dbo) {
                 err("No database object given"); }
             if(!dbo.version) {
@@ -2476,11 +2476,15 @@ app.top = (function () {
             if(stat.verified) {  //no errors from above checks
                 Object.entries(dbo.songs).forEach(function ([path, song]) {
                     if(!song || typeof song !== "object") {
+                        stat.badps.push(path);
                         err("song path " + path + " has no song object"); }
                     else {
                         stat.count += 1;
                         song.path = path;  //copy value into song for hub sync
                         mgrs.dbc.verifySong(song); } }); }
+            stat.badps.forEach(function (path) {
+                jt.log("verifyDatabase deleting bad path: " + path);
+                delete dbo.songs[path]; });
             dbo.songcount = dbo.songcount || 0;
             if(dbo.songcount > stat.count) {
                 err("probable song loss: dbo.songcount " + dbo.songcount +
