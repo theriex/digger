@@ -1107,7 +1107,7 @@ app.player = (function () {
         function checkIfSleeping (caller) {
             const logpre = caller + " checkIfSleeping ";
             const sst = sleepstate();
-            if(!sst.act) { return jt.log(logpre + "Sleep not active"); }
+            if(!sst.act) { return; }
             if(!pmso.song) { return jt.log(logpre + "No playing song"); }
             sst.rempaths = remainingPathsToPlay(sst);
             sst.cnt = sst.rempaths.length;
@@ -1331,7 +1331,7 @@ app.player = (function () {
             Object.keys(reqsrcs).forEach(function (key) {
                 const pbsh = reqsrcs[key];
                 if(pbsh) {  //have pending request to process
-                    jt.log("uiu.receivePlaybackStatus " + key);
+                    //jt.log("uiu.receivePlaybackStatus " + key);
                     pbsh.tresp = Date.now();
                     pbsh.path = status.path || "";
                     pbsh.state = status.state;   //may be "" if no song
