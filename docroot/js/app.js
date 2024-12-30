@@ -387,13 +387,19 @@ var app = (function () {
 
     //Demo data handler for simulator screenshots
     mgrs.scr = (function () {
-        var active = false;  //true if stubbed calls should return demo data
-        var initialized = false;  //initial data setup flag
+        const platconf = {
+            hdm: "loc",   //host data manager is local
+            musicPath: "fixed",  //can't change where music files are
+            dbPath: "fixed",  //rating info is only kept in app files
+            urlOpenSupp: "false",  //opening a tab break webview
+            defaultCollectionStyle: "",   //not permanentCollection
+            audsrc: "Demo",
+            versioncode: "vx.x.x" };
+        const pbi = { sq:[], idx:-1 };  //playback info: song queue and index
+        const pbstat = {path:"", state:"", pos:0, dur:0};
         var songdat = null;  //working space for song data
         var ratedSongs = false;
-        var idctr = 1001;
-        const dummyStatus = {state:"playing", pos:12*1000, dur:210*1000,
-                             path:"whatever"};  //set by startPlayback
+        //var idctr = 1001;
         const kwdefs = {Social: {pos: 1, sc: 0, ig: 0, dsc: ""},
                         Personal: {pos: 0, sc: 0, ig: 0, dsc: ""},
                         Office: {pos: 4, sc: 0, ig: 0, dsc: ""},
@@ -403,16 +409,16 @@ var app = (function () {
                         Classical: {pos: 0, sc: 0, ig: 0, dsc: ""},
                         Talk: {pos: 0, sc: 0, ig: 0, dsc: ""},
                         Solstice: {pos: 0, sc: 0, ig: 0, dsc: ""}};
-        const settings = {
-            "ctrls": [{"tp": "range", "c": "al", "x": 27, "y": 62},
-                      {"tp": "range", "c": "el", "x": 49, "y": 47},
-                      {"tp": "kwbt", "k": "Social", "v": "pos"},
-                      {"tp": "kwbt", "k": "Dance", "v": "off"},
-                      {"tp": "kwbt", "k": "Ambient", "v": "neg"},
-                      {"tp": "kwbt", "k": "Office", "v": "pos"},
-                      {"tp": "minrat", "u": 0, "m": 5},
-                      {"tp": "fqb", "v": "on"}],
-            "waitcodedays": {"B": 90, "Z": 180, "O": 365}};
+        // const settings = {
+        //     "ctrls": [{"tp": "range", "c": "al", "x": 27, "y": 62},
+        //               {"tp": "range", "c": "el", "x": 49, "y": 47},
+        //               {"tp": "kwbt", "k": "Social", "v": "pos"},
+        //               {"tp": "kwbt", "k": "Dance", "v": "off"},
+        //               {"tp": "kwbt", "k": "Ambient", "v": "neg"},
+        //               {"tp": "kwbt", "k": "Office", "v": "pos"},
+        //               {"tp": "minrat", "u": 0, "m": 5},
+        //               {"tp": "fqb", "v": "on"}],
+        //     "waitcodedays": {"B": 90, "Z": 180, "O": 365}};
         const dfltacct = {
             "dsType": "DigAcc", "dsId": "101", "firstname": "Digger",
             "created": "2019-10-11T00:00:00Z",
@@ -423,37 +429,37 @@ var app = (function () {
             "igfolds": ["Ableton","Audiffex","Audio Music Apps"],
             //"settings": "";
             "musfs": ""};
-        const demoacct = {
-            "dsType": "DigAcc", "dsId": "1234",
-            "created": "2021-01-26T17:21:11Z",
-            "modified": "2023-02-13T22:58:45Z;13139", "batchconv": "",
-            "email": "demo@diggerhub.com", "token": "faketokentoshowsignedin",
-            "hubdat": "{\"privaccept\": \"2022-06-11T14:11:14.284Z\"}",
-            "status": "Active", "firstname": "Demo", "digname": "Demo",
-            "kwdefs": kwdefs,
-            "igfolds": ["Ableton","Audiffex","Audio Music Apps"],
-            "settings": settings,
-            "musfs": [
-                {"dsId": "1235", "digname": "afriend", "firstname": "A Friend",
-                 "added": "2022-06-10T21:30:21Z",
-                 "lastpull": "2023-02-13T00:38:48Z",
-                 "lastheard": "2022-11-06T18:42:48Z",
-                 "common": 7086, "dfltrcv": 57, "dfltsnd": 5294},
-                {"dsId": "1236", "digname": "bfriend", "firstname": "B Friend",
-                 "added": "2022-07-10T21:30:21Z",
-                 "lastpull": "2023-02-20T00:38:48Z",
-                 "lastheard": "2023-02-15T18:42:48Z",
-                 "common": 556, "dfltrcv": 87, "dfltsnd": 5},
-                {"dsId": "1237", "digname": "cfriend", "firstname": "C Friend",
-                 "added": "2022-07-10T21:30:21Z",
-                 "lastpull": "2023-02-20T00:38:48Z",
-                 "lastheard": "2023-01-03T18:42:48Z",
-                 "common": 556, "dfltrcv": 87, "dfltsnd": 42},
-                {"dsId": "1238", "digname": "fabDJ", "firstname": "Fab DJ",
-                 "added": "2022-08-10T21:30:21Z",
-                 "lastpull": "2022-08-10T21:30:48Z",
-                 "lastheard": "2023-02-14T18:42:48Z",
-                 "common": 8645, "dfltrcv": 986, "dfltsnd": 0}]};
+        // const demoacct = {
+        //     "dsType":"DigAcc", "dsId":"1234",
+        //     "created":"2021-01-26T17:21:11Z",
+        //     "modified":"2023-02-13T22:58:45Z;13139", "batchconv":"",
+        //     "email":"demo@diggerhub.com", "token":"faketokentoshowsignedin",
+        //     "hubdat":"{\"privaccept\": \"2022-06-11T14:11:14.284Z\"}",
+        //     "status":"Active", "firstname":"Demo", "digname":"Demo",
+        //     "kwdefs": kwdefs,
+        //     "igfolds": ["Ableton","Audiffex","Audio Music Apps"],
+        //     "settings": settings,
+        //     "musfs": [
+        //         {"dsId":"1235", "digname":"afriend", "firstname":"A Friend",
+        //          "added":"2022-06-10T21:30:21Z",
+        //          "lastpull":"2023-02-13T00:38:48Z",
+        //          "lastheard":"2022-11-06T18:42:48Z",
+        //          "common": 7086, "dfltrcv": 57, "dfltsnd": 5294},
+        //         {"dsId":"1236", "digname":"bfriend", "firstname":"B Friend",
+        //          "added":"2022-07-10T21:30:21Z",
+        //          "lastpull":"2023-02-20T00:38:48Z",
+        //          "lastheard":"2023-02-15T18:42:48Z",
+        //          "common": 556, "dfltrcv": 87, "dfltsnd": 5},
+        //         {"dsId":"1237", "digname":"cfriend", "firstname":"C Friend",
+        //          "added":"2022-07-10T21:30:21Z",
+        //          "lastpull":"2023-02-20T00:38:48Z",
+        //          "lastheard":"2023-01-03T18:42:48Z",
+        //          "common": 556, "dfltrcv": 87, "dfltsnd": 42},
+        //         {"dsId":"1238", "digname":"fabDJ", "firstname":"Fab DJ",
+        //          "added":"2022-08-10T21:30:21Z",
+        //          "lastpull":"2022-08-10T21:30:48Z",
+        //          "lastheard":"2023-02-14T18:42:48Z",
+        //          "common": 8645, "dfltrcv": 986, "dfltsnd": 0}]};
         const albdat = {
             "Brian Eno":{
                 "Ambient 1: Music for Airports":{
@@ -462,6 +468,20 @@ var app = (function () {
                         "2/1",
                         "1/2",
                         "2/2"]}},
+            "Gil Scott-Heron":{
+                "The Revolution Will Not Be Televised":{
+                    kwds:"Social", songs:[
+                        "The Revolution Will Not Be Televised",
+                        "Sex Education_ Ghetto Style",
+                        "The Get Out of the Ghetto Blues",
+                        "No Knock",
+                        "Lady Day and John Coltrane",
+                        "Pieces of a Man",
+                        "Home Is Where the Hatred Is",
+                        "Brother",
+                        "Save the Children",
+                        "Whitey on the Moon [Explicit]",
+                        "Did You Hear What They Said?"]}},
             "Kraftwerk":{
                 "Autobahn":{
                     kwds:"Social,Office", songs:[
@@ -470,33 +490,6 @@ var app = (function () {
                         "Kometenmelodie 2",
                         "Mitternacht",
                         "Morgenspaziergang"]}},
-            "Cocteau Twins":{
-                "Blue Bell Knoll":{
-                    kwds:"Social,Office", songs:[
-                        "Blue Bell Knoll",
-                        "Athol-Brose",
-                        "Carolyn's Fingers",
-                        "For Phoebe Still a Baby",
-                        "The Itchy Glowbo Blow",
-                        "Cico Buff",
-                        "Suckling the Mender",
-                        "Spooning Good Singing Gum",
-                        "A Kissed Out Red Floatboat",
-                        "Ella Megalast Burls Forever"]}},
-            "Deep Forest":{
-                "Deep Forest":{
-                    kwds:"Social,Office", songs:[
-                        "Deep Forest",
-                        "Sweet Lullaby",
-                        "Hunting",
-                        "Night Bird",
-                        "The First Twilight",
-                        "Savana Dance",
-                        "Desert Walk",
-                        "White Whisper",
-                        "The Second Twilight",
-                        "Sweet Lullaby (Ambient Mix)",
-                        "Forest Hymn"]}},
             "Talking Heads":{
                 "Remain In Light":{
                     kwds:"Social,Office", songs:[
@@ -508,6 +501,19 @@ var app = (function () {
                         "Seen And Not Seen",
                         "Listening Wind",
                         "The Overload"]}},
+            "Joan Armatrading":{
+                "Walk Under Ladders":{
+                    kwds:"Social,Office", songs:[
+                        "I'm Lucky",
+                        "When I Get It Right",
+                        "Romancers",
+                        "I Wanna Hold You",
+                        "The Weakness In Me",
+                        "No Love",
+                        "At The Hop",
+                        "I Can't Lie To Myself",
+                        "Eating The Bear",
+                        "Only One"]}},
             "Miles Davis":{
                 "Star People":{
                     kwds:"Social,Office", songs:[
@@ -517,21 +523,6 @@ var app = (function () {
                         "Star People",
                         "U'n'I",
                         "Star On Cicely"]}},
-            "Kate Bush":{
-                "Hounds of Love":{
-                    kwds:"Social", songs:[
-                        "Running Up That Hill (A Deal With God)",
-                        "Hounds Of Love",
-                        "The Big Sky",
-                        "Mother Stands For Comfort",
-                        "Cloudbusting",
-                        "And Dream Of Sheep",
-                        "Under Ice",
-                        "Waking The Witch",
-                        "Watching You Without Me",
-                        "Jig Of Life",
-                        "Hello Earth",
-                        "The Morning Fog"]}},
             "Ozomatli":{
                 "Street Signs":{
                     kwds:"Social,Office", songs:[
@@ -548,33 +539,6 @@ var app = (function () {
                         "Doña Isabelle",
                         "Nadie Te Tira",
                         "Cuando Canto"]}},
-            "Gil Scott-Heron":{
-                "The Revolution Will Not Be Televised":{
-                    kwds:"Social", songs:[
-                        "The Revolution Will Not Be Televised",
-                        "Sex Education_ Ghetto Style",
-                        "The Get Out of the Ghetto Blues",
-                        "No Knock",
-                        "Lady Day and John Coltrane",
-                        "Pieces of a Man",
-                        "Home Is Where the Hatred Is",
-                        "Brother",
-                        "Save the Children",
-                        "Whitey on the Moon [Explicit]",
-                        "Did You Hear What They Said?"]}},
-            "Joan Armatrading":{
-                "Walk Under Ladders":{
-                    kwds:"Social,Office", songs:[
-                        "I'm Lucky",
-                        "When I Get It Right",
-                        "Romancers",
-                        "I Wanna Hold You",
-                        "The Weakness In Me",
-                        "No Love",
-                        "At The Hop",
-                        "I Can't Lie To Myself",
-                        "Eating The Bear",
-                        "Only One"]}},
             "Pizzicato Five":{
                 "女性上位時代":{
                     kwds:"Social,Office", songs:[
@@ -611,73 +575,97 @@ var app = (function () {
                         "Trancentral Lost in My Mind",
                         "The Lights of Baton Rouge Pass By",
                         "A Melody from a Past Life Keeps Pulling Me Back",
-                        "Alone Again With the Dawn Coming Up"]}}};
-        const acctmsgs = [
-            //bfriend thanks for sharing Song P
-            {sndr:"1236", rcvr:"1234", msgtype:"shresp",
-             created:"2023-01-03T20:42:12.074Z", status:"open",
-             srcmsg:"fake", songid:"fake",
-             ti:"Song P", ar:"Artist P", ab:"Album P"},
-            //afriend great Song G - Awesome bassline
-            {sndr:"1235", rcvr:"1234", msgtype:"share",
-             created:"2023-01-04T20:42:12.074Z", status:"open",
-             srcmsg:"", songid:"fake",
-             ti:"Song G", ar:"Artist G", ab:"Album G",
-             nt:"Awesome bassline"},
-            //fabDJ recommends Song J
-            {sndr:"1238", rcvr:"1234", msgtype:"recommendation",
-             created:"2023-01-05T20:42:12.074Z", status:"open",
-             srcmsg:"", songid:"fake",
-             ti:"Song J", ar:"Artist J", ab:"Album J",
-             nt:"Super sticky original groove"},
-            //cfriend thanks for recommending Song X
-            {sndr:"1237", rcvr:"1234", msgtype:"recresp",
-             created:"2023-01-06T20:42:12.074Z", status:"open",
-             srcmsg:"fake", songid:"fake",
-             ti:"Song X", ar:"Artist X", ab:"Album X"},
-            //afriend Song S - Melody gets stuck in my head every time.
-            {sndr:"1235", rcvr:"1234", msgtype:"share",
-             created:"2023-01-07T20:42:12.074Z", status:"open",
-             srcmsg:"", songid:"fake",
-             ti:"Song S", ar:"Artist S", ab:"Album S",
-             nt:"Melody gets stuck in my head every time."}];
-        const rets = {
+                        "Alone Again With the Dawn Coming Up"]}},
+            "Kate Bush":{
+                "Hounds of Love":{
+                    kwds:"Social", songs:[
+                        "Running Up That Hill (A Deal With God)",
+                        "Hounds Of Love",
+                        "The Big Sky",
+                        "Mother Stands For Comfort",
+                        "Cloudbusting",
+                        "And Dream Of Sheep",
+                        "Under Ice",
+                        "Waking The Witch",
+                        "Watching You Without Me",
+                        "Jig Of Life",
+                        "Hello Earth",
+                        "The Morning Fog"]}},
+            "Deep Forest":{
+                "Deep Forest":{
+                    kwds:"Social,Office", songs:[
+                        "Deep Forest",
+                        "Sweet Lullaby",
+                        "Hunting",
+                        "Night Bird",
+                        "The First Twilight",
+                        "Savana Dance",
+                        "Desert Walk",
+                        "White Whisper",
+                        "The Second Twilight",
+                        "Sweet Lullaby (Ambient Mix)",
+                        "Forest Hymn"]}},
+            "Cocteau Twins":{
+                "Blue Bell Knoll":{
+                    kwds:"Social,Office", songs:[
+                        "Blue Bell Knoll",
+                        "Athol-Brose",
+                        "Carolyn's Fingers",
+                        "For Phoebe Still a Baby",
+                        "The Itchy Glowbo Blow",
+                        "Cico Buff",
+                        "Suckling the Mender",
+                        "Spooning Good Singing Gum",
+                        "A Kissed Out Red Floatboat",
+                        "Ella Megalast Burls Forever"]}}};
+        // const acctmsgs = [
+        //     //bfriend thanks for sharing Song P
+        //     {sndr:"1236", rcvr:"1234", msgtype:"shresp",
+        //      created:"2023-01-03T20:42:12.074Z", status:"open",
+        //      srcmsg:"fake", songid:"fake",
+        //      ti:"Song P", ar:"Artist P", ab:"Album P"},
+        //     //afriend great Song G - Awesome bassline
+        //     {sndr:"1235", rcvr:"1234", msgtype:"share",
+        //      created:"2023-01-04T20:42:12.074Z", status:"open",
+        //      srcmsg:"", songid:"fake",
+        //      ti:"Song G", ar:"Artist G", ab:"Album G",
+        //      nt:"Awesome bassline"},
+        //     //fabDJ recommends Song J
+        //     {sndr:"1238", rcvr:"1234", msgtype:"recommendation",
+        //      created:"2023-01-05T20:42:12.074Z", status:"open",
+        //      srcmsg:"", songid:"fake",
+        //      ti:"Song J", ar:"Artist J", ab:"Album J",
+        //      nt:"Super sticky original groove"},
+        //     //cfriend thanks for recommending Song X
+        //     {sndr:"1237", rcvr:"1234", msgtype:"recresp",
+        //      created:"2023-01-06T20:42:12.074Z", status:"open",
+        //      srcmsg:"fake", songid:"fake",
+        //      ti:"Song X", ar:"Artist X", ab:"Album X"},
+        //     //afriend Song S - Melody gets stuck in my head every time.
+        //     {sndr:"1235", rcvr:"1234", msgtype:"share",
+        //      created:"2023-01-07T20:42:12.074Z", status:"open",
+        //      srcmsg:"", songid:"fake",
+        //      ti:"Song S", ar:"Artist S", ab:"Album S",
+        //      nt:"Melody gets stuck in my head every time."}];
+        const rets = {  //holder object for literal and calculated return vals
             readConfig:{"acctsinfo": {currid:"101",
                                       //accts:[dfltacct, demoacct]}},
-                                      accts:[dfltacct]}},
-            readDigDat:"Set in init",
-            requestMediaRead:"Set in init",
-            "statusSync":dummyStatus,  //lint thinks prop name is weird
-            pausePlayback:dummyStatus,
-            resumePlayback:dummyStatus,
-            seekToOffset:dummyStatus,
-            startPlayback:function (path) {
-                return app.scr.fakePlaySong(path); },
-            hubAcctCallacctok:[demoacct, "abcdef12345678"],
-            hubAcctCallmessages:acctmsgs,
-            hubsync:[demoacct]};
+                                      accts:[dfltacct]}}};
         function timestampMinusSeconds (secs) {
             const tms = Date.now() - (secs * 1000);
             return new Date(tms).toISOString(); }
-        function fakeLastPlayed (s) {
-            const daysecs = 24 * 60 * 60;
-            const rndday = Math.floor(Math.random() * 31);
-            const rndsecs = (rndday + 91) * daysecs;
-            //set modified later to avoid trying to write it to hub
-            s.lp = timestampMinusSeconds(rndsecs);  //modified is later
-            s.modified = timestampMinusSeconds(rndsecs - 2); }
-        function nextFakeDbId () {
-            const retval = "fkdb" + idctr;
-            idctr += 1;
-            return retval; }
-        function addDemoSong (ar, ab, ti, idx, kwds) {
+        // function nextFakeDbId () {
+        //     const retval = "fkdb" + idctr;
+        //     idctr += 1;
+        //     return retval; }
+        function addDemoSong (ar, ab, ti, idx, kwds, lastplayed) {
             var tn = idx + 1;
             if(tn < 10) {
                 tn = "0" + tn; }
             const path = ar + "/" + ab + "/" + tn + " " + ti + ".mp3";
             const mrd = ["C", ti, ar, ab].join("|");
             songdat[path] = {
-                "fq":"N", "al":49, "el":49, "rv":5, "kws": "",
+                "fq":"N", "al":49, "el":49, "rv":5, "kws":"", lp:lastplayed,
                 "path":path, "mrd":mrd, "ar":ar, "ab":ab, "ti":ti };
             if(ratedSongs) {
                 songdat[path].al = 40;
@@ -685,17 +673,20 @@ var app = (function () {
                 songdat[path].rv = 8;
                 songdat[path].kws = kwds;
                 songdat[path].fq = "B";  //light up tuning fork
-                songdat[path].nt = "Placeholder comment to light indicator";
-                fakeLastPlayed(songdat[path]);
-                songdat[path].dsId = nextFakeDbId(); } }
+                songdat[path].nt = "Placeholder comment to light indicator"; } }
         function getSongData () {
             if(songdat) { return songdat; }
             jt.log("building fake song data, ratedSongs: " + ratedSongs);
+            const lpbase = Date.now() - 24 * 60 * 60 * 1000;
             songdat = {};
-            Object.entries(albdat).forEach(function ([ar, albobj]) {
+            Object.entries(albdat).forEach(function ([ar, albobj], ari) {
+                //jt.log("scr.getSongData " + ari + ": " + ar);
+                const lp = new Date(lpbase + ari * 60 * 60 * 1000)
+                      .toISOString();
                 Object.entries(albobj).forEach(function ([ab, detobj]) {
                     detobj.songs.forEach(function (ti, idx) {
-                        addDemoSong(ar, ab, ti, idx, detobj.kwds); }); }); });
+                        addDemoSong(ar, ab, ti, idx, detobj.kwds,
+                                    lp); }); }); });
             return songdat; }
         function makeDigDat () {
             const sd = getSongData();
@@ -710,69 +701,81 @@ var app = (function () {
             const sd = getSongData();
             var mr = [];
             Object.values(sd).forEach(function (s) {
-                const si = {path:s.path, artist:s.ar, album:s.ab, title:s.ti};
+                const si = {path:s.path, artist:s.ar, album:s.ab, title:s.ti,
+                            lp:s.lp};
                 si.data = s.path;  //android wants path in 'data' field
-                if(!si.lp && ratedSongs) {
-                    fakeLastPlayed(s); }
                 mr.push(si); });
             rets.requestMediaRead = JSON.stringify(mr); }
-        function updateSvcDataSongs (sd) {
-            Object.entries(app.pdat.songsDict()).forEach(function ([p, s]) {
-                app.util.copyUpdatedSongData(s, sd[p]); });
-            jt.log("sd: " + JSON.stringify(sd).slice(0,3000)); }
+        function sendPlaybackStatus () {
+            setTimeout(function () {
+                app.player.dispatch("uiu", "receivePlaybackStatus", pbstat); },
+                       50); }
     return {
-        fakePlaySong: function (path) {
-            ratedSongs = true;
-            songdat = null;  //force rebuild
-            const sd = getSongData();  //rebuild with ratings
-            sd[path].lp = new Date().toISOString();  //current song lp now
-            makeDigDat();  //reset readDigDat data
-            makeMediaRead();  //reset requestMediaRead data
-            jt.log("fakePlaySong updating svc dbo");
-            updateSvcDataSongs(sd);
-            jt.log("fakePlaySong svc dbo updated");
-            dummyStatus.path = path;  //update status with playing song
-            return dummyStatus; },
-        stubbed: function (callname, param, callback/*, errf*/) {
-            var result = "";
-            if(!active) { return false; }
-            if(!initialized) {
-                makeDigDat();
-                makeMediaRead();
-                initialized = true; }
-            if(rets[callname]) {
-                result = rets[callname];
-                if(typeof rets[callname] === "function") {
-                    result = rets[callname](param); }
-                jt.log("STUBBED " + callname + " using demo data");
-                if(callback) {
-                    callback(result); }
-                return true; }
-            return false; },
         //service override functions
-        readConfig: function (impfunc, contf, errf) {
-            if(!active) { return impfunc(contf, errf); }
-            contf({"acctsinfo": {currid:"101",
-                                 //accts:[dfltacct, demoacct]}},
-                                 accts:[dfltacct]}}); },
-        readDigDat: function (impfunc, contf, errf) {
-            if(!active) { return impfunc(contf, errf); }
-            contf(makeDigDat()); },
-        requestPlaybackStatus: function (impfunc) {
-            if(!active) { return impfunc(); }
-            jt.log("app.scr.requestPlaybackStatus no action"); },
-        playSongQueue: function (impfunc, pwsid, sq) {
-            if(!active) { return impfunc(pwsid, sq); }
-            jt.log("app.scr.playSongQueue no action"); },
-        pause: function (impfunc) {
-            if(!active) { return impfunc(); }
-            jt.log("app.scr.pause no action"); },
-        resume: function (impfunc) {
-            if(!active) { return impfunc(); }
-            jt.log("app.scr.resume no action"); },
-        seek: function (impfunc, ms) {
-            if(!active) { return impfunc(ms); }
-            jt.log("app.scr.seek no action"); }
+        plat: function (key) { return platconf[key]; },
+        readConfig: function (contf/*, errf*/) {
+            contf(rets.readConfig); },
+        readDigDat: function (contf/*, errf*/) {
+            contf(rets.readDigDat); },
+        writeConfig: function (config, ignore/*optobj*/, contf/*, errf*/) {
+            rets.readConfig = config;
+            setTimeout(function () {
+                contf(rets.readConfig); }, 50); },
+        writeDigDat: function (dbo, ignore/*optobj*/, contf/*, errf*/) {
+            rets.readDigDat = dbo;
+            setTimeout(function () {
+                contf(rets.readDigDat); }, 50); },
+        playSongQueue: function (ignore /*pwsid*/, sq) {
+            pbi.sq = sq;
+            pbi.idx = 0;
+            pbi.sq[0].lp = new Date().toISOString();
+            setTimeout(function () {  //let play call go, then tick
+                //use the main messaging utility for call sequencing.
+                app.player.dispatch("uiu", "requestPlaybackStatus", "scr.play",
+                    function (status) {
+                        jt.log("scr.playSongQueue requestPlaybackStatus " +
+                               JSON.stringify(status)); }); }, 50); },
+        requestPlaybackStatus: function () {
+            if(pbi.idx >= 0) {
+                pbstat.path = pbi.sq[pbi.idx].path;
+                pbstat.state = "playing";
+                pbstat.pos = 12*1000;
+                pbstat.dur = ((3*60) + 34)*1000; }
+            sendPlaybackStatus(); },
+        passthroughHubCall: function (dets) {
+            jt.log("app.scr.passthroughHubCall no support for dets " +
+                   JSON.stringify(dets)); },
+        copyToClipboard: function (txt, contf/*, errf*/) {
+            jt.log("app.scr.copyToClipboard ignored " + txt);
+            contf(); },
+        docContent: function (/*du, cf*/) {
+            jt.log("app.scr.docContent not supported"); },
+        topLibActionSupported: function (act) {
+            const unsupp = {
+                "updversionnote":"app store updates lag behind server updates",
+                "ignorefldrsbutton":"No music file folders",
+                "readfilesbutton":"All media queried at app startup"};
+            return (!act.id || !unsupp[act.id]); },
+        extensionInterface: function (/*name*/) { return null; },
+        //player.plui pbco interface functions:
+        pause: function () {
+            pbstat.state = "paused";
+            sendPlaybackStatus(); },
+        resume: function () {
+            pbstat.state = "playing";
+            sendPlaybackStatus(); },
+        seek: function (ms) {
+            pbstat.pos = ms;
+            sendPlaybackStatus(); },
+        //screenshot stubbed interface activation
+        replaceSvcWithUIStubInterface: function () {
+            app.svc = mgrs.scr;  //take over all platform calls
+            app.pdat.clearApresDataNotificationTask("svc.loc.loadLibrary");
+            ratedSongs = true;
+            makeDigDat();
+            makeMediaRead();
+            app.boot.addApresModulesInitTask("scr.init", function () {
+                app.player.dispatch("plui", "initInterface", mgrs.scr); }); }
     };  //end mgrs.scr returned access interface
     }());
 
@@ -835,7 +838,10 @@ var app = (function () {
         //data coordination work management
         addApresDataNotificationTask: function (taskname, taskfunction) {
             adnts.push({name:taskname, tf:taskfunction}); },
+        clearApresDataNotificationTask: function (taskname) {
+            adnts = adnts.filter((t) => t.name !== taskname); },
         svcModuleInitialized: function () {
+            //app.scr.replaceSvcWithUIStubInterface();  //for screenshots..
             //svc is responsible for returning up-to-date config and digdat
             //data, including updated song.lp values if available.
             setTimeout(function () {  //finish intitialization call stack

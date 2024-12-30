@@ -2466,7 +2466,9 @@ app.top = (function () {
         verifyDatabase: function (dbo) {
             stat = {verified:true, errs:[], count:0, badps:[]};
             if(!dbo) {
-                err("No database object given"); }
+                jt.log("verifyDatabase quitting early since no dbo given");
+                err("No database object given");
+                return stat; }
             if(!dbo.version) {
                 err("dbo.version must be set by platform when dbo created"); }
             if(!dbo.songs || typeof dbo.songs !== "object") {

@@ -467,8 +467,8 @@ app.deck = (function () {
                     const key = makeAlbumKey(song);
                     if(key) {
                         abd[key] = abd[key] || {
-                            lrp:new Date().toISOString(),
-                            mrp:new Date(0).toISOString(),
+                            lrp:new Date().toISOString(),  //least recent played
+                            mrp:new Date(0).toISOString(), //most recent played
                             songs:[]};
                         if(song.lp < abd[key].lrp) {
                             abd[key].lrp = song.lp; }
@@ -477,7 +477,7 @@ app.deck = (function () {
                         abd[key].songs.push(song); } } });
             suggestedAlbums = Object.values(abd)
                 .filter((a) => a.songs.length >= 3);  //not a single from a comp
-            suggestedAlbums.forEach(function (a) {
+            suggestedAlbums.forEach(function (a) {  //calc recent max weighting
                 a.rmw = (jt.isoString2Time(a.lrp).getTime() +
                          jt.isoString2Time(a.mrp).getTime()); });
             suggestedAlbums.sort(function (a, b) {
