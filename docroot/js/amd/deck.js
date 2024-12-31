@@ -676,7 +676,7 @@ app.deck = (function () {
         function searchSongs () {
             if(!songs) {
                 songs = Object.values(app.pdat.songsDict())
-                    .filter((s) => app.deck.isPlayable(s)); }
+                    .filter((s) => app.deck.isSearchable(s)); }
             //match start after space, dquote, or start of string. Wildcard ok.
             const rtx = "(\\s|\"|^)" + qstr.toLowerCase().replace("*", ".*");
             const srx = new RegExp(rtx, "i");
@@ -701,7 +701,8 @@ app.deck = (function () {
                          path:s.path};
                     //const title = album.es[s.ti];
                     updateCounts(s.ar, s.ab, s.ti); } }); }
-        function makeResultTAC (dict, parentMatched) {
+        function makeResultTAC (dict, context) {
+            context = context || {lev:"0"};
             const sks = Object.keys(dict).sort(
                 function (a, b) {
                     if(dict[a].t === "ti") {
@@ -709,7 +710,7 @@ app.deck = (function () {
                                                              dict[b]); }
                     else {
                         return a.localeCompare(b); } });
-            return sks.map(function (fv) {
+            return sks.map(function (fv, idx) {
                 const det = dict[fv];
                 const dln = {xpc:"",
                              val:["span", {cla:"srchresvspan"}, fv],
@@ -718,7 +719,7 @@ app.deck = (function () {
                     dln.xpc = ["a", {cla:"srchxpctoga", href:"#close",
                                      onclick:mdfs("srch.togResExp", "event")},
                                "-"];
-                    if(det.matched || parentMatched) {
+                    if(det.matched || context.parentMatched) {
                         dln.esdd = "none";
                         dln.xpc[1].href = "#expand";
                         dln.xpc[2] = "+"; } }
@@ -729,24 +730,46 @@ app.deck = (function () {
                                      onclick:mdfs("srch.playAlbum", det.si)},
                                dln.val]; }
                 if(det.t === "ti") {
-                    dln.val = ["a", {href:"playsong",
-                                     title:jt.escq(songs[det.si].path),
-                                     onclick:mdfs("srch.playSong", det.si)},
-                               dln.val]; }
+                    const song = songs[det.si];
+                    const elemid = "skst" + context.lev + "_" + idx;
+                    const attrs = {href:"playsong", id:elemid,
+                                   title:jt.escq(song.path),
+                                   "data-fv":jt.escq(fv),
+                                   onclick:mdfs("srch.playSong", det.si)};
+                    if(!app.deck.isPlayable(song)) {
+                        attrs.href = "unsupported";
+                        attrs.cla = "noplaylinka";
+                        attrs.onclick = mdfs("srch.unsuppSong", elemid); }
+                    dln.val = ["a", attrs, dln.val]; }
                 return ["div", {cla:"rslt" + det.t + "div"},
                         [dln.xpc,
                          dln.val,
                          (!det.es? "" : 
                           ["div", {cla:"rslt" + det.t + "childrendiv",
                                    style:"display:" + dln.esdd},
-                           makeResultTAC(det.es, det.matched)])]]; }); }
+                           makeResultTAC(det.es, {
+                               lev:context.lev + idx,
+                               parentMatched:det.matched})])]]; }); }
     return {
         playAlbum: function (sidx) {
             mgrs.gen.dispMode("alb");
             mgrs.alb.playAlbum(songs[sidx], true); },
         playSong: function (sidx) {
+            const song = songs[sidx];
+            jt.log("srch.playSong " + JSON.stringify(song));
             mgrs.gen.dispMode("csa");
-            mgrs.csa.playGivenSong(songs[sidx]); },
+            mgrs.csa.playGivenSong(song); },
+        unsuppSong: function (elemid) {
+            const nsmsg = "Song format not supported by player";
+            const elem = jt.byId(elemid);
+            jt.log("srch.unsuppSong " + elemid + ": " + elem.title +
+                   " (" + elem.dataset.fv + ")");
+            if(elem.innerHTML === nsmsg) {
+                elem.innerHTML = elem.title; }  //show path
+            else if(elem.innerHTML === elem.title) {
+                elem.innerHTML = elem.dataset.fv; }  //show title
+            else {
+                elem.innerHTML = nsmsg; } },
         togResExp: function (event) {
             const lnk = event.target;
             if(lnk.href.endsWith("#close")) {
@@ -992,8 +1015,17 @@ return {
     playNextSong: mgrs.gen.playNextSong,  //player skip
     replayQueue: mgrs.gen.replayQueue,    //player sleep activation
     isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
-    isPlayable: function (s) { return (!s.fq || !s.fq.match(/^[DUI]/)); },
-    isDeckable: function (s) { return (!s.fq || !s.fq.match(/^[RMDUI]/)); },
+    isSearchable: function (s) {  //not Deleted or Ignore folder.
+        //if you copy a song onto your phone and then can't find it, that's
+        //exceptionally annoying.  Allow it to be found in search, but
+        //report if it's not playable.
+        return (!s.fq || !s.fq.match(/^[DI]/)); },
+    isPlayable: function (s) {  //not Deleted, Unreadable, Ignore. okToPlay
+        return ((!s.fq || !s.fq.match(/^[DUI]/)) &&
+                (!app.svc.okToPlay || app.svc.okToPlay(s))); },
+    isDeckable: function (s) {  //not Reference-only or Metadata-mismatch
+        return (app.deck.isPlayable(s) &&
+                (!s.fq || !s.fq.match(/^[RM]/))); },
     dispatch: function (mgrname, fname, ...args) {
         try {
             return mgrs[mgrname][fname].apply(app.deck, args);

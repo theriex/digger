@@ -370,6 +370,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .srchresmatchvspan { font-weight:bold; }
 .srchxpctoga { padding-right:5px; }
 .rsltabchildrendiv { padding-left:16px; }
+.noplaylinka { opacity:0.4; }
 #toghistb { margin-left:-16px; margin-right:16px; }
 #toginfob { margin-left:-8px; margin-right:8px; }
 #deckhistorydiv { position:absolute; top:0px; left:0px; }

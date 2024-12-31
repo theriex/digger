@@ -758,7 +758,7 @@ app.filter = (function () {
             buf.splice(0, buf.length); }  //leave cleared
     return {
         init: function () {
-            //return jt.log("jt.log sending to console");
+            //return jt.log("filter.dcm leaving jt.log set to console");
             testLogCollapse();
             jt.log = logMessage;  //catch all app console output
             window.onerror = function(msg, url, line, col, ignore /*error*/) {
