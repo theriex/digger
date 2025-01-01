@@ -28,9 +28,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   background-attachment: fixed; background-size: cover;
   background-repeat: no-repeat; }
 #contentmargindiv { height:100vh; max-width:564px; margin:0px auto;
+  overflow:hidden auto;
   background-image: url('../img/projbox.png');
   background-attachment: scroll;
-  background-size: 564px 300px; /* adjusted by app.boot.initDiggerModules */
+  background-size: 564px 300px;  /*player.uiu.adjustFramingBackgroundHeight*/
   background-repeat: no-repeat; }
 #contentdiv { margin:0px auto; width:100vw; max-width:512px;
   border-top:3px solid #363636;

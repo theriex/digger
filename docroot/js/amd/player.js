@@ -1203,6 +1203,7 @@ app.player = (function () {
     mgrs.uiu = (function () {
         const pbstates = ["playing", "paused", "ended"];  //"" if unknown
         const reqsrcs = {};  //playback status handling
+        var nosongtext = "Starting";
         function adjustFramingBackgroundHeight () {  //match height of panels
             const oh = jt.byId("contentdiv").offsetHeight;  //dflt 736px
             const cmdiv = jt.byId("contentmargindiv");
@@ -1212,6 +1213,8 @@ app.player = (function () {
             const tuneimg = jt.byId("tuneimg");
             if(tuneimg) {  //might have been lit up, keep what's there
                 tunesrc = tuneimg.src; }
+            if(pmso.song) {
+                nosongtext = "No song selected"; }
             jt.out("playertitle", jt.tac2html(
                 ["div", {cla:"songtitlediv"},
                  [["div", {id:"playtitlebuttonsdiv"},
@@ -1221,7 +1224,7 @@ app.player = (function () {
                      ["img", {src:tunesrc, cla:"ptico inv", id:"tuneimg"}]]]],
                   ["span", {id:"playtitletextspan"},
                    app.deck.dispatch("util", "songIdentHTML",
-                                     pmso.song)]]])); }
+                                     pmso.song, nosongtext)]]])); }
         function noteUpdatedSongStatus (pbsh) {
             if(!pbsh.path) {
                 pmso.resetPlaceholderControlObject();

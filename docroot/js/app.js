@@ -677,7 +677,7 @@ var app = (function () {
         function getSongData () {
             if(songdat) { return songdat; }
             jt.log("building fake song data, ratedSongs: " + ratedSongs);
-            const lpbase = Date.now() - 24 * 60 * 60 * 1000;
+            const lpbase = Date.now() - 91 * 24 * 60 * 60 * 1000;
             songdat = {};
             Object.entries(albdat).forEach(function ([ar, albobj], ari) {
                 //jt.log("scr.getSongData " + ari + ": " + ar);
@@ -767,6 +767,9 @@ var app = (function () {
         seek: function (ms) {
             pbstat.pos = ms;
             sendPlaybackStatus(); },
+        //specific platform initialization takeover lag callbacks
+        iosReturn: function (retval) {
+            jt.log("app.scr.iosReturn ignoring " + retval); },
         //screenshot stubbed interface activation
         replaceSvcWithUIStubInterface: function () {
             app.svc = mgrs.scr;  //take over all platform calls
@@ -774,6 +777,7 @@ var app = (function () {
             ratedSongs = true;
             makeDigDat();
             makeMediaRead();
+            app.deck.dispatch("srch", "setSearchQueryString", "Me");
             app.boot.addApresModulesInitTask("scr.init", function () {
                 app.player.dispatch("plui", "initInterface", mgrs.scr); }); }
     };  //end mgrs.scr returned access interface

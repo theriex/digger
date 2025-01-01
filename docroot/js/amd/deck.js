@@ -161,7 +161,7 @@ app.deck = (function () {
                     if(!sba[artist].length) {
                         delete sba[artist]; } }); }
             return rsq; },
-        songIdentHTML: function (song) {
+        songIdentHTML: function (song, emptytxt) {
             var idh = [];
             if(song) {
                 idh.push(["span", {cla:"dstispan", "data-dsId":song.dsId,
@@ -173,7 +173,7 @@ app.deck = (function () {
                 if(song.ab) {
                     idh.push(" - ");
                     idh.push(["span", {cla:"dsabspan"}, song.ab || ""]); } }
-            return jt.tac2html(idh); },
+            return jt.tac2html(idh) || emptytxt || ""; },
         execQSO: function (action, mgrnm, idx) {
             //options overlay already cleared from event percolation..
             //mgrs.util.togQSOpts(mgrnm, idx);  //remove actions overlay
@@ -798,6 +798,8 @@ app.deck = (function () {
                 [Object.entries(counts.abs).length, " albums, ",
                  counts.sc, " songs"]));
             jt.out("srchresdiv", jt.tac2html(makeResultTAC(rslt))); },
+        setSearchQueryString: function (txt) {
+            qstr = txt; },
         clearSearch: function () {
             jt.byId("srchin").value = "";
             mgrs.srch.updateSearchDisplay(); },
