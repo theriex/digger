@@ -664,8 +664,42 @@ app.filter = (function () {
 
     //Digger console message manager handles app log messages.
     mgrs.dcm = (function () {
-        const bufmax = 200;
-        const buf = [];
+        const bufmax = 400;  //keep at most this many lines in the log
+        const buf = [];      //log entry lines
+        //log entry: {t:"hh:mm:ss"  //timestamp
+        //            c:N  //repeated entry count (starts at 1)
+        //            m:"log message text"
+        const testlogsamples = [  //samples for testing log collapse
+            {name:"droidStartupCycling", expectedLength:4,
+             logEntries:[
+{t:"07:54:09", c:1, m:"svc.mp.queueCommand 263: status"},
+{t:"07:54:09", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1735840449381,\"tresp\":1735840449397,\"path\":\"\",\"state\":\"\",\"pos\":0,\"dur\":0}"},
+{t:"07:54:09", c:1, m:"scheduleTransportStateRecheck full status request"},
+{t:"07:54:09", c:1, m:"svc.mp.commandCompleted finished 263: status"},
+{t:"07:54:10", c:1, m:"svc.mp.queueCommand 264: status"},
+{t:"07:54:10", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1735840450415,\"tresp\":1735840450429,\"path\":\"\",\"state\":\"\",\"pos\":0,\"dur\":0}"},
+{t:"07:54:10", c:1, m:"scheduleTransportStateRecheck full status request"},
+{t:"07:54:10", c:1, m:"svc.mp.commandCompleted finished 264: status"}]}];
+        //Polling collapse listens for a log line matching the last of the
+        //given match regular expressions, then works backwards testing
+        //previous entries against the given match expressions until it
+        //reaches a log line matching the last line again.  Then it repeats
+        //to find the previous collapse group, then it combines them.
+        //Defs are processed and applied in declaration order.  The last
+        //matching line regex is required.
+        const collapsedefs = [
+            {name:"fullStatusPolling",
+             mrxs:[  //match regular expressions for log lines
+                 {id:"request", rx:/svc.mp.queueCommand (?<callnum>\d+): (?<command>\S+)/},
+                 {id:"response", rx:/uiu.reflectUpdatedStatusInfo.*"path":"(?<path>[^"]*)","state":"(?<state>[a-z]*)/},
+                 {id:"schedtype", rx:/scheduleTransportStateRecheck full status request/},
+                 {id:"completion", rx:/svc.mp.commandCompleted finished (?<callnum>\d+): (?<command>\S+)/}], 
+             gcvs:[  //group consistency validations
+                 {fld:"callnum", linids:["request", "completion"]},
+                 {fld:"command", linids:["request", "completion"]}],
+             ccvs:[  //collapse consistency validations
+                 {linid:"response", fld:"path"},
+                 {linid:"response", fld:"state"}]}];
         function timestamp () {
             var date = new Date();
             const h = date.getHours();
@@ -681,81 +715,64 @@ app.filter = (function () {
             if(s <= 9) { ts += "0"; }
             ts += s;
             return ts; }
-        function internalConsistencyMatch (md, rows) {
-            return rows[md.ar][md.av] === rows[md.br][md.bv]; }
-        function rowEquivalenceMatch (md, rs1, rs2) {
-            return rs1[md.r][md.v] === rs2[md.r][md.v]; }
-        function combineBufferRows (sidx, didx, numrows) {
-            var i;
-            for(i = 0; i < numrows; i += 1) {
-                buf[didx + i].c = buf[sidx + i].c + 1;
-                buf[sidx + i] = buf[didx + i]; }
-            buf.splice((-1 * numrows), numrows); }
-        function droidLogPollingDef () {
-            const def = {
-                mrxs:[/svc.mp.queueCommand (\d+): (\S+)/,
-                      /svc.mp.notePlaybackStatus stat: \{"state":"([a-z]+)","pos":\d+,"dur":\d+,"path":"([^"]+)/,
-                      /svc.mp.commandCompleted finished (\d+): (\S+)/],
-                icms:[{ar:0, av:1, br:2, bv:1},   //same queue count val
-                      {ar:0, av:2, br:2, bv:2}],  //same queue command val
-                rmts:[{r:0, v:2},   //e.g. "status" command
-                      {r:1, v:1},   //playback state is the same
-                      {r:1, v:2},   //playback path is the same
-                      {r:2, v:2}],  //e.g. "status" command
-                samp:[
-{t:"10:11:42", c:1, m:"svc.mp.queueCommand 77: status"},
-{t:"10:11:42", c:1, m:"svc.mp.notePlaybackStatus stat: {\"state\":\"paused\",\"pos\":5562,\"dur\":168229,\"path\":\"file%3A%2F%2F%2Fstorage%2Femulated%2F0%2FMusic%2FLene%2520Lovich%2FStateless%2F08%2520-%2520Telepathy.mp3\",\"cc\":77,\"dbts\":\"2023-12-12T15:06:30.858Z\"}"},
-{t:"10:11:42", c:1, m:"svc.mp.commandCompleted finished 77: status"},
-{t:"10:11:46", c:1, m:"svc.mp.queueCommand 78: status"},
-{t:"10:11:46", c:1, m:"svc.mp.notePlaybackStatus stat: {\"state\":\"paused\",\"pos\":5562,\"dur\":168229,\"path\":\"file%3A%2F%2F%2Fstorage%2Femulated%2F0%2FMusic%2FLene%2520Lovich%2FStateless%2F08%2520-%2520Telepathy.mp3\",\"cc\":78,\"dbts\":\"2023-12-12T15:06:30.858Z\"}"},
-{t:"10:11:46", c:1, m:"svc.mp.commandCompleted finished 78: status"}]};
-            return def; }
-        function iosLogPollingDef () {
-            const def = {
-                mrxs:[/callIOS: main:(\d+):([^:]+):/,
-                      /ios.retv: main:(\d+):([^:]+):\{"state":"([a-z]+)","pos":\d+,"dur":\d+,"path":"([^"]+)/],
-                icms:[{ar:0, av:1, br:1, bv:1},   //same queue count val
-                      {ar:0, av:2, br:1, bv:2}],  //same queue command val
-                rmts:[{r:0, v:2},   //same command, e.g. statusSync
-                      {r:1, v:2},   //same command
-                      {r:1, v:3},   //same playback state
-                      {r:1, v:4}],  //same path
-                samp:[
-{t:"11:42:17", c:1, m:"callIOS: main:767:statusSync:[\"ipod-library://item/item.mp3?id=969038086138737235\",\"ipod-library://item/item.mp3?id=969038086138737483\",\"ipod-library://item/it...od-library://item/item.mp3?id=969038086138737342\"]"},
-{t:"11:42:17", c:1, m:"ios.retv: main:767:statusSync:{\"state\":\"playing\",\"pos\":22968,\"dur\":255843,\"path\":\"ipod-library://item/item.mp3?id=969038086138737235\"}"},
-{t:"11:42:21", c:1, m:"callIOS: main:768:statusSync:[\"ipod-library://item/item.mp3?id=969038086138737235\",\"ipod-library://item/item.mp3?id=969038086138737483\",\"ipod-library://item/it...od-library://item/item.mp3?id=969038086138737342\"]"},
-{t:"11:42:21", c:1, m:"ios.retv: main:768:statusSync:{\"state\":\"playing\",\"pos\":26985,\"dur\":255843,\"path\":\"ipod-library://item/item.mp3?id=969038086138737235\"}"}]};
-            return def; }
+        function lrxMatch (mld, bidx, rxi, mr) {
+            const logline = buf[bidx + rxi].m
+            mr[mld.id] = logline.match(mld.rx);
+            return mr[mld.id]; }  //return match or null
+        function lidf (mr, linid, fld) {  //convenience lineid/field acc func
+            return mr[linid].groups[fld]; }
+        function lgcCheck (gcv, mr) {
+            const val = lidf(mr, gcv.linids[0], gcv.fld);
+            return gcv.linids.slice(1).every((linid) =>
+                lidf(mr, linid, gcv.fld) === val); }
+        function matchLines (cdef, lastLineIndex) {
+            const bidx = lastLineIndex - cdef.mrxs.length + 1;
+            if(bidx < 0) { return null; }
+            const mr = {};
+            if(!cdef.mrxs.every((mld, rxi) => lrxMatch(mld, bidx, rxi, mr))) {
+                return null; }
+            if(!cdef.gcvs.every((gcv) => lgcCheck(gcv, mr))) {
+                return null; }
+            return mr; }
+        function cvCheck (cv, prev, curr) {  //collapse verification check
+            const pval = lidf(prev, cv.linid, cv.fld);
+            const cval = lidf(curr, cv.linid, cv.fld);
+            return pval === cval; }
+        function matchLineGroups (cdef, prev, curr) {
+            return cdef.ccvs.every((cv) => cvCheck(cv, prev, curr)); }
+        function mxplen (mr) {
+            return Object.keys(mr).length; }
+        function collapseLineGroups (prev, curr) {
+            var idx = buf.length - (mxplen(prev) + mxplen(curr));
+            const count = buf[idx].c;  //hold previous count
+            buf.splice(idx, mxplen(prev));  //cut out prev lines
+            while(idx < buf.length) {
+                buf[idx].c += count;
+                idx += 1; } }
         function collapsePolling () {
-            const cds = [droidLogPollingDef(), iosLogPollingDef()];
-            cds.forEach(function (cd) {
-                const sidx = buf.length - (2 * cd.mrxs.length);
-                if(sidx < 0) { return; }
-                const rs1 = buf.slice(sidx, sidx + cd.mrxs.length)
-                      .map((r, i) => r.m.match(cd.mrxs[i]));
-                if(!rs1.every((m) => m)) { return; }
-                const didx = buf.length - cd.mrxs.length;
-                const rs2 = buf.slice(didx, didx + cd.mrxs.length)
-                      .map((r, i) => r.m.match(cd.mrxs[i]));
-                if(!rs2.every((m) => m)) { return; }
-                if(cd.icms.every((m) => internalConsistencyMatch(m, rs1)) &&
-                   cd.icms.every((m) => internalConsistencyMatch(m, rs2)) &&
-                   cd.rmts.every((m) => rowEquivalenceMatch(m, rs1, rs2))) {
-                    combineBufferRows(sidx, didx, cd.mrxs.length); } }); }
+            collapsedefs.forEach(function (cdef) {
+                var lti = buf.length - 1;  //last line test index
+                const curr = matchLines(cdef, lti);
+                if(curr) {  //latest log lines potentially collapsible
+                    lti -= Object.keys(curr).length;
+                    const prev = matchLines(cdef, lti);
+                    if(prev && matchLineGroups(cdef, prev, curr)) {
+                        collapseLineGroups(prev, curr); } } }); }
+        function testLogCollapse () {
+            testlogsamples.forEach(function (samp) {
+                buf.splice(0, buf.length);  //clear buf
+                samp.logEntries.forEach(function (samplogline) {
+                    buf.push(samplogline); });
+                collapsePolling();
+                if(buf.length !== samp.expectedLength) {
+                    jt.log("testLogCollapse failed on sample " +
+                           samp.name); } });
+            buf.splice(0, buf.length); }  //clear buf
         function logMessage (text) {
             buf.push({t:timestamp(), c:1, m:text});
             collapsePolling();
             if(buf.length > bufmax) {
                 buf.shift(); } }
-        function testLogCollapse () {
-            var tds = [droidLogPollingDef(), iosLogPollingDef()];
-            tds.forEach(function (td, idx) {
-                buf.splice(0, buf.length);  //clear buf
-                td.samp.forEach(function (tm) { buf.push(tm); });
-                collapsePolling();
-                jt.log("testLogCollapse " + idx + ": collapsed? " +
-                       String(buf.length === td.mrxs.length)); });
-            buf.splice(0, buf.length); }  //leave cleared
     return {
         init: function () {
             //return jt.log("filter.dcm leaving jt.log set to console");
