@@ -268,7 +268,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=250102"); }
+                              mgrs.boot.initAppModules, "?v=250108"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -742,7 +742,7 @@ var app = (function () {
                 pbstat.pos = 12*1000;
                 pbstat.dur = ((3*60) + 34)*1000; }
             sendPlaybackStatus(); },
-        passthroughHubCall: function (dets) {
+        passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
             jt.log("app.scr.passthroughHubCall no support for dets " +
                    JSON.stringify(dets)); },
         copyToClipboard: function (txt, contf/*, errf*/) {
@@ -854,9 +854,10 @@ var app = (function () {
                         setConfigAndNotify("svcinit", config);
                         app.svc.readDigDat(  //load digdat after config avail
                             function (digdat) {
-                                setDigDatAndNotify("svcinit", digdat); },
+                                setDigDatAndNotify("svcinit", digdat);
+                                jt.log("pdat.svcModuleInitialized complete"); },
                             function (code, errtxt) {
-                                jt.err("svcModuleInitialized readDigDat " +
+                                jt.err("pdat.svcModuleInitialized readDigDat " +
                                        code + ": " + errtxt); }); },
                     function (code, errtxt) {
                         jt.err("svcModuleInitialized readConfig " +
@@ -902,7 +903,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=250102";  //updated as part of release process
+        return "v=250108";  //updated as part of release process
     }
 };  //end returned functions
 }());

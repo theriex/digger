@@ -233,10 +233,15 @@ app.svc = (function () {
         changeConfig: function (configChangeFields, contf, errf) {
             jt.call("POST", "/cfgchg", jt.objdata(configChangeFields),
                     contf, errf, jt.semaphore("loc.changeConfig")); },
-        passthroughHubCall: function (dets) {
-            jt.call(dets.verb, "hub" + dets.verb.toLowerCase() + "-" + dets.url,
-                    dets.dat, dets.contf, dets.errf,
-                    jt.semaphore("svc.loc." + dets.endpoint)); },
+        passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
+            jt.call(verb, "hub" + verb.toLowerCase() + "-" + endpoint, dat,
+                    function (res) {
+                        app.top.dispatch("hcq", "hubResponse", qname, reqnum,
+                                         200, JSON.stringify(res)); },
+                    function (code, errdet) {
+                        app.top.dispatch("hcq", "hubResponse", qname, reqnum,
+                                         code, errdet); },
+                    jt.semaphore("svc.loc." + endpoint)); },
         docContent: function (docurl, contf, errf) {
             const up = jt.objdata({docurl:jt.enc(docurl)});
             jt.request("GET", app.util.cb(app.util.dr("/doctext"), up, "day"),
@@ -683,11 +688,8 @@ app.svc = (function () {
         var digdat = null;
     return {
         readConfig: function (contf/*, errf*/) {
-            var config = app.top.dispatch("aaa", "getConfig");
-            if(!config) {
-                app.top.dispatch("aaa", "verifyConfig"); }
-            config = app.top.dispatch("aaa", "getConfig");
-            contf(config); },
+            //bootstrap from nothing. persistent settings restored on sign-in.
+            contf(""); },
         readDigDat: function (contf/*, errf*/) {
             digdat = digdat || {songs:{}};
             jt.request("GET", app.util.cb(app.util.dr("/api/version"),
@@ -711,12 +713,11 @@ app.svc = (function () {
                     songdata:{version:auth.hubVersion,
                               songs:pool}}; },
         initialSetup: function () {
-            app.top.dispatch("aaa", "verifyConfig");  //init a default config
             app.login.dispatch("ap", "signInUsingCookie",
                 function (atk) {
                     var acct = app.top.dispatch("hcu", "deserializeAccount",
                                                 atk[0]);
-                    app.top.dispatch("aaa", "reflectAccountChangeInRuntime",
+                    app.top.dispatch("aaa", "setCurrentAccount",
                                      acct, atk[1]);
                     app.pdat.svcModuleInitialized(); },
                 function () {  //not signed in
@@ -765,10 +766,15 @@ app.svc = (function () {
                     jt.semaphore("mgrs.web.fetchSongs")); },
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
-        passthroughHubCall: function (dets) {
-            jt.call(dets.verb, "/api/" + dets.url, dets.dat,
-                    dets.contf, dets.errf,
-                    jt.semaphore("svc.web." + dets.endpoint)); },
+        passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
+            jt.call(verb, "/api/" + endpoint, dat,
+                    function (res) {
+                        app.top.dispatch("hcq", "hubResponse", qname, reqnum,
+                                         200, JSON.stringify(res)); },
+                    function (code, errdet) {
+                        app.top.dispatch("hcq", "hubResponse", qname, reqnum,
+                                         code, errdet); },
+                    jt.semaphore("svc.web." + endpoint)); },
         writeConfig: function (cfg, contf) {
             //nothing to do, account info already saved on server
             setTimeout(function () { contf(cfg); }, 50); },
@@ -800,7 +806,7 @@ app.svc = (function () {
             hdm: "loc",   //host data manager "loc" or "web", default local
             musicPath: "editable",  //can change where music files are found
             dbPath: "editable",  //can change where rating info is saved
-            urlOpenSupp: "true",  //ok to open urls in new tab
+            urlOpenSupp: true,  //ok to open urls in new tab
             defaultCollectionStyle: "permanentCollection",
             audsrc: "Browser",   //audio source for music
             audmgr: "loa"};      //audio manager for playback calls
@@ -842,8 +848,8 @@ app.svc = (function () {
             mgrs[hdm].writeConfig(config, contf, errf); },
         writeDigDat: function (digdat, ignore/*optobj*/, contf, errf) {
             mgrs[hdm].writeDigDat(digdat, contf, errf); },
-        passthroughHubCall: function (dets) {
-            mgrs[hdm].passthroughHubCall(dets); },
+        passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
+            mgrs[hdm].passthroughHubCall(qname, reqnum, endpoint, verb, dat); },
         docContent: function (docurl, contf) {
             mgrs[hdm].docContent(docurl, contf, function (code, errtxt) {
                 contf("Doc error " + code + ": " + errtxt); }); },

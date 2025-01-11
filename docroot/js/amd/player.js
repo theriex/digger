@@ -915,14 +915,20 @@ app.player = (function () {
             prog.tmo = null;  //for debugging state clarity
             if(requireFullStatus) {
                 prog.rt = 0; } } //disable floating tick
+        function logScheduling (/*txt*/) {
+            //Can be helpful to see "float tick" or "full status request"
+            //log messages, but hard to collapse repetitive polling messages
+            //in filter.dcm so not active.
+            //jt.log("scheduleTransportStateRecheck " + txt);
+            return; }
         function scheduleTransportStateRecheck () {
             if(prog.tmo) { return; }  //wait for existing timed tick
             clearTicker();
             if(prog.mode !== "active") {
-                jt.log("scheduleTransportStateRecheck mode " + prog.mode);
+                logScheduling("mode " + prog.mode);
                 return; }
             if(withinFloatTime() && !nearBeginningOrEnd()) {
-                jt.log("scheduleTransportStateRecheck float tick");
+                logScheduling("float tick");
                 prog.tmo = setTimeout(function () {  //UI only float call
                     clearTicker();
                     if(ppb.st === "playing") {
@@ -930,7 +936,7 @@ app.player = (function () {
                     updatePosIndicator();
                     scheduleTransportStateRecheck(); }, 1000); }
             else {
-                jt.log("scheduleTransportStateRecheck full status request");
+                logScheduling("full status request");
                 //need to call for hard status return. Use common util
                 //rather than pbco to avoid collisions and common errors.
                 prog.tmo = setTimeout(function () {
@@ -1121,7 +1127,7 @@ app.player = (function () {
                         sleepCompletionDialog(scms.lastpl);
                         //verify deck positioned on last track
                         mgrs.scm.changeCurrentlyPlayingSong(
-                            app.pdat.songsDict()[sst.lspbs], "ended") } }
+                            app.pdat.songsDict()[sst.lspbs], "ended"); } }
                 else {  //switched to some unexpected song and/or playing
                     jt.log("slp unexpected case " + pmso.state + " " +
                            pmso.song.path + ", lspbs: " + sst.lspbs +

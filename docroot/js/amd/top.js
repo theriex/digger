@@ -22,6 +22,89 @@ app.top = (function () {
     // Local Account actions
     ////////////////////////////////////////////////////////////
 
+    //Hub call queue manager.  One ongoing call per endpoint.
+    mgrs.hcq = (function () {
+        const rqs = {};  //request queues by queue name
+        const montmos = {};  //call monitoring timeouts
+        var reqnum = 1;
+        function hclog (verb, endpoint, rqn, msg) {
+            jt.log("hcqm " + verb + " " + endpoint + " " + rqn + " " + msg); }
+        function dfltHFM (type, msg) {  //default hub function message
+            jt.log("mgrs.hcq retfunc default " + type + ": " + msg); }
+        function setCallMonitoringTimers (verb, qname, rqn) {
+            const late = 7;  //seconds
+            const kill = 60; //seconds
+            montmos[qname + rqn] = setTimeout(function () {
+                hclog(verb, qname, rqn, "resp wait > " + late + "seconds");
+                montmos[qname + rqn] = setTimeout(function () {
+                    hclog(verb, qname, rqn, "abandoned");
+                    dequeue(qname, 408, "Request timed out. " +
+                            "No response after " + kill + "seconds.");
+                }, (kill - late) * 1000); }, late * 1000); }
+        function clearCallMonitoringTimers (qname, rqn) {
+            clearTimeout(montmos[qname + rqn]);
+            montmos[qname + rqn] = null; }
+        function startRequest (entry) {
+            //do not log entry.dat, may be large or contain signin password.
+            hclog(entry.v, entry.qn, entry.rn, "start hub request");
+            setCallMonitoringTimers(entry.v, entry.qn, entry.rn);
+            setTimeout(function () {  //separate call in case it just hangs.
+                //svc calls back to hcq.hubResponse on completion.  Can have
+                //multiple overlapping hub calls on different queues.
+                app.svc.passthroughHubCall(entry.qn, entry.rn, entry.ep,
+                                           entry.v, entry.dat); }, 50); }
+        function dequeue (qname, code, det) {
+            const entry = rqs[qname].shift();
+            if(!rqs[qname].length) {   //processed last entry
+                delete rqs[qname]; }   //so get rid of the queue
+            else {  //process next entry after finishing callback for this one
+                setTimeout(function () {
+                    startRequest(rqs[qname][0]); }, 50); }
+            if(code === 200) {
+                entry.cf(JSON.parse(det)); }
+            else {
+                entry.ef(code, det); } }
+    return {
+        queueRequest: function (dets) {
+            const entry = {qn:dets.endpoint,  //queue name for sequencing
+                           rn:reqnum,         //request number for sequencing
+                           ep:dets.url,       //endpoint url to call on hub
+                           v:dets.verb,       //POST or GET
+                           dat:dets.dat || "",   //data to use if POST
+                           cf:dets.contf || function (res) {
+                               dfltHFM("contf", JSON.stringify(res)); },
+                           ef:dets.errf || function (code, text) {
+                               dfltHFM("errf", code + ": " + text); }};
+            if(entry.qn.startsWith("/")) {  //send&receive plain endpoint name
+                entry.qn = entry.qn.slice(1); }
+            hclog(entry.v, entry.qn, entry.rn, "queue hubRequest");
+            reqnum += 1;
+            if(rqs[entry.qn]) {  //existing request(s) pending
+                rqs[entry.qn].push(entry); }  //process in turn
+            else {  //queueing a new request
+                rqs[entry.qn] = [entry];
+                startRequest(entry); } },
+        hubResponse: function (qname, reqnum, code, det) {
+            var respdet = "ok";
+            if(code !== 200) {
+                respdet = code + ": " + jt.ellipsis(det, 255); }
+            hclog("RESP", qname, reqnum, respdet);
+            clearCallMonitoringTimers(qname, reqnum);
+            const entries = rqs[qname];
+            if(!entries || !entries.length) {
+                hclog("PUNT", qname, reqnum, "No entries for qname " + qname);
+                return; }
+            if(!entries[0]) {
+                hclog("PUNT", qname, reqnum, "bad first entry: " + entries[0]);
+                return; }
+            if(entries[0].rn !== reqnum) {
+                return hclog("PUNT", qname, reqnum, "ignored response, " +
+                             " expected reqnum " + rqs[qname][0].rn); }
+            dequeue(qname, code, det); }
+    };  //end mgrs.hcq returned functions
+    }());
+
+
     //General hub communication utilities
     mgrs.hcu = (function () {
         //account JSON fields
@@ -32,6 +115,12 @@ app.top = (function () {
                       musfs:{cmp:["dsId", "email", "firstname", "hashtag"]}};
         const ncpy = {settings:{ctrls:null, deck:null}};
         const verstat = {};
+        function removeOptionalServerFields (acct) {
+            delete acct.syncsince; }
+        function removeUnusedLegacyFields (acct) {
+            if(acct.settings) {  //delete legacy settings data now in digdat
+                delete acct.settings.ctrls;
+                delete acct.settings.deck; } }
         function equivField (fld, a, b) {  //compare deserialized objs
             if(fld && ajfs[fld] && ajfs[fld].cmp) {
                 return ajfs[fld].cmp.every((f) => ((a[f] === b[f]) ||
@@ -47,8 +136,7 @@ app.top = (function () {
                 if(acct[sf] && typeof acct[sf] === "string") {
                     acct[sf] = JSON.parse(acct[sf]); } }); },
         verifyDefaultAccountFields: function (acct) {
-            var aci = mgrs.aaa.getAcctsInfo();
-            var da = aci.accts.find((a) => a.dsId === "101");
+            const da = mgrs.aaa.getDefaultAccount();
             Object.keys(ajfs).forEach(function (df) {
                 acct[df] = acct[df] || da[df] || ""; }); },
         accountDisplayDiff: function (a, b) {
@@ -58,6 +146,7 @@ app.top = (function () {
             return changed || false; },
         copyUpdatedAcctData: function (destAcct, srcAcct, skipflds) {
             //copy field values from srcAcct into destAcct, except for skipflds
+            removeOptionalServerFields(destAcct);
             skipflds = skipflds || ncpy;
             Object.keys(srcAcct).forEach(function (key) {
                 if(skipflds.hasOwnProperty(key)) {  //skip field or drill in
@@ -73,7 +162,8 @@ app.top = (function () {
                             destAcct[key] = JSON.parse(
                                 JSON.stringify(srcAcct[key])); } }
                     else {
-                        destAcct[key] = srcAcct[key]; } } }); },
+                        destAcct[key] = srcAcct[key]; } } });
+            removeUnusedLegacyFields(destAcct); },
         saveSongUpdates: function (callerstr, songs) {
             callerstr = callerstr || "unknown saveSongUpdates";
             if(!songs) { return; }
@@ -105,8 +195,8 @@ app.top = (function () {
                 jt.log("hcu.makeHubCall " + endpoint + " " +
                        code + ": " + errtxt); };
             dets.endpoint = endpoint;  //short reference for routing
-            dets.url = dets.url || endpoint;
-            app.svc.passthroughHubCall(dets); },
+            dets.url = "/" + (dets.url || endpoint);
+            mgrs.hcq.queueRequest(dets); },
         verifyClientVersion: function () {
             var curracct = mgrs.aaa.getAccount();
             if(curracct.hubVersion && curracct.diggerVersion) {
@@ -157,7 +247,8 @@ app.top = (function () {
             else {  //error condition not recovered, stop auto retry
                 syt.errcode = code;
                 syt.errtxt = errtxt;
-                jt.log("syncToHub " + code + ": " + errtxt); } },
+                jt.log("syncToHub " + code + ": " + errtxt);
+                jt.log("handleSyncError not retrying automatically"); } },
         syncToHub: function (context) {
             if(!app.util.haveHubCredentials()) { return; }
             if(context === "cancel" && syt.tmo) {
@@ -222,11 +313,15 @@ app.top = (function () {
             //existing data first to avoid overwriting with unrated.
             var curracct = mgrs.aaa.getAccount();
             upldsongs = [];
-            if(!curracct.syncsince) {  //not just signed in
+            if(curracct.syncsince) {
+                jt.log("makeSendSyncData no songs, syncsince " +
+                       curracct.syncsince); }
+            else {  //not just signed in
                 upldsongs = uploadableSongs();
                 upldsongs = upldsongs.slice(0, 199);
-                upldsongs = upldsongs.map((sg) => app.util.txSong(sg)); }
-            jt.log("makeSendSyncData uploading " + upldsongs.length + " songs");
+                upldsongs = upldsongs.map((sg) => app.util.txSong(sg));
+                jt.log("makeSendSyncData uploading " + upldsongs.length +
+                       " songs"); }
             syt.up += upldsongs.length;
             mgrs.hcu.serializeAccount(curracct);
             const obj = {email:curracct.email, token:curracct.token,
@@ -234,20 +329,20 @@ app.top = (function () {
             mgrs.hcu.deserializeAccount(curracct);
             return jt.objdata(obj); },
         processReceivedSyncData: function (updates) {
-            //received account + any songs that need to be saved locally.
-            //svc processing has already persisted local data so just need
-            //to reflect the updated account and songs in the runtime.
-            mgrs.aaa.hubCommsCompleted(true);
-            const changed = mgrs.aaa.reflectAccountChangeInRuntime(updates[0]);
-            if(changed) { //need to rebuild display with updated info
-                mgrs.aaa.notifyAccountChanged(); }
+            //if any song update fails, it is better to continue with the rest
+            //of sync processing than to loop retrying.
+            const prefix = "top.srs.processReceivedSyncData ";
             const songs = updates.slice(1);
-            syt.down += songs.length;
-            jt.log("processReceivedSyncData " + songs.length + " songs.");
+            jt.log(prefix + songs.length + " songs, syncsince: " +
+                   updates[0].syncsince);
             mgrs.hcu.saveSongUpdates("srs.processReceivedSyncData", songs);
-            const curracct = mgrs.aaa.getAccount();
-            if(curracct.syncsince && curracct.syncsince < curracct.modified) {
-                mgrs.srs.syncToHub(); } },  //more to download...
+            mgrs.aaa.updateCurrAcct(updates[0], null,
+                function (acct) {
+                    if(acct.syncsince && acct.syncsince < acct.modified) {
+                        mgrs.srs.syncToHub(); } },  //more to download...
+                function (code, errtxt) {
+                    jt.log(prefix + "account update failed " +
+                           code + ": " + errtxt); }); },
         makeStatusDisplay: function () {
             var reset = false;
             if(!jt.byId("hubSyncInfoDiv")) { return; }
@@ -508,18 +603,17 @@ app.top = (function () {
                 verb:"POST",
                 dat:app.util.authdata({mfid:mfanid, ctype:collabtype}),
                 contf:function (hubres) {
-                    mgrs.aaa.reflectAccountChangeInRuntime(hubres[0]);
-                    mgrs.hcu.saveSongUpdates("fsc.callHubFanCollab",
-                                             hubres.slice(1));
-                    if(hubres.slice(1).length) {
-                        app.deck.update("fancollab"); }
-                    const acct = mgrs.aaa.getAccount();
-                    noteFan(acct.musfs.find((mf) => mf.dsId === mfanid));
-                    mgrs.fga.reflectUpdatedAccount(acct);
-                    ccontf(); },
-                function (code, errtxt) {
-                    //PENDING: if API throttling error, setTimeout and retry
-                    cerrf(code, errtxt); }}); }
+                    const songs = hubres.slice(1);
+                    mgrs.hcu.saveSongUpdates("fsc.callHubFanCollab", songs);
+                    noteFan(hubres[0].musfs.find((mf) => mf.dsId === mfanid));
+                    mgrs.aaa.updateCurrAcct(hubres[0], null,
+                        function (acct) {
+                            if(songs.length) {
+                                app.deck.update("fancollab"); }
+                            mgrs.fga.reflectUpdatedAccount(acct);
+                            ccontf(); },
+                        cerrf); },
+                cerrf}); }
     return {
         doneNote: function (dispid, msg) {
             if(!msg) { return jt.out(dispid, ""); }
@@ -847,11 +941,12 @@ app.top = (function () {
             if(!ovd) { return; }
             const tosync = mgrs.srs.countSyncOutstanding();
             const dd = jt.byId("fgadispdiv");
-            if(tosync > 100) {  //block interaction while data load completes
+            if(tosync > 100) {  //at least one more chunk to upload
                 dd.style.opacity = 0.3;
                 ovd.innerHTML = "Uploading " + tosync +
                     " songs before collaborating...";
                 ovd.style.height = dd.offsetHeight + "px";
+                mgrs.srs.syncToHub("unposted");  //verify sync scheduled
                 setTimeout(mgrs.fga.displayOverlay, 5000);
                 return true; }
             dd.style.opacity = 1.0;
@@ -1032,8 +1127,10 @@ app.top = (function () {
         function hubThenLocal (buttonid, pverb, endpoint, pdat, pcontf) {
             jt.byId(buttonid).disabled = true;
             jt.out("afgstatdiv", "Calling DiggerHub...");
+            jt.log("hubThenLocal " + pverb + " " + endpoint);
             const gef = function (code, errtxt) {  //general errf
                 jt.byId(buttonid).disabled = false;
+                jt.log("hubThenLocal.gef " + code + " " + errtxt);
                 jt.out("afgstatdiv", code + ": " + errtxt); };
             const hcf = function (atk) {  //post hub call contf
                 if(endpoint.startsWith("mailpwr")) {
@@ -1339,85 +1436,86 @@ app.top = (function () {
             Classical: {pos: 0, sc: 0, ig: 0, dsc: "However you define it for your collection."},
             Talk: {pos: 0, sc: 0, ig: 0, dsc: "Spoken word."},
             Solstice: {pos: 0, sc: 0, ig: 0, dsc: "Holiday seasonal."}};
-        var cfg = null;  //runtime config object
-        var curracct = null;
-        var dfltigfolds = [];  //Noisy folders that are typically not songs
-        var hubcomms = false;
-        function resetCurrentAccountRef () {
-            curracct = cfg.acctsinfo.accts.find((x) =>
-                x.dsId === cfg.acctsinfo.currid);
-            mgrs.hcu.deserializeAccount(curracct);
-            jt.log("aaa.resetCurrentAccountRef " + curracct.dsId +
-                   " settings: " + JSON.stringify(curracct.settings)); }
-    return {
-        initialize: function () {
-            app.pdat.addConfigListener("top.aaa", mgrs.aaa.setConfig); },
-        getAccount: function () { return curracct; },
-        getConfig: function () { return cfg; },
-        getAcctsInfo: function () { return cfg.acctsinfo; },
-        getDefaultKeywordDefinitions: function () { return dfltkeywords; },
-        hubCommsCompleted: function (complete) { hubcomms = complete; },
-        setConfig: function (config) {
-            cfg = config;
-            dfltigfolds = cfg.dfltigfolds || dfltigfolds;
-            mgrs.aaa.reflectDarkMode();
-            mgrs.aaa.verifyConfig(); },
-        verifyConfig: function () {
+        function logAccountInfo (src, acct) {
+            jt.log(src + " " + acct.firstname + " " + acct.dsId + " " +
+                   (acct.digname || "-") + " modified: " + acct.modified + 
+                   ", syncsince: " + (acct.syncsince || "-")); }
+        function verifyConfig (cfg) {
+            var upds = [];
             cfg = cfg || {};
             if(!cfg.acctsinfo || !Array.isArray(cfg.acctsinfo.accts)) {
-                jt.log("aaa.verifyConfig recreating cfg.acctsinfo");
+                upds.push("initialized cfg.acctsinfo");
                 cfg.acctsinfo = {currid:"", accts:[]}; }
             if(!cfg.acctsinfo.accts.find((x) => x.dsId === "101")) {
-                jt.log("aaa.verifyConfig making default account");
+                upds.push("created default account");
                 const diggerbday = "2019-10-11T00:00:00Z";
                 cfg.acctsinfo.accts.push(
                     {dsType:"DigAcc", dsId:"101", firstname:"Digger",
                      created:diggerbday, modified:diggerbday + ";1",
                      email:suppem, token:"none", kwdefs:dfltkeywords,
-                     igfolds:dfltigfolds}); }
+                     igfolds:(cfg.dfltigfolds || [])}); }
             if(!cfg.acctsinfo.currid) {
-                jt.log("aaa.verifyConfig defaulting cfg.acctsinfo.currid");
+                upds.push("defaulted cfg.acctsinfo.currid");
                 cfg.acctsinfo.currid = "101"; }
-            jt.log("aaa.verifyConfig cfg.acctsinfo.currid: " +
-                   cfg.acctsinfo.currid);
-            resetCurrentAccountRef(); },
-        reflectAccountChangeInRuntime: function (acct, token) {
-            mgrs.hcu.deserializeAccount(acct);  //verify deserialized
-            acct.hubVersion = (hubcomms? acct.hubVersion : "");
-            const changed = mgrs.hcu.accountDisplayDiff(curracct, acct);
-            token = token || curracct.token;
-            mgrs.aaa.verifyConfig();  //make sure guest account available
-            mgrs.hcu.verifyDefaultAccountFields(acct);  //fill fields as needed
-            acct.token = token;
-            mgrs.hcu.copyUpdatedAcctData(curracct, acct);  //update curract info
-            cfg.acctsinfo.currid = acct.dsId;
-            cfg.acctsinfo.accts = [acct,
-                ...cfg.acctsinfo.accts.filter((a) => a.dsId !== acct.dsId)];
-            return changed; },
+            //verify current account fields deserialized
+            const acct = mgrs.aaa.getAccount();
+            mgrs.hcu.deserializeAccount(acct);
+            logAccountInfo("aaa.verifyConfig", acct);
+            if(upds.length) {
+                jt.log("aaa.verifyConfig updates: " + upds.join(", "));
+                setTimeout(function () {
+                    jt.log("aaa.verifyConfig saving updated config");
+                    app.pdat.writeConfig("aaa.verifyConfig"); }, 50); } }
+        function setAccountTokenIfGiven (acct, token) {
+            const prevacc = app.pdat.configObj().acctsinfo.accts.find((a) =>
+                a.dsId === acct.dsId);
+            if(prevacc) {
+                token = token || prevacc.token; }
+            acct.token = token; }
+        function replaceOrAddAccount (acct, remove) {
+            const cfg = app.pdat.configObj();
+            cfg.acctsinfo.accts = cfg.acctsinfo.accts.filter(
+                (a) => a.dsId !== acct.dsId);
+            if(remove) {
+                cfg.acctsinfo.currid = "101"; }
+            else {
+                cfg.acctsinfo.currid = acct.dsId;
+                cfg.acctsinfo.accts.unshift(acct); } }
+    return {
+        initialize: function () {
+            app.pdat.addApresDataNotificationTask("checkDarkMode", function () {
+                mgrs.aaa.reflectDarkMode(mgrs.aaa.getDarkMode()); });
+            app.pdat.addConfigListener("top.aaa", verifyConfig); },
+        getDefaultAccount: function () {
+            return app.pdat.configObj().acctsinfo.accts.find((acc) =>
+                acc.dsId === "101"); },
+        getDefaultKeywordDefinitions: function () { return dfltkeywords; },
+        getAccount: function () {
+            const cfg = app.pdat.configObj();
+            return cfg.acctsinfo.accts.find((acc) =>
+                acc.dsId === cfg.acctsinfo.currid); },
+        setCurrentAccount: function (acct, token) {
+            setAccountTokenIfGiven(acct, token);
+            replaceOrAddAccount(acct);
+            logAccountInfo("aaa.setCurrentAccount", acct);
+            app.pdat.writeConfig("aaa.setCurrentAccount"); },
         updateCurrAcct: function (acct, token, contf, errf) {
-            mgrs.hcu.deserializeAccount(acct);  //verify deserialized
-            if(cfg && !cfg.acctsinfo.accts.find((a) => a.dsId === acct.dsId)) {
-                cfg.acctsinfo.accts.unshift(acct);
-                cfg.acctsinfo.currid = acct.dsId; }
-            mgrs.aaa.reflectAccountChangeInRuntime(acct, token);
+            mgrs.hcu.deserializeAccount(acct);  //verify fields deserialized
+            setAccountTokenIfGiven(acct, token);
+            replaceOrAddAccount(acct);
             app.pdat.writeConfig("top.aaa.updateCurrAcct", null,
-                function (writtenconf) {
-                    cfg = writtenconf;
-                    resetCurrentAccountRef();
+                function () {
                     mgrs.hcu.verifyClientVersion();
-                    contf(curracct); },
+                    contf(mgrs.aaa.getAccount()); },
                 errf); },
         removeAccount: function (acct, contf, errf) {
-            cfg.acctsinfo.accts = cfg.acctsinfo.accts.filter((a) =>
-                a.dsId !== acct.dsId);
-            cfg.acctsinfo.currid = "101";
+            replaceOrAddAccount(acct, "remove");
             app.pdat.writeConfig("top.aaa.removeAccount", null,
-                function (writtenconf) {
-                    cfg = writtenconf;
-                    resetCurrentAccountRef();
-                    contf(curracct); },
+                function () {
+                    contf(mgrs.aaa.getAccount()); },
                 errf); },
         notifyAccountChanged: function (context) {
+            //factored method for those acct changes that require UI updates
             if(!context || context === "keywords") {
                 mgrs.kwd.rebuildKeywords();
                 app.player.dispatch("kwd", "rebuildToggles");
@@ -1425,10 +1523,12 @@ app.top = (function () {
             if(!context || context === "igfolders") {
                 mgrs.igf.redrawIgnoreFolders(); } },
         getDarkMode: function () {  //returns either "dark" or "light"
-            return cfg.darkmode || "light"; },
+            const cfg = app.pdat.configObj();
+            if(!cfg || !cfg.darkmode) { return "light"; }
+            return cfg.darkmode; },
         getDarkModeButtonDisplayName: function () {
-            if(cfg && cfg.darkmode === "dark") {
-                return "Light"; }
+            const mode = mgrs.aaa.getDarkMode();
+            if(mode === "dark") { return "Light"; }
             return "Dark"; },
         reflectDarkMode: function (mode) {
             mode = mode || mgrs.aaa.getDarkMode();
@@ -1449,16 +1549,15 @@ app.top = (function () {
                     mode = "dark"; }
                 else {
                     mode = "light"; } }
-            cfg.darkmode = mode;
+            app.pdat.configObj().darkmode = mode;
             app.pdat.writeConfig("top.aaa.toggleDarkMode", null,
-                function (writtenconf) {
-                    cfg = writtenconf;
+                function (cfg) {
                     mgrs.aaa.reflectDarkMode(cfg.darkmode); },
                 function (code, errtxt) {
                     jt.log("toggleDarkMode writeConfig call failure " + code +
                            ": " + errtxt); }); },
         getCollectionStyle: function () {
-            var dbpt = cfg.dbPersistence;
+            var dbpt = app.pdat.configObj().dbPersistence;
             if(!dbpt) {
                 if(app.svc.plat("defaultCollectionStyle")) {
                     dbpt = app.svc.plat("defaultCollectionStyle"); }
@@ -1466,10 +1565,9 @@ app.top = (function () {
                     dbpt = "localCopy"; } }
             return dbpt; },
         setCollectionStyle: function (dbpt) {
-            cfg.dbPersistence = dbpt;
+            app.pdat.configObj().dbPersistence = dbpt;
             app.pdat.writeConfig("top.aaa.setCollectionStyle", null,
-                function (writtenconf) {
-                    cfg = writtenconf;
+                function () {
                     mgrs.lcm.displayLocalCarryInfo(); },
                 function (code, errtxt) {
                     jt.log("setCollectionStyle config write failure " + code +
@@ -2758,7 +2856,9 @@ app.top = (function () {
             initDisplay();
             app.pdat.addConfigListener("top.gen", updateDiggerNameDisplay);
             app.pdat.addApresDataNotificationTask("checkMessagesAndPrivacy",
-                                                  checkMessagesAndPrivacy); },
+                                                  checkMessagesAndPrivacy);
+            app.pdat.addApresDataNotificationTask("syncToHub",
+                                                  mgrs.srs.syncToHub); },
         togtopdlg: function (mode, cmd) {
             var dlgdiv = jt.byId(tddi);
             if(cmd === "close" || (!cmd && dlgdiv.dataset.mode === mode)) {

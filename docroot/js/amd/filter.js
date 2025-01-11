@@ -670,15 +670,13 @@ app.filter = (function () {
         //            c:N  //repeated entry count (starts at 1)
         //            m:"log message text"
         const testlogsamples = [  //samples for testing log collapse
-            {name:"droidStartupCycling", expectedLength:4,
+            {name:"droidStatusPolling", expectedLength:3,
              logEntries:[
 {t:"07:54:09", c:1, m:"svc.mp.queueCommand 263: status"},
 {t:"07:54:09", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1735840449381,\"tresp\":1735840449397,\"path\":\"\",\"state\":\"\",\"pos\":0,\"dur\":0}"},
-{t:"07:54:09", c:1, m:"scheduleTransportStateRecheck full status request"},
 {t:"07:54:09", c:1, m:"svc.mp.commandCompleted finished 263: status"},
 {t:"07:54:10", c:1, m:"svc.mp.queueCommand 264: status"},
 {t:"07:54:10", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1735840450415,\"tresp\":1735840450429,\"path\":\"\",\"state\":\"\",\"pos\":0,\"dur\":0}"},
-{t:"07:54:10", c:1, m:"scheduleTransportStateRecheck full status request"},
 {t:"07:54:10", c:1, m:"svc.mp.commandCompleted finished 264: status"}]}];
         //Polling collapse listens for a log line matching the last of the
         //given match regular expressions, then works backwards testing
@@ -692,7 +690,6 @@ app.filter = (function () {
              mrxs:[  //match regular expressions for log lines
                  {id:"request", rx:/svc.mp.queueCommand (?<callnum>\d+): (?<command>\S+)/},
                  {id:"response", rx:/uiu.reflectUpdatedStatusInfo.*"path":"(?<path>[^"]*)","state":"(?<state>[a-z]*)/},
-                 {id:"schedtype", rx:/scheduleTransportStateRecheck full status request/},
                  {id:"completion", rx:/svc.mp.commandCompleted finished (?<callnum>\d+): (?<command>\S+)/}], 
              gcvs:[  //group consistency validations
                  {fld:"callnum", linids:["request", "completion"]},
@@ -716,7 +713,7 @@ app.filter = (function () {
             ts += s;
             return ts; }
         function lrxMatch (mld, bidx, rxi, mr) {
-            const logline = buf[bidx + rxi].m
+            const logline = buf[bidx + rxi].m;
             mr[mld.id] = logline.match(mld.rx);
             return mr[mld.id]; }  //return match or null
         function lidf (mr, linid, fld) {  //convenience lineid/field acc func
@@ -778,9 +775,9 @@ app.filter = (function () {
             //return jt.log("filter.dcm leaving jt.log set to console");
             testLogCollapse();
             jt.log = logMessage;  //catch all app console output
-            window.onerror = function(msg, url, line, col, ignore /*error*/) {
-                logMessage(msg + " " + url + ":" + line + ":" + col + " " +
-                           new Error("stack trace").stack);
+            window.onerror = function(msg, url, line, col, error) {
+                logMessage(msg + " " + url + ":" + line + ":" + col);
+                logMessage(error.stack);
                 const cancelDefaultSystemErrorHandling = true;
                 return cancelDefaultSystemErrorHandling; };
             logMessage("dcm initialized"); },
