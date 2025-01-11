@@ -1442,7 +1442,6 @@ app.top = (function () {
                    ", syncsince: " + (acct.syncsince || "-")); }
         function verifyConfig (cfg) {
             var upds = [];
-            cfg = cfg || {};
             if(!cfg.acctsinfo || !Array.isArray(cfg.acctsinfo.accts)) {
                 upds.push("initialized cfg.acctsinfo");
                 cfg.acctsinfo = {currid:"", accts:[]}; }

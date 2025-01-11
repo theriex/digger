@@ -804,10 +804,18 @@ var app = (function () {
                     listener.cbf(rtdat[type].datobj); } });
             if(type === "digdat") {
                 nextApresDataTask(); } }
+        function verifyBaseObject (val) {
+            val = val || {};
+            if(typeof val !== "object") {
+                jt.log("pdat.verifyBaseObject resetting non-object val" + val);
+                val = {}; }
+            return val; }
         function setConfigAndNotify (pwsid, config) {
+            config = verifyBaseObject(config);
             rtdat.config.datobj = config;
             notifyUpdateListeners(pwsid, "config"); }
         function setDigDatAndNotify (pwsid, digdat) {
+            digdat = verifyBaseObject(digdat);
             var stat = app.top.dispatch("dbc", "verifyDatabase", digdat);
             if(!stat.verified) {  //note issue(s) and try continue
                 jt.log("setDigDatAndNotify verifyDatabase errors: " +

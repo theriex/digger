@@ -677,7 +677,15 @@ app.filter = (function () {
 {t:"07:54:09", c:1, m:"svc.mp.commandCompleted finished 263: status"},
 {t:"07:54:10", c:1, m:"svc.mp.queueCommand 264: status"},
 {t:"07:54:10", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1735840450415,\"tresp\":1735840450429,\"path\":\"\",\"state\":\"\",\"pos\":0,\"dur\":0}"},
-{t:"07:54:10", c:1, m:"svc.mp.commandCompleted finished 264: status"}]}];
+{t:"07:54:10", c:1, m:"svc.mp.commandCompleted finished 264: status"}]},
+            {name:"iosStatusPolling", expectedLength:3,
+             logEntries:[
+{t:"10:14:57", c:1, m:"callIOS:main:11:statusSync:"},
+{t:"10:14:57", c:1, m:"ios.retv:main:11:statusSync:{\"state\":\"paused\",\"pos\":24800,\"dur\":216502,\"path\":\"ipod-library://item/item.mp3?id=312101764587510434\"}"},
+{t:"10:14:57", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1736626497922,\"tresp\":1736626497940,\"path\":\"ipod-library://item/item.mp3?id=312101764587510434\",\"state\":\"paused\",\"pos\":24800,\"dur\":216502}"},
+{t:"10:15:02", c:1, m:"callIOS:main:12:statusSync:"},
+{t:"10:15:02", c:1, m:"ios.retv:main:12:statusSync:{\"state\":\"paused\",\"pos\":24800,\"dur\":216502,\"path\":\"ipod-library://item/item.mp3?id=312101764587510434\"}"},
+{t:"10:15:02", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1736626502962,\"tresp\":1736626502974,\"path\":\"ipod-library://item/item.mp3?id=312101764587510434\",\"state\":\"paused\",\"pos\":24800,\"dur\":216502}"}]}];
         //Polling collapse listens for a log line matching the last of the
         //given match regular expressions, then works backwards testing
         //previous entries against the given match expressions until it
@@ -686,7 +694,7 @@ app.filter = (function () {
         //Defs are processed and applied in declaration order.  The last
         //matching line regex is required.
         const collapsedefs = [
-            {name:"fullStatusPolling",
+            {name:"droidPlaybackStatusPolling",
              mrxs:[  //match regular expressions for log lines
                  {id:"request", rx:/svc.mp.queueCommand (?<callnum>\d+): (?<command>\S+)/},
                  {id:"response", rx:/uiu.reflectUpdatedStatusInfo.*"path":"(?<path>[^"]*)","state":"(?<state>[a-z]*)/},
@@ -694,6 +702,19 @@ app.filter = (function () {
              gcvs:[  //group consistency validations
                  {fld:"callnum", linids:["request", "completion"]},
                  {fld:"command", linids:["request", "completion"]}],
+             ccvs:[  //collapse consistency validations
+                 {linid:"response", fld:"path"},
+                 {linid:"response", fld:"state"}]},
+            {name:"iosPlaybackStatusPolling",
+             mrxs:[  //match regular expressions for log lines
+                 {id:"request", rx:/callIOS:main:(?<callnum>\d+):(?<command>\S+):/},
+                 {id:"completion", rx:/ios.retv:main:(?<callnum>\d+):(?<command>\S+):.*"state":"(?<state>[a-z]*)",.*"path":"(?<path>[^"]*)"/},
+                 {id:"response", rx:/uiu.reflectUpdatedStatusInfo.*"path":"(?<path>[^"]*)","state":"(?<state>[a-z]*)/}],
+             gcvs:[  //group consistency validations
+                 {fld:"callnum", linids:["request", "completion"]},
+                 {fld:"command", linids:["request", "completion"]},
+                 {fld:"state", linids:["completion", "response"]},
+                 {fld:"path", linids:["completion", "response"]}],
              ccvs:[  //collapse consistency validations
                  {linid:"response", fld:"path"},
                  {linid:"response", fld:"state"}]}];
