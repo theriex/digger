@@ -1491,6 +1491,7 @@ app.top = (function () {
         getDefaultKeywordDefinitions: function () { return dfltkeywords; },
         getAccount: function () {
             const cfg = app.pdat.configObj();
+            if(!cfg) { return null; }  //hub may request without pdat
             return cfg.acctsinfo.accts.find((acc) =>
                 acc.dsId === cfg.acctsinfo.currid); },
         setCurrentAccount: function (acct, token) {
