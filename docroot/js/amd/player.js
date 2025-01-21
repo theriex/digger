@@ -1219,7 +1219,7 @@ app.player = (function () {
             const tuneimg = jt.byId("tuneimg");
             if(tuneimg) {  //might have been lit up, keep what's there
                 tunesrc = tuneimg.src; }
-            if(pmso.song) {
+            if(pmso.song) {  //no longer starting up, verify default status text
                 nosongtext = "No song selected"; }
             jt.out("playertitle", jt.tac2html(
                 ["div", {cla:"songtitlediv"},
@@ -1307,11 +1307,11 @@ app.player = (function () {
         updateSongDisplay: function (callerstr) {
             jt.log("updateSongDisplay " + callerstr + " " + pmso.state + " " +
                    pmso.cto().ti + " (" + pmso.cto().path + ")");
-            mgrs.kwd.rebuildToggles();
             updateSongTitleDisplay();
             mgrs.pan.updateControl("al", pmso.song.al);
             mgrs.pan.updateControl("el", pmso.song.el);
             mgrs.rat.adjustPositionFromRating(pmso.song.rv);
+            mgrs.kwd.rebuildToggles();
             mgrs.cmt.updateIndicators(); },
         //Playback status requests go out via uiu.requestPlaybackStatus and
         //data is returned via uiu.receivePlaybackStatus.  Returned data may
@@ -1439,7 +1439,8 @@ app.player = (function () {
             //playback of each song starts.  The given pwsid must be used
             //when updating songs[0].lp and calling app.pdat.writeDigDat.
             //Subsequent song writes must NOT re-use pwsid, and may write
-            //digdat.json independently of the app UI.
+            //digdat.json independently of the app UI. First write is from
+            //UI, subsequent writes UI reacts.
             if(!songs || !songs.length) {
                 return jt.log("app.playSongQueue called without songs"); }
             songs = songs.slice(0, mgrs.slp.maxAllowedQueueLength(songs));

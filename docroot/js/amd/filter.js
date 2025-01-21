@@ -11,7 +11,7 @@ app.filter = (function () {
                      low:"Chill", high:"Amped"},
                  rat:{pn:"Minimum Rating"},
                  fq:{pn:"Frequency Eligible"},
-                 filtersReady:false};  //true after settings available
+                 filtersReady:false};  //true after controls ready for use
     var ranger = {dims:{x:0, y:0, w:160, h:120},
                   dflt:{x:50, y:62},  //pcnt values as used in account settings
                   gradient:{left:"0cd8e5", right:"faee0a"},
@@ -546,8 +546,12 @@ app.filter = (function () {
     }());
 
 
-    //Settings manager handles changes to filter settings
+    //Settings manager handles changes to filter settings.  Filter controls
+    //are ready when the UI elements are in place and the last known state
+    //has been restored.  During setup, spurious control notifications are
+    //generated that should not be passed on.
     mgrs.stg = (function () {
+        const rts = {ctrlsBeforeState:false, settingsAvailable:false};
         var tmofilt = null;
         var tmosave = null;
         function summarizeRangeControl (rc) {
@@ -564,15 +568,16 @@ app.filter = (function () {
                     .map((filt) => filt.settings());
                 app.pdat.writeDigDat("filter.stg.saveSettings"); },
                                  5000); }  //enough time to avoid disk churn
-        function digDatUpdated (/*digdat*/) {
-            if(!ctrls.filtersReady) {  //need to initialize ctrl displays
-                mgrs.stg.rebuildAllControls(); }
-            ctrls.filtersReady = true; } //settings initialized, UI ready
     return {
         initialize: function () {
-            app.pdat.addDigDatListener("filter.stg", digDatUpdated); },
-        settings: function () {
-            if(!ctrls.filtersReady) { return null; }
+            app.pdat.addApresDataNotificationTask("filter.stg", function () {
+                rts.settingsAvailable = true;
+                if(rts.ctrlsBeforeState) {  //rebuild with saved state
+                    mgrs.stg.rebuildAllControls(); } }); },
+        settings: function () {  //used by general findSetting func
+            if(!rts.settingsAvailable) {
+                rts.ctrlsBeforeState = true;
+                return null; }
             return app.pdat.uips("filter"); },
         filterValueChanged: function () {  //waits until controls stop moving
             if(!ctrls.filtersReady) { //ignore spurious startup events
@@ -604,6 +609,9 @@ app.filter = (function () {
             mgrs.rng.rebuildControls();
             mgrs.kft.rebuildControls();
             mgrs.mruc.init("ratdiv");
+            if(!ctrls.filtersReady && rts.settingsAvailable) {
+                rts.ctrlsBeforeState = false;
+                ctrls.filtersReady = true; }  //just rebuilt from settings
             if(ctrls.filtersReady) {
                 app.deck.filtersChanged("filters rebuilt"); } }
     };  //end of mgrs.stg returned functions

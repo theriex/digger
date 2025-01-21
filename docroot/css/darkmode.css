@@ -8,4 +8,4 @@ button { color:white; background:#666; }
 .invlow { filter:invert(34%); }
 .ratstarsanchordiv { height:22px; background:#666; }
 .rangesurfdiv { background:#333; }
-#pposidiv, #nowsleepingresumediv { color:#333; }
+#pposidiv, #tunefqdispdiv, #nowsleepingresumediv { color:#333; }

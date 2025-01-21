@@ -83,7 +83,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .dlgbstight button { margin:5px 10px 0px 0px; }
 .statdiv { font-size:small; }
 #toponelinestatdiv { max-height:1em; overflow:hidden; white-space:nowrap;
- position:absolute; left:15px; bottom:0px; background:#ccc; padding:0px; }
+ position:absolute; left:15px; bottom:0px; padding:0px;
+ background:#ccc; color:#333; }
 #toponelinestatdiv, #topstatdiv, #topdlgdiv { padding:0px 15px; }
 
 #carryrptdiv { font-size:small; }

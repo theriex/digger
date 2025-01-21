@@ -219,7 +219,9 @@ app.deck = (function () {
             if(!a.lp && b.lp) { return 1; } },
         findIndexByLastPlayedTimestamp: function (paths) {
             var idx;
-            if(!paths || !paths.length) { return -1; }
+            if(!paths || !paths.length) {
+                jt.log("deck.util.fIBLPT no paths given to check against");
+                return -1; }
             const mrs = Object.values(app.pdat.songsDict())
                   .sort(mgrs.util.mostRecentlyPlayedFirst);
             const fqsi = mrs.findIndex((s) => s.path === paths[0]);
@@ -227,11 +229,13 @@ app.deck = (function () {
                 jt.log("deck.util.fIBLPT first song path not in songs");
                 return -1; }
             const played = mrs.slice(0, fqsi + 1).reverse();
-            for(idx = 0; idx < played.length && idx < 6; idx += 1) {
-                jt.log(idx + " p:" + paths[idx].slice(-20) + ", m:" +
-                       played[idx].path.slice(-20)); }
+            // jt.log("deck.util.fIBLPT most recently played songs:");
+            // for(idx = 0; idx < played.length && idx < 6; idx += 1) {
+            //     jt.log("  " + idx + " p:" + paths[idx].slice(-20) + ", m:" +
+            //            played[idx].path.slice(-20)); }
             for(idx = 0; idx < played.length; idx += 1) {
                 if(played[idx].path !== paths[idx]) {
+                    jt.log("deck.util.fIBLPT playback order differs");
                     return -1; } }
             return played.length - 1; },
         displayQueuedSongs: function (mgrnm, divid, songs) {
@@ -322,6 +326,8 @@ app.deck = (function () {
             if(!(asq.idx >= 0)) {  //undefined or non-numeric value
                 asq.idx = -1; } }
         function verifyNowPlayingSong (npStatusChecked) {
+            if(app.svc.plat("audsrc") === "Browser") {  //no separate platform
+                npStatusChecked = true; }               //player callback
             const np = app.player.nowPlayingSong();
             if(np) {
                 if(np.path === asq.paths[asq.idx]) {  //still playing queue

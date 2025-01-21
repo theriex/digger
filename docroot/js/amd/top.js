@@ -333,6 +333,7 @@ app.top = (function () {
             //of sync processing than to loop retrying.
             const prefix = "top.srs.processReceivedSyncData ";
             const songs = updates.slice(1);
+            syt.down += songs.length;
             jt.log(prefix + songs.length + " songs, syncsince: " +
                    updates[0].syncsince);
             mgrs.hcu.saveSongUpdates("srs.processReceivedSyncData", songs);
