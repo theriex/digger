@@ -70,6 +70,15 @@ app.deck = (function () {
                      img:"play.png", act:"playnow"},
                     {id:"tiredskip", tt:"Note song as tired and skip",
                      img:"snooze.png", act:"snooze", x:"hst"}];
+        const csk = {m:"init"};  //"ongoing", "lastpass", "disabled"
+        function compilationSkip (sq, aq) {
+            if(csk.m === "disabled") { return false; }
+            if(!sq.length) { return false; }
+            if(sq[sq.length - 1].ab === aq[0].ab) {
+                if(csk.m === "init") { csk.m = "ongoing"; }
+                return true; }
+            csk.m = "init";  //found a different artist not on same album
+            return false; }
         function updateSelectionFilteringInfoDisplay (fcs) {
             jt.out("deckfresdiv", jt.tac2html(
                 ["table", {id:"filtsumtable"},
@@ -155,11 +164,15 @@ app.deck = (function () {
                 sba = {};
                 sas.forEach(function (sa) { sba[sa.artist] = sa.songs; }); }
             //consume sba round robin into a single queue of songs
+            csk.m = "init";  //reset compilation skipping
             while(Object.keys(sba).length > 0) {  //have artists with songs
                 Object.keys(sba).forEach(function (artist) {
-                    rsq.push(sba[artist].shift());
-                    if(!sba[artist].length) {
-                        delete sba[artist]; } }); }
+                    if(!compilationSkip(rsq, sba[artist])) {
+                        rsq.push(sba[artist].shift());
+                        if(!sba[artist].length) {
+                            delete sba[artist]; }} });
+                if(csk.m === "ongoing") { csk.m = "lastpass"; }
+                else if(csk.m === "lastpass") { csk.m = "disabled"; } }
             return rsq; },
         songIdentHTML: function (song, emptytxt) {
             var idh = [];
