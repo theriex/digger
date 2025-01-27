@@ -902,10 +902,9 @@ app.player = (function () {
                 ppb.img = "img/play.png"; }
             jt.byId("pluibimg").src = ppb.img; }
         function withinFloatTime () {
-            if(!prog.rt) { return false; }  //need a real progress tick first
-            if(Date.now() < prog.rt + prog.mf * 1000) {
-                return true; }
-            return false; }
+            if(!prog.rt || Date.now() - prog.mf * 1000 > prog.rt) {
+                return false; }  //past the max float time allowed
+            return true; }
         function nearBeginningOrEnd () {
             return ((prog.pos < prog.fb * 1000) ||
                     (prog.pos > (prog.dur - prog.fb) * 1000)); }

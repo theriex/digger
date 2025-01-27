@@ -742,9 +742,9 @@ var app = (function () {
                 pbstat.pos = 12*1000;
                 pbstat.dur = ((3*60) + 34)*1000; }
             sendPlaybackStatus(); },
-        passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
-            jt.log("app.scr.passthroughHubCall no support for dets " +
-                   JSON.stringify(dets)); },
+        passthroughHubCall: function (qname, reqnum, endpoint, verb) {
+            jt.log("app.scr.passthroughHubCall no support for " + qname +
+                   " " + reqnum + " " + verb + " " + endpoint); },
         copyToClipboard: function (txt, contf/*, errf*/) {
             jt.log("app.scr.copyToClipboard ignored " + txt);
             contf(); },
@@ -788,8 +788,8 @@ var app = (function () {
     //update notifications for configuration and song data.
     mgrs.pdat = (function () {
         const rtdat = {
-            config:{datobj:null, listeners:[]},   //~/.digger_config.json
-            digdat:{datobj:null, listeners:[]}};  //~/digdat.json
+            config:{datobj:null, qcs:[], listeners:[]},   //.digger_config.json
+            digdat:{datobj:null, qcs:[], listeners:[]}};  //digdat.json
         var adnts = [];  //apres data notification tasks
         function nextApresDataTask () {
             setTimeout(function () {
@@ -816,12 +816,18 @@ var app = (function () {
             notifyUpdateListeners(pwsid, "config"); }
         function setDigDatAndNotify (pwsid, digdat) {
             digdat = verifyBaseObject(digdat);
-            var stat = app.top.dispatch("dbc", "verifyDatabase", digdat);
+            const stat = app.top.dispatch("dbc", "verifyDatabase", digdat);
             if(!stat.verified) {  //note issue(s) and try continue
                 jt.log("setDigDatAndNotify verifyDatabase errors: " +
                        JSON.stringify(stat)); }
             rtdat.digdat.datobj = digdat;
             notifyUpdateListeners(pwsid, "digdat"); }
+        function dequeueOrFinish(fname, qdat) {
+            rtdat[qdat].phase = "ready";
+            if(rtdat[qdat].qcs.length) {
+                jt.log("pdat." + fname + " processing next in queue");
+                const qc = rtdat[qdat].qcs.shift();
+                app.pdat[fname](qc.call, qc.opt, qc.cbf, qc.errf); } }
     return {
         //persistent data access interface:
         addConfigListener: function (writesrcid, callbackf) {
@@ -829,24 +835,60 @@ var app = (function () {
         addDigDatListener: function (writesrcid, callbackf) {
             rtdat.digdat.listeners.push({pwsid:writesrcid, cbf:callbackf}); },
         writeConfig: function (callerstr, optobj, contf, errf) {
-            jt.log("pdat.writeConfig " + (callerstr || "Unknown"));
+            const lpx = "pdat.writeConfig " + (callerstr || "Unknown") + " ";
+            rtdat.config.phase = rtdat.config.phase || "ready";
+            if(rtdat.config.phase === "callbacks") {
+                const msg = "Recursive " + lpx + "call from callback";
+                jt.log(msg);
+                throw new Error(msg); }
+            if(rtdat.config.phase === "calling") {
+                rtdat.config.qcs.push({call:callerstr, opt:optobj,
+                                       cbf:contf, ef:errf});
+                return jt.log(lpx + "call queued"); }
+            rtdat.config.phase = "calling";
+            jt.log(lpx + "starting call");
             app.svc.writeConfig(rtdat.config.datobj, optobj,
                 function (writtenconf) {
+                    rtdat.config.phase = "callbacks";
+                    jt.log(lpx + "processing callback notifications");
                     if(contf) {
                         contf(writtenconf); }
-                    setConfigAndNotify(callerstr, writtenconf); },
-                (errf || function (code, errtxt) {
-                    jt.log("pdat.writeConfig " + code + ": " + errtxt); })); },
+                    setConfigAndNotify(callerstr, writtenconf);
+                    jt.log(lpx + "call completed");
+                    dequeueOrFinish("writeConfig", "config"); },
+                function (code, errtxt) {
+                    jt.log(lpx + "error " + code + ": " + errtxt);
+                    if(errf) {
+                        errf(code, errtxt); }
+                    dequeueOrFinish("writeConfig", "config"); }); },
         writeDigDat: function (callerstr, optobj, contf, errf) {
-            jt.log("pdat.writeDigDat " + (callerstr || "Unknown"));
+            const lpx = "pdat.writeDigDat " + (callerstr || "Unknown") + " ";
+            rtdat.digdat.phase = rtdat.digdat.phase || "ready";
+            if(rtdat.digdat.phase === "callbacks") {
+                const msg = "Recursive " + lpx + "call from callback";
+                jt.log(msg);
+                throw new Error(msg); }
+            if(rtdat.digdat.phase === "calling") {
+                rtdat.digdat.qcs.push({call:callerstr, opt:optobj,
+                                       cbf:contf, ef:errf});
+                return jt.log(lpx + "call queued"); }
+            rtdat.digdat.phase = "calling";
+            jt.log(lpx + "starting call");
             rtdat.digdat.datobj.awts = new Date().toISOString(); //app write ts
             app.svc.writeDigDat(rtdat.digdat.datobj, optobj,
                 function (writtendbo) {
+                    rtdat.digdat.phase = "callbacks";
+                    jt.log(lpx + "processing callback notifications");
                     if(contf) {
                         contf(writtendbo); }
-                    setDigDatAndNotify(callerstr, writtendbo); },
-                (errf || function (code, errtxt) {
-                    jt.log("pdat.writeDigDat " + code + ": " + errtxt); })); },
+                    setDigDatAndNotify(callerstr, writtendbo);
+                    jt.log(lpx + "call completed");
+                    dequeueOrFinish("writeDigDat", "digdat"); },
+                function (code, errtxt) {
+                    jt.log(lpx + "error " + code + ": " + errtxt);
+                    if(errf) {
+                        errf(code, errtxt); }
+                    dequeueOrFinish("writeDigDat", "digdat"); }); },
         //data coordination work management
         addApresDataNotificationTask: function (taskname, taskfunction) {
             adnts.push({name:taskname, tf:taskfunction}); },

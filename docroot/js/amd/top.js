@@ -335,7 +335,7 @@ app.top = (function () {
             const songs = updates.slice(1);
             syt.down += songs.length;
             jt.log(prefix + songs.length + " songs, syncsince: " +
-                   updates[0].syncsince);
+                   (updates[0].syncsince || "-"));
             mgrs.hcu.saveSongUpdates("srs.processReceivedSyncData", songs);
             mgrs.aaa.updateCurrAcct(updates[0], null,
                 function (acct) {

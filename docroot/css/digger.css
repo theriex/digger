@@ -162,10 +162,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 /****************************************/
 /* Player Panel */
 
-/* bold kanjii at 18px needs 20px containing height to not be cut off.  Matches
-   reset in player.tun.toggleTuningOpts */
+/* bold kanjii at 18px needs 20px containing height to not be cut off, but
+   english text shows 1px of wrapped text if greater than 19px. */
 #playertitle { font-size:18px; margin-bottom:1px; padding-top:4px;
-  max-height:20px; overflow:hidden; }
+  max-height:19px; overflow:hidden; }
 .dstispan { /* must be inline span for formatting flow */ }
 #playtitlebuttonsdiv { float:right; min-height:18px; margin-top:-4px; }
 #modindspan { color:#ffab00; padding-right:5px; font-weight:bold; }

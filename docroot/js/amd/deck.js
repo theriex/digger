@@ -17,10 +17,20 @@ app.deck = (function () {
             var sm = str;
             //See related appdat.py standardized_colloquial_match used for
             //equivalence matching during collaboration.
-            sm = sm.replace(/featuring.*/ig, "");
-            if(!sm.match(/\(.*part.*\)/i)) {  //not "(Part 2)" or similar
-                sm = sm.replace(/\(.*\)/g, ""); }  //ignore parenthetical
-            sm = sm.replace(/\[.*\]/g, "");  //ignore bracketed
+            //try: (I wan't a) Real Test (Part 2) featuring me [2020 remaster]
+            //Convert "(Part 1)" to "[Part 1]" to hide from parentheticals strip
+            //Need to match (Pt. 1) or "part" in whatever language.  Willing
+            //to consider someone might have "(Part 12)".
+            sm = sm.replace(/\(([^)]*\d\d?)\)/g, "[$1]");
+            //Strip all parentheticals
+            sm = sm.replace(/\([^)]*\)\s*/g, "");
+            //Convert "[Part 1]" back to "(Part 1)", or change original
+            sm = sm.replace(/\[([^\]]*\d\d?)\]/g, "($1)");
+            //Remove any text enclosed in brackets
+            sm = sm.replace(/\[[^\]]*\]/g, "");
+            //Remove any trailing "featuring whoever" statement
+            sm = sm.replace(/\sfeaturing.*/ig, "");
+            sm = sm.trim();
             if(!sm) {
                 jt.log("simplifiedMatch reduced to nothing: " + str);
                 sm = str; }
@@ -303,19 +313,17 @@ app.deck = (function () {
             redrawPlaylistDisplay();
             app.player.playSongQueue("deck.csa", songs); }
         function replaceQueueAndPlay (songs, pfsg) {
-            const np = app.player.nowPlayingSong();
-            if(pfsg) {  //start playback with provided song
+            pfsg = pfsg || app.player.nowPlayingSong();
+            if(pfsg) {  //if play first song available, verify first in queue
                 songs = songs.filter((s) => s.path !== pfsg.path);
                 songs.unshift(pfsg); }
-            else if(np) {  //include currently playing song first in queue
-                songs.unshift(np); }   //prepend currently playing
             asq.paths = songs.map((s) => s.path);
             asq.ts = new Date().toISOString();
             asq.idx = 0;
             redrawPlaylistDisplay();
             if(songs.length) {
                 app.player.playSongQueue("deck.csa", songs); } }
-        function rebuildPlaybackQueue (pfsg) {
+        function rebuildPlaybackQueueWork (pfsg) {
             var songs; var sba = {}; const sd = app.pdat.songsDict();
             songs = asq.paths.map((p) => sd[p]);  //previously queued songs
             songs = mgrs.util.filterByFilters(songs, fcs);  //rem played/invalid
@@ -330,6 +338,13 @@ app.deck = (function () {
             songs = mgrs.util.sba2queue(sba, !asq.paths.length)
                 .slice(0, app.player.playQueueMax);
             replaceQueueAndPlay(songs, pfsg); }
+        function rebuildPlaybackQueue (pfsg) {
+            //might be called in chain from csa.digDatUpdated, so wait and
+            //separate work that will need to write an updated digdat.
+            setTimeout(function () {
+                if(pfsg) {
+                    pfsg = app.pdat.songsDict()[pfsg.path]; }
+                rebuildPlaybackQueueWork(pfsg); }, 50); }
         function restoreAutoplaySelectionQueueSettings () {
             const deckset = app.pdat.uips("deck");
             deckset.asq = deckset.asq || {};
@@ -355,25 +370,32 @@ app.deck = (function () {
                     app.player.reqUpdatedPlaybackStat(function (/*stat*/) {
                         verifyNowPlayingSong(true); }); } } }
         function remainingQueuedSongsValid () {
+            var rems;  //remaining unplayed songs in queue
+            const logpre = "remainingQueuedSongsValid ";
             if(asq.idx < 0) {
-                jt.log("remainingQueuedSongsValid invalid idx: " + asq.idx);
+                jt.log(logpre + "invalid idx: " + asq.idx);
                 return false; }
             if(!asq.paths.length) {
-                jt.log("remainingQueuedSongsValid no songs in queue");
+                jt.log(logpre + "no songs in queue");
                 return false; }
+            //have at least the currently playing song left.  asq.idx may
+            //be updated before or after song.lp, so check known queue.
             const sd = app.pdat.songsDict();
-            const rems = asq.paths.slice(asq.idx + 1).map((p) => sd[p]);
+            rems = asq.paths.slice(asq.idx).map((p) => sd[p]);
+            //compare remaining queue where song.lp still available to play
+            while(rems.length && rems[0].lp > asq.ts) { rems.shift(); }
             if(!rems.length) {
-                jt.log("remainingQueuedSongsValid no songs remaining");
+                jt.log(logpre + "no unplayed songs remaining");
                 return false; }
-            const remqlen = rems.length;
             const tempfcs = fcs;   //hold previous full rebuild counts
             const frs = mgrs.util.filterByFilters(rems, fcs);
             fcs = tempfcs;  //restore previous rebuild counts
-            if(remqlen !== frs.length) {
-                jt.log("remainingQueuedSongsValid some songs invalidated");
-                return false; }
-            return true; }
+            const ivc = rems.length - frs.length;
+            if(ivc) {
+                jt.log(logpre + ivc + " queued songs no longer valid"); }
+            else {
+                jt.log(logpre + rems.length + " valid songs left in queue"); }
+            return !ivc; }
         function verifyQueuedPlayback () {
             if(!remainingQueuedSongsValid()) {
                 return rebuildPlaybackQueue(); }

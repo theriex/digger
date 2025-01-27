@@ -14,9 +14,11 @@ app.svc = (function () {
     // Server running on same computer/LAN as browser
     ////////////////////////////////////////
 
-    //local audio interface uses standard audio element
+    //local audio interface uses standard audio element.  The deck state
+    //starts with the the currently playing song.  In the implementation
+    //here, sq has only unlayed songs.
     mgrs.loa = (function () {
-        var sq = [];  //songs queued for playback
+        var sq = [];    //queue of songs not played yet
         var np = null;  //now playing song
         const ape = {  //audioplayer event tracking
             seekedt:0,      //Date.now() of last "seeked" event notification
@@ -24,6 +26,7 @@ app.svc = (function () {
             endedtmo:null}; //timeout for "ended" event notification
         function apeSeeked () { ape.seekedt = Date.now(); }
         function apeEnded () {
+            //avoid ending lots of times if throwing around the seek knob..
             if(Date.now() - ape.seekedt < ape.cooloff) {
                 jt.log("apeEnded " + (ape.seekedt? "resetting" : "setting") +
                        " timer");
@@ -31,11 +34,13 @@ app.svc = (function () {
                     clearTimeout(ape.endedtmo); }
                 ape.endedtmo = setTimeout(function () {
                     ape.endedtmo = null;
+                    ape.seekedt = 0;
                     apeEnded(); }, ape.cooloff); }
             else {
                 const player = jt.byId("playeraudio");
                 const secsrem = player.duration - player.currentTime;
                 if(secsrem * 1000 > ape.cooloff) {
+                    //wait for another notification after secsrem seconds
                     jt.log("apeEnded ignoring ended notification with " +
                            secsrem + " seconds left to play"); }
                 else {
@@ -55,9 +60,9 @@ app.svc = (function () {
                 //track, then "ended" will be triggered but playback will
                 //continue from position 0 (FF 133 MacOS 14.6.1).
                 player.pause();  //avoid any unexpected continuation
-                return jt.log("mgrs.loa.playNextSong no songs left in queue"); }
+                return jt.log("svc.loa.playNextSong no songs left in queue"); }
             np = sq.shift();
-            updateLastPlayedTimestamp(pwsid, np);
+            updateLastPlayedTimestamp(pwsid, np);  //verifies np song ref
             app.player.notifySongChanged(np, "playing");
             player.src = "/audio?path=" + jt.enc(np.path);
             //player.play returns a Promise, check result via then.
@@ -87,10 +92,11 @@ app.svc = (function () {
                 bumpPlayerLeftIfOverhang(); }); },
         playSongQueue: function (pwsid, songs) {
             if(np && np.path === songs[0].path) {  //already playing first song
-                sq = songs.slice(1);  //update queue
+                np = songs[0];  //update potentially stale reference object
+                sq = songs.slice(1);  //update queue with rest
                 updateLastPlayedTimestamp(pwsid, songs[0]); }
             else {
-                sq = songs;
+                sq = songs;   //set queue including first song to play
                 playNextSong(pwsid); } },
         requestPlaybackStatus: function () {
             setTimeout(function () {
