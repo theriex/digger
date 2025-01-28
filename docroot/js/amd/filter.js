@@ -548,8 +548,10 @@ app.filter = (function () {
 
     //Settings manager handles changes to filter settings.  Filter controls
     //are ready when the UI elements are in place and the last known state
-    //has been restored.  During setup, spurious control notifications are
-    //generated that should not be passed on.
+    //has been restored.  During setup, controls may be created before
+    //settings have been loaded (so they need to get rebuilt after settings
+    //are available), then spurious control notifications are generated that
+    //should not be passed on until the filters are all ready for use.
     mgrs.stg = (function () {
         const rts = {ctrlsBeforeState:false, settingsAvailable:false};
         var tmofilt = null;
@@ -573,6 +575,7 @@ app.filter = (function () {
             app.pdat.addApresDataNotificationTask("filter.stg", function () {
                 rts.settingsAvailable = true;
                 if(rts.ctrlsBeforeState) {  //rebuild with saved state
+                    jt.log("filter.stg ctrlsBeforeState rebuilding controls");
                     mgrs.stg.rebuildAllControls(); } }); },
         settings: function () {  //used by general findSetting func
             if(!rts.settingsAvailable) {

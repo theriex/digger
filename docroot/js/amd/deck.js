@@ -317,6 +317,7 @@ app.deck = (function () {
             pfsg = pfsg || app.player.nowPlayingSong();
             if(pfsg) {  //if play first song available, verify first in queue
                 songs = songs.filter((s) => s.path !== pfsg.path);
+                pfsg = app.pdat.songsDict()[pfsg.path];  //verify ref
                 songs.unshift(pfsg); }
             asq.paths = songs.map((s) => s.path);
             asq.ts = new Date().toISOString();
@@ -444,7 +445,8 @@ app.deck = (function () {
         playGivenSong: function (song) {
             rebuildPlaybackQueue(song); },
         filtersChanged: function () {
-            rebuildPlaybackQueue(); },
+            if(mgrs.gen.getSongSeqMgrName() === "csa") {
+                rebuildPlaybackQueue(); } },
         songByIndex: function (idx) {  //index of song in visible queue
             //asq[idx] references now playing song. +1 is first song in queue
             const pathidx = asq.idx + 1 + idx;
