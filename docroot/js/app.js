@@ -268,7 +268,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=250115"); }
+                              mgrs.boot.initAppModules, "?v=250123"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -728,7 +728,9 @@ var app = (function () {
         playSongQueue: function (ignore /*pwsid*/, sq) {
             pbi.sq = sq;
             pbi.idx = 0;
-            pbi.sq[0].lp = new Date().toISOString();
+            const np = app.pdat.songsDict()[pbi.sq[0].path];
+            np.lp = new Date().toISOString();
+            np.pd = "played";
             setTimeout(function () {  //let play call go, then tick
                 //use the main messaging utility for call sequencing.
                 app.player.dispatch("uiu", "requestPlaybackStatus", "scr.play",
@@ -953,7 +955,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=250115";  //updated as part of release process
+        return "v=250123";  //updated as part of release process
     }
 };  //end returned functions
 }());

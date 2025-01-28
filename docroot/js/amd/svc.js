@@ -46,11 +46,12 @@ app.svc = (function () {
                 else {
                     jt.log("apeEnded calling playNextSong");
                     playNextSong("app.svc.audio.ended"); } } }
-        function updateLastPlayedTimestamp (pwsid, song) {
-            song = app.pdat.songsDict()[song.path];  //get current reference
+        function updateLpPcPdAndWrite (pwsid, song) {
+            //caller passes latest persistent song referencre
             song.lp = new Date().toISOString();
             song.pc = song.pc || 0;
             song.pc += 1;
+            song.pd = "played";
             app.pdat.writeDigDat(pwsid || "svc.loa.playNextSong"); }
         function playNextSong (pwsid) {
             const player = jt.byId("playeraudio");
@@ -62,7 +63,8 @@ app.svc = (function () {
                 player.pause();  //avoid any unexpected continuation
                 return jt.log("svc.loa.playNextSong no songs left in queue"); }
             np = sq.shift();
-            updateLastPlayedTimestamp(pwsid, np);  //verifies np song ref
+            np = app.pdat.songsDict()[np.path];
+            updateLpPcPdAndWrite(pwsid, np);
             app.player.notifySongChanged(np, "playing");
             player.src = "/audio?path=" + jt.enc(np.path);
             //player.play returns a Promise, check result via then.
@@ -92,9 +94,9 @@ app.svc = (function () {
                 bumpPlayerLeftIfOverhang(); }); },
         playSongQueue: function (pwsid, songs) {
             if(np && np.path === songs[0].path) {  //already playing first song
-                np = songs[0];  //update potentially stale reference object
+                np = app.pdat.songsDict()[songs[0].path];
                 sq = songs.slice(1);  //update queue with rest
-                updateLastPlayedTimestamp(pwsid, songs[0]); }
+                updateLpPcPdAndWrite(pwsid, np); }
             else {
                 sq = songs;   //set queue including first song to play
                 playNextSong(pwsid); } },

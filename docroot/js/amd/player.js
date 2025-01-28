@@ -56,7 +56,7 @@ app.player = (function () {
         initialize: function () {
             app.pdat.addDigDatListener("player.scm", digDatUpdated); },
         changeCurrentlyPlayingSong: function (song, state) {
-            pmso.song = song;
+            pmso.song = app.pdat.songsDict()[song.path];
             pmso.state = state || "";
             mgrs.uiu.updateSongDisplay("scm.changeCurrentlyPlayingSong");
             mgrs.slp.notePlayerStateChange();
@@ -1377,10 +1377,10 @@ app.player = (function () {
             //the UI needs to update to avoid lag and old data.
             const cs = pmso.song;         //save current values
             const st = pmso.state;
-            pmso.song = song;             //change to what they will be
+            pmso.song = song;             //temp change to what should display
             pmso.state = state;
             mgrs.uiu.updateSongDisplay("previewSongDisplay");
-            pmso.song = cs;               //reset current values
+            pmso.song = cs;               //restore state
             pmso.state = st;
             //update stale and expecting for status message tracking
             pmso.stale = null;
@@ -1483,6 +1483,7 @@ app.player = (function () {
                 if(pmso.skiptime && ((st - pmso.skiptime) < wms)) {
                     return; }  //debounce UI ignore call
                 pmso.skiptime = st;
+                pmso.song = app.pdat.songsDict()[pmso.song.path];
                 mgrs.cmt.bumpCurrentIfTired();  //bump fq value if tired
                 pmso.song.pd = "skipped";
                 mgrs.uiu.illuminateAndFade("nextsongdiv", wms); }

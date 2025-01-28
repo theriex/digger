@@ -200,7 +200,8 @@ app.deck = (function () {
         execQSO: function (action, mgrnm, idx) {
             //options overlay already cleared from event percolation..
             //mgrs.util.togQSOpts(mgrnm, idx);  //remove actions overlay
-            const song = mgrs[mgrnm].songByIndex(idx);
+            const ds = mgrs[mgrnm].songByIndex(idx);
+            const song = app.pdat.songsDict()[ds.path];
             switch(action) {
             case "playnow":   //either from csa or hst display
                 mgrs.csa.playGivenSong(song);
