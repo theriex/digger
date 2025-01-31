@@ -4,9 +4,10 @@
 app.player = (function () {
     "use strict";
 
-    var pmso = {  //player module state object  (not persistent)
+    var pmso = {  //player module state object  (runtime only, not persistent)
         state:"",     //"playing", "paused", "ended"
         song:null,    //currently playing song object
+        drsm:"",      //data receive state mode
         mrscnts:""};  //most recent song change notice timestamp
     var ctrls = {};   //module level container for UI control elements
     const mgrs = {};  //general container for managers
@@ -940,6 +941,8 @@ app.player = (function () {
                 //rather than pbco to avoid collisions and common errors.
                 prog.tmo = setTimeout(function () {
                     clearTicker();
+                    //no separate cbf for request, playback state updated
+                    //by reflectUpdatedStatusInfo
                     mgrs.uiu.requestPlaybackStatus("plui.stateCheck"); },
                                       1000); } } //one second is one tick
     return {
@@ -1243,20 +1246,37 @@ app.player = (function () {
             mgrs.plui.updateTransportControls(pbsh);
             mgrs.slp.notePlayerStateChange(); }
         function reflectUpdatedStatusInfo (pbsh) {
-            jt.log("uiu.reflectUpdatedStatusInfo " + JSON.stringify(pbsh));
+            const logpre = "uiu.reflectUpdatedStatusInfo ";
+            jt.log(logpre + "pbsh: " + JSON.stringify(pbsh));
+            if(!app.pdat.dbObj()) {
+                pmso.drsm = "predat";  //pre-data
+                pbsh.path = "";   //meaningless at this point since no lookup
+                noteUpdatedSongStatus(pbsh);
+                return; }
+            if(!pbsh.path || !app.pdat.songsDict()[pbsh.path]) {
+                pmso.drsm = "unkmed";  //unknown media
+                pbsh.path = "";   //path not helpful if not in digdat
+                noteUpdatedSongStatus(pbsh);
+                return; }
+            if(!pmso.song) {  //runtime data is up to date but not playing
+                pmso.drsm = "fndply";  //found playing song
+                jt.log(logpre + "pmso.song initialized from playback status");
+                noteUpdatedSongStatus(pbsh);  //sets pmso.song to latest ref
+                mgrs.gen.notifySongChanged(pmso.song, pbsh.state);
+                return; }
+            pmso.drsm = "normal";
             //If pmso.song is null, or pmso.song.path === pbsh.path, then
-            //digdat is up to date.  Otherwise digdat may be stale and must
-            //be reloaded to ensure the latest song.lp values are available.
-            //Meanwhile the UI needs updating, even if it is temporarily
-            //working with stale digdat data.
+            //digdat is up to date relative to the runtime.  Otherwise
+            //digdat may be stale and must be reloaded to get the latest
+            //song.lp values.  Meanwhile the UI needs updating, even if it
+            //is temporarily working with stale digdat data.
             if(pmso.song && pbsh.path && pmso.song.path !== pbsh.path) {
-                jt.log("reflectUpdatedStatusInfo song has changed");
-                if(app.pdat.dbObj()) {
-                    noteUpdatedSongStatus(pbsh);
-                    mgrs.gen.notifySongChanged(app.pdat.songsDict()[pbsh.path],
-                                               pbsh.state); }
+                jt.log(logpre + "pmso.song has changed");
+                noteUpdatedSongStatus(pbsh);
+                mgrs.gen.notifySongChanged(app.pdat.songsDict()[pbsh.path],
+                                           pbsh.state);
                 app.pdat.reloadDigDat(); }  //async
-            else {
+            else {  //update currently playing song
                 noteUpdatedSongStatus(pbsh); } }
         function corruptedStatusData (status) {
             //playback queue finished: status path:"", state:"ended".
@@ -1304,8 +1324,8 @@ app.player = (function () {
                     elem.classList.remove("bgtransitionfade"); }, ms + 750); },
                        100); },
         updateSongDisplay: function (callerstr) {
-            jt.log("updateSongDisplay " + callerstr + " " + pmso.state + " " +
-                   pmso.cto().ti + " (" + pmso.cto().path + ")");
+            jt.log("uiu.updateSongDisplay " + callerstr + " " + pmso.state +
+                   " " + pmso.cto().ti + " (" + pmso.cto().path + ")");
             updateSongTitleDisplay();
             mgrs.pan.updateControl("al", pmso.song.al);
             mgrs.pan.updateControl("el", pmso.song.el);
@@ -1470,7 +1490,9 @@ app.player = (function () {
                 mgrs.uiu.updateSongDisplay("gen.notifySongChanged");
                 pmso.state = state;  //notification provides latest state
                 mgrs.slp.notePlayerStateChange();
-                return jt.log("notifySongChanged ignoring non-change call"); }
+                if(pmso.drsm !== "fndply") {  //not initializing
+                    jt.log("notifySongChanged ignoring non-change call");
+                    return; } }
             mgrs.scm.changeCurrentlyPlayingSong(song, state); },
         skip: function (rapidok) {
             if(!pmso.song) { return jt.log("No skip if no song"); }

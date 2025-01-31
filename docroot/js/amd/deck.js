@@ -447,6 +447,11 @@ app.deck = (function () {
         filtersChanged: function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
                 rebuildPlaybackQueue(); } },
+        isCurrentOrNextSong: function (song) {
+            function test (i) {
+                return (i >= 0 && i < asq.paths.length && song &&
+                        song.path === asq.paths[i]); }
+            return (test(asq.idx) || test(asq.idx + 1)); },
         songByIndex: function (idx) {  //index of song in visible queue
             //asq[idx] references now playing song. +1 is first song in queue
             const pathidx = asq.idx + 1 + idx;
@@ -573,7 +578,7 @@ app.deck = (function () {
 
     //Album manager handles album display and playback.
     mgrs.alb = (function () {
-        var apq = {paths:[], ts:"", idx:-1};  //album playback queue
+        var apq = null;  //initialized from deckset.apq
         function makeAlbumSongDiv (song, idx, npi) {
             if(idx === npi) {  //index is the now playing song index
                 return [["img", {src:"img/arrow12right.png",
@@ -1018,7 +1023,14 @@ app.deck = (function () {
             if(!displayOnly) {
                 mgrs[mgrname].activateDisplay(); } },  //setSongSeqMgrName
         currentlyPlayingSongChanged: function () {
-            mgrs[songSeqMgrName].activateDisplay(); },
+            const song = app.player.nowPlayingSong();
+            jt.log("deck.currentlyPlayingSongChanged to " +
+                   (song? song.ti : "nothing"));
+            if(songSeqMgrName === "csa" && mgrs.csa.isCurrentOrNextSong(song)) {
+                mgrs.csa.activateDisplay(); }
+            else {  //prefer to start from album if external control selection
+                songSeqMgrName = "reset";  //force rebuild since external change
+                mgrs.alb.activateDisplay(); } },
         playNextSong: function () {
             mgrs[songSeqMgrName].playNextSong(); },
         replayQueue: function () {

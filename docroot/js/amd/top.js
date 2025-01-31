@@ -250,7 +250,8 @@ app.top = (function () {
                 jt.log("syncToHub " + code + ": " + errtxt);
                 jt.log("handleSyncError not retrying automatically"); } },
         syncToHub: function (context) {
-            if(!app.util.haveHubCredentials()) { return; }
+            if(!app.util.haveHubCredentials()) {
+                return jt.log("top.srs.syncToHub quit, no hub credentials."); }
             if(context === "cancel" && syt.tmo) {
                 clearTimeout(syt.tmo);
                 syt.tmo = null;
