@@ -673,7 +673,10 @@ app.filter = (function () {
     }());
 
 
-    //Digger console message manager handles app log messages.
+    //Digger console message manager handles app log messages.  The log is
+    //kept in chronological order but displayed in reverse time order to
+    //show the most likely useful information first, and to optimize what
+    //is available if the display gets truncated (2025 iOS Safari).
     mgrs.dcm = (function () {
         const bufmax = 400;  //keep at most this many lines in the log
         const buf = [];      //log entry lines
@@ -818,12 +821,12 @@ app.filter = (function () {
                 "\n\n\n\n----------------------------------------\n\nDigger " +
                 app.safeAppVersion() +
                 " excerpt of console log:\n\n" +
-                buf.map((ln) =>
+                buf.slice().reverse().map((ln) =>
                     ln.t + " " + (ln.c? " (" + ln.c + ") " : "") + ln.m)
                 .join("\n\n");
             return txt; },
         copyToClipboard: function () {
-            app.svc.copyToClipboard(buf.map((ln) =>
+            app.svc.copyToClipboard(buf.slice().reverse().map((ln) =>
                     ln.t + " " + (ln.c? " (" + ln.c + ") " : "") + ln.m)
                     .join("\n"),
                 function () {
@@ -843,7 +846,7 @@ app.filter = (function () {
                                 onclick:mdfs("dcm.copyToClipboard")},
                      "Copy Log To Clipboard"]]],
                   ["div", {id:"logdispcontdiv"},
-                   buf.map((ln) =>
+                   buf.slice().reverse().map((ln) =>
                        ["div", {cla:"logdisplinediv"},
                         [["span", {cla:"logdisplinetspan"}, ln.t],
                          ["span", {cla:"logdisplinecspan"},
