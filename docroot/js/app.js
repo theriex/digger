@@ -6,6 +6,8 @@ var app = (function () {
     "use strict";
 
     var mgrs = {};   //app implementation support modules
+    const semnd = {supnm: "sup2", domain: "diggerhub.com"};
+
 
     //docs manager handles documentation display support
     mgrs.docs = (function () {
@@ -87,7 +89,7 @@ var app = (function () {
                 app.docs.docStaticContent(divid, body);
                 docDynamicContent(); }); },
         subPlaceholders: function (divid, extlnk, body) {
-            const dom = "diggerhub.com";
+            const dom = semnd.domain;
             const bot = "@" + dom;
             const docpre = "https://" + dom + "/docs/";
             const repls = [
@@ -101,15 +103,15 @@ var app = (function () {
                  url:"https://github.com/theriex/digger"},
                 {plc:"ISSUESONGITHUB", txt:"issues on GitHub",
                  url:"https://github.com/theriex/digger/issues"},
-                {plc:"SUPPEMAIL", txt:"support" + bot,
-                 url:"mailto:support" + bot},
+                {plc:"SUPPEMAIL", txt:semnd.supnm + bot,
+                 url:"mailto:" + semnd.supnm + bot},
                 {plc:"EPINOVA", txt:"epinova.com", url:"https://epinova.com"},
                 {plc:"APPLOG", txt:"Digger App Log", aa: {
                     href:"#showlog", title:"Show Digger app exec log",
                     onclick:jt.fs("app.filter.showLog('" + app.overlaydiv +
                                   "')")}},
                 {plc:"SENDLOGSUPPLINK", txt:"Send it to support",
-                 url:"mailto:support" + bot + "?subject=" +
+                 url:"mailto:" + semnd.supnm + bot + "?subject=" +
                  jt.dquotenc("Problem running Digger") + "&body=" +
                  jt.dquotenc(app.filter.dispatch("dcm", "emFormat")) +
                  "%0A%0A"}];
@@ -268,7 +270,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=250201"); }
+                              mgrs.boot.initAppModules, "?v=250203"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -420,20 +422,19 @@ var app = (function () {
         //               {"tp": "fqb", "v": "on"}],
         //     "waitcodedays": {"B": 90, "Z": 180, "O": 365}};
         const dfltacct = {
-            "dsType": "DigAcc", "dsId": "101", "firstname": "Digger",
-            "created": "2019-10-11T00:00:00Z",
-            "modified": "2019-10-11T00:00:00Z;1",
-            "email": "support@diggerhub.com", "token": "none",
-            "hubdat": "",
-            "kwdefs": kwdefs,
-            "igfolds": ["Ableton","Audiffex","Audio Music Apps"],
+            dsType:"DigAcc", dsId:"101", firstname:"Digger",
+            created:"2019-10-11T00:00:00Z",
+            modified:"2019-10-11T00:00:00Z;1",
+            email:(semnd.supnm + "@" + semnd.domain), token:"none",
+            hubdat:"", "kwdefs": kwdefs,
+            igfolds:["Ableton","Audiffex","Audio Music Apps"],
             //"settings": "";
-            "musfs": ""};
+            musfs:""};
         // const demoacct = {
         //     "dsType":"DigAcc", "dsId":"1234",
         //     "created":"2021-01-26T17:21:11Z",
         //     "modified":"2023-02-13T22:58:45Z;13139", "batchconv":"",
-        //     "email":"demo@diggerhub.com", "token":"faketokentoshowsignedin",
+        //     "email":"demo@example.com", "token":"faketokentoshowsignedin",
         //     "hubdat":"{\"privaccept\": \"2022-06-11T14:11:14.284Z\"}",
         //     "status":"Active", "firstname":"Demo", "digname":"Demo",
         //     "kwdefs": kwdefs,
@@ -944,6 +945,8 @@ var app = (function () {
 
 return {
     overlaydiv: "appoverlaydiv",
+    supnm: semnd.supnm,
+    domain: semnd.domain,
     spacebarhookfunc: null,
     docs: mgrs.docs,
     boot: mgrs.boot,
@@ -955,7 +958,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=250201";  //updated as part of release process
+        return "v=250203";  //updated as part of release process
     }
 };  //end returned functions
 }());

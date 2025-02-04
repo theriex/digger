@@ -5,8 +5,6 @@
 app.top = (function () {
     "use strict";
 
-    const hubdom = "diggerhub.com";
-    const suppem = "support@" + hubdom;
     var tddi = "topdlgdiv";  //default to app div used for display
     var inapp = true;  //unset for standalone account access from web
     var mgrs = {};  //general container for managers 
@@ -1453,8 +1451,8 @@ app.top = (function () {
                 cfg.acctsinfo.accts.push(
                     {dsType:"DigAcc", dsId:"101", firstname:"Digger",
                      created:diggerbday, modified:diggerbday + ";1",
-                     email:suppem, token:"none", kwdefs:dfltkeywords,
-                     igfolds:(cfg.dfltigfolds || [])}); }
+                     email:(app.supnm + "@" + app.domain), token:"none",
+                     kwdefs:dfltkeywords, igfolds:(cfg.dfltigfolds || [])}); }
             if(!cfg.acctsinfo.currid) {
                 upds.push("defaulted cfg.acctsinfo.currid");
                 cfg.acctsinfo.currid = "101"; }
