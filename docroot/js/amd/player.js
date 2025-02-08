@@ -1454,15 +1454,17 @@ app.player = (function () {
             //of the first song.  If the first song is already playing,
             //platform implementations should preserve play/pause state and
             //current playback position, avoiding any audio interruption.
-            //Song.lp *must* be updated (and saved in digdat.json) as
+            //Song.lp *must* be updated (and saved to digdat.json) as
             //playback of each song starts.  The given pwsid must be used
             //when updating songs[0].lp and calling app.pdat.writeDigDat.
             //Subsequent song writes must NOT re-use pwsid, and may write
-            //digdat.json independently of the app UI. First write is from
-            //UI, subsequent writes UI reacts.
+            //digdat.json independently of the app UI. In other words, first
+            //write is from UI, subsequent writes the UI reacts to.
             if(!songs || !songs.length) {
                 return jt.log("app.playSongQueue called without songs"); }
             songs = songs.slice(0, mgrs.slp.maxAllowedQueueLength(songs));
+            jt.log("app.playSongQueue " + songs.length + " songs[0].ti: " +
+                   jt.ellipsis(songs[0].ti, 30));
             previewSongDisplay(songs[0], "playing");
             setTimeout(function () {  //let UI update before calling svc
                 app.svc.playSongQueue(pwsid, songs); },  //may check pmso.song

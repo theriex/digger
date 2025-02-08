@@ -902,19 +902,24 @@ var app = (function () {
             //svc is responsible for returning up-to-date config and digdat
             //data, including updated song.lp values if available.
             setTimeout(function () {  //finish intitialization call stack
+                const logpre = "pdat.svcModuleInitialized ";
+                jt.log(logpre + "calling readConfig");
                 app.svc.readConfig(  //load config first
                     function (config) {
+                        jt.log(logpre + "calling setConfigAndNotify");
                         setConfigAndNotify("svcinit", config);
+                        jt.log(logpre + "config done, calling readDigDat");
                         app.svc.readDigDat(  //load digdat after config avail
                             function (digdat) {
+                                jt.log(logpre + "calling setDigDatAndNotify");
                                 setDigDatAndNotify("svcinit", digdat);
-                                jt.log("pdat.svcModuleInitialized complete"); },
+                                jt.log(logpre + "complete"); },
                             function (code, errtxt) {
-                                jt.err("pdat.svcModuleInitialized readDigDat " +
-                                       code + ": " + errtxt); }); },
+                                jt.err(logpre + "readDigDat error" + code +
+                                       ": " + errtxt); }); },
                     function (code, errtxt) {
-                        jt.err("svcModuleInitialized readConfig " +
-                               code + ": " + errtxt); }); }, 50); },
+                        jt.err(logpre + "readConfig error " + code + ": " +
+                               errtxt); }); }, 50); },
         reloadDigDat: function () {
             jt.log("pdat.reloadDigDat setting timeout");
             setTimeout(function () {
