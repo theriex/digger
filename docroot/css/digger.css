@@ -162,10 +162,12 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 /****************************************/
 /* Player Panel */
 
-/* bold kanjii at 18px needs 20px containing height to not be cut off, but
-   english text shows 1px of wrapped text if greater than 19px. */
+/* Bold kanjii at 18px needs 20px containing height to not get cut off.
+   Normal english without baseline dip letters like 'g', 'y' etc will
+   show 1px of top of next wrapped line if just max-height:20px, so need
+   line-height to not see wrap. */
 #playertitle { font-size:18px; margin-bottom:1px; padding-top:4px;
-  max-height:19px; overflow:hidden; }
+  max-height:20px; line-height:20px; overflow:hidden; }
 .dstispan { /* must be inline span for formatting flow */ }
 #playtitlebuttonsdiv { float:right; min-height:18px; margin-top:-4px; }
 #modindspan { color:#ffab00; padding-right:5px; font-weight:bold; }

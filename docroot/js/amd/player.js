@@ -907,7 +907,7 @@ app.player = (function () {
             //Can be helpful to see "float tick" or "full status request"
             //log messages, but hard to collapse repetitive polling messages
             //in filter.dcm so not active.
-            jt.log("scheduleTransportStateRecheck " + txt);
+            //jt.log("scheduleTransportStateRecheck " + txt);
             return false; }
         function clearTicker (requireFullStatus) {
             if(prog.tmo) {  //clear previously scheduled tick in case active
