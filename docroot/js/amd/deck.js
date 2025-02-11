@@ -298,13 +298,13 @@ app.deck = (function () {
                     ad[s.ar].mrp = s.lp; } });
             lras = Object.values(ad).sort((a, b) =>
                 a.mrp.localeCompare(b.mrp));
-            function debuglogado (idx) {
-                jt.log("  lras[" + idx + "] " + lras[idx].mrp + " " +
-                       lras[idx].ar); }
-            if(!lras.length) { jt.log("aqb: No artists"); }
-            if(lras.length) { debuglogado(0); }
-            if(lras.length > 1) { debuglogado(1); }
-            if(lras.length > 2) { debuglogado(lras.length - 1); }
+            // function debuglogado (idx) {
+            //     jt.log("  lras[" + idx + "] " + lras[idx].mrp + " " +
+            //            lras[idx].ar); }
+            // if(!lras.length) { jt.log("aqb: No artists"); }
+            // if(lras.length) { debuglogado(0); }
+            // if(lras.length > 1) { debuglogado(1); }
+            // if(lras.length > 2) { debuglogado(lras.length - 1); }
             lras = lras.map((apo) => apo.ar); }
         function distributeLRPSongsAcrossArtists () {
             const ad = {};
@@ -313,13 +313,13 @@ app.deck = (function () {
             apls.forEach(function (s) {
                 ad[s.ar].songs.push(s); });
             sbas = lras.map((artist) => ad[artist]);
-            function dlogarttl (idx) {
-                jt.log("  sbas[" + idx + "] " + sbas[idx].songs.length +
-                       " " + sbas[idx].ar); }
-            if(!sbas.length) { jt.log("aqb: No song distribution"); }
-            if(sbas.length) { dlogarttl(0); }
-            if(sbas.length > 1) { dlogarttl(1); }
-            if(sbas.length > 2) { dlogarttl(sbas.length - 1); }
+            // function dlogarttl (idx) {
+            //     jt.log("  sbas[" + idx + "] " + sbas[idx].songs.length +
+            //            " " + sbas[idx].ar); }
+            // if(!sbas.length) { jt.log("aqb: No song distribution"); }
+            // if(sbas.length) { dlogarttl(0); }
+            // if(sbas.length > 1) { dlogarttl(1); }
+            // if(sbas.length > 2) { dlogarttl(sbas.length - 1); }
             jt.log(apls.length + " songs distributed across " + sbas.length +
                    " artists"); }
         function unwindDistributedSongsIntoQueue () {
@@ -390,7 +390,11 @@ app.deck = (function () {
             redrawPlaylistDisplay();
             if(songs.length) {
                 app.player.playSongQueue("deck.csa", songs); } }
-        function rebuildPlaybackQueue (pfsg) {  //optional play first song
+        function rebuildPlaybackQueue (pfsg) {
+            //A play first song is specified if choosing a song from search,
+            //otherwise try keep the currently playing song, or rebuild from
+            //scratch and play the first queued song.
+            pfsg = pfsg || app.player.nowPlayingSong();
             //Calls may be in response to digdat being updated, so yield
             //to notice processing before rebuilding.
             setTimeout(function () {
@@ -539,7 +543,7 @@ app.deck = (function () {
                 verifyQueuedPlayback(); }
             else {  //sequence manager has changed, need to take control
                 mgrs.gen.setSongSeqMgrName("csa", "csa.activateDisplay");
-                rebuildPlaybackQueue(app.player.nowPlayingSong()); } }
+                rebuildPlaybackQueue(); } }
     };  //end mgrs.csa returned functions
     }());
 
@@ -956,7 +960,9 @@ app.deck = (function () {
                    " songs. " + JSON.stringify(stats.pdc));
             pps = pps.sort(function (a, b) {
                 return b.lp.localeCompare(a.lp); })
-                .slice(0, 100); }
+                .slice(0, 100);
+            if(jt.byId("deckhistorydiv").style.display === "block") {
+                mgrs.hst.verifyDisplayContent(); } }
     return {
         initialize: function () {
             app.pdat.addDigDatListener("deck.hst", songDataUpdated); },

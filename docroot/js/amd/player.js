@@ -23,12 +23,13 @@ app.player = (function () {
     //Control movements can trigger a lot of changes in rapid succession so
     //updates are queued, and multiple pending updates from the same calling
     //source are collapsed to write only the most recent.  The result is a
-    //keywords activation gets written immediately, and adjusting a knob
+    //keyword activation gets written immediately, and fine tuning a knob
     //position won't overload peristence processing even if it causes
     //numerous writeDigDat calls.
     mgrs.scm = (function () {
         function digDatUpdated (digdat) {
-            if(pmso.song && digdat.awts >= pmso.mrscnts) {
+            //app write timestamp >= most recent song change notice timestamp
+            if(!pmso.expecting && pmso.song && digdat.awts >= pmso.mrscnts) {
                 pmso.song = digdat.songs[pmso.song.path];
                 if(!pmso.smq || !pmso.smq.length) {  //no pending updates
                     mgrs.uiu.updateSongDisplay("digDatUpdated"); } } }
@@ -902,41 +903,50 @@ app.player = (function () {
             else { //"paused", "ended", ""
                 ppb.img = "img/play.png"; }
             jt.byId("pluibimg").src = ppb.img; }
-        function withinFloatTime () {
-            if(!prog.rt || Date.now() - prog.mf * 1000 > prog.rt) {
-                return false; }  //past the max float time allowed
-            return true; }
-        function nearBeginningOrEnd () {
-            return ((prog.pos < prog.fb * 1000) ||
-                    (prog.pos > (prog.dur - prog.fb) * 1000)); }
+        function logScheduling (txt) {
+            //Can be helpful to see "float tick" or "full status request"
+            //log messages, but hard to collapse repetitive polling messages
+            //in filter.dcm so not active.
+            jt.log("scheduleTransportStateRecheck " + txt);
+            return false; }
         function clearTicker (requireFullStatus) {
             if(prog.tmo) {  //clear previously scheduled tick in case active
                 clearTimeout(prog.ticker); }
             prog.tmo = null;  //for debugging state clarity
             if(requireFullStatus) {
                 prog.rt = 0; } } //disable floating tick
-        function logScheduling (/*txt*/) {
-            //Can be helpful to see "float tick" or "full status request"
-            //log messages, but hard to collapse repetitive polling messages
-            //in filter.dcm so not active.
-            //jt.log("scheduleTransportStateRecheck " + txt);
-            return; }
         function scheduleTransportStateRecheck () {
-            if(prog.tmo) { return; }  //wait for existing timed tick
-            clearTicker();
-            if(prog.mode !== "active") {
-                logScheduling("mode " + prog.mode);
-                return; }
-            if(withinFloatTime() && !nearBeginningOrEnd()) {
-                logScheduling("float tick");
-                prog.tmo = setTimeout(function () {  //UI only float call
-                    clearTicker();
-                    if(ppb.st === "playing") {
-                        prog.pos += 1000; } //move forward one tick
-                    updatePosIndicator();
-                    scheduleTransportStateRecheck(); }, 1000); }
-            else {
-                logScheduling("full status request");
+            const stsr = {};  //condition testing blackboard
+            const now = Date.now();
+            if(prog.tmo) {
+                stsr.dispo = "Already waiting for tick"; }
+            if(!stsr.dispo) {
+                clearTicker();
+                if(prog.mode !== "active") {
+                    stsr.dispo = "Not active. mode: " + prog.mode; } }
+            if(!stsr.dispo) {
+                if(!prog.rt) {
+                    stsr.nofloat = "No previous real status receive ts"; }
+                else if(now - prog.rt > prog.fb * 1000) {
+                    stsr.nofloat = "Call lag exceeded float border amount"; }
+                else if(ppb.st !== "playing" && ppb.st !== "paused") {
+                    stsr.nofloat = "Not playing or paused. ppb.st: " + ppb.st; }
+                else if(now - (prog.mf * 1000) > prog.rt) {
+                    stsr.nofloat = "Over max allowed float"; }
+                else if(prog.pos < prog.fb * 1000) {
+                    stsr.nofloat = "Within " + prog.fb + " secs of beginning"; }
+                else if(prog.pos > (prog.dur - prog.fb) * 1000) {
+                    stsr.nofloat = "Within " + prog.fb + " secs of end"; }
+                if(!stsr.nofloat) {
+                    stsr.dispo = "Float tick to minimize plat resource use";
+                    prog.tmo = setTimeout(function () {  //UI only float call
+                        clearTicker();
+                        if(ppb.st === "playing") {
+                            prog.pos += 1000; } //move forward one tick
+                        updatePosIndicator();
+                        scheduleTransportStateRecheck(); }, 1000); } }
+            if(!stsr.dispo) {
+                stsr.dispo = "Full status request";
                 //need to call for hard status return. Use common util
                 //rather than pbco to avoid collisions and common errors.
                 prog.tmo = setTimeout(function () {
@@ -944,7 +954,8 @@ app.player = (function () {
                     //no separate cbf for request, playback state updated
                     //by reflectUpdatedStatusInfo
                     mgrs.uiu.requestPlaybackStatus("plui.stateCheck"); },
-                                      1000); } } //one second is one tick
+                                      1000); }  //one second is one tick
+            logScheduling(JSON.stringify(stsr)); }
     return {
         initInterface: function (playbackControlObject, maxFloatSeconds) {
             if(!jt.byId("audiodiv")) {
@@ -977,6 +988,7 @@ app.player = (function () {
             updatePlaybackControlImage(ppb.st);
             prog.pos = status.pos;
             prog.dur = status.dur;
+            prog.prevrt = prog.rt || 0;
             prog.rt = Date.now();
             updatePosIndicator();
             //If triggered externally, playback may start, or restart after
@@ -1332,6 +1344,19 @@ app.player = (function () {
             mgrs.rat.adjustPositionFromRating(pmso.song.rv);
             mgrs.kwd.rebuildToggles();
             mgrs.cmt.updateIndicators(); },
+        assertValidSong: function (song) {
+            const epre = "assertValidSong: ";
+            if(!song) {
+                throw new Error(epre + "No song provided"); }
+            const rfs = ["ti", "ar", "path"];
+            rfs.forEach(function (fld) {
+                if(!song[fld]) {
+                    throw new Error(epre + "Missing required field " +
+                                    fld); } });
+            song.al = song.al || 49;
+            song.el = song.el || 49;
+            song.rv = song.rv || 5;
+            song.kws = song.kws || ""; },
         //Playback status requests go out via uiu.requestPlaybackStatus and
         //data is returned via uiu.receivePlaybackStatus.  Returned data may
         //be invalid.  Response time varies.  Platforms that drop calls rely
@@ -1475,9 +1500,11 @@ app.player = (function () {
             mgrs.uiu.requestPlaybackStatus("gen.requpd", function (status) {
                 if((!psbc && status.path) ||  //no song before but playing now
                    (psbc && psbc.path !== status.path)) {  //song changed
-                    app.player.notifySongChanged(pmso, status.state); }
+                    const song = app.pdat.songsDict()[status.path];
+                    app.player.notifySongChanged(song, status.state); }
                 contf(pmso); }); },
         notifySongChanged: function (song, state) {
+            mgrs.uiu.assertValidSong(song);
             if(!app.pdat.dbObj()) {
                 return jt.log("notifySongChanged ignored, no database yet."); }
             pmso.mrscnts = new Date().toISOString();
