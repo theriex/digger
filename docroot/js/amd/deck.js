@@ -696,7 +696,8 @@ app.deck = (function () {
         function digDatUpdated (/*digdat*/) {
             restoreAlbumPlaybackSettings();
             if(mgrs.gen.getSongSeqMgrName() === "alb") {
-                verifyAlbumQueuedPlayback(); } }
+                //avoid potential recursive writeDigDat while handling notice
+                setTimeout(verifyAlbumQueuedPlayback, 50); } }
     return {
         initialize: function () {
             app.pdat.addDigDatListener("deck.alb", digDatUpdated); },
