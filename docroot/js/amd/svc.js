@@ -184,6 +184,9 @@ app.svc = (function () {
                     errstat("svc.loc.monitorReadTotal", code, errtxt); },
                 jt.semaphore("svc.loc.monitorReadTotal")); }
         function rebuildSongData (updobj) {
+            //updobj is up to date with app.pdat, but any changes or
+            //additions done here need to be reflected in app.pdat to be
+            //referenced or written by the rest of the app.
             app.top.dispCount(updobj.songcount, "total");
             Object.entries(updobj.songs).forEach(function ([path, song]) {
                 if(!song.ar) {  //missing artist, ti probably full path
@@ -193,10 +196,11 @@ app.svc = (function () {
                         song.ar = pes[pes.length - 3];
                         song.ab = pes[pes.length - 2]; }
                     else if(pes.length >= 2) {
-                        song.ar = pes[pes.length - 2]; } } });
+                        song.ar = pes[pes.length - 2]; } }
+                app.pdat.songsDict()[path] = song; });
             if(loadproc && loadproc.divid) {  //called from full rebuild
                 jt.out(loadproc.divid, ""); }
-            app.top.markIgnoreSongs(updobj.songs);  //respect ignore folders
+            app.top.markIgnoreSongs();  //respect ignore folders
             const dbo = app.pdat.dbObj();
             dbo.scanned = new Date().toISOString();
             dbo.songcount = Object.keys(updobj.songs).length;

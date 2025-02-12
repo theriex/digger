@@ -1741,7 +1741,8 @@ app.top = (function () {
                     jt.out("igfstatdiv", "");
                     mgrs.igf.unmarkIgnoreSongs();
                     mgrs.igf.markIgnoreSongs();
-                    mgrs.aaa.notifyAccountChanged("igfolders"); },
+                    mgrs.aaa.notifyAccountChanged("igfolders");
+                    app.pdat.writeDigDat("igf.updateIgnoreFolders"); },
                 function (code, errtxt) {
                     jt.out("kwupdstatdiv", String(code) + ": " + errtxt); }); },
         removeIgnoreFolder: function (foldername) {
@@ -1761,9 +1762,9 @@ app.top = (function () {
             Object.values(app.pdat.songsDict()).forEach(function (s) {
                 if(s.fq.startsWith("I")) {
                     s.fq = s.fq.slice(1); } }); },
-        markIgnoreSongs: function (songsDict) {
+        markIgnoreSongs: function () {
             igfolds = igfolds || getAccountIgnoreFolders();
-            songsDict = songsDict || app.pdat.songsDict();
+            const songsDict = app.pdat.songsDict();
             Object.entries(songsDict).forEach(function ([p, s]) {
                 if((!s.fq || !s.fq.match(/^[DU]/)) && mgrs.igf.isIgPath(p)) {
                     //jt.log("Ignoring " + s.ti);  //can be a lot of output..
@@ -1771,12 +1772,12 @@ app.top = (function () {
         isIgPath: function (p) {
             var pes = p.split("/");
             if(pes.length <= 1) {  //top level file, or windows
-                pes = p.split("\\"); }
-            if(pes.length > 1) {
-                return igfolds.some((f) =>
-                    (pes[pes.length - 2] === f ||
-                     (f.endsWith("*") &&
-                      pes[pes.length  - 2].startsWith(f)))); }
+                pes = p.split("\\"); }  //try splitting with windows path delim
+            if(pes.length > 1) {   //have folder(s) + filename
+                return pes.slice(0, pes.length - 1).some((pe) =>
+                    igfolds.some((igf) =>
+                        (pe === igf || (igf.endsWith("*") &&
+                                        pe.startsWith(igf.slice(0, -1)))))); }
             return false; },
         resetIgnoreFolders: function (folderNamesArray) {
             igfolds = folderNamesArray; }
