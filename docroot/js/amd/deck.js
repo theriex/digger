@@ -136,7 +136,7 @@ app.deck = (function () {
             if(headername) {
                 avh -= jt.byId(headername).offsetHeight; }
             jt.byId(targname).style.height = avh + "px"; },
-        filterByFilters: function (songs, fcs) {
+        filterByFilters: function (songs, fcs, updateCountDisplay) {
             fcs.length = 0;  //clear all filter control status messages
             fcs.push({filter:"Saved", sc:songs.length});
             if(app.svc.okToPlay) {  //have plat/situation song filtering func
@@ -148,7 +148,8 @@ app.deck = (function () {
                     songs = songs.filter((song) => ftr.match(song));
                     fcs.push({filter:ftr.sumname || ftr.pn,
                               sc:songs.length}); }); }
-            updateSelectionFilteringInfoDisplay(fcs);
+            if(updateCountDisplay) {
+                updateSelectionFilteringInfoDisplay(fcs); }
             return songs; },
         songIdentHTML: function (song, emptytxt) {
             var idh = [];
@@ -275,7 +276,7 @@ app.deck = (function () {
         function getAllPlayableSongs () {
             apls = Object.values(app.pdat.songsDict())
                 .sort(lastPlayedComparator);    //oldest first
-            apls = mgrs.util.filterByFilters(apls, fcs);  //rebuilds fcs
+            apls = mgrs.util.filterByFilters(apls, fcs, "updateCountDisplay");
             //Consider an order of magnitude more than supported by playback
             //to maximize breadth of artists in resulting queue.
             apls = apls.slice(0, 10 * app.player.playQueueMax);
