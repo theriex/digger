@@ -699,7 +699,15 @@ app.filter = (function () {
 {t:"10:14:57", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1736626497922,\"tresp\":1736626497940,\"path\":\"ipod-library://item/item.mp3?id=312101764587510434\",\"state\":\"paused\",\"pos\":24800,\"dur\":216502}"},
 {t:"10:15:02", c:1, m:"callIOS:main:12:statusSync:"},
 {t:"10:15:02", c:1, m:"ios.retv:main:12:statusSync:{\"state\":\"paused\",\"pos\":24800,\"dur\":216502,\"path\":\"ipod-library://item/item.mp3?id=312101764587510434\"}"},
-{t:"10:15:02", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1736626502962,\"tresp\":1736626502974,\"path\":\"ipod-library://item/item.mp3?id=312101764587510434\",\"state\":\"paused\",\"pos\":24800,\"dur\":216502}"}]}];
+{t:"10:15:02", c:1, m:"uiu.reflectUpdatedStatusInfo {\"contf\":null,\"tcall\":1736626502962,\"tresp\":1736626502974,\"path\":\"ipod-library://item/item.mp3?id=312101764587510434\",\"state\":\"paused\",\"pos\":24800,\"dur\":216502}"}]},
+            {name:"iosDegenerateStatusPolling", expectedLength:3,
+             logEntries:[
+{t:"11:56:21", c:1, m:"callIOS:main:117:statusSync:"},
+{t:"11:56:21", c:1, m:"ios.retv:main:117:statusSync:"},
+{t:"11:56:21", c:1, m:"uiu.reflectUpdatedStatusInfo pbsh: {\"contf\":null,\"tcall\":1739984181500,\"tresp\":1739984181512,\"path\":\"\",\"state\":\"paused\",\"pos\":0,\"dur\":0}"},
+{t:"11:56:22", c:1, m:"callIOS:main:118:statusSync:"},
+{t:"11:56:22", c:1, m:"ios.retv:main:118:statusSync:"},
+{t:"11:56:22", c:1, m:"uiu.reflectUpdatedStatusInfo pbsh: {\"contf\":null,\"tcall\":1739984182517,\"tresp\":1739984182528,\"path\":\"\",\"state\":\"paused\",\"pos\":0,\"dur\":0}"}]}];
         //Polling collapse listens for a log line matching the last of the
         //given match regular expressions, then works backwards testing
         //previous entries against the given match expressions until it
@@ -722,7 +730,8 @@ app.filter = (function () {
             {name:"iosPlaybackStatusPolling",
              mrxs:[  //match regular expressions for log lines
                  {id:"request", rx:/callIOS:main:(?<callnum>\d+):(?<command>\S+):/},
-                 {id:"completion", rx:/ios.retv:main:(?<callnum>\d+):(?<command>\S+):.*"state":"(?<state>[a-z]*)",.*"path":"(?<path>[^"]*)"/},
+                 {id:"completion", rx:/ios.retv:main:(?<callnum>\d+):(?<command>\S+):((.*"state":"(?<state>[a-z]*)",.*"path":"(?<path>[^"]*)")|$)/m,  //jslint m
+                  fill:{state:"paused", path:""}},
                  {id:"response", rx:/uiu.reflectUpdatedStatusInfo.*"path":"(?<path>[^"]*)","state":"(?<state>[a-z]*)/}],
              gcvs:[  //group consistency validations
                  {fld:"callnum", linids:["request", "completion"]},
@@ -747,9 +756,16 @@ app.filter = (function () {
             if(s <= 9) { ts += "0"; }
             ts += s;
             return ts; }
+        function fillMatchFieldDefaultValues(match, fills) {
+            if(match && fills) {
+                Object.keys(fills).forEach(function (fk) {
+                    if(!match.groups[fk]) {
+                        match.groups[fk] = fills[fk]; } }); } }
         function lrxMatch (mld, bidx, rxi, mr) {
             const logline = buf[bidx + rxi].m;
-            mr[mld.id] = logline.match(mld.rx);
+            const match =logline.match(mld.rx);
+            fillMatchFieldDefaultValues(match, mld.fill);
+            mr[mld.id] = match;
             return mr[mld.id]; }  //return match or null
         function lidf (mr, linid, fld) {  //convenience lineid/field acc func
             return mr[linid].groups[fld]; }
