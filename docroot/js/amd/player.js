@@ -903,7 +903,7 @@ app.player = (function () {
             else { //"paused", "ended", ""
                 ppb.img = "img/play.png"; }
             jt.byId("pluibimg").src = ppb.img; }
-        function logScheduling (txt) {
+        function logScheduling (/*txt*/) {
             //Can be helpful to see "float tick" or "full status request"
             //log messages, but hard to collapse repetitive polling messages
             //in filter.dcm so not active.
@@ -1293,7 +1293,7 @@ app.player = (function () {
         function corruptedStatusData (status) {
             //playback queue finished: status path:"", state:"ended".
             if(!status || typeof status !== "object") {
-                jt.log("rcvPBStat non-object status parameter " + status);
+                jt.log("rcvPBStat non-object status parameter: " + status);
                 return "corrupted"; }
             if(pmso.stale && pmso.stale.path === status.path) {
                 jt.log("rcvPBStat ignoring stale stat from prev song");
@@ -1515,6 +1515,9 @@ app.player = (function () {
             if(!dbsg) {  //use foreign song instance for display
                 jt.log("notifySongChanged song not found: " + song.path);
                 return mgrs.scm.changeCurrentlyPlayingSong(song, state); }
+            //regardless if song changed or not, verify hubsync scheduled
+            app.top.dispatch("srs", "syncToHub");
+            //take appropriate action depending on current player update state
             if(pmso.song && pmso.song.path === dbsg.path) {
                 mgrs.uiu.updateSongDisplay("gen.notifySongChanged");
                 pmso.state = state;  //notification provides latest state
