@@ -1,4 +1,4 @@
-/*global app, jt */
+/*global app, jt, console */
 /*jslint browser, white, for, long, unordered */
 
 app.filter = (function () {
@@ -730,7 +730,7 @@ app.filter = (function () {
             {name:"iosPlaybackStatusPolling",
              mrxs:[  //match regular expressions for log lines
                  {id:"request", rx:/callIOS:main:(?<callnum>\d+):(?<command>\S+):/},
-                 {id:"completion", rx:/ios.retv:main:(?<callnum>\d+):(?<command>\S+):((.*"state":"(?<state>[a-z]*)",.*"path":"(?<path>[^"]*)")|$)/m,  //jslint m
+                 {id:"completion", rx:/ios.retv:main:(?<callnum>\d+):(?<command>\S+):((.*"state":"(?<state>[a-z]*)",.*"path":"(?<path>[^"]*)")|$)/m,  //lint m
                   fill:{state:"paused", path:""}},
                  {id:"response", rx:/uiu.reflectUpdatedStatusInfo.*"path":"(?<path>[^"]*)","state":"(?<state>[a-z]*)/}],
              gcvs:[  //group consistency validations
@@ -763,7 +763,7 @@ app.filter = (function () {
                         match.groups[fk] = fills[fk]; } }); } }
         function lrxMatch (mld, bidx, rxi, mr) {
             const logline = buf[bidx + rxi].m;
-            const match =logline.match(mld.rx);
+            const match = logline.match(mld.rx);
             fillMatchFieldDefaultValues(match, mld.fill);
             mr[mld.id] = match;
             return mr[mld.id]; }  //return match or null
@@ -818,7 +818,11 @@ app.filter = (function () {
             buf.splice(0, buf.length); }  //clear buf
         function logMessage (text) {
             buf.push({t:timestamp(), c:1, m:text});
-            collapsePolling();
+            try {
+                collapsePolling();
+            } catch(e) {  //if failure due to bad line input, just continue
+                console.log("filter.dcm.collapsePolling failed " + e.stack);
+            }
             if(buf.length > bufmax) {
                 buf.shift(); } }
     return {

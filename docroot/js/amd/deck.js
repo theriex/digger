@@ -80,15 +80,16 @@ app.deck = (function () {
                      img:"play.png", act:"playnow"},
                     {id:"tiredskip", tt:"Note song as tired and skip",
                      img:"snooze.png", act:"snooze", x:"hst"}];
-        function updateSelectionFilteringInfoDisplay (fcs) {
-            jt.out("deckfresdiv", jt.tac2html(
-                ["table", {id:"filtsumtable"},
-                 fcs.map((fc) =>
-                     ["tr",
-                      [["td", {cla:"dinfrectd"},
-                        ["span", {cla:"dinfrectspan"}, fc.filter + ": "]],
-                       ["td",
-                        ["span", {cla:"dinfrecnspan"}, String(fc.sc)]]]])])); }
+        function runFilter (ms, frms, fcs, filtname, matchtest) {
+            var res = [];  //memoized songs that passed the filter test
+            ms.forEach(function (m) {
+                if(matchtest(m.so)) {  //match filter against song object
+                    res.push(m); }
+                else {
+                    m.rf = filtname;   //note rejecting filter name
+                    frms.push(m); } });
+            fcs.push({fnm:filtname, sc:res.length});
+            return res; }
     return {
         makeToggle: function (spec) {
             var div = jt.byId(spec.id);
@@ -136,21 +137,18 @@ app.deck = (function () {
             if(headername) {
                 avh -= jt.byId(headername).offsetHeight; }
             jt.byId(targname).style.height = avh + "px"; },
-        filterByFilters: function (songs, fcs, updateCountDisplay) {
-            fcs.length = 0;  //clear all filter control status messages
-            fcs.push({filter:"Saved", sc:songs.length});
-            if(app.svc.okToPlay) {  //have plat/situation song filtering func
-                songs = songs.filter((s) => app.svc.okToPlay(s)); }
-            songs = songs.filter((s) => app.deck.isDeckable(s));
-            fcs.push({filter:"Playable", sc:songs.length});
+        filterByFilters: function (songs, fcs) {
+            var fpms = songs.map((s, i) => ({oi:i, rf:"", so:s}));  //memoize
+            var frms = [];  //filter rejected memoized songs
+            fcs = fcs || [];
+            fcs.length = 0;  //clear any and all previous filtering stat entries
+            fcs.push({fnm:"Saved", sc:fpms.length});  //unfiltered count
+            fpms = runFilter(fpms, frms, fcs, "Deckable", app.deck.isDeckable);
             if(app.filter.filteringPanelState() !== "off") {
                 app.filter.filters("active").forEach(function (ftr) {
-                    songs = songs.filter((song) => ftr.match(song));
-                    fcs.push({filter:ftr.sumname || ftr.pn,
-                              sc:songs.length}); }); }
-            if(updateCountDisplay) {
-                updateSelectionFilteringInfoDisplay(fcs); }
-            return songs; },
+                    const fname = ftr.sumname || ftr.pn;
+                    fpms = runFilter(fpms, frms, fcs, fname, ftr.match); }); }
+            return {passed:fpms, failed:frms}; },
         songIdentHTML: function (song, emptytxt) {
             var idh = [];
             if(song) {
@@ -276,7 +274,8 @@ app.deck = (function () {
         function getAllPlayableSongs () {
             apls = Object.values(app.pdat.songsDict())
                 .sort(lastPlayedComparator);    //oldest first
-            apls = mgrs.util.filterByFilters(apls, fcs, "updateCountDisplay");
+            apls = mgrs.util.filterByFilters(apls, fcs)
+                .passed.map((m) => m.so);
             //Consider an order of magnitude more than supported by playback
             //to maximize breadth of artists in resulting queue.
             apls = apls.slice(0, 10 * app.player.playQueueMax);
@@ -321,8 +320,8 @@ app.deck = (function () {
             // if(sbas.length) { dlogarttl(0); }
             // if(sbas.length > 1) { dlogarttl(1); }
             // if(sbas.length > 2) { dlogarttl(sbas.length - 1); }
-            jt.log(apls.length + " songs distributed across " + sbas.length +
-                   " artists"); }
+            jt.log("deck.aqb " + apls.length + " songs distributed across " +
+                   sbas.length + " artists"); }
         function unwindDistributedSongsIntoQueue () {
             var cas = sbas;  //current artists to consider
             var ras = [];
@@ -338,15 +337,15 @@ app.deck = (function () {
                 if(csk.m === "ongoing") { csk.m = "lastpass"; }
                 else if(csk.m === "lastpass") { csk.m = "disabled"; }
                 cas = ras; }
-            function dlogrq (i) {
-                jt.log("  resq[" + i + "] " + (resq[i].lp || "-") +
-                       jt.ellipsis(resq[i].ti, 30) + " - " +
-                       jt.ellipsis(resq[i].ar, 30)); }
-            if(!resq.length) { jt.log("aqb: No songs"); }
-            if(resq.length) { dlogrq(0); }
-            if(resq.length > 1) { dlogrq(1); }
-            if(resq.length > 2) { dlogrq(2); }
-            if(resq.length > 3) { dlogrq(resq.length -1); }
+            const qed = function (qe, idx) {
+                const elems = ["resq[" + idx + "]", qe.lp || "nolpval",
+                               jt.ellipsis(resq[idx].ti, 30), "-",
+                               jt.ellipsis(resq[idx].ar, 30)];
+                return "<br/>&nbsp;&nbsp;" + elems.join(" "); };
+            if(resq.length) {
+                jt.log("aqb most recent artist: " + resq[resq.length - 1].ar); }
+            jt.log("aqb result: " + resq.length + " songs" +
+                   resq.slice(0, 3).map((s, i) => qed(s, i)));
             resq = resq.slice(0, app.player.playQueueMax); }
         function prependPlayFirstSongIfSpecified () {
             if(pfsg) {
@@ -363,7 +362,8 @@ app.deck = (function () {
             distributeLRPSongsAcrossArtists();
             unwindDistributedSongsIntoQueue();
             prependPlayFirstSongIfSpecified();
-            return resq; }
+            return resq; },
+        getFilterCounts: function () { return fcs; }
     };  //end mgrs.aqb returned functions
     }());
 
@@ -373,7 +373,6 @@ app.deck = (function () {
     mgrs.csa = (function () {
         const toggleButtons = {};
         var asq = {paths:[], ts:"", idx:-1};  //autoplay selection queue
-        var rqfms = [];
         function redrawPlaylistDisplay () {
             const sd = app.pdat.songsDict();
             //asq.idx is currently playing song, display rest
@@ -442,14 +441,34 @@ app.deck = (function () {
             if(!rems.length) {
                 jt.log(logpre + "no unplayed songs remaining");
                 return false; }
-            rqfms = [];
-            const frs = mgrs.util.filterByFilters(rems, rqfms);
-            const ivc = rems.length - frs.length;
-            if(ivc) {
-                jt.log(logpre + ivc + " queued songs no longer valid"); }
+            const fr = mgrs.util.filterByFilters(rems);
+            const fc = fr.failed.length;
+            if(fc) {
+                jt.log(logpre + fc + " queued songs no longer valid");
+                const fmsg = function (m) {
+                    const elems = [m.oi, m.rf, m.so.dsId || "-",
+                                   jt.ellipsis(m.so.ti, 30),
+                                   jt.ellipsis(m.so.ar, 30)];
+                    return "<br/>&nbsp;&nbsp;" + elems.join(" "); };
+                jt.log(fr.failed.slice(0, 3).map((m) => fmsg(m))); }
             else {
                 jt.log(logpre + rems.length + " valid songs left in queue"); }
-            return !ivc; }
+            return !fc; }
+        function updateSelectionFilteringInfoDisplay () {
+            var dfcs = JSON.parse(JSON.stringify(mgrs.aqb.getFilterCounts()));
+            if(!dfcs.length) {
+                return jt.out("deckfresdiv", jt.tac2html("Info unavailable")); }
+            const offset = ((asq.idx >= 0)? asq.idx : 0);
+            const lastfc = dfcs[dfcs.length - 1];
+            lastfc.sc -= offset;  //decrement frequency eligible count by offset
+            jt.out("deckfresdiv", jt.tac2html(
+                ["table", {id:"filtsumtable"},
+                 dfcs.map((fc) =>
+                     ["tr",
+                      [["td", {cla:"dinfrectd"},
+                        ["span", {cla:"dinfrectspan"}, fc.fnm + ": "]],
+                       ["td",
+                        ["span", {cla:"dinfrecnspan"}, String(fc.sc)]]]])])); }
         function verifyQueuedPlayback () {
             if(!remainingQueuedSongsValid()) {
                 return rebuildPlaybackQueue(); }
@@ -460,7 +479,8 @@ app.deck = (function () {
             verifyNowPlayingSong(); }
         function digDatUpdated (/*digdat*/) {
             restoreAutoplaySelectionQueueSettings();
-            if(mgrs.gen.getSongSeqMgrName() === "csa") {
+            if(mgrs.gen.getSongSeqMgrName() === "csa" &&
+               app.filter.filtersReady()) {  //else wait for filtersChanged
                 verifyQueuedPlayback(); } }
     return {
         initialize: function () {
@@ -483,6 +503,7 @@ app.deck = (function () {
                 onimg:"img/infoact.png", offimg:"img/info.png",
                 togf:function (state) {
                     const disp = (state ? "block" : "none");
+                    updateSelectionFilteringInfoDisplay();
                     jt.byId("deckfresdiv").style.display = disp; }});
             toggleButtons.toginfob(false); },
         playNextSong: function () {
@@ -1122,7 +1143,8 @@ app.deck = (function () {
                 const deckset = app.pdat.uips("deck");
                 //a valid saved deckset.seqmgr will already have restored itself
                 if(!deckset.seqmgr || !validSeqMgrName(deckset.seqmgr)) {
-                    jt.log("Invalid deckset.seqmgr: " + deckset.seqmgr);
+                    jt.log("deckDataInit resetting invalid deckset.seqmgr: " +
+                           deckset.seqmgr);
                     mgrs.gen.setSongSeqMgrName(dfltSeqMgrName, "genApresCheck");
                     mgrs.gen.dispMode(dfltSeqMgrName); } }); }
     };  //end mgrs.gen returned functions

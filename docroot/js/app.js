@@ -824,7 +824,11 @@ var app = (function () {
                 jt.log("setDigDatAndNotify verifyDatabase errors: " +
                        JSON.stringify(stat)); }
             rtdat.digdat.datobj = digdat;
-            notifyUpdateListeners(pwsid, "digdat"); }
+            try {
+                notifyUpdateListeners(pwsid, "digdat");
+            } catch(e) {
+                jt.log("pdat.notifyUpdateListeners failed " + e.stack);
+            } }
         function dequeueOrFinish(fname, qdat) {
             rtdat[qdat].phase = "ready";
             if(rtdat[qdat].qcs.length) {
