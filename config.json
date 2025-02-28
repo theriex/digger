@@ -3,7 +3,7 @@
   "musicPath": "~/Music",
   "dbPath": "~/digdat.json",
   "exPath": "~/diggerexport",
-  "dfltigfolds": ["Ableton","Audiffex","Audio Music Apps","GarageBand","JamKazam"],
+  "dfltigfolds": ["Ableton","GarageBand"],
   "spawn": {
     "comment": "Optional platform command to run after the Digger server starts. Most useful is to open the Digger URL in the default browser. In the args, DIGGERURL is replaced with http://localhost:6980 or whatever the port is set to.",
     "darwin": {

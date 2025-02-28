@@ -375,6 +375,16 @@ module.exports = (function () {
     }
 
 
+    function appendDigIgFoldsFileLines (ws) {
+        const igfname = path.join(os.homedir(), ".digigfolds");
+        if(jslf(fs, "existsSync", igfname)) {
+            const fc = jslf(fs, "readFileSync", igfname, "utf8");
+            fc.split("\n").forEach(function (igfoldname) {
+                if(igfoldname) {
+                    ws.igfolds.push(igfoldname); } }); }
+    }
+
+
     function initIgnoreFolders (ws) {
         ws.igfolds = conf.dfltigfolds || [];
         ws.curracct = ws.curracct || getCurrentAccount();
@@ -383,6 +393,7 @@ module.exports = (function () {
             if(!Array.isArray(ws.igfolds)) {  //bad config value
                 ws.igfolds = conf.dfltigfolds || [];
                 ws.curracct.igfolds = ws.igfolds; } }
+        appendDigIgFoldsFileLines(ws);
         if(!ws.wildms) { //wildcard ending match strings array
             ws.wildms = ws.igfolds.filter((ign) => ign.endsWith("*"));
             ws.wildms = ws.wildms.map((wm) => wm.slice(0, -1)); }

@@ -427,7 +427,7 @@ var app = (function () {
             modified:"2019-10-11T00:00:00Z;1",
             email:(semnd.supnm + "@" + semnd.domain), token:"none",
             hubdat:"", "kwdefs": kwdefs,
-            igfolds:["Ableton","Audiffex","Audio Music Apps"],
+            igfolds:["Ableton","GarageBand"],
             //"settings": "";
             musfs:""};
         // const demoacct = {
@@ -438,7 +438,7 @@ var app = (function () {
         //     "hubdat":"{\"privaccept\": \"2022-06-11T14:11:14.284Z\"}",
         //     "status":"Active", "firstname":"Demo", "digname":"Demo",
         //     "kwdefs": kwdefs,
-        //     "igfolds": ["Ableton","Audiffex","Audio Music Apps"],
+        //     "igfolds": ["Ableton","GarageBand"],
         //     "settings": settings,
         //     "musfs": [
         //         {"dsId":"1235", "digname":"afriend", "firstname":"A Friend",
