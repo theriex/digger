@@ -170,7 +170,12 @@ app.top = (function () {
             const sd = app.pdat.songsDict();
             songs.forEach(function (s) {
                 var ref = sd[s.path];
-                if(ref) {  //song might not be available locally
+                if(!ref) {  //song not found by path, try ti/ar/ab
+                    //this is worth the extra lookup on initial sign-in to
+                    //avoid round trips to the hub for initial dsId mappings.
+                    ref = sd.values.find((fs) =>
+                        fs.ar === s.ar && fs.ti === s.ti && fs.ar === s.ar); }
+                if(ref) {  //song found locally
                     app.util.copyUpdatedSongData(ref, s); } });
             app.pdat.writeDigDat(callerstr); },
         makeHubCall: function (endpoint, dets) {  //verb, dat, contf, errf
