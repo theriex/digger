@@ -246,14 +246,20 @@ app.svc = (function () {
             jt.call("POST", "/cfgchg", jt.objdata(configChangeFields),
                     contf, errf, jt.semaphore("loc.changeConfig")); },
         passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
-            jt.call(verb, "hub" + verb.toLowerCase() + "-" + endpoint, dat,
-                    function (res) {
-                        app.top.dispatch("hcq", "hubResponse", qname, reqnum,
-                                         200, JSON.stringify(res)); },
-                    function (code, errdet) {
-                        app.top.dispatch("hcq", "hubResponse", qname, reqnum,
-                                         code, errdet); },
-                    jt.semaphore("svc.loc." + endpoint)); },
+            if(endpoint.startsWith("/")) {
+                endpoint = endpoint.slice(1); }
+            var callf = jt.call;
+            if(verb.startsWith("raw")) {
+                verb = verb.slice(3);
+                callf = jt.request; }
+            callf(verb, "hub" + verb.toLowerCase() + "-" + endpoint, dat,
+                  function (res) {
+                      app.top.dispatch("hcq", "hubResponse", qname, reqnum,
+                                       200, JSON.stringify(res)); },
+                  function (code, errdet) {
+                      app.top.dispatch("hcq", "hubResponse", qname, reqnum,
+                                       code, errdet); },
+                  jt.semaphore("svc.loc." + endpoint)); },
         docContent: function (docurl, contf, errf) {
             const up = jt.objdata({docurl:jt.enc(docurl)});
             jt.request("GET", app.util.cb(app.util.dr("/doctext"), up, "day"),

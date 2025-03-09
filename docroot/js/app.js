@@ -794,6 +794,7 @@ var app = (function () {
             config:{datobj:null, qcs:[], listeners:[]},   //.digger_config.json
             digdat:{datobj:null, qcs:[], listeners:[]}};  //digdat.json
         var adnts = [];  //apres data notification tasks
+        var tiarab = null;  //alt dict for song lookup by title artist album
         function nextApresDataTask () {
             setTimeout(function () {
                 if(adnts.length) {
@@ -881,6 +882,7 @@ var app = (function () {
                 return jt.log(lpx + "call queued"); }
             rtdat.digdat.phase = "calling";
             jt.log(lpx + "starting call");
+            tiarab = null;  //alt songs dict no longer valid
             rtdat.digdat.datobj.awts = new Date().toISOString(); //app write ts
             app.svc.writeDigDat(rtdat.digdat.datobj, optobj,
                 function (writtendbo) {
@@ -939,7 +941,13 @@ var app = (function () {
         configObj: function () { return rtdat.config.datobj; },
         songDataVersion: function () { return rtdat.digdat.datobj.version; },
         songsDict: function () { return rtdat.digdat.datobj.songs || {}; },
-        uips: function (subcat) {
+        tiarab: function () {
+            if(!tiarab) {
+                tiarab = {};
+                Object.values(app.pdat.songsDict()).forEach(function (s) {
+                    tiarab[s.ti + s.ar + s.ab] = s; }); }
+            return tiarab; },
+        uips: function (subcat) {  //ui persistent state
             var datobj = rtdat.digdat.datobj;
             if(!datobj) {  //digdat not read yet
                 jt.log("pdat.uips pre-data call returning temp placeholder");

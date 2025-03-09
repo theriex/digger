@@ -171,20 +171,18 @@ app.top = (function () {
             songs.forEach(function (s) {
                 var ref = sd[s.path];
                 if(!ref) {  //song not found by path, try ti/ar/ab
-                    //this is worth the extra lookup on initial sign-in to
-                    //avoid round trips to the hub for initial dsId mappings.
-                    ref = sd.values.find((fs) =>
-                        fs.ar === s.ar && fs.ti === s.ti && fs.ar === s.ar); }
+                    const tiarab = app.pdat.tiarab();
+                    ref = tiarab[s.ti + s.ar + s.ab]; }
                 if(ref) {  //song found locally
                     app.util.copyUpdatedSongData(ref, s); } });
             app.pdat.writeDigDat(callerstr); },
         makeHubCall: function (endpoint, dets) {  //verb, dat, contf, errf
             const ves = ["newacct", "acctok", "updacc", "mailpwr", "deleteme",
-                         "suggdown", "nosugg", "hubsync",
+                         "suggdown", "nosugg", /bd\d\d\d\S\S\S/, "hubsync",
                          "fanmsg", "fancollab", "fangrpact"];
-            if(ves.indexOf(endpoint) < 0) {
+            if(!ves.some((e) => endpoint.match(e))) {
                 return jt.log("makeHubCall unknown endpoint: " + endpoint); }
-            const verbs = ["GET", "POST"];
+            const verbs = ["GET", "POST", "rawGET"];
             if(!dets.verb || verbs.indexOf(dets.verb) < 0) {
                 return jt.log("makeHubCall bad dets.verb: " + dets.verb); }
             if(dets.verb === "POST" && !dets.dat) {
@@ -221,27 +219,102 @@ app.top = (function () {
     //Song rating data synchronization between local app and DiggerHub
     mgrs.srs = (function () {
         const syt = {tmo:null, stat:"", resched:false, up:0, down:0};
-        var upldsongs = null;
-        var contexts = {newacct:1800, acctok:1800, unposted:2000, reset:1200,
-                        resched:2000, standard:20 * 1000, signin:100};
-        function isUpdated (s) {
-            return ((s.lp && s.lp > (s.modified || "")) ||  //newly played
-                    (s.locmod && s.locmod > (s.modified || ""))); }  //modified
-        function notPostedYet (s) {
-            return (!s.dsId && s.ti && s.ar &&
-                    (!s.fq || !(s.fq.startsWith("D") ||
-                                s.fq.startsWith("U")))); }
-        function haveUnpostedNewSongs () {
-            return Object.values(app.pdat.songsDict())
-                .some((s) => notPostedYet(s)); }
+        const contexts = {newacct:1800, acctok:1800, unposted:2000, reset:1200,
+                          resched:2000, standard:20 * 1000, signin:100};
+        function isUploadableSong (s) {
+            return (s.lp && (s.lp > app.pdat.dbObj().lastSyncPlayback &&
+                             (!s.modified || s.lp > s.modified) &&
+                             (!s.fq || !(s.fq.startsWith("D") ||
+                                         s.fq.startsWith("U"))) &&
+                             !app.deck.isUnrated(s))); }
         function uploadableSongs () {
             return Object.values(app.pdat.songsDict())
-                .filter((s) => isUpdated(s) || notPostedYet(s)); }
+                .filter((s) => isUploadableSong(s)); }
+        function showHubIndicator (show, statInfo) {
+            if(show) {
+                jt.out("modindspan", jt.tac2html(
+                    ["a", {href:"#hubstatdetails", title:"Hub work details",
+                           onclick:mdfs("gen.togtopdlg", "la", "open")},
+                     ["span", {cla:"indicatorlightcolor"},
+                      "hub"]])); }
+            else {  //not showing hub indicator
+                jt.out("modindspan", ""); }
+            mgrs.srs.hubStatInfo(statInfo || ""); }
+        function ucsv (str) {  //unescape csv string value
+            str = str.replace(/"/g, "");  //remove any surrounding quotes
+            str = jt.dec(str);
+            return str; }
+        function pciv (str) {
+            const ival = parseInt(str, 10);
+            // if(!(ival >= 0)) {  //force crash when debugging data
+            //     throw new Error("Bad pciv str: " + str); }
+            return ival; }
+        function csvLinesToSongs (acct, csv) {
+            //unpack what udbak.py dbsong_to_file_line_text wrote
+            const csvcnv = {dsId:ucsv, ti:ucsv, ar:ucsv, ab:ucsv,
+                            el:pciv, al:pciv, kws:ucsv, rv:pciv, fq:ucsv,
+                            nt:ucsv, lp:ucsv, pd:ucsv, pc:pciv};
+            var songs = [];
+            csv.split("\n").forEach(function (dat) {
+                const lnvs = dat.csvarray();
+                const song = {dsType:"Song", aid:acct.dsId};
+                Object.keys(csvcnv).forEach(function (key, idx) {
+                    song[key] = csvcnv[key](lnvs[idx]); });
+                mgrs.dbc.verifySong(song);
+                songs.push(song); });
+            return songs; }
+        function restoreCSVSongData (acct, csv) {
+            const songs = csvLinesToSongs(acct, csv);
+            const tiarab = app.pdat.tiarab();
+            app.pdat.dbObj().lastSyncPlayback = "1970-01-01T00:00:00Z";
+            songs.forEach(function (cs) {
+                const ds = tiarab[cs.ti + cs.ar + cs.ab];
+                if(ds) {  //found in songsDict via tiarab lookup
+                    //jt.log("restoring " + cs.ti);
+                    if(cs.lp > app.pdat.dbObj().lastSyncPlayback) {
+                        app.pdat.dbObj().lastSyncPlayback = cs.lp; }
+                    app.util.copyUpdatedSongData(ds, cs); } });
+            jt.log("restoreCSVSongData: " + songs.length + " songs"); }
+        function promptToRestoreFromBackup () {
+            //Leave a log message in case this ever happens.  Another pass
+            //at merging will happen next time hubsync is triggered.
+            jt.log("promptToRestoreFromBackup not implemented yet"); }
     return {
+        noteDataRestorationNeeded: function () { syt.stat = "restoring"; },
+        restoreFromBackup: function (srcstr) {
+            const logpre = "restoreFromBackup ";
+            const acct = mgrs.aaa.getAccount();
+            if(!acct || !acct.settings || !acct.settings.backup ||
+               !acct.settings.backup.url) {
+                jt.log(logpre + "no acct.settings.backup.url");
+                return mgrs.srs.syncToHub(srcstr); }
+            const btm = Date.now();
+            showHubIndicator(true, "restoring...");
+            syt.stat = "restoring";  //avoid any interim sync
+            const bdrdone = function () {  //look for any updates since backup
+                syt.stat = "";  //allow regular sync to proceed
+                mgrs.srs.syncToHub(srcstr); };
+            const bdurl = acct.settings.backup.url;
+            mgrs.hcu.makeHubCall(bdurl, {
+                verb:"rawGET", url:app.util.cb(bdurl, app.util.authdata({})),
+                contf:function (csv) {
+                    jt.log(logpre + "csv receive ms: " + (Date.now() - btm));
+                    showHubIndicator(false, "");
+                    restoreCSVSongData(acct, csv);
+                    jt.log(logpre + "csv process ms: " + (Date.now() - btm));
+                    app.pdat.writeDigDat("restoreFromBackup", null,
+                        function (/*digdat*/) {
+                            bdrdone(); },
+                        function (code, errtxt) {
+                            jt.log(logpre + "wdigdat " + code + ": " + errtxt);
+                            bdrdone(); }); },
+                errf:function (code, errtxt) {
+                    showHubIndicator(false, "");
+                    jt.log(logpre + "hub call failed " + code + ": " + errtxt);
+                    bdrdone(); } }); },
         countSyncOutstanding: function () {
             return uploadableSongs().length; },
         handleSyncError: function (code, errtxt) {
-            upldsongs = null;
             if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
                 //Credentials are no longer valid, so this is old account info
                 //and should not be attempting to sync.  To fix, the user will
@@ -255,6 +328,8 @@ app.top = (function () {
         syncToHub: function (context) {
             if(!app.util.haveHubCredentials()) {
                 return jt.log("top.srs.syncToHub quit, no hub credentials."); }
+            if(syt.stat === "restoring") {
+                return jt.log("top.srs.syncToHub no sync while restoring"); }
             if(context === "cancel" && syt.tmo) {
                 clearTimeout(syt.tmo);
                 syt.tmo = null;
@@ -270,18 +345,13 @@ app.top = (function () {
                                  contexts[context] || contexts.standard); },
         hubSyncStart: function () { //see ../../docs/hubsyncNotes.txt
             if(!app.util.haveHubCredentials()) {
-                jt.out("modindspan", ""); //turn off comms indicator
-                mgrs.srs.hubStatInfo("");
+                showHubIndicator(false, "");
                 return jt.log("hubSyncStart aborted since not signed in"); }
             syt.stat = "executing";
             mgrs.srs.hubStatInfo("checking...");
-            jt.out("modindspan", jt.tac2html(
-                ["a", {href:"#hubstatdetails", title:"Show hub work details",
-                       onclick:mdfs("gen.togtopdlg", "la", "open")},
-                 ["span", {cla:"indicatorlightcolor"},
-                  "hub"]]));  //turn on work indicator
             const pdat = mgrs.srs.makeSendSyncData();
-            mgrs.srs.hubStatInfo("sending...");
+            if(!pdat) { return mgrs.srs.hubSyncFinished(); }
+            showHubIndicator(true, "sending...");
             mgrs.hcu.makeHubCall("hubsync", {
                 verb:"POST", dat:pdat,
                 contf:function (updates) {
@@ -294,59 +364,58 @@ app.top = (function () {
         hubSyncFinished: function () {
             syt.pcts = new Date().toISOString();
             syt.stat = "";
-            mgrs.srs.hubStatInfo("");
             syt.tmo = null;
-            if(syt.errcode) {
-                jt.out("modindspan", ""); } //turn off comms indicator
-            else if(haveUnpostedNewSongs()) {
-                mgrs.srs.syncToHub("unposted"); }
-            else if(syt.resched) {
-                syt.resched = false;
-                mgrs.srs.syncToHub("resched"); }
-            else {  //hub sync done
-                //This can lead to significant default rating downloads with
-                //deck refreshes for every batch call and no explanation or
-                //status visible to the user.  Leave for form display.
-                //setTimeout(mgrs.fsc.updateContributions, 100);
-                jt.out("modindspan", "");  //turn off comms indicator
-                mgrs.hcu.verifyClientVersion(); } },
+            showHubIndicator(false, "");
+            if(!syt.errcode) {
+                if(syt.resched) {
+                    syt.resched = false;
+                    mgrs.srs.syncToHub("resched"); }
+                else {  //hub sync done
+                    //recalculate contributions when viewing that form as
+                    //the overhead can be significant.  Not needed for sync.
+                    //setTimeout(mgrs.fsc.updateContributions, 100);
+                    mgrs.hcu.verifyClientVersion(); } } },
         makeSendSyncData: function () {
-            //send the current account + any songs that need sync.  If just
-            //signed in, then don't send the current song or anything else
-            //until after the initial download sync.  Want to pull down any
-            //existing data first to avoid overwriting with unrated.
-            var curracct = mgrs.aaa.getAccount();
-            upldsongs = [];
-            if(curracct.syncsince) {
-                jt.log("makeSendSyncData no songs, syncsince " +
-                       curracct.syncsince); }
-            else {  //not just signed in
-                upldsongs = uploadableSongs();
-                upldsongs = upldsongs.slice(0, 199);
-                upldsongs = upldsongs.map((sg) => app.util.txSong(sg));
-                jt.log("makeSendSyncData uploading " + upldsongs.length +
-                       " songs"); }
-            syt.up += upldsongs.length;
-            mgrs.hcu.serializeAccount(curracct);
-            const obj = {email:curracct.email, token:curracct.token,
-                         syncdata:JSON.stringify([curracct, ...upldsongs])};
-            mgrs.hcu.deserializeAccount(curracct);
+            const maxSendSongs = 100;
+            const updsongs = uploadableSongs().slice(0, maxSendSongs)
+                .map((s) => app.util.txSong(s));
+            if(!updsongs.length) { return null; }
+            const acct = mgrs.aaa.getAccount();
+            acct.settings = acct.settings || {};
+            const dbo = app.pdat.dbObj();
+            acct.settings.hubsync = {action:"upload",
+                                     syncts:dbo.lastSyncPlayback};
+            if(dbo.lastMergedPlayback > dbo.lastSyncPlayback) {
+                acct.settings.hubsync.syncts = dbo.lastMergedPlayback; }
+            mgrs.hcu.serializeAccount(acct);
+            const obj = {email:acct.email, token:acct.token,
+                         syncdata:JSON.stringify([acct, ...updsongs])};
+            mgrs.hcu.deserializeAccount(acct);
             return jt.objdata(obj); },
         processReceivedSyncData: function (updates) {
-            //if any song update fails, it is better to continue with the rest
-            //of sync processing than to loop retrying.
-            const prefix = "top.srs.processReceivedSyncData ";
+            const logpre = "srs.processReceivedSyncData ";
+            const acct = updates[0];
+            mgrs.hcu.deserializeAccount(acct);
             const songs = updates.slice(1);
-            syt.down += songs.length;
-            jt.log(prefix + songs.length + " songs, syncsince: " +
-                   (updates[0].syncsince || "-"));
+            jt.log(logpre + songs.length + " songs " +
+                   JSON.stringify(acct.settings.hubsync));
+            const lastsong = songs[songs.length - 1];
+            if(acct.settings.hubsync.action === "received") {
+                syt.up += songs.length;
+                app.pdat.dbObj().lastSyncPlayback = lastsong.lp; }
+            else {  //"merge"
+                syt.down += songs.length;
+                app.pdat.dbObj().lastMergedPlayback = lastsong.lp; }
             mgrs.hcu.saveSongUpdates("srs.processReceivedSyncData", songs);
-            mgrs.aaa.updateCurrAcct(updates[0], null,
-                function (acct) {
-                    if(acct.syncsince && acct.syncsince < acct.modified) {
-                        mgrs.srs.syncToHub(); } },  //more to download...
+            mgrs.aaa.updateCurrAcct(acct, null,
+                function (updacc) {
+                    if(updacc.settings.hubsync.action === "merge") {
+                        if(updacc.settings.hubsync.provdat === "partial") {
+                            promptToRestoreFromBackup(); }
+                        else {  //reschedule upload now that merge is complete
+                            mgrs.srs.syncToHub(); } } },
                 function (code, errtxt) {
-                    jt.log(prefix + "account update failed " +
+                    jt.log(logpre + "account update failed " +
                            code + ": " + errtxt); }); },
         makeStatusDisplay: function () {
             var reset = false;
@@ -386,7 +455,7 @@ app.top = (function () {
             syt.pcts = "";
             syt.up = 0;
             syt.down = 0;
-            mgrs.srs.syncToHub("reset"); }
+            mgrs.srs.restoreFromBackup("reset"); }
     };  //end mgrs.srs returned functions
     }());
 
@@ -1187,6 +1256,7 @@ app.top = (function () {
         signinProc: function (buttonid) {
             const dat = formData("s");
             if(!formError(dat, [verifyEmail, verifyPwd])) {
+                mgrs.srs.noteDataRestorationNeeded();
                 hubThenLocal(buttonid, "POST", "acctok", dat, function (acct) {
                     if(inapp) {  //running within web app
                         mgrs.gen.updateHubToggleSpan(acct);  //UI reflect name
@@ -1195,7 +1265,7 @@ app.top = (function () {
                         mgrs.igf.markIgnoreSongs();
                         mgrs.aaa.notifyAccountChanged();  //UI reflect settings
                         //acct.syncsince already reset in hubThenLocal
-                        mgrs.srs.syncToHub("signin"); }
+                        mgrs.srs.restoreFromBackup("signin"); }
                     else { //standalone account management
                         app.login.dispatch("ap", "save", acct);
                         mgrs.afg.accountFanGroup("groups", 2); } }); } },
@@ -2595,6 +2665,8 @@ app.top = (function () {
             if(dbo.songcount > stat.count) {
                 err("probable song loss: dbo.songcount " + dbo.songcount +
                     " > " + stat.count + " in dbo.songs"); }
+            if(!dbo.lastSyncPlayback) {
+                dbo.lastSyncPlayback = new Date().toISOString(); }
             dbo.scanned = dbo.scanned || "";
             return stat; }
     };

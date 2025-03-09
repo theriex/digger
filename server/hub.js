@@ -91,7 +91,7 @@ module.exports = (function () {
         const uq = Object.entries(pu.query)
             .map(function ([a, v]) { return a + "=" + encodeURIComponent(v); })
             .join("&");
-        const ctx = {url:hs + "/api/" + pu.baseurl.slice(hgub.length) +
+        const ctx = {url:hs + "/api/" + pu.baseurl.slice(hgup.length) +
                      "?" + uq};
         console.log("hubget " + ctx.url);
         fetch(ctx.url)

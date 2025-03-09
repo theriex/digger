@@ -40,7 +40,8 @@ app.player = (function () {
             if(digdat) {  //save was successful, have updated data
                 if(pmso.song && pmso.song.path === updsong.path) { //now playing
                     pmso.song = digdat.songs[updsong.path];
-                    mgrs.uiu.updateSongDisplay(updobj.source); } }
+                    mgrs.uiu.updateSongDisplay(updobj.source); }
+                app.top.dispatch("srs", "syncToHub"); }
             if(pmso.smq.length) {  //more updates to write
                 setTimeout(psqf, 50); }
             return updsong; }

@@ -1161,7 +1161,8 @@ return {
     currentlyPlayingSongChanged: mgrs.gen.currentlyPlayingSongChanged,
     playNextSong: mgrs.gen.playNextSong,  //player skip
     replayQueue: mgrs.gen.replayQueue,    //player sleep activation
-    isUnrated: function (s) { return (!s.kws && s.el === 49 && s.al === 49); },
+    isUnrated: function (s) {  //matches appdat.py is_unrated_song
+        return (!s.kws && s.el === 49 && s.al === 49); },
     isSearchable: function (s) {  //not Deleted or Ignore folder.
         //if you copy a song onto your phone and then can't find it, that's
         //exceptionally annoying.  Allow it to be found in search, but

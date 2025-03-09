@@ -313,8 +313,11 @@ module.exports = (function () {
                 song.fq = "U" + song.fq; } }
         else {  //have at least title and artist, update song
             song.ar = tags.artist || song.ar;
+            song.ar = song.ar.trim();
             song.ab = tags.album || song.ab || "Singles";
+            song.ab = song.ab.trim();
             song.ti = tags.title || song.ti;
+            song.ti = song.ti.trim();
             song.mddn = (tags.disk && tags.disk.no) || 0;
             song.mdtn = (tags.track && tags.track.no) || 0;
             song.genrejson = "";

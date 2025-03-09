@@ -1,54 +1,154 @@
-Hub songs are organized by user/title/artist/album.  Local songs are
-organized by file path.  It is possible to have more than one local song map
+Hub songs are found by user/title/artist/album.  Local songs are
+found by file path.  It is possible to have more than one local song map
 to the same hub song (multiple copies of equivalent songs locally).  It is
 also possible to have a local song map to a different hub song than it's
-previous mapping (changed title/artist/album metadata, or more than one
-account using the same local data).
+previous mapping (changed title/artist/album metadata).
 
 Within the context of a single hubsync call, "path" is preserved in the
-returned data so the local server can update its local data from the
-returned result.  Outside of the context of a hubsync transaction, only the
-most recent path value is retained in the hub db Song record.
+returned data, so the local server can update its local data from the
+returned result using direct path lookup.  That ensures that the song that
+was sent for sync is the one that gets updated in the app (in case there are
+several instances of the same song).  If a same user does a sync of the same
+song from a different platform the path will reflect whichever platform last
+called sync with the song.
 
-When a song is played or modified, its "lp" (last played) timestamp is
-updated locally.  There is no hub interaction during save.  On hubsync, the
-local server sends the current account and songs where lp > modified.
+The hub's responsibility is to preserve song ratings, providing sync and
+collaborative sharing support.  Until a song is rated, there is no reason to
+send it to the hub, or save it on the hub, since there is nothing helpful to
+preserve.  To preserve the latest info, the hub will avoid updating a song
+if the lp timestamp given is older than the lp value it already has.
 
-Hub push: If the sent account information is out of date w/r/t the hub, then
-any song data sent with the hubsync call is discarded, and the hub sends
-back the more recently updated account along with songs that were modified
-in the interim.  The local server uses the returned information to bring
-itself up to date before retrying hubsync with any local songs that actually
-need to be sent.
+The app's responsibility is to send song ratings that should be preserved
+across devices and made available for collaboration.  It does this solely by
+tracking Song.lp values relative to when the app last communicated with the
+hub.  The app saves several hub song data fields locally (incuding modified
+and dsId), but those values are for general reference only and should
+always be considered potentially out of date.
 
-Hub receive: If the sent account information is up to date w/r/t the hub,
-then the sent song information is written to the hub database, and the
-account is updated so it's "modified" value will be greater than any of the
-sent songs.  This processing is what enables hub push.  The hub returns the
-updated account and song data.
 
-Local restore: On sign-in, the local server forces a hub push by setting the
-account "syncsince" flag field to when the account was first created.
-Essentially the local server indicates it is completely out of date.  The
-hub push returns the maximum number of songs it can send in one pass,
-ordered by "modified".  If there are more songs to be pushed, the hub sets
-the "syncsince" flag field in the returned account to the "modified" of the
-most recently returned song.  The local server then repeats the pull call
-until all local data is up to date with the server.  This allows the hub to
-serve as a backup.
+Initial data restore:
+--------------------
 
-Once the local server is up to date with the account data, it continues to
-find and send songs where lp > modified.  Because stale data has already
-been taken care of, the hub writes the given songs to the db and returns the
-hub versions of the songs at the time they were written.  On return of the
-song data, the local server can look up each returned song by path and write
-the updated data.  The local server writes "modified" (for sync) and "dsId"
-(for informational purposes).  Other fields like dsType, created, aid etc
-are discarded to keep the digdat.json uncluttered.
+Installing Digger on a new device and signing in to DiggerHub requires
+downloading your hub ratings to restore your local data for use.  This is a
+heavyweight operation as you may have thousands of song ratings, and while
+you might not need all your ratings for a particular installation, telling
+the hub which ones you need and then only downloading those would take more
+hub work.  Repeated long calls back and forth to the server are bad.
+
+To optimize app startup sync, the app first restores from hub backup.  On
+any day a user has communicated with the hub, that night the hub writes a
+backup file with the song data for that user, placing the name of that file
+and a user-specific custom api url for access into DigAcc.settings.backup.
+
+When you first sign in from the app on a new platform, the app fetches your
+backup information via the custom url.  Unlike other API calls, the data is
+not returned in JSON format because it's too big to send that way.  By
+reducing the returned song data to a CSV of the essential field values, the
+returned data is a just over 5 times smaller.  This could be reduced further
+by zip compression in the future as needed.
+
+top.asu.signinProc->srs.noteDataRestorationNeeded to turn off other sync
+processing, then calls srs.restoreFromBackup to fetch the backup data and
+restore the app.  The restore process initializes the lastSyncPlayback
+timestamp in app.pdat.dbObj which forms the basis for sync processing.
+
+
+hubsync processing:
+------------------
+
+When a song is played, its "lp" (last played) timestamp is updated locally.
+There is no hub interaction during local save of the song data, but hubync
+gets scheduled and runs some seconds later.  It is possible to be using the
+Digger app on multiple devices, possibly with interleaved hubsync calls.
+To maintain user data consistency, each app instance must
+  1. Download and merge any hub songs changed since last sync.
+  2. Upload app songs changed since last sync and save returned hub data.
+  3. Reset and save app.pdat.dbObj().lastSyncPlayback
+
+Usually, a sync interaction will be started from the same app instance as
+the previous sync interaction, so hubsync is optimized to handle the simple
+played-songs-upload case as a single call, falling back to merging interim
+sync data or recovery as needed.  Communication failures can happen due to
+bad internet connections on the client side, web server failures on the hub
+side, maintenance updates or other events.  To maintain clear visibility of
+current hubsync state in the app, a runtime DigAcc.settings.hubsync object
+is used during hub communications.  Sent data is always [DigAcc, ...songs].
+
+If you listen to overlapping song collections on two different devices, it
+can happen that you play a song on one device, then have it play again on
+the other device before hubsync merge updates get processed.  The correct
+merge processing is to update the currently playing song with the hub data.
+If you made changes to the song prior to hubsync, those changes will get
+overwritten by the hub data.  Usually this is intuitive, and it can be
+welcome to see the latest saved rating info kick in and update the display.
+On the other hand if you started to adjust the rating only to have it revert
+as the hubsync merge happens this might be surprising.  Hopefully the merge
+is welcome in either case.  Since the whole point of hubsync is to
+distribute data across app instances, the received hub song data always
+takes precedence over the app song data.
+
+If listening to overlapping song collection on two different devices that
+have both been out of hubsync contact for a while, then it is likely the
+second device will have several songs merged down from the hub along with
+others in the same time period that still need to be uploaded.  The app
+tracks a lastMergedPlayback time to let the server know it is up to date
+when uploading played songs.  To avoid sending already merged songs back to
+the server again, the app avoids any songs where modified >= lp.
+
+App-Hub comms overview:
+  -> {action:"upload", syncts:ts} where ts is lastMergedPlayback or
+     lastSyncPlayback whichever is greater.
+  <- {action:"received", syncts:lslp} lslp is the lp of the last song in the
+     list of songs updated.  The app updates lastSyncPlayback and
+     saves.  Sync processing is complete until rescheduled in response
+     to an upated lp, app restart, or other qualifying event.
+  <- {action:"merge", provdat:pdval, syncts:lslp} pdval may be either
+     "complete" or "partial".  lslp is the lp of the last song in the list
+     of songs to be merged.  The app merges the given songs, updates
+     lastMergedPlayback with lslp, saves, and reschedules hubsync.
+
+The hub always checks for songs where lp > syncts.  If any songs are found,
+they are returned for merge.  If all songs fit in a single return
+communication then the provided data (provdat) is "complete".  Otherwise it
+is "partial" indicating there is more to merge.  If no songs are found, the
+given songs are saved on the hub and returned.
+
+
+general considerations:
+----------------------
+
+The app should not send unrated songs since there is no information to save
+or communicate via the hub.  The hubsync processing skips saving unrated
+songs and does not return them.
+
+The app may update the lp for dupe songs.  How and when this is done may
+vary with the platform implementation or settings.  The hub does not get
+involved with dupe tracking logic.  If the app sends the same tiarab matched
+song N times, it will get back N revisions of that song instance.
+
+The app sends [DigAcc, ...songs] and receives the same structure array in
+response.  The hub only reads the DigAcc.settings.hubsync processing
+directive information, it does not update the hub DigAcc instance.  The
+DigAcc returned by the hub is always the latest hub saved instance, and the
+app may choose to update its local saved info from it.
+
+In the event of a "catastrophic" out of sync situation (resurrecting an
+older device that has not been used for a long time) it may be better to
+uninstall and then reinstall the app and restore from hub backup rather than
+slogging through multiple merge calls.  Or sign out and then sign in again.
+At the time of this writing, the hub can return up to 1300 songs in a single
+merge response, so a "partial" merge response might merit a confirmation
+dialog about continuing to merge.  That gives the user a chance to bail out
+for a faster update while lessening the load on the hub.
+
+When the app writes a hub song locally, it saves the hub "modified" field
+value for reference, along with other hub fields.  All hub data field values
+saved locally with the app are considered out of date w/r/t the hub.
 
 The hub data "modified" value reflects when a song instance was last written
 to the database.  It has a revision number after the ISO timestamp.  The
 local "lp" value does not have a revision number, and may have additional
-precision.  It is ok to compare the two strings as both are UTC times and
-accurate enough for sync purposes.
+timestamp precision.  It is ok to compare the two strings directly as both
+are UTC times and accurate enough for sync purposes.
 
