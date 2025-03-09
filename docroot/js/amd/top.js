@@ -418,7 +418,6 @@ app.top = (function () {
                     jt.log(logpre + "account update failed " +
                            code + ": " + errtxt); }); },
         makeStatusDisplay: function () {
-            var reset = false;
             if(!jt.byId("hubSyncInfoDiv")) { return; }
             jt.out("hubSyncInfoDiv", jt.tac2html(
                 [["span", {id:"hsilabspan", cla:"pathlabelgreyspan"},
@@ -426,36 +425,19 @@ app.top = (function () {
                  ["span", {id:"hsitsspan", cla:"infospan"}],
                  ["span", {id:"hsiudspan", cla:"infospan"}],
                  ["span", {id:"hsistatspan", cla:"infospan"}]]));
-            if(syt.pcts) {
-                const prevt = jt.isoString2Time(syt.pcts).getTime();
-                if(syt.err || (Date.now() - prevt) > (60 * 1000)) {
-                    reset = true; } }
-            mgrs.srs.hubStatInfo(syt.err || "init", reset); },
-        hubStatInfo: function (value, reset) {
+            mgrs.srs.hubStatInfo(syt.err || "init"); },
+        hubStatInfo: function (value) {
             if(!jt.byId("hsistatspan")) { return; }
             if(value === "init") {
                 if(syt.stat) { value = "processing..."; }
                 else if(syt.tmo) { value = "scheduled."; } }
-            if(reset) {
-                value += " " + jt.tac2html(
-                    ["a", {href:"#reset", onclick:mdfs("srs.manualReset"),
-                           title:"Restart hub synchronization"},
-                     "Reset"]); }
             jt.out("hsistatspan", value);
             if(syt.pcts) {
                 jt.out("hsitsspan",
                        jt.isoString2Time(syt.pcts).toLocaleTimeString()); }
             //not all unicode arrows are supported on all browsers.
             jt.out("hsiudspan", "<b>&#8593;</b>" + syt.up +
-                   ", <b>&#8595;</b>" + syt.down); },
-        manualReset: function () {
-            syt.tmo = null;
-            syt.stat = "";
-            syt.resched = false;
-            syt.pcts = "";
-            syt.up = 0;
-            syt.down = 0;
-            mgrs.srs.restoreFromBackup("reset"); }
+                   ", <b>&#8595;</b>" + syt.down); }
     };  //end mgrs.srs returned functions
     }());
 
