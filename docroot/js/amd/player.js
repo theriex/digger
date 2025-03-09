@@ -1311,7 +1311,11 @@ app.player = (function () {
         function initPlayerUIBaseElements () {
             jt.out("mediadiv", jt.tac2html(
                 ["div", {id:"playerdiv"},
-                 [["div", {id:"playertitle"}, "Starting"],
+                 [["div", {id:"playertitle"},
+                   ["div", {cla:"songtitlediv"},
+                    [["div", {id:"playtitlebuttonsdiv"},
+                      ["span", {id:"modindspan"}]],
+                     "Starting"]]],
                   ["div", {id:"playertuningdiv"}],
                   ["div", {id:"audioplayerdiv"},
                    [["div", {id:"audiodiv"}],
