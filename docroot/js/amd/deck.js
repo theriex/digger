@@ -249,9 +249,9 @@ app.deck = (function () {
     }());
 
 
-    //The autoplay queue builder handles creating a queue of play-eligible
+    //The selection queue builder handles creating a queue of play-eligible
     //songs distributed by artist, least recently played first.
-    mgrs.aqb = (function () {
+    mgrs.sqb = (function () {
         var pfsg = null;  //optional play first song
         var apls = [];    //all playable songs (ignoring frq & filtering)
         var lras = [];    //least recently played artists
@@ -301,7 +301,7 @@ app.deck = (function () {
             // function debuglogado (idx) {
             //     jt.log("  lras[" + idx + "] " + lras[idx].mrp + " " +
             //            lras[idx].ar); }
-            // if(!lras.length) { jt.log("aqb: No artists"); }
+            // if(!lras.length) { jt.log("sqb: No artists"); }
             // if(lras.length) { debuglogado(0); }
             // if(lras.length > 1) { debuglogado(1); }
             // if(lras.length > 2) { debuglogado(lras.length - 1); }
@@ -316,11 +316,11 @@ app.deck = (function () {
             // function dlogarttl (idx) {
             //     jt.log("  sbas[" + idx + "] " + sbas[idx].songs.length +
             //            " " + sbas[idx].ar); }
-            // if(!sbas.length) { jt.log("aqb: No song distribution"); }
+            // if(!sbas.length) { jt.log("sqb: No song distribution"); }
             // if(sbas.length) { dlogarttl(0); }
             // if(sbas.length > 1) { dlogarttl(1); }
             // if(sbas.length > 2) { dlogarttl(sbas.length - 1); }
-            jt.log("deck.aqb " + apls.length + " songs distributed across " +
+            jt.log("deck.sqb " + apls.length + " songs distributed across " +
                    sbas.length + " artists"); }
         function unwindDistributedSongsIntoQueue () {
             var cas = sbas;  //current artists to consider
@@ -343,8 +343,8 @@ app.deck = (function () {
                                jt.ellipsis(resq[idx].ar, 30)];
                 return "<br/>&nbsp;&nbsp;" + elems.join(" "); };
             if(resq.length) {
-                jt.log("aqb most recent artist: " + resq[resq.length - 1].ar); }
-            jt.log("aqb result: " + resq.length + " songs" +
+                jt.log("sqb most recent artist: " + resq[resq.length - 1].ar); }
+            jt.log("sqb result: " + resq.length + " songs" +
                    resq.slice(0, 3).map((s, i) => qed(s, i)));
             resq = resq.slice(0, app.player.playQueueMax); }
         function prependPlayFirstSongIfSpecified () {
@@ -354,8 +354,8 @@ app.deck = (function () {
     return {
         //If provided, the play first song will be placed first in the queue,
         //regardless whether it matches or is play-eligible.
-        makeAutoplayQueue: function (playFirstSong) {
-            jt.log("aqb.makeAutoplayQueue " +
+        makeSelectionQueue: function (playFirstSong) {
+            jt.log("sqb.makeSelectionQueue " +
                    (playFirstSong? playFirstSong.path : ""));
             resetWorkspace(playFirstSong);
             fetchLeastRecentlyPlayedArtists();
@@ -364,7 +364,7 @@ app.deck = (function () {
             prependPlayFirstSongIfSpecified();
             return resq; },
         getFilterCounts: function () { return fcs; }
-    };  //end mgrs.aqb returned functions
+    };  //end mgrs.sqb returned functions
     }());
 
 
@@ -398,7 +398,7 @@ app.deck = (function () {
             //Calls may be in response to digdat being updated, so yield
             //to notice processing before rebuilding.
             setTimeout(function () {
-                setAndPlayQueue(mgrs.aqb.makeAutoplayQueue(pfsg)); }, 50); }
+                setAndPlayQueue(mgrs.sqb.makeSelectionQueue(pfsg)); }, 50); }
         function restoreAutoplaySelectionQueueSettings () {
             const deckset = app.pdat.uips("deck");
             deckset.asq = deckset.asq || {};
@@ -455,7 +455,7 @@ app.deck = (function () {
                 jt.log(logpre + rems.length + " valid songs left in queue"); }
             return !fc; }
         function updateSelectionFilteringInfoDisplay () {
-            var dfcs = JSON.parse(JSON.stringify(mgrs.aqb.getFilterCounts()));
+            var dfcs = JSON.parse(JSON.stringify(mgrs.sqb.getFilterCounts()));
             if(!dfcs.length) {
                 return jt.out("deckfresdiv", jt.tac2html("Info unavailable")); }
             const offset = ((asq.idx >= 0)? asq.idx : 0);

@@ -43,4 +43,4 @@ Open [http://localhost:6980](http://localhost:6980)
 
 See the issues page for ongoing development.  Get in touch via email.
 
-© 2023 Eric Parker
+© 2025 Eric Parker
