@@ -804,8 +804,14 @@ var app = (function () {
                     nextApresDataTask(); } }, 50); }
         function notifyUpdateListeners (pwsid, type) {
             rtdat[type].listeners.forEach(function (listener) {
-                if(listener.pwsid !== pwsid) {  //no loop back to writer
-                    listener.cbf(rtdat[type].datobj); } });
+                if(listener.pwsid !== pwsid) {  //don't loop back to writer
+                    try {  //continue if any one listener fails
+                        listener.cbf(rtdat[type].datobj);
+                    } catch(e) {
+                        jt.log("notifyUpdateListeners " + type + " from " +
+                               pwsid + " continuing after listener failure " +
+                               e.stack);
+                    } } });
             if(type === "digdat") {
                 nextApresDataTask(); } }
         function verifyBaseObject (val) {
@@ -819,17 +825,16 @@ var app = (function () {
             rtdat.config.datobj = config;
             notifyUpdateListeners(pwsid, "config"); }
         function setDigDatAndNotify (pwsid, digdat) {
-            digdat = verifyBaseObject(digdat);
-            const stat = app.top.dispatch("dbc", "verifyDatabase", digdat);
-            if(!stat.verified) {  //note issue(s) and try continue
-                jt.log("setDigDatAndNotify verifyDatabase errors: " +
-                       JSON.stringify(stat)); }
-            rtdat.digdat.datobj = digdat;
             try {
+                digdat = verifyBaseObject(digdat);
+                const stat = app.top.dispatch("dbc", "verifyDatabase", digdat);
+                if(!stat.verified) {  //note issue(s) and try continue
+                    jt.log("setDigDatAndNotify verifyDatabase errors: " +
+                           JSON.stringify(stat)); }
+                rtdat.digdat.datobj = digdat;
                 notifyUpdateListeners(pwsid, "digdat");
             } catch(e) {
-                jt.log("pdat.notifyUpdateListeners failed " + e.stack);
-            } }
+                jt.log("setDigDatAndNotify failed " + e.stack); } }
         function dequeueOrFinish(fname, qdat) {
             rtdat[qdat].phase = "ready";
             if(rtdat[qdat].qcs.length) {
@@ -889,7 +894,11 @@ var app = (function () {
                     rtdat.digdat.phase = "callbacks";
                     jt.log(lpx + "processing callback notifications");
                     if(contf) {
-                        contf(writtendbo); }
+                        try {
+                            contf(writtendbo);
+                        } catch(e) {
+                            jt.log("writeDigDat contf failed " + e.stack);
+                        } }
                     setDigDatAndNotify(callerstr, writtendbo);
                     jt.log(lpx + "call completed");
                     dequeueOrFinish("writeDigDat", "digdat"); },
