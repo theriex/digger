@@ -47,11 +47,8 @@ app.svc = (function () {
                     jt.log("apeEnded calling playNextSong");
                     playNextSong("app.svc.audio.ended"); } } }
         function updateLpPcPdAndWrite (pwsid, song) {
-            //caller passes latest persistent song referencre
-            song.lp = new Date().toISOString();
-            song.pc = song.pc || 0;
-            song.pc += 1;
-            song.pd = "played";
+            //caller passes latest persistent song reference
+            app.util.updateSongLpPcPd(song.path);
             app.pdat.writeDigDat(pwsid || "svc.loa.playNextSong"); }
         function playNextSong (pwsid) {
             const player = jt.byId("playeraudio");

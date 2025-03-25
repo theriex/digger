@@ -348,6 +348,14 @@ var app = (function () {
                         errmsg = errmsg.slice(0, ci); } }
                 jt.log("app.util.pt returning: " + errmsg); }
             return errmsg; },
+        updateSongLpPcPd: function (path) {    //Called prior to writeDigDat..
+            const song = app.pdat.songsDict()[path];
+            song.lp = new Date().toISOString();
+            song.pc = song.pc || 0;
+            song.pc += 1;
+            song.pd = "played";
+            app.pdat.setNPSPendingWrite(true);
+            return song; },
         //copy field values from srcSong into destSong. Argument order similar
         //to Object.assign
         copyUpdatedSongData: function (destSong, srcSong) {
@@ -794,7 +802,7 @@ var app = (function () {
             config:{datobj:null, qcs:[], listeners:[]},   //.digger_config.json
             digdat:{datobj:null, qcs:[], listeners:[]}};  //digdat.json
         var adnts = [];  //apres data notification tasks
-        var tiarab = null;  //alt dict for song lookup by title artist album
+        var tiarab = null;  //alt dict for song lookup by Title Artist Album
         function nextApresDataTask () {
             setTimeout(function () {
                 if(adnts.length) {
@@ -891,6 +899,7 @@ var app = (function () {
             rtdat.digdat.datobj.awts = new Date().toISOString(); //app write ts
             app.svc.writeDigDat(rtdat.digdat.datobj, optobj,
                 function (writtendbo) {
+                    rtdat.digdat.npsPendingWrite = false;
                     rtdat.digdat.phase = "callbacks";
                     jt.log(lpx + "processing callback notifications");
                     if(contf) {
@@ -903,6 +912,7 @@ var app = (function () {
                     jt.log(lpx + "call completed");
                     dequeueOrFinish("writeDigDat", "digdat"); },
                 function (code, errtxt) {
+                    rtdat.digdat.npsPendingWrite = false;
                     jt.log(lpx + "error " + code + ": " + errtxt);
                     if(errf) {
                         errf(code, errtxt); }
@@ -935,9 +945,16 @@ var app = (function () {
                     function (code, errtxt) {
                         jt.err(logpre + "readConfig error " + code + ": " +
                                errtxt); }); }, 50); },
+        //set or clear the now playing song pending write flag
+        setNPSPendingWrite: function (val) {
+            rtdat.digdat.npsPendingWrite = val; },
         reloadDigDat: function () {
+            if(rtdat.digdat.npsPendingWrite) {  //reloading after write instead
+                return jt.log("pdat.reloadDigDat skipped. npsPendingWrite"); }
             jt.log("pdat.reloadDigDat setting timeout");
             setTimeout(function () {
+                if(rtdat.digdat.npsPendingWrite) {  //reloading after write
+                    return jt.log("pdat.reloadDigDat abort. npsPendingWrite"); }
                 app.svc.readDigDat(
                     function (digdat) {
                         jt.log("pdat.reloadDigDat complete. Notifying.");

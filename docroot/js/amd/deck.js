@@ -349,6 +349,7 @@ app.deck = (function () {
             resq = resq.slice(0, app.player.playQueueMax); }
         function prependPlayFirstSongIfSpecified () {
             if(pfsg) {
+                resq = resq.filter((s) => s.path !== pfsg.path);
                 resq.unshift(app.pdat.songsDict()[pfsg.path]);
                 resq = resq.slice(0, app.player.playQueueMax); } }
     return {
