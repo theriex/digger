@@ -519,7 +519,10 @@ app.deck = (function () {
             rebuildPlaybackQueue(song); },
         filtersChanged: function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
-                verifyQueuedPlayback(); } },
+                if(asq.paths.length < 7) {  //worth a rebuild to try find more
+                    rebuildPlaybackQueue(); }
+                else {
+                    verifyQueuedPlayback(); } } },
         isCurrentOrNextSong: function (song) {
             function test (i) {
                 return (i >= 0 && i < asq.paths.length && song &&
@@ -623,9 +626,10 @@ app.deck = (function () {
                           sa.songs[0].ab]]]])]])); }
         function digDatUpdated (/*dbo*/) {
             suggestedAlbums = null;
-            const dispdiv = jt.byId(sads.contentdivid);
-            if(dispdiv && dispdiv.style.display === "block") {
-                displaySuggestedAlbums(); } }
+            if(mgrs.gen.getSongSeqMgrName() === "alb") {
+                const dispdiv = jt.byId(sads.contentdivid);
+                if(dispdiv && dispdiv.style.display === "block") {
+                    displaySuggestedAlbums(); } } }
     return {
         initialize: function () {
             app.pdat.addDigDatListener("deck.sas", digDatUpdated); },
@@ -1084,7 +1088,7 @@ app.deck = (function () {
     //general manager is main interface for the module
     mgrs.gen = (function () {
         var mdms = [   //major display modes
-            {mgr:"csa", name:"Autoplay", img:"deck.png"},
+            {mgr:"csa", name:"Continuous", img:"deck.png"},
             {mgr:"alb", name:"Album", img:"album.png"},
             {mgr:"srch", name:"Search", img:"search.png"}];
         const dfltSeqMgrName = "alb";
@@ -1111,12 +1115,10 @@ app.deck = (function () {
                 mgrs[mgrname].activateDisplay(); } },  //setSongSeqMgrName
         currentlyPlayingSongChanged: function () {
             const song = app.player.nowPlayingSong();
-            jt.log("deck.currentlyPlayingSongChanged to " +
+            jt.log("deck.currentlyPlayingSongChanged: " +
                    (song? song.ti : "nothing"));
-            if(ssmn() === "csa" && mgrs.csa.isCurrentOrNextSong(song)) {
-                mgrs.gen.dispMode("csa"); }
-            else {  //prefer to start from album if external control selection
-                mgrs.gen.dispMode("alb"); } },
+            //do not change the sequence manager (ep 28mar25)
+            mgrs[ssmn()].activateDisplay(); },
         playNextSong: function () {
             mgrs[ssmn()].playNextSong(); },
         replayQueue: function () {
