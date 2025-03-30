@@ -476,6 +476,7 @@ app.deck = (function () {
             asq.idx = mgrs.util.findIndexByLastPlayedTimestamp(asq.paths);
             if(asq.idx < 0) {  //playback has not followed queue
                 jt.log("csa.digDatUpdated playback did not follow queue");
+                //keep first song in queue since it was previewed on startup
                 return rebuildPlaybackQueue(); }
             verifyNowPlayingSong(); }
         function digDatUpdated (/*digdat*/) {
@@ -744,6 +745,9 @@ app.deck = (function () {
         playAlbum: function (song, fromBeginning) {
             //might be called from search while previously csa mode
             mgrs.gen.setSongSeqMgrName("alb", "playAlbum");
+            if(!song) {
+                jt.log("playAlbum no song given, suggesting albums");
+                return mgrs.sas.togSuggestAlbums(true); }
             setPathsAndIndexFromSong(song);
             if(fromBeginning) {
                 apq.idx = 0; }
@@ -1144,12 +1148,12 @@ app.deck = (function () {
                 const songcount = Object.values(app.pdat.songsDict()).length;
                 app.top.dispCount(songcount, "avail");
                 const deckset = app.pdat.uips("deck");
-                //a valid saved deckset.seqmgr will already have restored itself
                 if(!deckset.seqmgr || !validSeqMgrName(deckset.seqmgr)) {
                     jt.log("deckDataInit resetting invalid deckset.seqmgr: " +
                            deckset.seqmgr);
-                    mgrs.gen.setSongSeqMgrName(dfltSeqMgrName, "genApresCheck");
-                    mgrs.gen.dispMode(dfltSeqMgrName); } }); }
+                    mgrs.gen.setSongSeqMgrName(dfltSeqMgrName,
+                                               "genApresCheck"); }
+                mgrs.gen.dispMode(deckset.seqmgr); }); }
     };  //end mgrs.gen returned functions
     }());
 

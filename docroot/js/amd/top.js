@@ -2322,7 +2322,7 @@ app.top = (function () {
                 {ty:"info", htmlfs:"versionInfoHTML"},
                 {ty:"info", htmlfs:"getLatestVersionHTML", id:"updversionnote"},
                 {ty:"info", htmlfs:"hubSyncInfoHTML"},
-                {ty:"btn", oc:app.util.dfs("svc", "loc.loadLibrary"),
+                {ty:"btn", oc:mdfs("locla.libimpNeeded", "reread"),
                  tt:"Read all files in the music folder",
                  n:"Read Files", id:"readfilesbutton"},
                 {ty:"btn", oc:mdfs("lcm.displayLocalCarryInfo"),
@@ -2412,8 +2412,8 @@ app.top = (function () {
             if(!app.util.haveHubCredentials()) { return ""; }
             setTimeout(mgrs.srs.makeStatusDisplay, 100);
             return jt.tac2html(["div", {id:"hubSyncInfoDiv"}]); },
-        libimpNeeded: function () {
-            if(slfrc) { return; }
+        libimpNeeded: function (reread) {
+            if(slfrc && !reread) { return; }
             slfrc = new Date().toISOString();
             setTimeout(function () {
                 const llp = app.svc.extensionInterface("libload");

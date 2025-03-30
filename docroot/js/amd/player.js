@@ -1430,8 +1430,10 @@ app.player = (function () {
             pmso.song = song;             //temp change to what should display
             pmso.state = state;
             mgrs.uiu.updateSongDisplay("previewSongDisplay");
-            pmso.song = cs;               //restore state
-            pmso.state = st;
+            //restore the previous state.  If no previous state, keep the
+            //preview values since they are about to become real.
+            pmso.song = cs || song;
+            pmso.state = st || state;
             //update stale and expecting for status message tracking
             pmso.stale = null;
             pmso.expecting = null;

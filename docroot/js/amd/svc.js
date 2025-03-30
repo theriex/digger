@@ -105,13 +105,14 @@ app.svc = (function () {
         handlePlayerError: function (errval) {  //DOMException or text or obj
             const errmsg = String(errval);  //error name and detail text
             const song = app.player.nowPlayingSong();
-            jt.log("mgrs.loa Play error " + errmsg + " " + song.path);
+            const logpre = "svc.loa.handlePlayerError: ";
+            jt.log(logpre + errmsg + " " + song.path);
             //NotAllowedError is normal on app start. Autoplay is generally
             //disabled until the user has interacted with the player.
             if(errmsg.indexOf("NotAllowedError") >= 0) {
                 const player = jt.byId("playeraudio");
                 if(!player.duration) {  //clicking play should trigger error
-                    jt.log("Song has no duration."); }
+                    jt.log(logpre + "Song has no duration."); }
                 return; }
             //NotSupportedError means file is unplayable by the current
             //player, but might be ok.  For example on MacOS, Safari handles

@@ -817,7 +817,8 @@ app.filter = (function () {
                            samp.name); } });
             buf.splice(0, buf.length); }  //clear buf
         function logMessage (text) {
-            buf.push({t:timestamp(), c:1, m:text});
+            //force convert text to typeof "string" just in case
+            buf.push({t:timestamp(), c:1, m:String(text)});
             try {
                 collapsePolling();
             } catch(e) {  //if failure due to bad line input, just continue
