@@ -124,6 +124,10 @@ app.top = (function () {
                 return ajfs[fld].cmp.every((f) => ((a[f] === b[f]) ||
                            (JSON.stringify(a[f]) === JSON.stringify(b[f])))); }
             return JSON.stringify(a[fld]) === JSON.stringify(b[fld]); }
+        function nowPlayingAndMoreRecentlyUpdated (hsg, lsg) {
+            const nps = app.player.nowPlayingSong();
+            return (nps && nps.path === lsg.path &&  //updating now playing song
+                    nps.lp > hsg.lp); }  //now playing more recently modified
     return {
         serializeAccount: function (acct) {
             Object.keys(ajfs).forEach(function (sf) {
@@ -163,7 +167,6 @@ app.top = (function () {
                         destAcct[key] = srcAcct[key]; } } });
             removeUnusedLegacyFields(destAcct); },
         saveSongUpdates: function (callerstr, songs) {
-            callerstr = callerstr || "unknown saveSongUpdates";
             if(!songs) { return; }
             if(!Array.isArray(songs)) { songs = [songs]; }
             if(!songs.length) { return; }
@@ -174,7 +177,8 @@ app.top = (function () {
                     const tiarab = app.pdat.tiarab();
                     ref = tiarab[s.ti + s.ar + s.ab]; }
                 if(ref) {  //song found locally
-                    app.util.copyUpdatedSongData(ref, s); } });
+                    if(!nowPlayingAndMoreRecentlyUpdated(s, ref)) {
+                        app.util.copyUpdatedSongData(ref, s); } } });
             app.pdat.writeDigDat(callerstr); },
         makeHubCall: function (endpoint, dets) {  //verb, dat, contf, errf
             const ves = ["newacct", "acctok", "updacc", "mailpwr", "deleteme",
@@ -279,6 +283,65 @@ app.top = (function () {
             //Leave a log message in case this ever happens.  Another pass
             //at merging will happen next time hubsync is triggered.
             jt.log("promptToRestoreFromBackup not implemented yet"); }
+        function songLogLine (song) {
+            var les = [];
+            les.push(song.dsId || "----");
+            les.push(jt.ellipsis(song.ti, 30));
+            les.push(song.lp);
+            les.push(song.modified || "----");
+            return les.join(" "); }
+        function logHubSyncSongs (verb, songs) {
+            const mxsgs = 3;
+            var lls = songs.slice(0, mxsgs).map((s) => songLogLine(s));
+            lls.unshift("DiggerHub sync " + verb + 
+                        " lpsync:" + app.pdat.dbObj().lastSyncPlayback + 
+                        " lpmerge:" + app.pdat.dbObj().lastMergedPlayback);
+            if(songs.length > mxsgs) {
+                lls.push("... total of " + songs.length + " songs"); }
+            jt.log(lls.join("<br/>")); }
+        function makeSendSyncData () {
+            const maxSendSongs = 100;
+            const updsongs = uploadableSongs().slice(0, maxSendSongs)
+                .map((s) => app.util.txSong(s));
+            if(!updsongs.length) { return null; }
+            logHubSyncSongs("sending", updsongs);
+            const acct = mgrs.aaa.getAccount();
+            acct.settings = acct.settings || {};
+            const dbo = app.pdat.dbObj();
+            acct.settings.hubsync = {action:"upload",
+                                     syncts:dbo.lastSyncPlayback};
+            if(dbo.lastMergedPlayback > dbo.lastSyncPlayback) {
+                acct.settings.hubsync.syncts = dbo.lastMergedPlayback; }
+            mgrs.hcu.serializeAccount(acct);
+            const obj = {email:acct.email, token:acct.token,
+                         syncdata:JSON.stringify([acct, ...updsongs])};
+            mgrs.hcu.deserializeAccount(acct);
+            return jt.objdata(obj); }
+        function processReceivedSyncData (updates) {
+            const srcpid = "srs.processReceivedSyncData ";
+            const logpre = srcpid + " ";
+            const acct = updates[0];
+            mgrs.hcu.deserializeAccount(acct);
+            const songs = updates.slice(1);
+            const lastsong = songs[songs.length - 1];
+            if(acct.settings.hubsync.action === "received") {
+                syt.up += songs.length;
+                app.pdat.dbObj().lastSyncPlayback = lastsong.lp; }
+            else {  //"merge"
+                syt.down += songs.length;
+                app.pdat.dbObj().lastMergedPlayback = lastsong.lp; }
+            logHubSyncSongs("received", songs);
+            mgrs.hcu.saveSongUpdates(srcpid, songs);
+            mgrs.aaa.updateCurrAcct(acct, null,
+                function (updacc) {
+                    if(updacc.settings.hubsync.action === "merge") {
+                        if(updacc.settings.hubsync.provdat === "partial") {
+                            promptToRestoreFromBackup(); }
+                        else {  //reschedule upload now that merge is complete
+                            mgrs.srs.syncToHub(); } } },
+                function (code, errtxt) {
+                    jt.log(logpre + "account update failed " +
+                           code + ": " + errtxt); }); }
     return {
         noteDataRestorationNeeded: function () { syt.stat = "restoring"; },
         restoreFromBackup: function (srcstr) {
@@ -349,14 +412,14 @@ app.top = (function () {
                 return jt.log("hubSyncStart aborted since not signed in"); }
             syt.stat = "executing";
             mgrs.srs.hubStatInfo("checking...");
-            const pdat = mgrs.srs.makeSendSyncData();
+            const pdat = makeSendSyncData();
             if(!pdat) { return mgrs.srs.hubSyncFinished(); }
             showHubIndicator(true, "sending...");
             mgrs.hcu.makeHubCall("hubsync", {
                 verb:"POST", dat:pdat,
                 contf:function (updates) {
                     mgrs.srs.hubStatInfo("updating...");
-                    mgrs.srs.processReceivedSyncData(updates);
+                    processReceivedSyncData(updates);
                     mgrs.srs.hubSyncFinished(); },
                 errf:function (code, errtxt) {
                     mgrs.srs.handleSyncError(code, errtxt);
@@ -375,48 +438,6 @@ app.top = (function () {
                     //the overhead can be significant.  Not needed for sync.
                     //setTimeout(mgrs.fsc.updateContributions, 100);
                     mgrs.hcu.verifyClientVersion(); } } },
-        makeSendSyncData: function () {
-            const maxSendSongs = 100;
-            const updsongs = uploadableSongs().slice(0, maxSendSongs)
-                .map((s) => app.util.txSong(s));
-            if(!updsongs.length) { return null; }
-            const acct = mgrs.aaa.getAccount();
-            acct.settings = acct.settings || {};
-            const dbo = app.pdat.dbObj();
-            acct.settings.hubsync = {action:"upload",
-                                     syncts:dbo.lastSyncPlayback};
-            if(dbo.lastMergedPlayback > dbo.lastSyncPlayback) {
-                acct.settings.hubsync.syncts = dbo.lastMergedPlayback; }
-            mgrs.hcu.serializeAccount(acct);
-            const obj = {email:acct.email, token:acct.token,
-                         syncdata:JSON.stringify([acct, ...updsongs])};
-            mgrs.hcu.deserializeAccount(acct);
-            return jt.objdata(obj); },
-        processReceivedSyncData: function (updates) {
-            const logpre = "srs.processReceivedSyncData ";
-            const acct = updates[0];
-            mgrs.hcu.deserializeAccount(acct);
-            const songs = updates.slice(1);
-            jt.log(logpre + songs.length + " songs " +
-                   JSON.stringify(acct.settings.hubsync));
-            const lastsong = songs[songs.length - 1];
-            if(acct.settings.hubsync.action === "received") {
-                syt.up += songs.length;
-                app.pdat.dbObj().lastSyncPlayback = lastsong.lp; }
-            else {  //"merge"
-                syt.down += songs.length;
-                app.pdat.dbObj().lastMergedPlayback = lastsong.lp; }
-            mgrs.hcu.saveSongUpdates("srs.processReceivedSyncData", songs);
-            mgrs.aaa.updateCurrAcct(acct, null,
-                function (updacc) {
-                    if(updacc.settings.hubsync.action === "merge") {
-                        if(updacc.settings.hubsync.provdat === "partial") {
-                            promptToRestoreFromBackup(); }
-                        else {  //reschedule upload now that merge is complete
-                            mgrs.srs.syncToHub(); } } },
-                function (code, errtxt) {
-                    jt.log(logpre + "account update failed " +
-                           code + ": " + errtxt); }); },
         makeStatusDisplay: function () {
             if(!jt.byId("hubSyncInfoDiv")) { return; }
             jt.out("hubSyncInfoDiv", jt.tac2html(
