@@ -47,6 +47,7 @@ app.player = (function () {
             return updsong; }
         function processSaveQueue () {
             jt.out("modindspan", "mod");
+            pmso.song = app.pdat.songsDict()[pmso.song.path];  //verify ref
             app.util.copyUpdatedSongData(pmso.song, pmso.smq[0].songcopy);
             app.pdat.writeDigDat("player.processSaveQueue", {songs:[pmso.song]},
                 function (digdat) {
@@ -421,14 +422,17 @@ app.player = (function () {
                                onclick:mdfs("kwd.toggleKeyword", idx)},
                     kd.kw]; },
         toggleKeyword: function (idx) {
-            pmso.cto().kws = pmso.cto().kws || "";
+            const cto = pmso.cto();
+            cto.kws = cto.kws || "";
             const button = jt.byId("kwdtog" + idx);
             if(button.className === "kwdtogoff") {
                 button.className = "kwdtogon";
-                pmso.cto().kws = pmso.cto().kws.csvappend(button.innerHTML); }
+                cto.kws = cto.kws.csvappend(button.innerHTML); }
             else {
                 button.className = "kwdtogoff";
-                pmso.cto().kws = pmso.cto().kws.csvremove(button.innerHTML); }
+                cto.kws = cto.kws.csvremove(button.innerHTML); }
+            jt.log("toggleKeyword " + button.className.slice(6) + ": " +
+                   button.innerHTML + " kws:" + cto.kws + " p:" + cto.path);
             mgrs.kwd.togkwds2alb("off");
             app.top.dispatch("gen", "togtopdlg", "", "close");  //sc changed
             mgrs.scm.noteSongModified("kwd"); },
@@ -1341,8 +1345,10 @@ app.player = (function () {
                     elem.classList.remove("bgtransitionfade"); }, ms + 750); },
                        100); },
         updateSongDisplay: function (callerstr) {
+            const cto = pmso.cto();
             jt.log("uiu.updateSongDisplay " + callerstr + " " + pmso.state +
-                   " " + pmso.cto().ti + " (" + pmso.cto().path + ")");
+                   " " + cto.ti + " (" + cto.path + ")  rv:" + cto.rv +
+                   " kws:" + cto.kws);
             updateSongTitleDisplay();
             mgrs.pan.updateControl("al", pmso.song.al);
             mgrs.pan.updateControl("el", pmso.song.el);
