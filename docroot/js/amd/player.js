@@ -1521,16 +1521,17 @@ app.player = (function () {
                     app.player.notifySongChanged(song, status.state); }
                 contf(pmso); }); },
         notifySongChanged: function (song, state) {
+            const logpre = "player.gen.notifySongChanged ";
             mgrs.uiu.assertValidSong(song);
             if(!app.pdat.dbObj()) {
-                return jt.log("notifySongChanged ignored, no database yet."); }
+                return jt.log(logpre + "ignored, no database yet."); }
             pmso.mrscnts = new Date().toISOString();
             pmso.stale = null;          //clear any prior tracking based on
             pmso.expecting = null;      //what was queue driven
             const sd = app.pdat.songsDict();
             const dbsg = sd[song.path];
             if(!dbsg) {  //use foreign song instance for display
-                jt.log("notifySongChanged song not found: " + song.path);
+                jt.log(logpre + "song not found: " + song.path);
                 return mgrs.scm.changeCurrentlyPlayingSong(song, state); }
             //regardless if song changed or not, verify hubsync scheduled
             app.top.dispatch("srs", "syncToHub");
@@ -1540,7 +1541,7 @@ app.player = (function () {
                 pmso.state = state;  //notification provides latest state
                 mgrs.slp.notePlayerStateChange();
                 if(pmso.drsm !== "fndply") {  //not initializing
-                    jt.log("notifySongChanged ignoring non-change call");
+                    jt.log(logpre + "ignoring non-change call");
                     return; } }
             mgrs.scm.changeCurrentlyPlayingSong(song, state); },
         skip: function (rapidok) {

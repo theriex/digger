@@ -759,10 +759,11 @@ app.deck = (function () {
             const song = app.pdat.songsDict()[apq.paths[idx]];
             mgrs.alb.playAlbum(song); },
         playNextSong: function () {
-            //rather ignore a skip button press than loop back to start
-            if(apq.idx < apq.paths.length - 1) {
-                apq.idx += 1;
-                playAlbumFromIndex(); } },
+            if(apq.idx >= apq.paths.length - 1) {
+                return jt.log("alb.playNextSong ignored, on last song"); }
+            apq.idx += 1;
+            redrawAlbumDisplay();
+            playAlbumFromIndex(); },
         replayQueue: function () {
             playAlbumFromIndex(); },
         initDisplay: function () {
