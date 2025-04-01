@@ -999,6 +999,10 @@ app.player = (function () {
             //If triggered externally, playback may start, or restart after
             //"ended", without notice.  For the UI to react, it must poll.
             scheduleTransportStateRecheck(); },
+        rezeroPlaybackPosition: function () {
+            if(!jt.byId("pluidiv")) { return; }  //plui not available
+            mgrs.plui.updateTransportControls(
+                {state:"playing", pos:0, dur:0}); },
         togglePlaybackState: function () {
             //update UI image first, then call pbco and get updated status
             clearTicker(true);
@@ -1540,9 +1544,9 @@ app.player = (function () {
                     return; } }
             mgrs.scm.changeCurrentlyPlayingSong(song, state); },
         skip: function (rapidok) {
-            if(!pmso.song) { return jt.log("No skip if no song"); }
+            if(!pmso.song) { return jt.log("No skip since no song"); }
             if(!rapidok) {  //not handling a playback error or similar
-                //On a phone, the skip button can be unresponsive for several
+                //On mobiles, the skip button can be unresponsive for several
                 //seconds if the music playback service is still setting up.
                 //Avoid accidental double skip with an extensive debounce.
                 const wms = 4000;  //wait milliseconds for debounce
@@ -1556,6 +1560,7 @@ app.player = (function () {
                 mgrs.uiu.illuminateAndFade("nextsongdiv", wms); }
             setTimeout(function () {  //show button press before processing
                 jt.log("Skipping " + pmso.song.path + " " + pmso.song.ti);
+                mgrs.plui.rezeroPlaybackPosition();
                 app.deck.playNextSong(); }, 50); },
         logCurrentlyPlaying: function (prefix) {
             //mobile player updates when playing new song, no separate call.
