@@ -346,17 +346,17 @@ app.top = (function () {
         noteDataRestorationNeeded: function () { syt.stat = "restoring"; },
         restoreFromBackup: function (srcstr) {
             const logpre = "restoreFromBackup ";
+            const btm = Date.now();
+            showHubIndicator(true, "restoring...");
+            syt.stat = "restoring";  //avoid any interim sync
+            const bdrdone = function () {  //end restore, check for updates
+                syt.stat = "";  //allow regular sync to proceed
+                mgrs.srs.syncToHub(srcstr); };
             const acct = mgrs.aaa.getAccount();
             if(!acct || !acct.settings || !acct.settings.backup ||
                !acct.settings.backup.url) {
                 jt.log(logpre + "no acct.settings.backup.url");
-                return mgrs.srs.syncToHub(srcstr); }
-            const btm = Date.now();
-            showHubIndicator(true, "restoring...");
-            syt.stat = "restoring";  //avoid any interim sync
-            const bdrdone = function () {  //look for any updates since backup
-                syt.stat = "";  //allow regular sync to proceed
-                mgrs.srs.syncToHub(srcstr); };
+                return bdrdone(); }
             const bdurl = acct.settings.backup.url;
             mgrs.hcu.makeHubCall(bdurl, {
                 verb:"rawGET", url:app.util.cb(bdurl, app.util.authdata({})),
