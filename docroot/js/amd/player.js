@@ -1592,6 +1592,8 @@ return {
     playSongQueue: mgrs.gen.playSongQueue,
     playQueueMax: 180,  //~9hrs without UI interaction
     nowPlayingSong: function () { return pmso.song; },
+    currentPlaybackState: function () { return pmso.state; },
+    setPlaybackState: function (state) { pmso.state = state; },
     reqUpdatedPlaybackStat: mgrs.gen.reqUpdatedPlaybackStat,
     notifySongChanged: mgrs.gen.notifySongChanged,
     skip: mgrs.gen.skip,

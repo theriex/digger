@@ -24,6 +24,8 @@ app.svc = (function () {
             seekedt:0,      //Date.now() of last "seeked" event notification
             cooloff:2000,   //2 second mousing about chill period
             endedtmo:null}; //timeout for "ended" event notification
+        function apePause () { app.player.setPlaybackState("paused"); }
+        function apePlay () { app.player.setPlaybackState("playing"); }
         function apeSeeked () { ape.seekedt = Date.now(); }
         function apeEnded () {
             //avoid ending lots of times if throwing around the seek knob..
@@ -86,6 +88,8 @@ app.svc = (function () {
                         ["audio", {id:"playeraudio", controls:"controls",
                                    autoplay:"autoplay"},  //might not happen
                          "WTF? Your browser doesn't support audio.."]));
+                    jt.on("playeraudio", "pause", apePause);
+                    jt.on("playeraudio", "play", apePlay);
                     jt.on("playeraudio", "seeked", apeSeeked);
                     jt.on("playeraudio", "ended", apeEnded); }
                 bumpPlayerLeftIfOverhang(); }); },

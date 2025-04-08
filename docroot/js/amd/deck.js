@@ -395,7 +395,13 @@ app.deck = (function () {
             //A play first song is specified if choosing a song from search,
             //otherwise try keep the currently playing song, or rebuild from
             //scratch and play the first queued song.
-            pfsg = pfsg || app.player.nowPlayingSong();
+            if(!pfsg) {
+                const nps = app.player.nowPlayingSong();
+                //if the song is no longer playing, it might have been the
+                //last song on the album, or it was intentionally paused.
+                //Either way it is better to not play it again.
+                if(nps && app.player.currentPlaybackState() === "playing") {
+                    pfsg = nps; } }
             //Calls may be in response to digdat being updated, so yield
             //to notice processing before rebuilding.
             setTimeout(function () {
@@ -1116,7 +1122,7 @@ app.deck = (function () {
                 jt.byId(dm.mgr + "dispdiv").style.display = "none"; });
             jt.byId(mgrname + "mdmbdiv").className = "mdmbdivact";
             jt.byId(mgrname + "dispdiv").style.display = "block";
-            if(!displayOnly) {
+            if(!displayOnly && ssmn() !== mgrname) {   //not already active
                 mgrs[mgrname].activateDisplay(); } },  //setSongSeqMgrName
         currentlyPlayingSongChanged: function () {
             const song = app.player.nowPlayingSong();
