@@ -699,19 +699,22 @@ app.deck = (function () {
             apq.ts = new Date().toISOString();
             app.player.playSongQueue("deck.alb", remaining); }
         function verifyAlbumQueuedPlayback () {
+            const logpre = "alb.verifyAlbumQueuedPlayback ";
             const np = app.player.nowPlayingSong();
             if(np) {
+                jt.log(logpre + "np.ti " + np.ti);
                 const pst = {idx:apq.idx, abchg:false};
                 apq.idx = apq.paths.findIndex((p) => p === np.path);
-                if(apq.idx >= 0) {  //found currently playing on album
-                    redrawAlbumDisplay(); }
-                else {  //playing a different album now
+                if(apq.idx < 0) {  //playing a different album now
+                    jt.log(logpre + "playing a different album");
                     pst.abchg = true;
                     setPathsAndIndexFromSong(np); }
+                redrawAlbumDisplay();
                 if(pst.abchg || pst.idx !== apq.idx) {
-                    jt.log("alb.verifyAlbumQueuedPlayback saving album state");
+                    jt.log(logpre + "saving album state");
                     app.pdat.writeDigDat("deck.alb"); } }
             else {  //nothing currrently playing
+                jt.log(logpre + "no currently playing song");
                 if(!apq.paths.length || apq.idx >= apq.paths.length - 1) {
                     //no songs or already played the last song
                     mgrs.sas.togSuggestAlbums(true); }
