@@ -1,6 +1,6 @@
 {
   "name": "digger",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Contextual music library access server",
   "main": "digger.js",
   "bin": "digger.js",
