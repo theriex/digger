@@ -710,8 +710,11 @@ app.deck = (function () {
                     pst.abchg = true;
                     setPathsAndIndexFromSong(np); }
                 redrawAlbumDisplay();
-                if(pst.abchg || pst.idx !== apq.idx) {
-                    jt.log(logpre + "saving album state");
+                if(pst.abchg) {  //no prev queue or iOS gone off somewhere
+                    jt.log(logpre + "taking over queued playback");
+                    playAlbumFromIndex(); }
+                else if(pst.idx !== apq.idx) {
+                    jt.log(logpre + "saving updated album state");
                     app.pdat.writeDigDat("deck.alb"); } }
             else {  //nothing currrently playing
                 jt.log(logpre + "no currently playing song");
