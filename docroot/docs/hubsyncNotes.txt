@@ -21,9 +21,32 @@ if the lp timestamp given is older than the lp value it already has.
 The app's responsibility is to send song ratings that should be preserved
 across devices and made available for collaboration.  It does this solely by
 tracking Song.lp values relative to when the app last communicated with the
-hub.  The app saves several hub song data fields locally (incuding modified
-and dsId), but those values are for general reference only and should
-always be considered potentially out of date.
+hub.  The app saves, sends, and downloads song.dsId, but this is solely for
+general reference and is not used for matching.  Songs sent to the hub
+might have had their metadata changed and now ti/ar/ab map to a different
+dsId.  Updated songs received from the hub may map to multiple copies of the
+same song on the local device.  The dsId is just for general reference.
+
+
+Notes on PCRE limits:
+--------------------
+
+To detect and mitigate DOS attacks, the web server is constantly monitoring
+any requests that cause the server to do too much work.  When the server
+sees a request that resulted in an unreasonably heavy load, it makes a note
+of the request and uses Perl Compatible Regular Expressions (PCRE) to try
+and avoid allowing anything similar through anytime soon.  If the server
+runs into more of these suspicious requests than whatever maximum it is
+configured to check, it logs "Execution error - PCRE limits exceeded".
+
+The server is always monitoring, and may take evasive action through request
+slowdowns and eventual bitbucket relegation even without logging an error.
+It is critical that repeated requests be as efficient and unique as possible
+to smurf past the (rightfully) highly suspicious web server monitoring.  The
+hubsync processing in particular needs
+  - user specific API sync endpoints to scale service per individual
+  - sync continuation tokens to avoid sending full auth every time
+  - minimized data (quantity and quality)
 
 
 Initial data restore:
@@ -45,8 +68,8 @@ When you first sign in from the app on a new platform, the app fetches your
 backup information via the custom url.  Unlike other API calls, the data is
 not returned in JSON format because it's too big to send that way.  By
 reducing the returned song data to a CSV of the essential field values, the
-returned data is a just over 5 times smaller.  This could be reduced further
-by zip compression in the future as needed.
+returned data is typically just over 5 times smaller.  This could be reduced
+further by zip compression in the future as needed.
 
 top.asu.signinProc->srs.noteDataRestorationNeeded to turn off other sync
 processing, then calls srs.restoreFromBackup to fetch the backup data and
@@ -64,16 +87,6 @@ Digger app on multiple devices, possibly with interleaved hubsync calls.
 To maintain user data consistency, each app instance must
   1. Download and merge any hub songs changed since last sync.
   2. Upload app songs changed since last sync and save returned hub data.
-  3. Reset and save app.pdat.dbObj().lastSyncPlayback
-
-Usually, a sync interaction will be started from the same app instance as
-the previous sync interaction, so hubsync is optimized to handle the simple
-played-songs-upload case as a single call, falling back to merging interim
-sync data or recovery as needed.  Communication failures can happen due to
-bad internet connections on the client side, web server failures on the hub
-side, maintenance updates or other events.  To maintain clear visibility of
-current hubsync state in the app, a runtime DigAcc.settings.hubsync object
-is used during hub communications.  Sent data is always [DigAcc, ...songs].
 
 If you listen to overlapping song collections on two different devices, it
 can happen that you play a song on one device, then have it play again on
@@ -85,34 +98,94 @@ welcome to see the latest saved rating info kick in and update the display.
 On the other hand if you started to adjust the rating only to have it revert
 as the hubsync merge happens this might be surprising.  Hopefully the merge
 is welcome in either case.  Since the whole point of hubsync is to
-distribute data across app instances, the received hub song data always
-takes precedence over the app song data.
+distribute data across app instances, the pulled hub song data always
+takes precedence over outdated app song data.
 
 If listening to overlapping song collection on two different devices that
 have both been out of hubsync contact for a while, then it is likely the
-second device will have several songs merged down from the hub along with
-others in the same time period that still need to be uploaded.  The app
-tracks a lastMergedPlayback time to let the server know it is up to date
-when uploading played songs.  To avoid sending already merged songs back to
-the server again, the app avoids any songs where modified >= lp.
+second device will have several songs merged down from the hub.  The app
+keeps track of lastSyncPlayback and lastMergedPlayback times as it
+synchronizes hub data.
 
-App-Hub comms overview:
-  -> {action:"upload", syncts:ts} where ts is lastMergedPlayback or
-     lastSyncPlayback whichever is greater.
-  <- {action:"received", syncts:lslp} lslp is the lp of the last song in the
-     list of songs updated.  The app updates lastSyncPlayback and
-     saves.  Sync processing is complete until rescheduled in response
-     to an upated lp, app restart, or other qualifying event.
-  <- {action:"merge", provdat:pdval, syncts:lslp} pdval may be either
-     "complete" or "partial".  lslp is the lp of the last song in the list
-     of songs to be merged.  The app merges the given songs, updates
-     lastMergedPlayback with lslp, saves, and reschedules hubsync.
+App-Hub comms:
+  - Comms data object: {syncdata:[], <authparam(s)>}
+    - syncdata: JSON.stringify([strHubSyncDirective, strSong1, strSong2...])
+      The songs are csv serialized.  The Hub Sync Directive (hsd) is JSON
+      serialized so the array elements are all the same type (python).
+  - A new Hub Sync Communications Token (hsct) is returned with each call.
+    If an invalid hsct is used for a call, the server returns an
+    authentication error similar to if the wrong password was used.
+  - hsd and auth for calls:
+    -> {action:"start"} (email/token auth)
+       <- [{action:"started", hsct:"abc123"}]
+    -> {action:"pull", syncts:ts} (hsct auth)
+       ts: max(lastMergedPlayback, lastSyncPlayback)
+       <- [{action:"merge", hsct:"def456", provdat:pv}, songs...]
+          pv: "complete" or "partial".  If "partial" there are more updated
+              songs to download and restoring from backup might be preferable.
+    -> {action:"upload"} [songs] (hsct auth)
+       <- [{action:"received", hsct:"ghi789"}, songs...]
 
-The hub always checks for songs where lp > syncts.  If any songs are found,
-they are returned for merge.  If all songs fit in a single return
-communication then the provided data (provdat) is "complete".  Otherwise it
-is "partial" indicating there is more to merge.  If no songs are found, the
-given songs are saved on the hub and returned.
+Only one Digger app instance per user can be in hubsync communication at a
+time, which is enforced viat the hsct.  A different app instance for the
+same user will need to restart its pull/upload sequence and take over hsct
+authentication.  This avoids common race condition errors such as:
+  - Overwrite of interim rating data.  Example sequence:
+      - user updates SongA on DeviceP
+      - user updates SongB on DeviceQ
+      - user updates SongB on DeviceP without having pulled updates
+    In this case any changes made to SongB on DeviceQ will be overwritten by
+    SongB data from DeviceP.  The server might conceivably require and check
+    song.modified to reject the second SongB update from DeviceP, but with
+    ti/ar/ab<->dsId mappings and dupe song tracking this gets complex.  With
+    more than one song typically being uploaded, checking each song would
+    increase server load and hubsync communications load, then require
+    reupload of the same songs again due to what was typically just the lp
+    value having changed.  The server is not responsible for this work.
+  - Starvation of rating data.  Example sequence:
+      - user updates SongA on DeviceP adding rating info and comment
+      - user updates SongB on DeviceQ without having pulled first
+    In this case SongA on DeviceQ will remain outdated until
+      1. SongA is updated again on DeviceQ (overwrite)
+      2. DeviceQ data is restored from backup, including updated SongA
+    Before overwrite or restore, whenever the user is filtering or searching
+    for songs on DeviceQ, they won't find what they possibly remember having
+    modified for SongA.  Their data may be safe on the hub, but they are not
+    seeing that and could overwrite their data.  App data responsibility.
+
+
+encoding and transmission:
+-------------------------
+
+Sending an array of songs as JSON includes repeated song field names for
+each field value.  That's inefficient, and it invites web server security
+scrutiny, so songs are converted to CSV with only the necessary song data
+field values required for update (see top.srs.song2csv).
+
+Overview of transmit/receive process:
+  - abbreviated "song" object with just rating value and ugly note text:
+        {rv:8, nt:"\"',`f(select)&"}
+  - song object after web server data security blocking appeased:
+        {rv:8, nt:"\"ESCSINGLEQUOTE,`fESCOPENPARENWSRWtcelesESCCLOSEPARENESCAMPERSAND"}
+  - song CSV string:
+        "8,\"%22ESCSINGLEQUOTE%2C%60fESCOPENPARENWSRWtcelesESCCLOSEPARENESCAMPERSAND\""
+  - abbreviated syncdata to send
+        [{action:"upload"}, "8,\"%22ESCSINGLEQUOTE%2C%60fESCOPENPARENWSRWtcelesESCCLOSEPARENESCAMPERSAND\""]
+  - hubsync call object with JSON stringified syncdata value:
+        {syncdata:"[{\"action\":\"upload\"},\"8,\\\"%22ESCSINGLEQUOTE%2C%60fESCOPENPARENWSRWtcelesESCCLOSEPARENESCAMPERSAND\\\"\"]", hsct:"whatever"}
+  - hubsync call POST data
+        "syncdata=%5B%7B%22action%22%3A%22upload%22%7D%2C%228%2C%5C%22%2522ESCSINGLEQUOTE%252C%2560fESCOPENPARENWSRWtcelesESCCLOSEPARENESCAMPERSAND%5C%22%22%5D&hsct=whatever"
+  - hub received syncdat parameter:
+        "[{\"action\":\"upload\"},\"8,\\\"%22ESCSINGLEQUOTE%2C%60fESCOPENPARENWSRWtcelesESCCLOSEPARENESCAMPERSAND\\\"\"]"
+  - python json.loads syncdat list:
+        [{"action": "upload"}, "8,\"%22ESCSINGLEQUOTE%2C%60fESCOPENPARENWSRWtcelesESCCLOSEPARENESCAMPERSAND\""]
+  - song dict from csv conversion of first list element
+        {"rv":8, "nt":"\"ESCSINGLEQUOTE,`fESCOPENPARENWSRWtcelesESCCLOSEPARENESCAMPERSAND"}
+  - song dict after reversing web server data security escaping:
+        {"rv":8, "nt":"\"',`f(select)&"}
+
+In actual use there are obviously more song fields and less dense
+concentrations of potentially problematic characters/words.
 
 
 general considerations:
@@ -127,24 +200,10 @@ vary with the platform implementation or settings.  The hub does not get
 involved with dupe tracking logic.  If the app sends the same tiarab matched
 song N times, it will get back N revisions of that song instance.
 
-The app sends [DigAcc, ...songs] and receives the same structure array in
-response.  The hub only reads the DigAcc.settings.hubsync processing
-directive information, it does not update the hub DigAcc instance.  The
-DigAcc returned by the hub is always the latest hub saved instance, and the
-app may choose to update its local saved info from it.
-
 In the event of a "catastrophic" out of sync situation (resurrecting an
-older device that has not been used for a long time) it may be better to
-uninstall and then reinstall the app and restore from hub backup rather than
-slogging through multiple merge calls.  Or sign out and then sign in again.
-At the time of this writing, the hub can return up to 1300 songs in a single
-merge response, so a "partial" merge response might merit a confirmation
-dialog about continuing to merge.  That gives the user a chance to bail out
-for a faster update while lessening the load on the hub.
-
-When the app writes a hub song locally, it saves the hub "modified" field
-value for reference, along with other hub fields.  All hub data field values
-saved locally with the app are considered out of date w/r/t the hub.
+older device that has not been used for a long time) it is better to restore
+from backup.  In the event of a "partial" merge response to a "pull" action,
+the app will require signing in again to force a backup data restore.
 
 The hub data "modified" value reflects when a song instance was last written
 to the database.  It has a revision number after the ISO timestamp.  The
