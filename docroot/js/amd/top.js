@@ -305,6 +305,7 @@ app.top = (function () {
             jt.log("restoreCSVSongData: " + songs.length + " songs"); }
         function getPendingUploadSongsCSVArray () {
             var upsgs = uploadableSongs();
+            jt.log("getPendingUploadSongs: "  + upsgs.length + " songs");
             syt.pending = upsgs.length;
             upsgs = upsgs.slice(0, serverMaxUploadSongs);  //respect server
             upsgs = upsgs.map((s) => song2csv(s, "txencode"));
@@ -318,11 +319,11 @@ app.top = (function () {
             if(songcsvs.length > mxsgs) {
                 lls.push("... total of " + songcsvs.length + " songs"); }
             jt.log(lls.join("<br/>")); }
-        function mergeCSVSongs (songcsvs) {
+        function mergeCSVSongs (direction, songcsvs) {
             const songs = songcsvs.map((csv) => csv2song(csv));
             mgrs.hcu.saveSongUpdates("srs.hubsyncmerge", songs);
             jt.log("mergeCSVSongs merged " + songs.length + " songs");
-            syt.down += songs.length; }
+            syt[direction] += songs.length; }
         function handleSyncError (code, errtxt) {
             commstate = {action:"start", hsct:""};  //start over next time
             syt.errcode = code;
@@ -362,12 +363,12 @@ app.top = (function () {
                 if(commstate.provdat === "partial") {  //too much to sync
                     jt.log("srs.processHubSyncResult partial merge signout");
                     return mgrs.asu.processSignOut(); }
-                mergeCSVSongs(resarray.slice(1));
+                mergeCSVSongs("down", resarray.slice(1));
                 commstate.action = "upload"; //merge complete, ready to upload
                 reschedContext = "syncauth";
                 break;
             case "received":
-                mergeCSVSongs(resarray.slice(1));
+                mergeCSVSongs("up", resarray.slice(1));
                 commstate.action = "upload"; //uploads from here on if hsct ok
                 reschedContext = "standard"; //let server breathe a few seconds
                 break;
@@ -428,6 +429,7 @@ app.top = (function () {
     return {
         noteDataRestorationNeeded: function () { syt.stat = "restoring"; },
         restoreFromBackup: function (srcstr) {
+            commstate = {action:"start", hsct:""};  //start over next time
             const logpre = "restoreFromBackup ";
             const btm = Date.now();
             showHubIndicator(true, "restoring...");
@@ -501,8 +503,9 @@ app.top = (function () {
             if(syt.pcts) {
                 jt.out("hsitsspan",
                        jt.isoString2Time(syt.pcts).toLocaleTimeString()); }
-            //not all unicode arrows are supported on all browsers.
-            jt.out("hsiudspan", ("<b>-" + syt.pending + "w</b>" +
+            const pdisp = (syt.pending? (", -" + syt.pending + "w") : "");
+            jt.out("hsiudspan", (pdisp +
+                //use only unicode arrows supported on all browsers.
                                  ", <b>&#8593;</b>" + syt.up +
                                  ", <b>&#8595;</b>" + syt.down)); }
     };  //end mgrs.srs returned functions
