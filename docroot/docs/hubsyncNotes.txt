@@ -71,10 +71,14 @@ reducing the returned song data to a CSV of the essential field values, the
 returned data is typically just over 5 times smaller.  This could be reduced
 further by zip compression in the future as needed.
 
-top.asu.signinProc->srs.noteDataRestorationNeeded to turn off other sync
+top.asu.signinProc->srs.noteDataRestorationNeeded turns off other sync
 processing, then calls srs.restoreFromBackup to fetch the backup data and
-restore the app.  The restore process initializes the lastSyncPlayback
-timestamp in app.pdat.dbObj which forms the basis for sync processing.
+restore the app.  In addition to restoring data for each song, restore also
+recalculates app.pdat.dbObj().lastSyncPlayback from the latest lp value of
+the songs it has restored.
+
+app.pdat.dbObj().lastSyncPlayback holds the most recent song.lp value
+received from the hub.
 
 
 hubsync processing:
@@ -104,8 +108,7 @@ takes precedence over outdated app song data.
 If listening to overlapping song collection on two different devices that
 have both been out of hubsync contact for a while, then it is likely the
 second device will have several songs merged down from the hub.  The app
-keeps track of lastSyncPlayback and lastMergedPlayback times as it
-synchronizes hub data.
+keeps track of lastSyncPlayback as itsynchronizes hub data.
 
 App-Hub comms:
   - Comms data object: {syncdata:[], <authparam(s)>}
@@ -118,8 +121,7 @@ App-Hub comms:
   - hsd and auth for calls:
     -> {action:"start"} (email/token auth)
        <- [{action:"started", hsct:"abc123"}]
-    -> {action:"pull", syncts:ts} (hsct auth)
-       ts: max(lastMergedPlayback, lastSyncPlayback)
+    -> {action:"pull", syncts:lastSyncPlayback} (hsct auth)
        <- [{action:"merge", hsct:"def456", provdat:pv}, songs...]
           pv: "complete" or "partial".  If "partial" there are more updated
               songs to download and restoring from backup might be preferable.

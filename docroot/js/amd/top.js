@@ -124,14 +124,10 @@ app.top = (function () {
                 return ajfs[fld].cmp.every((f) => ((a[f] === b[f]) ||
                            (JSON.stringify(a[f]) === JSON.stringify(b[f])))); }
             return JSON.stringify(a[fld]) === JSON.stringify(b[fld]); }
-        function nowPlayingAndMoreRecentlyUpdated (hsg, lsg) {
-            const nps = app.player.nowPlayingSong();
-            return (nps && nps.path === lsg.path &&  //updating now playing song
-                    nps.lp > hsg.lp); }  //now playing more recently modified
-        function updateLastMergedPlayback (lp) {
+        function updateLastSyncPlayback (lp) {
             const dbo = app.pdat.dbObj();
-            if(!dbo.lastMergedPlayback || dbo.lastMergedPlayback < lp) {
-                dbo.lastMergedPlayback = lp; } }
+            if(!dbo.lastSyncPlayback || dbo.lastSyncPlayback < lp) {
+                dbo.lastSyncPlayback = lp; } }
     return {
         serializeAccount: function (acct) {
             Object.keys(ajfs).forEach(function (sf) {
@@ -170,23 +166,24 @@ app.top = (function () {
                     else {
                         destAcct[key] = srcAcct[key]; } } });
             removeUnusedLegacyFields(destAcct); },
-        saveSongUpdates: function (callerstr, songs) {
+        saveSongUpdatesFromHub: function (callerstr, songs) {
             if(!songs) { return; }
             if(!Array.isArray(songs)) { songs = [songs]; }
             if(!songs.length) { return; }
             const sd = app.pdat.songsDict();
-            songs.forEach(function (s) {
-                var upds = [];
-                if(s.path && sd[s.path]) {  //update specific song
-                    upds = [sd[s.path]]; }
+            songs.forEach(function (hsg) {  //walk each hub received song
+                var upds = [];  //local songs to update
+                if(hsg.path && sd[hsg.path]) {  //update specific song only
+                    upds = [sd[hsg.path]]; }
                 else { //update all matching songs
-                    upds = app.pdat.tiarabLookup(s); }
-                upds.forEach(function (ref) {
-                    if(!nowPlayingAndMoreRecentlyUpdated(s, ref)) {
-                        if(s.lp && s.lp < ref.lp) {  //preserve most recent lp
-                            s.lp = ref.lp; }         //to avoid potential repeat
-                        updateLastMergedPlayback(s.lp);
-                        app.util.copyUpdatedSongData(ref, s); } }); });
+                    upds = app.pdat.tiarabLookup(hsg); }
+                upds.forEach(function (lsg) {  //walk each matching local song
+                    var mrlp = hsg.lp;    //most recent last playback
+                    if(lsg.lp > mrlp) {   //if local more recent than hub,
+                        mrlp = lsg.lp; }  //keep the local lp value
+                    app.util.copyUpdatedSongData(lsg, hsg);
+                    lsg.lp = mrlp;
+                    updateLastSyncPlayback(hsg.lp); }); });
             app.pdat.writeDigDat(callerstr); },
         makeHubCall: function (endpoint, dets) {  //verb, dat, contf, errf
             const ves = ["newacct", "acctok", "updacc", "mailpwr", "deleteme",
@@ -239,9 +236,7 @@ app.top = (function () {
         var commstate = {action:"start", hsct:""};
         function isUploadableSong (s) {
             const dbo = app.pdat.dbObj();
-            return (s.lp &&
-                    s.lp > dbo.lastSyncPlayback &&
-                    s.lp > dbo.lastMergedPlayback &&
+            return (s.lp && s.lp > dbo.lastSyncPlayback &&
                     (!s.fq || !(s.fq.startsWith("D") ||
                                 s.fq.startsWith("U"))) &&
                     !app.deck.isUnrated(s)); }
@@ -313,15 +308,14 @@ app.top = (function () {
         function logHubSyncSongs (verb, songcsvs) {
             const mxsgs = 3;
             var lls = songcsvs.slice(0, mxsgs);
-            lls.unshift("DiggerHub sync " + verb + 
-                        " lpsync:" + app.pdat.dbObj().lastSyncPlayback + 
-                        " lpmerge:" + app.pdat.dbObj().lastMergedPlayback);
+            lls.unshift("DiggerHub sync " + verb + " lastSyncPlayback: " +
+                        app.pdat.dbObj().lastSyncPlayback);
             if(songcsvs.length > mxsgs) {
                 lls.push("... total of " + songcsvs.length + " songs"); }
             jt.log(lls.join("<br/>")); }
         function mergeCSVSongs (direction, songcsvs) {
             const songs = songcsvs.map((csv) => csv2song(csv));
-            mgrs.hcu.saveSongUpdates("srs.hubsyncmerge", songs);
+            mgrs.hcu.saveSongUpdatesFromHub("srs.hubsyncmerge", songs);
             jt.log("mergeCSVSongs merged " + songs.length + " songs");
             syt[direction] += songs.length; }
         function handleSyncError (code, errtxt) {
@@ -344,13 +338,6 @@ app.top = (function () {
                 if(syt.pending || syt.resched) {
                     syt.resched = false;
                     mgrs.srs.syncToHub("resched"); } } }
-        function recalcSyncTimestamp () {
-            const dbo = app.pdat.dbObj();
-            if(!dbo.lastSyncPlayback) {  //not previously restored..
-                dbo.lastSyncPlayback = "1970-01-01T00:00:00Z"; }
-            commstate.syncts = dbo.lastSyncPlayback;
-            if(dbo.lastMergedPlayback > commstate.syncts) {
-                commstate.syncts = dbo.lastMergedPlayback; } }
         function processHubSyncResult (resarray) {  //an array of strings
             var reschedContext = "standard";
             commstate = JSON.parse(resarray[0]);  //save updated commstate.hsct
@@ -374,7 +361,6 @@ app.top = (function () {
                 break;
             default: jt.log("Unknown processHubSyncResult commstate.action: " +
                             commstate.action); }
-            recalcSyncTimestamp();
             mgrs.srs.syncToHub(reschedContext); }  //continue or recheck
         function makeHubSyncCall (callobj) {
             jt.log("makeHubSyncCall syncdata[0]: " +
@@ -412,8 +398,9 @@ app.top = (function () {
                     email:acct.email, token:acct.token});
             case "pull":
                 return makeHubSyncCall({
-                    syncdata:[JSON.stringify({action:"pull",
-                                              syncts:commstate.syncts})],
+                    syncdata:[JSON.stringify({
+                        action:"pull",
+                        syncts:app.pdat.dbObj().lastSyncPlayback})],
                     hsct:commstate.hsct});
             case "upload":
                 ucs = getPendingUploadSongsCSVArray();
@@ -730,7 +717,8 @@ app.top = (function () {
                 dat:app.util.authdata({mfid:mfanid, ctype:collabtype}),
                 contf:function (hubres) {
                     const songs = hubres.slice(1);
-                    mgrs.hcu.saveSongUpdates("fsc.callHubFanCollab", songs);
+                    mgrs.hcu.saveSongUpdatesFromHub("fsc.callHubFanCollab",
+                                                    songs);
                     noteFan(hubres[0].musfs.find((mf) => mf.dsId === mfanid));
                     mgrs.aaa.updateCurrAcct(hubres[0], null,
                         function (acct) {
@@ -2718,7 +2706,7 @@ app.top = (function () {
                 err("probable song loss: dbo.songcount " + dbo.songcount +
                     " > " + stat.count + " in dbo.songs"); }
             if(!dbo.lastSyncPlayback) {
-                dbo.lastSyncPlayback = new Date().toISOString(); }
+                dbo.lastSyncPlayback = "1970-01-01T00:00:00Z"; }
             dbo.scanned = dbo.scanned || "";
             return stat; }
     };
