@@ -177,6 +177,7 @@ app.deck = (function () {
                 song.lp = new Date().toISOString();
                 song.pc = (song.pc || 0) + 1;
                 song.pd = "snoozed";
+                mgrs.csa.exciseSongByIndex(idx);
                 app.pdat.writeDigDat("deck.util.execQSO.snooze");
                 break;
             default: jt.log("execQSO unknown action " + action); } },
@@ -373,7 +374,7 @@ app.deck = (function () {
     //info and access to history.
     mgrs.csa = (function () {
         const toggleButtons = {};
-        var asq = {paths:[], ts:"", idx:-1};  //autoplay selection queue
+        var asq = null;  //reference to deckset.asq
         function redrawPlaylistDisplay () {
             const sd = app.pdat.songsDict();
             //asq.idx is currently playing song, display rest
@@ -539,6 +540,14 @@ app.deck = (function () {
             //asq[idx] references now playing song. +1 is first song in queue
             const pathidx = asq.idx + 1 + idx;
             return app.pdat.songsDict()[asq.paths[pathidx]]; },
+        exciseSongByIndex: function (idx) {
+            idx += asq.idx + 1;  //adjust for queue pos and now playing song
+            const deckset = app.pdat.uips("deck");
+            deckset.asq = deckset.asq || {};
+            asq = deckset.asq;  //verify referencing the latest
+            if(!asq.paths || asq.paths.length < idx) {
+                return jt.log("exciseSongByIndex invalid idx: " + idx); }
+            asq.paths.splice(idx, 1); },  //remove from queue.
         emptyQueueDisplay: function () {
             var msgs = ["No matching songs found"];
             //modify filtering
