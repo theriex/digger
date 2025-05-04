@@ -249,10 +249,10 @@ app.top = (function () {
                     else {
                         destAcct[key] = srcAcct[key]; } } });
             removeUnusedLegacyFields(destAcct); },
-        saveSongUpdatesFromHub: function (callerstr, songs) {
+        saveSongUpdatesFromHub: function (callerstr, songs, forceWriteDigdat) {
             if(!songs) { return; }
             if(!Array.isArray(songs)) { songs = [songs]; }
-            if(!songs.length) { return; }
+            if(!songs.length && !forceWriteDigdat) { return; }
             const sd = app.pdat.songsDict();
             songs.forEach(function (hsg) {  //walk each hub received song
                 var upds = [];  //local songs to update
@@ -311,7 +311,14 @@ app.top = (function () {
     mgrs.srs = (function () {
         const syt = {tmo:null, stat:"", resched:false, up:0, down:0};
         const serverMaxUploadSongs = 20;
-        var commstate = {action:"start", hsct:""};
+        function commstate () {
+            const topset = app.pdat.uips("top");
+            topset.commstate = topset.commstate || {action:"start", hsct:""};
+            return topset.commstate; }
+        function updateCommState (us) {
+            const ps = commstate();  //persistent state
+            Object.keys(us).forEach(function (key) {
+                ps[key] = us[key]; }); }
         function isUploadableSong (s) {
             const dbo = app.pdat.dbObj();
             return (s.lp && s.lp > dbo.lastSyncPlayback &&
@@ -383,13 +390,14 @@ app.top = (function () {
             if(songcsvs.length > mxsgs) {
                 lls.push("... total of " + songcsvs.length + " songs"); }
             jt.log(lls.join("<br/>")); }
-        function mergeCSVSongs (direction, songcsvs) {
+        function mergeCSVSongs (direction, songcsvs, forceWriteDigdat) {
             const songs = songcsvs.map((csv) => csv2song(csv));
-            mgrs.hcu.saveSongUpdatesFromHub("srs.hubsyncmerge", songs);
+            mgrs.hcu.saveSongUpdatesFromHub("srs.hubsyncmerge", songs,
+                                            forceWriteDigdat);
             jt.log("mergeCSVSongs merged " + songs.length + " songs");
             syt[direction] += songs.length; }
         function handleSyncError (code, errtxt) {
-            commstate = {action:"start", hsct:""};  //start over next time
+            updateCommState({action:"start", hsct:""});  //start over next time
             syt.errcode = code;
             syt.errtxt = errtxt;
             jt.log("srs.handleSyncError " + code + ": " + errtxt);
@@ -419,28 +427,29 @@ app.top = (function () {
             hubStatInfo("");
             if(!syt.errcode) {  //no retry until song update or app restart
                 syt.pending = uploadableSongs().length;
-                if(syt.pending || syt.resched || commstate.action === "pull") {
+                if(syt.pending || syt.resched ||
+                   commstate().action === "pull") {
                     syt.resched = false;
                     mgrs.srs.syncToHub("resched"); } } }
         function processHubSyncResult (resarray) {  //an array of strings
-            commstate = JSON.parse(resarray[0]);  //save updated commstate.hsct
-            switch(commstate.action) {
+            updateCommState(JSON.parse(resarray[0]));  //save updated hsct
+            switch(commstate().action) {
             case "started":
-                commstate.action = "pull";
+                commstate().action = "pull";
                 break;
             case "merge":
-                if(commstate.provdat === "partial") {  //too much to sync
+                if(commstate().provdat === "partial") {  //too much to sync
                     jt.log("srs.processHubSyncResult partial merge signout");
                     return mgrs.asu.processSignOut(); }
-                mergeCSVSongs("down", resarray.slice(1));
-                commstate.action = "upload"; //merge complete, ready to upload
+                commstate().action = "upload"; //merge complete, ready to upload
+                mergeCSVSongs("down", resarray.slice(1), "forceWriteDigdat");
                 break;
             case "received":
+                commstate().action = "upload"; //uploads from here on if hsct ok
                 mergeCSVSongs("up", resarray.slice(1));
-                commstate.action = "upload"; //uploads from here on if hsct ok
                 break;
             default: jt.log("Unknown processHubSyncResult commstate.action: " +
-                            commstate.action); } }
+                            commstate().action); } }
         function scheduleHubSyncCall (callobj, sched) {
             jt.log("scheduleHubSyncCall syncdata[0]: " +
                    jt.ellipsis(callobj.syncdata[0], 60));
@@ -470,7 +479,7 @@ app.top = (function () {
                 if(restored.getTime() + 30*60*1000 > Date.now()) {
                     //recently restored from backup, no rush
                     return {prio:"5min", override:"verify"}; } }
-            if(commstate.action === "upload" && syt.pcts) {
+            if(commstate().action === "upload" && syt.pcts) {
                 const prevcall = jt.isoString2Time(syt.pcts);
                 if(prevcall.getTime() + 5*60*1000 > Date.now()) {
                     //even if there are lot of udpated songs waiting,
@@ -478,14 +487,14 @@ app.top = (function () {
                     return {prio:"5min", override:"verify"}; } }
             //if prev conditions not met, it would be good to quickly get
             //started with any downloads that need to happen
-            if((commstate.action === "start") ||
-               (commstate.action === "pull")) {
+            if((commstate().action === "start") ||
+               (commstate().action === "pull")) {
                 return {prio:"asap", override:"replace"}; }
             //otherwise continue work in a quick but server respectful way
             return {prio:"3sec", override:"replace"}; }
         function hubSyncStart () { //see ../../docs/hubsyncNotes.txt
             var acct; var ucs;  //case variables
-            switch(commstate.action) {
+            switch(commstate().action) {
             case "start":  //initial communications state
                 acct = mgrs.aaa.getAccount();
                 if(acct.dsId === "101") {
@@ -499,7 +508,7 @@ app.top = (function () {
                     {syncdata:[JSON.stringify({
                         action:"pull",
                         syncts:app.pdat.dbObj().lastSyncPlayback})],
-                     hsct:commstate.hsct},
+                     hsct:commstate().hsct},
                     getSyncTaskPriority());
             case "upload":
                 ucs = getPendingUploadSongsCSVArray();
@@ -509,14 +518,14 @@ app.top = (function () {
                 logHubSyncSongs("upload", ucs);
                 return scheduleHubSyncCall(
                     {syncdata:[JSON.stringify({action:"upload"}), ...ucs],
-                     hsct:commstate.hsct},
+                     hsct:commstate().hsct},
                     getSyncTaskPriority());
             default: jt.log("Unknown hubSyncStart commstate.action: " +
-                            commstate.action); } }
+                            commstate().action); } }
     return {
         noteDataRestorationNeeded: function () { syt.stat = "restoring"; },
         restoreFromBackup: function (srcstr) {
-            commstate = {action:"start", hsct:""};  //start over next time
+            updateCommState({action:"start", hsct:""});  //start over next time
             const logpre = "restoreFromBackup ";
             const btm = Date.now();
             hubStatInfo("restoring...");
@@ -592,8 +601,8 @@ app.top = (function () {
                                  jt.isoString2Time(lastsync).getTime());
                 if(elapsed > 8 * 60 * 60 * 1000) {  //not active for a while
                     //immediately pull any plays from a different device first
-                    if(commstate.action === "upload") {
-                        commstate.action = "pull"; } } }
+                    if(commstate().action === "upload") {
+                        commstate().action = "pull"; } } }
             mgrs.srs.syncToHub(); }
     };  //end mgrs.srs returned functions
     }());

@@ -270,7 +270,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=250426"); }
+                              mgrs.boot.initAppModules, "?v=250503"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -1005,7 +1005,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=250426";  //updated as part of release process
+        return "v=250503";  //updated as part of release process
     }
 };  //end returned functions
 }());
