@@ -392,10 +392,11 @@ app.deck = (function () {
             redrawPlaylistDisplay();
             if(songs.length) {
                 app.player.playSongQueue("deck.csa", songs); } }
-        function rebuildPlaybackQueue (pfsg) {
+        function rebuildPlaybackQueue (pfsg, reason) {
             //A play first song is specified if choosing a song from search,
             //otherwise try keep the currently playing song, or rebuild from
             //scratch and play the first queued song.
+            jt.log("rebuildPlaybackQueue " + reason);
             if(!pfsg) {
                 const nps = app.player.nowPlayingSong();
                 //if the song is no longer playing, it might have been the
@@ -415,53 +416,6 @@ app.deck = (function () {
             asq.ts = asq.ts || new Date().toISOString();
             if(!(asq.idx >= 0)) {  //undefined or non-numeric value
                 asq.idx = -1; } }
-        function verifyNowPlayingSong (npStatusChecked) {
-            if(app.svc.plat("audsrc") === "Browser") {  //no separate platform
-                npStatusChecked = true; }               //player callback
-            const np = app.player.nowPlayingSong();
-            if(np) {
-                if(np.path === asq.paths[asq.idx]) {  //still playing queue
-                    redrawPlaylistDisplay(); }
-                else {  //now playing something else, rebuild playback queue
-                    rebuildPlaybackQueue(); } }
-            else {  //no song playing, or playback status not yet known
-                if(npStatusChecked) {  //not playing, verify queue and play
-                    rebuildPlaybackQueue(); }
-                else {  //indeterminate state, call back
-                    jt.log("deck.csa check playing " + asq.paths[asq.idx]);
-                    app.player.reqUpdatedPlaybackStat(function (/*stat*/) {
-                        verifyNowPlayingSong(true); }); } } }
-        function remainingQueuedSongsValid () {
-            var rems;  //remaining unplayed songs in queue
-            const logpre = "remainingQueuedSongsValid ";
-            if(asq.idx < 0) {
-                jt.log(logpre + "invalid idx: " + asq.idx);
-                return false; }
-            if(!asq.paths.length) {
-                jt.log(logpre + "no songs in queue");
-                return false; }
-            //have at least the currently playing song left.  asq.idx may
-            //be updated before or after song.lp, so check known queue.
-            const sd = app.pdat.songsDict();
-            rems = asq.paths.slice(asq.idx).map((p) => sd[p]);
-            //compare remaining queue where song.lp still available to play
-            while(rems.length && rems[0].lp > asq.ts) { rems.shift(); }
-            if(!rems.length) {
-                jt.log(logpre + "no unplayed songs remaining");
-                return false; }
-            const fr = mgrs.util.filterByFilters(rems);
-            const fc = fr.failed.length;
-            if(fc) {
-                jt.log(logpre + fc + " queued songs no longer valid");
-                const fmsg = function (m) {
-                    const elems = [m.oi, m.rf, m.so.dsId || "-",
-                                   jt.ellipsis(m.so.ti, 30),
-                                   jt.ellipsis(m.so.ar, 30)];
-                    return "<br/>&nbsp;&nbsp;" + elems.join(" "); };
-                jt.log(fr.failed.slice(0, 3).map((m) => fmsg(m))); }
-            else {
-                jt.log(logpre + rems.length + " valid songs left in queue"); }
-            return !fc; }
         function updateSelectionFilteringInfoDisplay () {
             var dfcs = JSON.parse(JSON.stringify(mgrs.sqb.getFilterCounts()));
             if(!dfcs.length) {
@@ -477,15 +431,59 @@ app.deck = (function () {
                         ["span", {cla:"dinfrectspan"}, fc.fnm + ": "]],
                        ["td",
                         ["span", {cla:"dinfrecnspan"}, String(fc.sc)]]]])])); }
-        function verifyQueuedPlayback () {
-            if(!remainingQueuedSongsValid()) {
-                return rebuildPlaybackQueue(); }
-            asq.idx = mgrs.util.findIndexByLastPlayedTimestamp(asq.paths);
-            if(asq.idx < 0) {  //playback has not followed queue
-                jt.log("csa.digDatUpdated playback did not follow queue");
-                //keep first song in queue since it was previewed on startup
-                return rebuildPlaybackQueue(); }
-            verifyNowPlayingSong(); }
+        function playbackQueuePositionInfo (song) {
+            var i; const qpi = {idx:-1, spi:-1, err:"no playback queue"};
+            if(asq.paths.length) {
+                qpi.err = "";
+                const sd = app.pdat.songsDict();
+                const songs = asq.paths.map((p) => sd[p]);
+                for(i = 0; i < songs.length; i += 1) {
+                    if(songs[i].path === song.path) {
+                        qpi.idx = i; break; }  //song found
+                    //songs[i].lp may not be defined so test accordingly...
+                    if(i && !(songs[i].lp > songs[i - 1].lp)) {
+                        qpi.err = "non-sequential playback"; break; }
+                    qpi.spi = i; } //update sequential playback index
+                if(!qpi.err) {
+                    if(qpi.idx < 0) {
+                        qpi.err = "song not found in queue"; }
+                    else if(qpi.idx === asq.paths.length - 1) {
+                        qpi.err = "no songs left in queue"; } } }
+            return qpi; }
+        function verifyQueuedPlayback (npStatusVerified) {
+            var qpi = null;
+            const logpre = "verifyQueuedPlayback ";
+            const dbo = app.pdat.dbObj();
+            if(!dbo) {
+                return jt.log(logpre + "quit, no dbo yet"); }
+            if(!asq.paths.length) {
+                return rebuildPlaybackQueue(null, "no songs in asq.paths"); }
+            const np = app.player.nowPlayingSong();
+            if(!np) {
+                if(npStatusVerified) {
+                    return rebuildPlaybackQueue(null, "no playing song"); }
+                jt.log(logpre + "verifying now playing song");
+                return app.player.reqUpdatedPlaybackStat(function (/*stat*/) {
+                    verifyQueuedPlayback(true); }); }
+            if(!np.lp || !dbo.uilp || np.lp < dbo.uilp) {  //stale dbo or lp lag
+                if(jt.elapsedSince(dbo.arts, "seconds") > 42) {
+                    jt.log(logpre + "dbo likely stale, reloading.");
+                    return app.pdat.reloadDigDat("forceIgnoreStaleDataUpd"); }
+                qpi = playbackQueuePositionInfo(np);
+                //if found, and not at end, and seq playback until previous
+                if(qpi.idx >= 0 && (qpi.idx < asq.paths.length - 1 &&
+                                    qpi.idx - qpi.spi <= 1)) {
+                    jt.log(logpre + "fixing lazy np.lp timestamp update");
+                    np.lp = new Date().toISOString();
+                    dbo.uilp = np.lp;
+                    qpi.err = ""; } }
+            //have np, and dbo data is up to date
+            qpi = qpi || playbackQueuePositionInfo(np);
+            if(qpi.err) {
+                return rebuildPlaybackQueue(null, "vqp " + qpi.err); }
+            jt.log(logpre + "qpi idx:" + qpi.idx + ", spi:" + qpi.spi);
+            asq.idx = qpi.idx;  //update actual index to match
+            redrawPlaylistDisplay(); }
         function digDatUpdated (/*digdat*/) {
             restoreAutoplaySelectionQueueSettings();
             if(mgrs.gen.getSongSeqMgrName() === "csa" &&
@@ -524,11 +522,11 @@ app.deck = (function () {
         replayQueue: function () {
             playQueueFromIndex(); },
         playGivenSong: function (song) {
-            rebuildPlaybackQueue(song); },
+            rebuildPlaybackQueue(song, "playGivenSong"); },
         filtersChanged: function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
                 if(asq.paths.length < 7) {  //worth a rebuild to try find more
-                    rebuildPlaybackQueue(); }
+                    rebuildPlaybackQueue(null, "filtersChanged and < 7 left"); }
                 else {
                     verifyQueuedPlayback(); } } },
         isCurrentOrNextSong: function (song) {
@@ -585,7 +583,7 @@ app.deck = (function () {
                 verifyQueuedPlayback(); }
             else {  //sequence manager has changed, need to take control
                 mgrs.gen.setSongSeqMgrName("csa", "csa.activateDisplay");
-                rebuildPlaybackQueue(); } }
+                rebuildPlaybackQueue(null, "sequence manager changed"); } }
     };  //end mgrs.csa returned functions
     }());
 

@@ -841,6 +841,7 @@ var app = (function () {
                     jt.log("setDigDatAndNotify verifyDatabase errors: " +
                            JSON.stringify(stat)); }
                 rtdat.digdat.datobj = digdat;
+                rtdat.digdat.datobj.arts = new Date().toISOString();  //app read
                 notifyUpdateListeners(pwsid, "digdat");
             } catch(e) {
                 jt.log("setDigDatAndNotify failed " + e.stack); } }
@@ -949,19 +950,20 @@ var app = (function () {
         //set or clear the now playing song pending write flag
         setNPSPendingWrite: function (val) {
             rtdat.digdat.npsPendingWrite = val; },
-        reloadDigDat: function () {
-            if(rtdat.digdat.npsPendingWrite) {  //reloading after write instead
-                return jt.log("pdat.reloadDigDat skipped. npsPendingWrite"); }
-            jt.log("pdat.reloadDigDat setting timeout");
+        reloadDigDat: function (force) {
+            const logpre = "pdat.reloadDigDat ";
+            if(!force && rtdat.digdat.npsPendingWrite) {
+                return jt.log(logpre + "skipped. npsPendingWrite"); }
+            jt.log(logpre + "setting timeout");
             setTimeout(function () {
-                if(rtdat.digdat.npsPendingWrite) {  //reloading after write
-                    return jt.log("pdat.reloadDigDat abort. npsPendingWrite"); }
+                if(!force && rtdat.digdat.npsPendingWrite) {
+                    return jt.log(logpre + "aborted. npsPendingWrite"); }
                 app.svc.readDigDat(
                     function (digdat) {
-                        jt.log("pdat.reloadDigDat complete. Notifying.");
+                        jt.log(logpre + "digdat reloaded. Notifying.");
                         setDigDatAndNotify("reloadDigDat", digdat); },
                     function (code, errtxt) {
-                        jt.err("pdat.reloadDigDat " + code + ": " +
+                        jt.err(logpre + "failed " + code + ": " +
                                errtxt); }); }, 50); },
         //convenience accessors (after data available)
         dbObj: function () { return rtdat.digdat.datobj; },

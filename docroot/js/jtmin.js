@@ -505,6 +505,23 @@ const jtminjsDecorateWithUtilities = function (utilityObject) {
     // value testing and manipulation
     ////////////////////////////////////////
 
+    uo.elapsedSince = function (start, units, decimals) {
+        var elapsed; var factor = 1;
+        const tu = {seconds:1000,
+                    minutes:1000*60,
+                    hours:1000*60*60,
+                    days:1000*60*60*24};
+        if(typeof start === "string") {
+            start = uo.isoString2Time(start); }
+        elapsed = Date.now() - start.getTime();
+        if(units && tu[units]) {
+            elapsed = elapsed / tu[units]; }
+        if(decimals) {
+            factor = Math.pow(10, decimals); }
+        return Math.round(elapsed * factor) / factor;
+    };
+
+
     uo.timewithin = function (timeval, units, count, comptime) {
         var incr; var deadline; var testval;
         incr = 60 * 60 * 1000;  //"hours"

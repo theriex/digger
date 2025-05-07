@@ -103,9 +103,18 @@ app.svc = (function () {
                 playNextSong(pwsid); } },
         requestPlaybackStatus: function () {
             setTimeout(function () {
-                app.player.dispatch("uiu", "receivePlaybackStatus",
-                                    {path:(np? np.path : ""),
-                                     state:"playing"}); }, 50); },
+                const pbstat = {path:"", state:""};  //unknown state
+                if(np) {
+                    pbstat.path = np.path;
+                    pbstat.state = "playing"; }
+                const player = jt.byId("playeraudio");
+                if(player) {
+                    if(player.paused) {
+                        pbstat.state = "paused"; }
+                    pbstat.pos = player.currentTime;
+                    pbstat.dur = player.duration; }
+                app.player.dispatch("uiu", "receivePlaybackStatus", pbstat); },
+                       50); },
         handlePlayerError: function (errval) {  //DOMException or text or obj
             const errmsg = String(errval);  //error name and detail text
             const song = app.player.nowPlayingSong();
@@ -248,9 +257,9 @@ app.svc = (function () {
             jt.call("POST", "/cfgchg", jt.objdata(configChangeFields),
                     contf, errf, jt.semaphore("loc.changeConfig")); },
         passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
+            var callf = jt.call;
             if(endpoint.startsWith("/")) {
                 endpoint = endpoint.slice(1); }
-            var callf = jt.call;
             if(verb.startsWith("raw")) {
                 verb = verb.slice(3);
                 callf = jt.request; }

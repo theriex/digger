@@ -988,6 +988,8 @@ app.player = (function () {
             app.spacebarhookfunc = mgrs.plui.togglePlaybackState;
             updatePosIndicator(); },
         updateTransportControls: function (status) {
+            if(!pbco) {
+                return jt.log("updateTransportControls no pbco"); }
             ppb.wrk = "";  //no longer processing pause/resume
             ppb.st = status.state;
             updatePlaybackControlImage(ppb.st);
