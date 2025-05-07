@@ -178,7 +178,6 @@ app.deck = (function () {
                 song.pc = (song.pc || 0) + 1;
                 song.pd = "snoozed";
                 mgrs.csa.exciseSongByIndex(idx);
-                app.pdat.writeDigDat("deck.util.execQSO.snooze");
                 break;
             default: jt.log("execQSO unknown action " + action); } },
         togQSOpts: function  (mgrnm, idx) {
@@ -448,7 +447,13 @@ app.deck = (function () {
                     if(qpi.idx < 0) {
                         qpi.err = "song not found in queue"; }
                     else if(qpi.idx === asq.paths.length - 1) {
-                        qpi.err = "no songs left in queue"; } } }
+                        qpi.err = "no songs left in queue"; } }
+                if(!qpi.err) {  //no issues in queue so far, verify remaining
+                    const rem = songs.slice(qpi.idx + 1);
+                    const fbf = mgrs.util.filterByFilters(rem);
+                    const diff = rem.length - fbf.passed.length;
+                    if(diff) {
+                        qpi.err = String(diff) + " songs invalidated"; } } }
             return qpi; }
         function verifyQueuedPlayback (npStatusVerified) {
             var qpi = null;
@@ -479,8 +484,8 @@ app.deck = (function () {
                     qpi.err = ""; } }
             //have np, and dbo data is up to date
             qpi = qpi || playbackQueuePositionInfo(np);
-            if(qpi.err) {
-                return rebuildPlaybackQueue(null, "vqp " + qpi.err); }
+            if(qpi.err) {  //keep the currently playing song on rebuild
+                return rebuildPlaybackQueue(np, "vqp " + qpi.err); }
             jt.log(logpre + "qpi idx:" + qpi.idx + ", spi:" + qpi.spi);
             asq.idx = qpi.idx;  //update actual index to match
             redrawPlaylistDisplay(); }
@@ -545,7 +550,8 @@ app.deck = (function () {
             asq = deckset.asq;  //verify referencing the latest
             if(!asq.paths || asq.paths.length < idx) {
                 return jt.log("exciseSongByIndex invalid idx: " + idx); }
-            asq.paths.splice(idx, 1); },  //remove from queue.
+            asq.paths.splice(idx, 1);   //remove from queue.
+            playQueueFromIndex(); },    //update the player and persist queue
         emptyQueueDisplay: function () {
             var msgs = ["No matching songs found"];
             //modify filtering
