@@ -270,7 +270,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=250507"); }
+                              mgrs.boot.initAppModules, "?v=250508"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -310,8 +310,9 @@ var app = (function () {
             return url; },
         //return obj post data, with an/at added
         authdata: function (obj) {
-            var digacc = app.top.dispatch("aaa", "getAccount");
-            var authdat = jt.objdata({an:digacc.email, at:digacc.token});
+            const digacc = app.top.dispatch("aaa", "getAccount");
+            const authobj = {an:digacc.email, at:digacc.token};  //stack req
+            var authdat = jt.objdata(authobj);
             if(obj) {
                 authdat += "&" + jt.objdata(obj); }
             return authdat; },
@@ -1007,7 +1008,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=250507";  //updated as part of release process
+        return "v=250508";  //updated as part of release process
     }
 };  //end returned functions
 }());

@@ -68,7 +68,7 @@ app.top = (function () {
             montmos[qname + rqn] = null; }
         function startRequest (entry) {
             //do not log entry.dat, may be large or contain signin password.
-            hclog(entry.v, entry.qn, entry.rn, "start hub request");
+            hclog(entry.v, entry.qn, entry.rn, "starting");
             setCallMonitoringTimers(entry.v, entry.qn, entry.rn);
             inproc += 1;
             showHubIndicator();
@@ -105,7 +105,7 @@ app.top = (function () {
                                dfltHFM("errf", code + ": " + text); }};
             if(entry.qn.startsWith("/")) {  //send&receive plain endpoint name
                 entry.qn = entry.qn.slice(1); }
-            hclog(entry.v, entry.qn, entry.rn, "queue hubRequest");
+            hclog(entry.v, entry.qn, entry.rn, "queued");
             reqnum += 1;
             if(rqs[entry.qn]) {  //existing request(s) pending
                 rqs[entry.qn].push(entry); }  //process in turn
@@ -113,7 +113,7 @@ app.top = (function () {
                 rqs[entry.qn] = [entry];
                 startRequest(entry); } },
         hubResponse: function (qname, reqnum, code, det) {
-            var respdet = "ok";
+            var respdet = "completed";
             if(code !== 200) {
                 respdet = code + ": " + jt.ellipsis(det, 255); }
             hclog("RESP", qname, reqnum, respdet);
@@ -163,7 +163,12 @@ app.top = (function () {
         function queueEntrySummary (qe) {
             var vals = [String(qe.wtms).padStart(6)];
             vals.push(qe.dets.endpoint.padStart(9));
-            vals.push(qe.dets.dat.slice(0, 60));
+            if(qe.dets.endpoint === mgrs.srs.hubSyncEndpoint()) {
+                const datobj = jt.paramsToObj(qe.dets.dat);
+                const syncdata = JSON.parse(jt.dec(datobj.syncdata));
+                vals.push(syncdata[0]); }
+            else {
+                vals.push(jt.ellipsis(qe.dets.dat, 30)); }
             return vals.join(" "); }
         function setTimerForNextHubCall () {
             if(comms.tmo) {
@@ -171,9 +176,10 @@ app.top = (function () {
                 comms.tmo = null; }
             if(!comms.callq.length) { return; }
             const nextTime = Math.max(100, comms.callq[0].wtms);
-            jt.log("Hub call queue:<br/>" + (
+            const indentline = "<br/>&nbsp;&nbsp;";
+            jt.log("Hub call queue:" + indentline + (
                 comms.callq.map((qe) => queueEntrySummary(qe))
-                    .join("&nbsp;&nbsp;<br/>")));
+                    .join(indentline)));
             comms.tmo = setTimeout(nextQueuedHubCall, nextTime); }
         function nextQueuedHubCall () {
             const nextCall = comms.callq.shift();
@@ -268,6 +274,8 @@ app.top = (function () {
                     lsg.lp = mrlp;
                     updateLastSyncPlayback(hsg.lp); }); });
             app.pdat.writeDigDat(callerstr); },
+        isHubCallQueued: function (endpoint) {
+            return comms.callq.find((qe) => qe.dets.endpoint === endpoint); },
         queueHubCall: function (endpoint, dets, prio, override) {
             const logpre = "queueHubCall ";
             if(!verifyEndpoint(endpoint) || !verifyHubCallDetails(endpoint,
@@ -311,14 +319,23 @@ app.top = (function () {
     mgrs.srs = (function () {
         const syt = {tmo:null, stat:"", resched:false, up:0, down:0};
         const serverMaxUploadSongs = 20;
+        const initialCommState = {action:"start", hsct:""};
         function commstate () {
             const topset = app.pdat.uips("top");
-            topset.commstate = topset.commstate || {action:"start", hsct:""};
+            topset.commstate = topset.commstate || initialCommState;
             return topset.commstate; }
-        function updateCommState (us) {
+        function logCommState (msg) {
+            jt.log("srs.commstate: " + JSON.stringify(commstate()) +
+                   " (" + msg + ")"); }
+        function updateCommState (us, msg) {
+            us = us || initialCommState;
             const ps = commstate();  //persistent state
+            const optionalKeys = ["provdat", "syncts"];
+            optionalKeys.forEach(function (optkey) {
+                delete ps[optkey]; });
             Object.keys(us).forEach(function (key) {
-                ps[key] = us[key]; }); }
+                ps[key] = us[key]; });
+            logCommState(msg); }
         function isUploadableSong (s) {
             const dbo = app.pdat.dbObj();
             return (s.lp && s.lp > dbo.lastSyncPlayback &&
@@ -397,20 +414,32 @@ app.top = (function () {
             jt.log("mergeCSVSongs merged " + songs.length + " songs");
             syt[direction] += songs.length; }
         function handleSyncError (code, errtxt) {
-            updateCommState({action:"start", hsct:""});  //start over next time
+            updateCommState(null, "handleSyncError reset");
             syt.errcode = code;
             syt.errtxt = errtxt;
             jt.log("srs.handleSyncError " + code + ": " + errtxt);
+            if(errtxt.toLowerCase().indexOf("hsct mismatch")) {
+                mgrs.srs.syncToHub("renewHubSyncToken"); }
             if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
                 //Credentials are no longer valid, so this is old account info
                 //and should not be attempting to sync.  To fix, the user will
                 //need to sign in again.  Sign them out to start the process.
                 mgrs.asu.processSignOut(); } }
-        function hubStatInfo (value) {
-            if(!jt.byId("hsistatspan")) { return; }
-            if(value === "init") {
-                if(syt.stat) { value = "processing..."; }
-                else if(syt.tmo) { value = "scheduled."; } }
+        function updateHubSyncStatusDisplay (value) {
+            if(!jt.byId("hsistatspan")) { return; }  //display not visible
+            if(syt.errcode) {  //error conditions highest prio for display
+                value = syt.errcode + ": " + syt.errtxt; }
+            //syt.stat is a blocking semaphore, not an execution status
+            if(!value) {  //value only specified if active processing message
+                if(syt.tmo) {  //hubSyncStart has been called
+                    value = "sync pending"; }
+                else {
+                    const scheduled = mgrs.hcu.isHubCallQueued(
+                        mgrs.srs.hubSyncEndpoint());
+                    if(scheduled) {
+                        value = commstate().action + " scheduled"; }
+                    else {
+                        value = "not scheduled"; } } }
             jt.out("hsistatspan", value);
             if(syt.pcts) {
                 jt.out("hsitsspan",
@@ -424,31 +453,35 @@ app.top = (function () {
             syt.pcts = new Date().toISOString();
             syt.stat = "";
             syt.tmo = null;
-            hubStatInfo("");
             if(!syt.errcode) {  //no retry until song update or app restart
-                syt.pending = uploadableSongs().length;
-                if(syt.pending || syt.resched ||
-                   commstate().action === "pull") {
+                syt.pending = 0;  //refreshed when looking for pending uploads
+                const resched = syt.pending || syt.resched;
+                if(resched || commstate().action === "pull") {
                     syt.resched = false;
-                    mgrs.srs.syncToHub("resched"); } } }
+                    mgrs.srs.syncToHub("resched"); } }
+            updateHubSyncStatusDisplay("completed"); }
         function processHubSyncResult (resarray) {  //an array of strings
-            updateCommState(JSON.parse(resarray[0]));  //save updated hsct
+            const logpre = "srs.processHubSyncResult ";
+            updateCommState(JSON.parse(resarray[0]), logpre + "save hsct");
             switch(commstate().action) {
             case "started":
                 commstate().action = "pull";
+                logCommState(logpre + "case \"started\"");
                 break;
             case "merge":
                 if(commstate().provdat === "partial") {  //too much to sync
-                    jt.log("srs.processHubSyncResult partial merge signout");
+                    jt.log(logpre + "partial merge signout");
                     return mgrs.asu.processSignOut(); }
                 commstate().action = "upload"; //merge complete, ready to upload
+                logCommState(logpre + "case \"merge\"");
                 mergeCSVSongs("down", resarray.slice(1), "forceWriteDigdat");
                 break;
             case "received":
                 commstate().action = "upload"; //uploads from here on if hsct ok
+                logCommState(logpre + "case \"received\"");
                 mergeCSVSongs("up", resarray.slice(1));
                 break;
-            default: jt.log("Unknown processHubSyncResult commstate.action: " +
+            default: jt.log(logpre + "Unknown commstate.action: " +
                             commstate().action); } }
         function scheduleHubSyncCall (callobj, sched) {
             jt.log("scheduleHubSyncCall syncdata[0]: " +
@@ -458,20 +491,19 @@ app.top = (function () {
             const pdat = jt.objdata(callobj);
             jt.log("scheduleHubSyncCall pdat.length: " + pdat.length);
             syt.stat = "executing";  //hold any other calls to sync
-            hubStatInfo("calling...");
+            updateHubSyncStatusDisplay();
             syt.errcode = "";
             syt.errtxt = "";
             const endpoint = mgrs.srs.hubSyncEndpoint();
             const dets = {verb:"POST", dat:pdat,
                           contf:function (resarray) {
-                              hubStatInfo("updating...");
                               processHubSyncResult(resarray);
                               hubSyncFinished(); },
                           errf:function (code, errtxt) {
-                              hubStatInfo("error");
                               handleSyncError(code, errtxt);
                               hubSyncFinished(); }};
-            mgrs.hcu.queueHubCall(endpoint, dets, sched.prio, sched.override); }
+            mgrs.hcu.queueHubCall(endpoint, dets, sched.prio, sched.override);
+            updateHubSyncStatusDisplay(); }
         function getSyncTaskPriority () {
             const dbo = app.pdat.dbObj();
             if(dbo.restoredFromBackup) {
@@ -494,16 +526,20 @@ app.top = (function () {
             return {prio:"3sec", override:"replace"}; }
         function hubSyncStart () { //see ../../docs/hubsyncNotes.txt
             var acct; var ucs;  //case variables
+            syt.tmo = null;  //we've been called now, clear for next status
+            const logpre = "hubSyncStart ";
             switch(commstate().action) {
             case "start":  //initial communications state
                 acct = mgrs.aaa.getAccount();
                 if(acct.dsId === "101") {
-                    return jt.log("hubSyncStart aborted since not signed in"); }
+                    return jt.log(logpre + "aborted since not signed in."); }
+                logCommState(logpre + "scheduling \"start\" call");
                 return scheduleHubSyncCall(
                     {syncdata:[JSON.stringify({action:"start"})],
                      email:acct.email, token:acct.token},
                     getSyncTaskPriority());
             case "pull":
+                logCommState(logpre + "scheduling \"pull\" call");
                 return scheduleHubSyncCall(
                     {syncdata:[JSON.stringify({
                         action:"pull",
@@ -513,22 +549,23 @@ app.top = (function () {
             case "upload":
                 ucs = getPendingUploadSongsCSVArray();
                 if(!ucs.length) {
-                    jt.log("hubSyncStart no songs to upload.");
+                    jt.log(logpre + "not scheduling since no songs to upload.");
                     return hubSyncFinished(); }
+                logCommState(logpre + "scheduling \"upload\" call");
                 logHubSyncSongs("upload", ucs);
                 return scheduleHubSyncCall(
                     {syncdata:[JSON.stringify({action:"upload"}), ...ucs],
                      hsct:commstate().hsct},
                     getSyncTaskPriority());
-            default: jt.log("Unknown hubSyncStart commstate.action: " +
+            default: jt.log(logpre + "unrecognized commstate.action: " +
                             commstate().action); } }
     return {
         noteDataRestorationNeeded: function () { syt.stat = "restoring"; },
         restoreFromBackup: function (srcstr) {
-            updateCommState({action:"start", hsct:""});  //start over next time
+            updateCommState(null, "restoreFromBackup");
             const logpre = "restoreFromBackup ";
             const btm = Date.now();
-            hubStatInfo("restoring...");
+            updateHubSyncStatusDisplay("restoring...");
             syt.stat = "restoring";  //avoid any interim sync
             const bdrdone = function () {  //end restore, check for updates
                 syt.stat = "";  //allow regular sync to proceed
@@ -539,22 +576,24 @@ app.top = (function () {
                 jt.log(logpre + "no acct.settings.backup.url");
                 return bdrdone(); }
             const bdurl = acct.settings.backup.url;
+            const callurl = "/" + app.util.cb(bdurl, app.util.authdata());
             mgrs.hcq.queueRequest({  //no scheduling, just restore.
-                verb:"rawGET", endpoint:bdurl,
-                url:app.util.cb(bdurl, app.util.authdata({})),
+                verb:"rawGET", endpoint:bdurl, url:callurl,
                 contf:function (csv) {
                     jt.log(logpre + "csv receive ms: " + (Date.now() - btm));
-                    hubStatInfo("");
+                    updateHubSyncStatusDisplay("restoring data");
                     restoreCSVSongData(csv);
                     jt.log(logpre + "csv process ms: " + (Date.now() - btm));
                     app.pdat.writeDigDat("restoreFromBackup", null,
                         function (/*digdat*/) {
+                            updateHubSyncStatusDisplay("restored.");
                             bdrdone(); },
                         function (code, errtxt) {
+                            updateHubSyncStatusDisplay("restore save error");
                             jt.log(logpre + "wdigdat " + code + ": " + errtxt);
                             bdrdone(); }); },
                 errf:function (code, errtxt) {
-                    hubStatInfo("");
+                    updateHubSyncStatusDisplay("restore failed");
                     jt.log(logpre + "hub call failed " + code + ": " + errtxt);
                     bdrdone(); } }); },
         hubSyncEndpoint: function  () {  //matches main.py startpage route
@@ -573,7 +612,7 @@ app.top = (function () {
                 clearTimeout(syt.tmo);
                 syt.tmo = null;
                 return; }
-            hubStatInfo("scheduled.");
+            updateHubSyncStatusDisplay();
             if(syt.tmo) {  //already scheduled
                 if(syt.stat) {  //currently running
                     syt.resched = true;  //reschedule when finished
@@ -593,7 +632,7 @@ app.top = (function () {
                  ["span", {id:"hsitsspan", cla:"infospan"}],  //timestamp
                  ["span", {id:"hsiudspan", cla:"infospan"}],  //updown
                  ["span", {id:"hsistatspan", cla:"infospan"}]]));  //status
-            hubStatInfo(syt.err || "init"); },
+            updateHubSyncStatusDisplay(); },
         syncSetup: function () {
             const lastsync = app.pdat.dbObj().lastSyncPlayback;
             if(lastsync) {  //have previously readied for hubsync upload

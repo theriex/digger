@@ -258,8 +258,8 @@ app.svc = (function () {
                     contf, errf, jt.semaphore("loc.changeConfig")); },
         passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
             var callf = jt.call;
-            if(endpoint.startsWith("/")) {
-                endpoint = endpoint.slice(1); }
+            //the endpoint must always start with "/" across all platforms
+            endpoint = endpoint.slice(1);   //remove preceding slash
             if(verb.startsWith("raw")) {
                 verb = verb.slice(3);
                 callf = jt.request; }
