@@ -1135,13 +1135,14 @@ app.deck = (function () {
             jt.log("deck.gen.setSongSeqMgrName " + mgr + " " + srcstr);
             const deckset = app.pdat.uips("deck");
             deckset.seqmgr = mgr; },
-        dispMode: function (mgrname, displayOnly) {
+        dispMode: function (mgrname, activation) {
             mdms.forEach(function (dm) {
                 jt.byId(dm.mgr + "mdmbdiv").className = "mdmbdiv";
                 jt.byId(dm.mgr + "dispdiv").style.display = "none"; });
             jt.byId(mgrname + "mdmbdiv").className = "mdmbdivact";
             jt.byId(mgrname + "dispdiv").style.display = "block";
-            if(!displayOnly && ssmn() !== mgrname) {   //not already active
+            if(activation !== "displayOnly" && (activation === "init" ||
+                                                ssmn() !== mgrname)) {
                 mgrs[mgrname].activateDisplay(); } },  //setSongSeqMgrName
         currentlyPlayingSongChanged: function () {
             const song = app.player.nowPlayingSong();
@@ -1179,7 +1180,7 @@ app.deck = (function () {
                            deckset.seqmgr);
                     mgrs.gen.setSongSeqMgrName(dfltSeqMgrName,
                                                "genApresCheck"); }
-                mgrs.gen.dispMode(deckset.seqmgr); }); }
+                mgrs.gen.dispMode(deckset.seqmgr, "init"); }); }
     };  //end mgrs.gen returned functions
     }());
 
