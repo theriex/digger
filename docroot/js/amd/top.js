@@ -163,7 +163,7 @@ app.top = (function () {
         function queueEntrySummary (qe) {
             var vals = [String(qe.wtms).padStart(6)];
             vals.push(qe.dets.endpoint.padStart(9));
-            if(qe.dets.endpoint === mgrs.srs.hubSyncEndpoint()) {
+            if(mgrs.srs.isHubSyncEndpoint(qe.dets.endpoint)) {
                 const datobj = jt.paramsToObj(qe.dets.dat);
                 const syncdata = JSON.parse(jt.dec(datobj.syncdata));
                 vals.push(syncdata[0]); }
@@ -274,8 +274,8 @@ app.top = (function () {
                     lsg.lp = mrlp;
                     updateLastSyncPlayback(hsg.lp); }); });
             app.pdat.writeDigDat(callerstr); },
-        isHubCallQueued: function (endpoint) {
-            return comms.callq.find((qe) => qe.dets.endpoint === endpoint); },
+        isHubCallQueued: function (matchf) {
+            return comms.callq.find((qe) => matchf(qe.dets.endpoint)); },
         queueHubCall: function (endpoint, dets, prio, override) {
             const logpre = "queueHubCall ";
             if(!verifyEndpoint(endpoint) || !verifyHubCallDetails(endpoint,
@@ -319,6 +319,7 @@ app.top = (function () {
     mgrs.srs = (function () {
         const syt = {tmo:null, stat:"", resched:false, up:0, down:0};
         const serverMaxUploadSongs = 20;
+        const hsepn = {prefixes:{start:"s", pull:"p", upload:"u"}, mid:"a"};
         const initialCommState = {action:"start", hsct:""};
         function commstate () {
             const topset = app.pdat.uips("top");
@@ -435,7 +436,7 @@ app.top = (function () {
                     value = "sync pending"; }
                 else {
                     const scheduled = mgrs.hcu.isHubCallQueued(
-                        mgrs.srs.hubSyncEndpoint());
+                        mgrs.srs.isHubSyncEndpoint);
                     if(scheduled) {
                         value = commstate().action + " scheduled"; }
                     else {
@@ -486,6 +487,8 @@ app.top = (function () {
         function scheduleHubSyncCall (callobj, sched) {
             jt.log("scheduleHubSyncCall syncdata[0]: " +
                    jt.ellipsis(callobj.syncdata[0], 60));
+            const endpoint = mgrs.srs.hubSyncEndpoint(
+                JSON.parse(callobj.syncdata[0]).action);
             //callob.syncdata is an array of strings. Stringify the array.
             callobj.syncdata = JSON.stringify(callobj.syncdata);
             const pdat = jt.objdata(callobj);
@@ -494,7 +497,6 @@ app.top = (function () {
             updateHubSyncStatusDisplay();
             syt.errcode = "";
             syt.errtxt = "";
-            const endpoint = mgrs.srs.hubSyncEndpoint();
             const dets = {verb:"POST", dat:pdat,
                           contf:function (resarray) {
                               processHubSyncResult(resarray);
@@ -596,11 +598,17 @@ app.top = (function () {
                     updateHubSyncStatusDisplay("restore failed");
                     jt.log(logpre + "hub call failed " + code + ": " + errtxt);
                     bdrdone(); } }); },
-        hubSyncEndpoint: function  () {  //matches main.py startpage route
-            const curracct = mgrs.aaa.getAccount();
-            return "da" + curracct.dsId; },  //previously "hubsync" API
         hubSyncAPIEndpointRegex: function () {
-            return  /da\d\d\d+/; },  //allow 101 for testing purposes
+            var me = String(Object.values(hsepn.prefixes));
+            me = "[" + me.replace(/,/g, "") + "]" + hsepn.mid;
+            me += mgrs.aaa.getAccount().dsId;
+            return new RegExp(me, "g"); },
+        isHubSyncEndpoint: function (endpoint) {
+            return endpoint.match(mgrs.srs.hubSyncAPIEndpointRegex()); },
+        hubSyncEndpoint: function  (action) {  //see main.py startpage routes
+            const curracct = mgrs.aaa.getAccount();
+            const ep = hsepn.prefixes[action] + hsepn.mid + curracct.dsId;
+            return ep; },
         hubsyncBacklogCount: function () {
             if(!syt.pending || syt.pending < serverMaxUploadSongs) {
                 return 0; }  //not backlogged, will handle in next call
