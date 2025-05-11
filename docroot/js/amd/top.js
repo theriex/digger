@@ -350,7 +350,7 @@ app.top = (function () {
             return uploadsongs; }
         function ucsv (str) {  //unescape csv string value
             str = str.replace(/"/g, "");  //remove any surrounding quotes
-            str = jt.dec(str);
+            str = jt.dec(str);            //embedded quotes were "%22"
             return str; }
         function pciv (str) {  //parse csv int value
             const ival = parseInt(str, 10);
@@ -381,18 +381,25 @@ app.top = (function () {
                   .join(",");
             return csv; }
         function restoreCSVSongData (csv) {
+            var restored = 0; var csvlines = csv.split("\n");
+            const logpre = "restoreCSVSongData ";
+            if(csvlines.length < 2) {
+                jt.log(logpre + "retrying csv split with escaped newline");
+                csvlines = csv.split("\\n"); }
+            jt.log(logpre + "received " + csvlines.length + " lines");
+            const songs = csvlines.map((c) => csv2song(c));
             const dbo = app.pdat.dbObj();
-            const songs = csv.split("\n").map((c) => csv2song(c));
             dbo.lastSyncPlayback = "1970-01-01T00:00:00Z";
             songs.forEach(function (bs) {  //backup song
                 const locs = app.pdat.tiarabLookup(bs);
                 locs.forEach(function (ds) {  //dictionary song
+                    restored += 1;
                     //jt.log("restoring " + bs.ti);
                     if(bs.lp > dbo.lastSyncPlayback) {
                         dbo.lastSyncPlayback = bs.lp; }
                     app.util.copyUpdatedSongData(ds, bs); }); });
             dbo.restoredFromBackup = new Date().toISOString();
-            jt.log("restoreCSVSongData: " + songs.length + " songs"); }
+            jt.log(logpre + restored + " songs restored"); }
         function getPendingUploadSongsCSVArray () {
             var upsgs = uploadableSongs();
             jt.log("getPendingUploadSongs: "  + upsgs.length + " songs");
@@ -583,6 +590,9 @@ app.top = (function () {
                 verb:"rawGET", endpoint:bdurl, url:callurl,
                 contf:function (csv) {
                     jt.log(logpre + "csv receive ms: " + (Date.now() - btm));
+                    if(!csv) {
+                        jt.log(logpre + "no backup data to restore.");
+                        return bdrdone(); }
                     updateHubSyncStatusDisplay("restoring data");
                     restoreCSVSongData(csv);
                     jt.log(logpre + "csv process ms: " + (Date.now() - btm));
@@ -597,7 +607,8 @@ app.top = (function () {
                 errf:function (code, errtxt) {
                     updateHubSyncStatusDisplay("restore failed");
                     jt.log(logpre + "hub call failed " + code + ": " + errtxt);
-                    bdrdone(); } }); },
+                    jt.log(logpre + "sign in again later to retry.");
+                    mgrs.asu.processSignOut(); } }); },
         hubSyncAPIEndpointRegex: function () {
             var me = String(Object.values(hsepn.prefixes));
             me = "[" + me.replace(/,/g, "") + "]" + hsepn.mid;

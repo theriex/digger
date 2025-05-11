@@ -270,7 +270,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=250510"); }
+                              mgrs.boot.initAppModules, "?v=250511"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -804,7 +804,9 @@ var app = (function () {
             digdat:{datobj:null, qcs:[], listeners:[]}};  //digdat.json
         var adnts = [];  //apres data notification tasks
         var tiarab = null;  //alt dict for song lookup by Title Artist Album
-        function tiarabKey (s) { return s.ti + s.ar + s.ab; }
+        function tiarabKey (s) {
+            const album = s.ab || "Singles";
+            return s.ti.trim() + s.ar.trim() + album.trim(); }
         function nextApresDataTask () {
             setTimeout(function () {
                 if(adnts.length) {
@@ -972,6 +974,7 @@ var app = (function () {
         songDataVersion: function () { return rtdat.digdat.datobj.version; },
         songsDict: function () { return rtdat.digdat.datobj.songs || {}; },
         tiarabLookup: function (srcobj) {
+            var result = [];  //default to not found
             if(!tiarab) {
                 tiarab = {};
                 Object.values(app.pdat.songsDict()).forEach(function (s) {
@@ -979,7 +982,10 @@ var app = (function () {
                     tiarab[key] = tiarab[key] || [];
                     tiarab[key].push(s); }); }
             const srckey = tiarabKey(srcobj);
-            return tiarab[srckey] || []; },
+            const found = tiarab[srckey];
+            if(found) {
+                result = found; }
+            return result; },
         uips: function (subcat) {  //ui persistent state
             var datobj = rtdat.digdat.datobj;
             if(!datobj) {  //digdat not read yet
@@ -1008,7 +1014,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=250510";  //updated as part of release process
+        return "v=250511";  //updated as part of release process
     }
 };  //end returned functions
 }());
