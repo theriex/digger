@@ -1047,7 +1047,7 @@ app.player = (function () {
     //monitoring off the latest playback queue.
     mgrs.slp = (function () {
         const scms = {  //sleep completion messages
-            lastpl: "Slept after last song finished.",
+            lastpl: "Slept after song finished.",
             unexpl: "Sleep overridden by external control."};
         function sleepstate () {
             var ps = app.pdat.uips("player");  //player state
