@@ -483,10 +483,10 @@ app.deck = (function () {
                     dbo.uilp = np.lp;
                     qpi.err = ""; } }
             //have np, and dbo data is up to date
-            qpi = qpi || playbackQueuePositionInfo(np);
+            qpi = qpi || playbackQueuePositionInfo(np);  //no err, no prob
             if(qpi.err) {  //keep the currently playing song on rebuild
                 return rebuildPlaybackQueue(np, "vqp " + qpi.err); }
-            jt.log(logpre + "qpi idx:" + qpi.idx + ", spi:" + qpi.spi);
+            //jt.log(logpre + "qpi idx:" + qpi.idx + ", spi:" + qpi.spi);
             asq.idx = qpi.idx;  //update actual index to match
             redrawPlaylistDisplay(); }
         function digDatUpdated (/*digdat*/) {
@@ -1055,8 +1055,7 @@ app.deck = (function () {
             var aidx = accts.findIndex((a) => a.dsId === updacc.dsId);
             updacc.token = accts[aidx].token;
             accts[aidx] = updacc;
-            app.pdat.writeConfig("deck.hsu.writeUpdatedAccount", function () {
-                jt.log("deck.hsu.writeUpdatedAccount success"); }); }
+            app.pdat.writeConfig("deck.hsu.writeUpdatedAccount"); }
         function safeSongFieldValue (s, f, t) {
             var val = s[f];
             if(typeof val !== "string") {
@@ -1176,8 +1175,7 @@ app.deck = (function () {
                 app.top.dispCount(songcount, "avail");
                 const deckset = app.pdat.uips("deck");
                 if(!deckset.seqmgr || !validSeqMgrName(deckset.seqmgr)) {
-                    jt.log("deckDataInit resetting invalid deckset.seqmgr: " +
-                           deckset.seqmgr);
+                    jt.log("deckDataInit setting default deckset.seqmgr");
                     mgrs.gen.setSongSeqMgrName(dfltSeqMgrName,
                                                "genApresCheck"); }
                 mgrs.gen.dispMode(deckset.seqmgr, "init"); }); }
