@@ -1431,9 +1431,11 @@ app.top = (function () {
                             mgrs.srs.syncToHub(endpoint); }  //verify data sync
                         pcontf(acct); },
                     gef); };
-            mgrs.hcu.queueHubCall(endpoint, {
-                verb:pverb, dat:jt.objdata(pdat),
-                contf:hcf, errf:gef}, "asap", "replace"); }
+            const dets = {verb:pverb, dat:jt.objdata(pdat),
+                          contf:hcf, errf:gef};
+            if(dets.verb === "GET") {
+                dets.url = endpoint; }
+            mgrs.hcu.queueHubCall(endpoint, dets, "asap", "replace"); }
     return {
         newacctForm: function (acct) {
             accountFieldsForm(acct, "j",
