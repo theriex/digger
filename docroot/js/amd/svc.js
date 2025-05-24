@@ -796,7 +796,8 @@ app.svc = (function () {
         fetchAlbum: function (song, contf, errf) {
             mgrs.spab.fetchAlbum(song, contf, errf); },
         passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
-            jt.call(verb, "/api/" + endpoint, dat,
+            //the endpoint must always start with "/" across all platforms
+            jt.call(verb, "/api" + endpoint, dat,
                     function (res) {
                         app.top.dispatch("hcq", "hubResponse", qname, reqnum,
                                          200, JSON.stringify(res)); },
