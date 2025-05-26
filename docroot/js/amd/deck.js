@@ -455,8 +455,34 @@ app.deck = (function () {
                     if(diff) {
                         qpi.err = String(diff) + " songs invalidated"; } } }
             return qpi; }
+        function staleDataOrInvalidPlayback (sdc, dbo, np) {
+            const logpre = "staleDataOrInvalidPlayback ";
+            if(!dbo.uilp) {  //no timestamp recorded from last playSongQueue
+                sdc.err = "no dbo.uilp, current queue not valid";
+                return true; }
+            if(!np.lp || np.lp < dbo.uilp) {  //lazy lp update or stale
+                if(jt.elapsedSince(dbo.arts, "seconds") > 42) {
+                    //the app data was loaded a while ago, and np.lp should
+                    //have been updated by now so reload.
+                    sdc.err = "invalid np.lp value, probably stale data";
+                    return true; }
+                //on some platforms, np.lp may not update until N seconds
+                //after the song has started playing.  If what's playing is
+                //what should be be playing according to the queue, then 
+                //fix the runtime and continue.
+                sdc.qpi = playbackQueuePositionInfo(np);
+                const qpi = sdc.qpi;
+                //if np is within queue, and not at the end, and it's been
+                //sequential playback through the previous song
+                if(qpi.idx >= 0 && (qpi.idx < asq.paths.length - 1 &&
+                                    qpi.idx - qpi.spi <= 1)) {
+                    jt.log(logpre + "fixing lazy np.lp timestamp update");
+                    np.lp = new Date().toISOString();
+                    dbo.uilp = np.lp;
+                    qpi.err = ""; } }
+            sdc.qpi = sdc.qpi || playbackQueuePositionInfo(np);
+            return false; }  //data seems ok
         function verifyQueuedPlayback (npStatusVerified) {
-            var qpi = null;
             const logpre = "verifyQueuedPlayback ";
             const dbo = app.pdat.dbObj();
             if(!dbo) {
@@ -470,24 +496,17 @@ app.deck = (function () {
                 jt.log(logpre + "verifying now playing song");
                 return app.player.reqUpdatedPlaybackStat(function (/*stat*/) {
                     verifyQueuedPlayback(true); }); }
-            if(!np.lp || !dbo.uilp || np.lp < dbo.uilp) {  //stale dbo or lp lag
-                if(jt.elapsedSince(dbo.arts, "seconds") > 42) {
-                    jt.log(logpre + "dbo likely stale, reloading.");
-                    return app.pdat.reloadDigDat("forceIgnoreStaleDataUpd"); }
-                qpi = playbackQueuePositionInfo(np);
-                //if found, and not at end, and seq playback until previous
-                if(qpi.idx >= 0 && (qpi.idx < asq.paths.length - 1 &&
-                                    qpi.idx - qpi.spi <= 1)) {
-                    jt.log(logpre + "fixing lazy np.lp timestamp update");
-                    np.lp = new Date().toISOString();
-                    dbo.uilp = np.lp;
-                    qpi.err = ""; } }
+            //have valid np
+            const sdc = {err:"", qpi:null};  //stale data check
+            if(staleDataOrInvalidPlayback(sdc, dbo, np)) {
+                if(sdc.err) {
+                    jt.log(logpre + sdc.err); }
+                return app.pdat.reloadDigDat("forceIgnoreStaleDataUpd"); }
             //have np, and dbo data is up to date
-            qpi = qpi || playbackQueuePositionInfo(np);  //no err, no prob
-            if(qpi.err) {  //keep the currently playing song on rebuild
-                return rebuildPlaybackQueue(np, "vqp " + qpi.err); }
-            //jt.log(logpre + "qpi idx:" + qpi.idx + ", spi:" + qpi.spi);
-            asq.idx = qpi.idx;  //update actual index to match
+            if(sdc.qpi.err) {  //queue sequence was not followed
+                //keep the currently playing song on rebuild
+                return rebuildPlaybackQueue(np, "vqp " + sdc.qpi.err); }
+            asq.idx = sdc.qpi.idx;  //update actual index to match
             redrawPlaylistDisplay(); }
         function digDatUpdated (/*digdat*/) {
             restoreAutoplaySelectionQueueSettings();

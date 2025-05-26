@@ -4,13 +4,8 @@ to the same hub song (multiple copies of equivalent songs locally).  It is
 also possible to have a local song map to a different hub song than it's
 previous mapping (changed title/artist/album metadata).
 
-Within the context of a single hubsync call, "path" is preserved in the
-returned data, so the local server can update its local data from the
-returned result using direct path lookup.  That ensures that the song that
-was sent for sync is the one that gets updated in the app (in case there are
-several instances of the same song).  If a same user does a sync of the same
-song from a different platform the path will reflect whichever platform last
-called sync with the song.
+Each song returned from hubsync is found locally via pdat.tiarabLookup which
+may find several matching local results, all of which are updated.
 
 The hub's responsibility is to preserve song ratings, providing sync and
 collaborative sharing support.  Until a song is rated, there is no reason to
@@ -108,7 +103,7 @@ takes precedence over outdated app song data.
 If listening to overlapping song collection on two different devices that
 have both been out of hubsync contact for a while, then it is likely the
 second device will have several songs merged down from the hub.  The app
-keeps track of lastSyncPlayback as itsynchronizes hub data.
+keeps track of lastSyncPlayback as it synchronizes hub data.
 
 App-Hub comms:
   - Comms data object: {syncdata:[], <authparam(s)>}
@@ -212,4 +207,34 @@ to the database.  It has a revision number after the ISO timestamp.  The
 local "lp" value does not have a revision number, and may have additional
 timestamp precision.  It is ok to compare the two strings directly as both
 are UTC times and accurate enough for sync purposes.
+
+
+Local app Song.lp timestamp updates:
+-----------------------------------
+
+The Digger UI requires song.lp be updated when a song is played, even if the
+UI itself is backgrounded.  When the UI is re-foregrounded, its state needs
+to be recovered and verified to avoid referencing stale data.  This local
+data consistency checking and processing is the level below hubsync.
+
+dbo.lastSyncPlayback is used for hubsync as described above.  dbo level
+fields used for local consistency checking:
+  - arts/awts: app read timestamp/app write timestamp 
+    arts is updated by app.pdat.setDigDatAndNotify
+    awts is updated by app.pdat.processNextQueuedWrite(digdat)
+    - player.scm (song change manager) digDatUpdated checks awts >= mrscnts
+      (most recent song change notice timestamp) to ensure it is working
+      with a recently loaded digdat before changing the currently playing
+      song in reaction to updated playback status.
+    - deck.csa.verifyQueuedPlayback checks several seconds have elapsed
+      since dbo.arts before forcing a reload due to out of sync lp.  This
+      lets the app to reach a stabilized start before forcing a reload, and
+      reflects the low liklihood that a fresh app start will have drifted
+      out of sync with the the playback.
+  - uilp: user interface last played
+    uilp is set by player.playSongQueue, and may be updated by 
+    deck.csa.staleDataOrInvalidPlayback to recover from lazy lp values
+
+
+
 

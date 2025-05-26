@@ -1511,6 +1511,7 @@ app.player = (function () {
                    jt.ellipsis(songs[0].ti, 30));
             previewSongDisplay(songs[0], "playing");
             setTimeout(function () {  //let UI update before calling svc
+                app.pdat.dbObj().uilp = new Date().toISOString();
                 app.svc.playSongQueue(pwsid, songs); },  //may check pmso.song
                        50); },
         reqUpdatedPlaybackStat: function (contf) {
