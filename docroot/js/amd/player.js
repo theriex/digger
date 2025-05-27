@@ -64,7 +64,8 @@ app.player = (function () {
             pmso.state = state || "";
             mgrs.uiu.updateSongDisplay("scm.changeCurrentlyPlayingSong");
             mgrs.slp.notePlayerStateChange();
-            app.deck.currentlyPlayingSongChanged(); },
+            if(state !== "ended") {
+                app.deck.currentlyPlayingSongChanged(); } },
         noteSongModified: function (cid) {  //caller Id string
             if(!pmso.song) { return; }  //ignore any pre-playing control noise
             //song.lp/pc already updated when song played, but an interim hub
