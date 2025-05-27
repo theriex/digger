@@ -1831,18 +1831,14 @@ app.top = (function () {
                     mgrs.aaa.getDarkModeButtonDisplayName(); } },
         toggleDarkMode: function (mode) {
             if(!mode) {
-                mode = mgrs.aaa.getDarkMode();
-                if(mode === "light") {
-                    mode = "dark"; }
-                else {
-                    mode = "light"; } }
+                mode = mgrs.aaa.getDarkMode(); }
+            if(mode === "light") {
+                mode = "dark"; }
+            else {
+                mode = "light"; }
+            mgrs.aaa.reflectDarkMode(mode);
             app.pdat.configObj().darkmode = mode;
-            app.pdat.writeConfig("top.aaa.toggleDarkMode", null,
-                function (cfg) {
-                    mgrs.aaa.reflectDarkMode(cfg.darkmode); },
-                function (code, errtxt) {
-                    jt.log("toggleDarkMode writeConfig call failure " + code +
-                           ": " + errtxt); }); },
+            app.pdat.writeConfig("top.aaa.toggleDarkMode"); },
         getCollectionStyle: function () {
             var dbpt = app.pdat.configObj().dbPersistence;
             if(!dbpt) {
