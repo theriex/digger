@@ -96,6 +96,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .radiobdiv { display:inline-block; }
 #offloadsdiv { font-size:small; }
 .suggul { margin:0px; padding-left:24px; }
+.emptysuggdiv { margin:5px 10px; }
 .carryarspan { font-style:italic; padding-right:5px; }
 .carrypcntspan { font-size:x-small; padding-left:5px; }
 

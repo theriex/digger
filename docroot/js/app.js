@@ -270,7 +270,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=250524"); }
+                              mgrs.boot.initAppModules, "?v=250531"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -804,9 +804,6 @@ var app = (function () {
             digdat:{datobj:null, qcs:[], listeners:[]}};  //digdat.json
         var adnts = [];  //apres data notification tasks
         var tiarab = null;  //alt dict for song lookup by Title Artist Album
-        function tiarabKey (s) {
-            const album = s.ab || "Singles";
-            return s.ti.trim() + s.ar.trim() + album.trim(); }
         function nextApresDataTask () {
             setTimeout(function () {
                 if(adnts.length) {
@@ -1014,15 +1011,18 @@ var app = (function () {
         configObj: function () { return rtdat.config.datobj; },
         songDataVersion: function () { return rtdat.digdat.datobj.version; },
         songsDict: function () { return rtdat.digdat.datobj.songs || {}; },
+        tiarabKey: function (s) {
+            const album = s.ab || "Singles";
+            return s.ti.trim() + s.ar.trim() + album.trim(); },
         tiarabLookup: function (srcobj) {
             var result = [];  //default to not found
             if(!tiarab) {
                 tiarab = {};
                 Object.values(app.pdat.songsDict()).forEach(function (s) {
-                    const key = tiarabKey(s);
+                    const key = app.pdat.tiarabKey(s);
                     tiarab[key] = tiarab[key] || [];
                     tiarab[key].push(s); }); }
-            const srckey = tiarabKey(srcobj);
+            const srckey = app.pdat.tiarabKey(srcobj);
             const found = tiarab[srckey];
             if(found) {
                 result = found; }
@@ -1055,7 +1055,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=250524";  //updated as part of release process
+        return "v=250531";  //updated as part of release process
     }
 };  //end returned functions
 }());

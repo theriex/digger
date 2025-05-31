@@ -2239,279 +2239,281 @@ app.top = (function () {
 
     //Local Carry Manager helps with local copy download/offload suggestions
     mgrs.lcm = (function () {
-        const dbps = [{v:"permanentCollection", t:"Permanent Collection"},
-                      {v:"localCopy", t:"Local Copy"}];
-        const crd = {};
-        const aso = {sel:"albums",
-                     opts:[{v:"albums", t:"Albums"},
-                           {v:"singles", t:"Singles"}],
-                     hdat:{albums:null, singles:null},
-                     lookup:null};
-        const fbk = {active:false, keyword:"Any", kwds:["Any"]};
-        const fsos = [{v:"M", t:"Already have this. Metadata mismatch."},
-                      {v:"R", t:"Just never suggest this."}];
-        function resetCarryData () {
-            crd.ars={};  crd.abs={};  crd.sks={};  crd.psc=0; }
-        function carryLenDisp (fld) {
-            return Object.keys(crd[fld]).length; }
-        function updateOffloadStats (dbpt, ts, song) {
-            ts.ac += 1;  //bump album song count
-            if(song.lp && song.lp.localeCompare(ts.mrp) > 0) {
-                ts.mrp = song.lp; }  //note most recent song play off album
-            if(song.rv <= 4) { //two or fewer stars
-                ts.dpath = ts.dpath || song.path;
-                ts.dc += 1; }  //bump dud count for album
-            const fqe = app.filter.dispatch("fq", "isPlaybackEligible", song);
-            if(fqe && song.rv >= 8) {  //4+ stars and playable
-                ts.hc += 1; }  //bump hit count for album
-            if(dbpt !== "permanentCollection") {  //localCopy
-                if(song.rv > 4 && //not already counted as a dud
-                   song.fq && song.fq.match(/[BZOR]/) && //tired or ref only
-                   !fqe) {  //not eligible to play
-                    ts.tpath = ts.tpath || song.path;
-                    ts.tc += 1; } } } //bump tired count for album
+        const maxsugg = 5;  //max num offload or download listings to display
+        const initialCarryState = {
+            lastFetch:"1970-01-01T00:00:00Z",
+            fetchType:"unfiltered", //or "filtered"
+            saveType:"unfiltered", //or "filtered" or "both"
+            hubfilt:"",  //filtering params from hub latest call
+            hubsongs:[]};  //hub songs fetched and merged
+        const wv = {  //working variables (not persistent)
+            afqs:[{fq:"P", txt:"Playable"},  //"N,P,B,Z,O"
+                  {fq:"R", txt:"Never Suggest"},
+                  {fq:"M", txt:"Bad Metadata"}]};
+        function carrystate () {
+            const topset = app.pdat.uips("top");
+            topset.carrystate = topset.carrystate || initialCarryState;
+            return topset.carrystate; }
+        ////offload support functions
         function rebuildCarryData () {
-            const dbpt = mgrs.aaa.getCollectionStyle();
-            resetCarryData();
-            const sd = app.deck.dispatch("sdt", "getSongsDict");
-            Object.values(sd).forEach(function (song) {
-                if(app.deck.isPlayable(song)) {
-                    crd.psc += 1;  //update song count
-                    crd.ars[song.ar] = crd.ars[song.ar] || song.ar;  //artist
-                    //note album
-                    const ab = song.ab || song.ar + "Singles";
-                    crd.abs[ab] = crd.abs[ab] || {
-                        ar:song.ar, ac:0, dc:0, tc:0, hc:0, apath:song.path,
-                        mrp:"1970-01-01T00:00:00Z"};
-                    updateOffloadStats(dbpt, crd.abs[ab], song);
-                    //note song key for hub interaction
-                    const sk = song.ar + song.ab + song.ti;
-                    crd.sks[sk] = song.ti; } }); }
+            wv.locc = {ars:{}, abs:{}, ttlsongs:0};
+            Object.values(app.pdat.songsDict()).forEach(function (s) {
+                if(app.deck.isPlayable(s)) {
+                    wv.locc.ars[s.ar] = wv.locc.ars[s.ar] || 0;
+                    wv.locc.ars[s.ar] += 1;  //num songs by this artist (debug)
+                    const albkey = s.ar.trim() + s.ab.trim();
+                    wv.locc.abs[albkey] = wv.locc.abs[albkey] ||
+                        {arname:s.ar,
+                         abname:s.ab,
+                         mrp:"1970-01-01T00:00:00Z",  //most recently played
+                         skc:0,     //pd:"skipped" count
+                         tiredc:0,  //fq not "N"ew or "P"layable count
+                         ttlr:0,    //total of all ratings of songs on album
+                         scount:0}; //number of songs on this album
+                    const abcs = wv.locc.abs[albkey];  //album counts obj
+                    if(s.lp && s.lp.localeCompare(abcs.mrp) > 0) {
+                        abcs.mrp = s.lp; }
+                    if(!abcs.path) {   //for alb playback launch
+                        abcs.path = s.path; }
+                    if(s.pd === "skipped") {
+                        abcs.skc += 1; }
+                    if(s.fq !== "N" && s.fq !== "P") {
+                        abcs.tiredc += 1; }
+                    abcs.ttlr += s.rv;
+                    abcs.scount += 1;
+                    wv.locc.ttlsongs += 1; } });
+            Object.values(wv.locc.abs).forEach(function (abio) {
+                abio.pck = Math.round(100 * abio.skc / abio.scount);
+                abio.pcz = Math.round(100 * abio.tiredc / abio.scount); }); }
         function carryReportTotalsHTML () {
             return jt.tac2html(
                 [["div", {cla:"crsumitemdiv"},
-                  [["span", {cla:"crsumitemval"}, carryLenDisp("ars")],
+                  [["span", {cla:"crsumitemval"},
+                    Object.keys(wv.locc.ars).length],
                    ["span", {cla:"crsumitemattr"}, "Artists"]]],
                  ["div", {cla:"crsumitemdiv"},
-                  [["span", {cla:"crsumitemval"}, carryLenDisp("abs")],
+                  [["span", {cla:"crsumitemval"},
+                    Object.keys(wv.locc.abs).length],
                    ["span", {cla:"crsumitemattr"}, "Albums"]]],
                  ["div", {cla:"crsumitemdiv"},
-                  //"sks" has unique ti/ar/ab keys without dupes.  That can be
-                  //confusingly less than the total as displayed in deck info.
-                  [["span", {cla:"crsumitemval"}, crd.psc || "0"],
+                  [["span", {cla:"crsumitemval"}, wv.locc.ttlsongs || "0"],
                    ["span", {cla:"crsumitemattr"}, "Songs"]]]]); }
-        function permCollOrCarryHTML () {
-            var dbpt = mgrs.aaa.getCollectionStyle();
-            return jt.tac2html(
-                [["div", {cla:"crsectitdiv"}, "Song file persistence:"],
-                 dbps.map((dbp) =>
-                     ["div", {cla:"radiobdiv"},
-                      [["input", {type:"radio", id:dbp.v + "RadioButton",
-                                  name:"dbpoption", value:dbp.v,
-                                  checked:jt.toru(dbpt === dbp.v),
-                                  onclick:mdfs("aaa.setCollectionStyle",
-                                               dbp.v)}],
-                       ["label", {fo:dbp.v + "RadioButton"}, dbp.t]]])]); }
-        function isOffloadEligible(stats) {
-            if(stats.hc) {
-                return false; } //at least one high rated play-eligible song
-            if(!stats.dc && !stats.tc) {
-                return false; } //no duds and nothing tired
-            return true; }  //possibly offloadable
-        function findOffloadableAlbums () {
-            var oas = [];
-            Object.entries(crd.abs).forEach(function ([k, d]) {
-                if(isOffloadEligible(d)) {
-                    const dtc = d.dc + d.tc;  //duds and ineligible tired
-                    const bp = Math.round((dtc * 100) / d.ac);  //bad song pcnt
-                    const ia = ((d.ac > 2)? 1 : 0);  //1 if more than a single
-                    if(bp > 50) {  //if more than half of album is ok, keep it
-                        oas.push({ar:d.ar, ab:k, ac:d.ac, mrp:d.mrp,
-                                  path:d.dpath || d.tpath || d.apath,
-                                  iat:ia, bpc:bp}); } } });
-            //Albums before singles.  Highest badness first.  Within
-            //equally bad albums, prefer least recently played because if
-            //you play a song off the album and don't delete it, then it
-            //should move down in the suggestions order.  If all else equal,
-            //prefer longer albums since since they will free up more space.
-            oas.sort(function (a, b) {
-                return ((b.iat - a.iat) ||  //albums before singles
-                        (b.bpc - a.bpc) ||  //highest badness percent first
-                        a.mrp.localeCompare(b.mrp) ||  //least recently played
-                        (b.ac - a.ac)); }); //longer albums first
-            oas = oas.slice(0, 3);  //manageable number to actually consider
-            return oas; }
         function suggestedOffloadsHTML () {
-            const oas = findOffloadableAlbums();
-                var sughtml = jt.tac2html(
-                  ["ul", {cla:"suggul"},
-                   oas.map((oa) =>
-                      ["li",
-                       [["span", {cla:"carryarspan"}, oa.ar],
-                        "&nbsp;-&nbsp;",
-                        ["a", {href:"#playalbum",
-                               onclick:mdfs("lcm.showAlbum",
-                                            jt.escq(oa.path))},
-                         ["span", {cla:"carryabspan"}, oa.ab]],
-                        ["span", {cla:"carrypcntspan"}, oa.bpc + "%"]]])]);
-            if(!oas.length) {
-                sughtml = "&nbsp; No offload suggestions."; }
+            var html = "No skipped or tired songs.";
+            const oas = Object.values(wv.locc.abs)
+                  .filter((oa) => oa.skc || oa.tiredc)   //only tired or skipped
+                  .sort(function (a, b) {
+                      return ((b.pck - a.pck) ||
+                              (b.pcz - a.pcz) ||
+                              b.mrp.localeCompare(a.mrp)); })
+                  .slice(0, maxsugg);
+            if(oas.length) {
+                const colhs = ["artist", "album", "S%", "Z%", "★"];
+                html = jt.tac2html(
+                    ["table", {id:"offloadstable"},
+                     [["tr",
+                       [colhs.map((h) => ["th", h])]],...
+                      [oas.map((oa) =>
+                          ["tr",
+                           [["td", ["span", {cla:"carryarspan"}, oa.arname]],
+                            ["td", ["a", {href:"#playalbum",
+                                          onclick:mdfs("lcm.showAlbum",
+                                                       jt.escq(oa.path))},
+                                    ["span", {cla:"carryabspan"}, oa.abname]]],
+                            ["td", oa.pck],
+                            ["td", oa.pcz],
+                            ["td", Math.round(oa.ttlr / oa.scount)]]])]]]); }
             return jt.tac2html(
                 ["div", {id:"suggoffdiv"},
                  [["div", {cla:"crsectitdiv"}, "Suggested offloads:"],
-                  sughtml]]); }
-        function albSingleSelHTML () {
-            return jt.tac2html(aso.opts.map((as) =>
-                ["div", {cla:"radiobdiv"},
-                 [["input", {type:"radio", id:as.v + "RadioButton",
-                             name:"asoption", value:as.v,
-                             checked:jt.toru(as.v === aso.sel),
-                             onclick:mdfs("lcm.suggDownType", as.v)}],
-                  ["label", {fo:as.v + "RadioButton"}, as.t]]])); }
-        function keywordSelHTML () {
-            fbk.kwds = mgrs.kwd.defsArray();
-            fbk.kwds.unshift({kw:"Any"});
-            return jt.tac2html(
-                [["input", {type:"checkbox", id:"dwninckwin", value:"withkw",
-                            checked:jt.toru(fbk.active),
-                            onclick:mdfs("lcm.toggleKWFilterActive")}],
-                 ["label", {fo:"dwninckwin"}, "Including keyword"],
-                 "&nbsp;",
-                 ["select", {id:"dwnkwd", title:"Required keyword",
-                             onchange:mdfs("lcm.keywordChange")},
-                  fbk.kwds.map((kw) =>
-                      ["option", {value:kw.kw,
-                                  selected:jt.toru(kw.kw === fbk.keyword)},
-                       kw.kw])]]); }
-        function suggestedDownloadsHTML () {
-            return jt.tac2html(
-                [["div", {cla:"crsectitdiv"}, "Suggested downloads:"],
-                 ["div", {id:"crdalbsindiv"}, albSingleSelHTML()],
-                 ["div", {id:"crdkwdseldiv"}, keywordSelHTML()],
-                 ["div", {id:"crdsuggsdiv"}, "Checking DiggerHub"]]); }
-        function notLocallyAvailable (dls) {
-            if(!aso.lookup) {
-                aso.lookup = {};  //artist:{alb:sc, alb2:sc2}
-                const sd = app.deck.dispatch("sdt", "getSongsDict");
-                const lkp = aso.lookup;
-                Object.values(sd).forEach(function (s) {
-                    if(app.deck.isPlayable(s)) {
-                        lkp[s.ar] = lkp[s.ar] || {};
-                        lkp[s.ar][s.ab] = lkp[s.ar][s.ab] || 0;
-                        lkp[s.ar][s.ab] += 1; } }); }
-            return dls.filter((dl) =>
-                !aso.lookup[dl.ar] || !aso.lookup[dl.ar][dl.ab]); }
-        function hasRequiredKeyword (dls) {
-            if(!fbk.active || fbk.keyword === "Any") {
-                return dls; }
-            return dls.filter((dl) =>
-                dl.kws && dl.kws.indexOf(fbk.keyword) >= 0); }
-        function computeDisplayDataAndSort (dls) {
-            dls.forEach(function (dl) { dl.vr = Math.round(dl.sr / dl.qc); });
-            dls = dls.sort(function (a, b) {
-                return (b.vr - a.vr); });
-            return dls.slice(0, 5); }
-        function displayDownloadSuggestions () {
-            var dls = aso.hdat[aso.sel];
-            jt.out("crdsuggsdiv", "Checking " + dls.length + " " + aso.sel);
-            dls = notLocallyAvailable(dls);
-            dls = hasRequiredKeyword(dls);
-            dls = computeDisplayDataAndSort(dls);
-            if(!dls.length) {
-                return jt.out("crdsuggsdiv", jt.tac2html(
-                    ["No " + aso.opts[aso.sel].t + " download suggestions",
-                     ["div", {id:"recslinkdiv"},
-                      ["a", {href:"#getrecommendation",
-                             onclick:mdfs("gen.togtopdlg", "am")},
-                       "Get recommendations"]]])); }
+                  html]]); }
+        ////download support functions
+        function filtMatchParamsObj () {
+            var hubfilt = {};
+            if(app.deck.dispatch("gen", "getSongSeqMgrName") === "csa") {
+                const filtsum = app.filter.summary();
+                hubfilt = {poskws:filtsum.poskws,
+                           negkws:filtsum.negkws,
+                           almin:filtsum.almin,
+                           almax:filtsum.almax,
+                           elmin:filtsum.elmin,
+                           elmax:filtsum.elmax}; }
+            return hubfilt; }
+        function songMatchesFilterVals(s, fmp) {
+            if(s.al < fmp.almin || s.al > fmp.almax) { return false; }
+            if(s.el < fmp.elmin || s.el > fmp.elmax) { return false; }
+            if(!fmp.poskws.csvarray().every((kw) =>
+                s.kws && s.kws.indexOf(kw) >= 0)) { return false; }
+            if(fmp.negkws.csvarray().some((kw) =>
+                s.kws && s.kws.indexOf(kw) >= 0)) { return false; }
+            return true; }
+        function mergeHubSongs (songs) {
+            const cs = carrystate();
+            cs.hubfilt = jt.objdata(filtMatchParamsObj());
+            if(cs.saveType !== cs.fetchType && cs.saveType !== "both") {
+                cs.saveType = "both"; }
+            songs = songs.filter((s) =>   //remove locally available songs
+                !app.pdat.tiarabLookup(s).length);
+            jt.out("crdsuggsdiv", String(songs.length) + " non-local songs.");
+            const tiarab = {};
+            cs.hubsongs.forEach(function (s) {
+                tiarab[app.pdat.tiarabKey(s)] = s; });
+            songs.forEach(function (s) {
+                tiarab[app.pdat.tiarabKey(s)] = s; });
+            cs.hubsongs = Object.values(tiarab); }
+        function haveRecentDownloads () {
+            const cs = carrystate();
+            const hrsSinceFetch = jt.elapsedSince(cs.lastFetch, "hours");
+            if(hrsSinceFetch > 24) {
+                cs.saveType = cs.fetchType;  //reset
+                cs.hubsongs = [];
+                return false; }  //over a day old is definitely stale
+            if(cs.saveType !== "both" && cs.saveType !== cs.fetchType) {
+                return false; }  //need the other kind of songs
+            if(cs.fetchType === "filtered") {
+                const fmp = jt.objdata(filtMatchParamsObj());
+                if(cs.hubfilt !== fmp) {
+                    return false; } }  //filter settings have changed
+            return true; }
+        function displayAlbumGroupedSongs () {
             jt.out("crdsuggsdiv", jt.tac2html(
                 ["div", {id:"suggdowndiv"},
-                 [["div", {cla:"crsectitdiv"}, "Suggested downloads:"],
-                  ["ul", {cla:"suggul"},
-                   dls.map((dl, idx) =>
+                 ["ul", {cla:"suggul"},
+                  wv.ags.map((alb, idx) =>
                       ["li",
-                       [["span", {cla:"carryarspan"}, dl.ar],
+                       [["span", {cla:"carryarspan"}, alb.ar],
                         "&nbsp;-&nbsp;",
-                        ["a", {href:"#fixsuggestion",
-                               onclick:mdfs("lcm.fixSuggestion", idx,
-                                            dl.ar, dl.ab)},
-                         ["span", {cla:"carryabspan"}, dl.ab]],
-                        ["span", {cla:"carrypcntspan"}, dl.vr],
-                        ["div", {id:"fixdlsuggdiv" + idx,
-                                 style:"display:none;"}]]])]]])); }
-        function rebuildSuggestedDownloads () {
-            jt.out("dwnloadsdiv", suggestedDownloadsHTML());
+                        ["a", {href:"#sdldet",
+                               onclick:mdfs("lcm.sdldetClick", idx)},
+                         ["span", {cla:"carryabspan"}, alb.ab]],
+                        ["div", {id:"sdldetdiv" + idx,
+                                 style:"display:none;"}]]])]])); }
+        function displayFilteredSongs () {
+            var lps = carrystate().hubsongs;  //last played songs
+            var ags = {};  //album grouped songs
+            if(carrystate().fetchType === "filtered") {
+                const fmp = filtMatchParamsObj();
+                lps = lps.filter((s) => songMatchesFilterVals(s, fmp)); }
+            lps.sort(function (a, b) {  //all hub songs have an lp value
+                return a.lp.localeCompare(b.lp); });
+            lps.forEach(function (s) {
+                const albkey = s.ar.trim() + s.ab.trim();
+                ags[albkey] = ags.albkey || {
+                    ar:s.ar.trim(), ab:s.ab.trim(), songs:[]};
+                ags[albkey].songs.push(s); });
+            wv.ags = Object.values(ags);
+            if(!wv.ags.length) {
+                jt.out("crdsuggsdiv", jt.tac2html(
+                    ["div", {id:"suggdowndiv"},
+                     ["div", {cla:"emptysuggdiv"},
+                      ["No download suggestions",
+                       ["div", {id:"recslinkdiv"},
+                        ["a", {href:"#getrecommendation",
+                               onclick:mdfs("gen.togtopdlg", "am")},
+                         "Get recommendations"]]]]]));
+                return; }
+            displayAlbumGroupedSongs(); }
+        function displaySuggestedDownloads () {
             const acct = mgrs.aaa.getAccount();
             if(!acct || acct.dsId === "101") {
                 return jt.out("crdsuggsdiv", jt.tac2html(
                     ["a", {href:"#signin",
                            onclick:mdfs("gen.togtopdlg", "am")},
                      "Sign in for download suggestions."])); }
-            if(!aso.hdat[aso.sel]) {
+            if(!haveRecentDownloads()) {
                 jt.out("crdsuggsdiv", "Calling DiggerHub...");
-                const stp = aso.sel;
                 mgrs.hcu.queueHubCall("suggdown", {
                     verb:"GET",
                     url:app.util.cb("suggdown",
-                                    app.util.authdata({suggtype:stp})),
-                    contf:function (suggs) {
-                        jt.out("crdsuggsdiv", stp + " data received.");
-                        aso.hdat[stp] = suggs;
-                        rebuildSuggestedDownloads(); },
+                                    app.util.authdata(filtMatchParamsObj())),
+                    contf:function (songs) {
+                        carrystate().lastFetch=new Date().toISOString();
+                        jt.out("crdsuggsdiv", String(songs.length) +
+                               " songs found on DiggerHub.");
+                        mergeHubSongs(songs);
+                        displaySuggestedDownloads(); },
                     errf:function (code, errtxt) {
+                        carrystate().lastFetch=new Date().toISOString();
                         jt.out("crdsuggsdiv", "Call failed " + code +
-                               ": " + errtxt); }}, "3sec", "replace");
+                               ": " + errtxt); }}, "asap", "replace");
                 return; }
-            displayDownloadSuggestions(); }
+            displayFilteredSongs(); }
+        function useFilterSettingsHTML () {
+            const cs = carrystate();
+            if(app.deck.dispatch("gen", "getSongSeqMgrName") !== "csa") {
+                cs.fetchType = "unfiltered";
+                return ""; }
+            return jt.tac2html(
+                [["input", {type:"checkbox", id:"usefiltcb", value:"usefilt",
+                            checked:jt.toru(cs.fetchType === "filtered"),
+                            onclick:mdfs("lcm.toggleUseFiltSetting", "event")}],
+                 ["label", {fo:"usefiltcb"}, "Use Filter Settings"]]); }
+        function suggestedDownloadsHTML () {
+            return jt.tac2html(
+                [["div", {cla:"crsectitdiv"}, "Suggested downloads:"],
+                 ["div", {id:"crdusefiltdiv"}, useFilterSettingsHTML()],
+                 ["div", {id:"crdsuggsdiv"}, "Checking DiggerHub"]]); }
+        function removeHubSongsAndRedisplay (updsongs) {
+            const cs = carrystate();
+            cs.hubsongs = cs.hubsongs.filter((s) =>
+                !updsongs.find((us) => us.dsId === s.dsId));
+            const alreadyLow = wv.ags.length < maxsugg;
+            displayFilteredSongs();  //rebuilds wv.ags
+            if(wv.ags.length && wv.ags.length < maxsugg && !alreadyLow) {
+                //reset and rebuild everything from scratch
+                const topset = app.pdat.uips("top");
+                topset.carrystate = initialCarryState;
+                mgrs.lcm.displayLocalCarryInfo(); } }
     return {
-        fixSuggestion: function (idx, ar, ab) {
-            const div = jt.byId("fixdlsuggdiv" + idx);
+        sdldetClick: function (idx) {
+            const div = jt.byId("sdldetdiv" + idx);
             if(div.style.display !== "none") {  //toggle off
                 div.style.display = "none";
                 return; }
             div.style.display = "block";
+            const alb = wv.ags[idx];
             div.innerHTML = jt.tac2html(
-                [["div", {id:"fsoptsdiv" + idx},
-                  fsos.map((fso) =>
-                      ["div", {cla:"oneselperlinediv"},
-                       [["input", {type:"radio", id:fso.v + "RadioButton",
-                                   checked:jt.toru(fso.v === "M"),
-                                   name:"fsoption", value:fso.v}, fso.v],
-                        ["label", {fo:fso.v + "RadioButton"}, fso.t]]])],
-                 ["div", {id:"fsbuttondiv" + idx, cla:"dlgbuttonsdiv"},
-                  ["button", {type:"button", id:"fixsuggb" + idx,
-                              onclick:mdfs("lcm.hubfixSuggestion", idx,
-                                           ar, ab)},
-                   "Remove Suggestion"]],
-                 ["div", {id:"fixdlstatdiv" + idx}]]); },
-        hubfixSuggestion: function (idx, ar, ab) {
-            const ufq = document.querySelector("input[name=fsoption]:checked")
-                  .value;
-            const acct = mgrs.aaa.getAccount();
-            jt.out("fixdlstatdiv" + idx, "Updating hub...");
-            mgrs.hcu.queueHubCall("nosugg", {
+                [["span", {cla:"sudoldspan"}, alb.songs.length + " old"],
+                 ["span", {cla:"sudlpspan"}, alb.songs[0].lp.slice(0, 10)],
+                 ["select", {id:"fqmsel" + idx, title:"Playback Eligibility",
+                             onchange:mdfs("lcm.confirmAlbFreqChange", idx)},
+                  wv.afqs.map((afq) =>
+                      ["option", {value:afq.fq}, afq.txt])],
+                 ["div", {id:"sudstatdiv" + idx}]]); },
+        confirmAlbFreqChange: function (idx) {
+            const afq = wv.afqs[jt.byId("fqmsel" + idx).selectedIndex];
+            if(!afq) {  //clear confirmation dialog if "P", no mod.
+                jt.out("sudstatdiv" + idx, ""); }
+            else {
+                jt.out("sudstatdiv" + idx, jt.tac2html(
+                    ["If you update, known songs with this artist and album will no longer be suggested on any platform.",
+                     ["button", {type:"button", id:"sudupdb" + idx,
+                                 onclick:mdfs("lcm.updateAlbumFrequency", 
+                                              idx, afq.fq)},
+                      "Update"]])); } },
+        updateAlbumFrequency: function (idx, abfq) {
+            jt.out("sudstatdiv" + idx, "Updating...");
+            const absongs = wv.ags[idx].songs;
+            absongs.forEach(function (s) { s.fq = abfq; });
+            mgrs.hcu.queueHubCall("savesongs", {
                 verb:"POST",
-                dat:jt.objdata({an:acct.email, at:acct.token,
-                                artist:ar, album:ab, fq:ufq}),
-                contf:function (songs) {
-                    aso.lookup[ar] = aso.lookup[ar] || {};
-                    aso.lookup[ar][ab] = -1 * songs.length;
-                    rebuildSuggestedDownloads(); },
-                errf:function (code, errtxt) {
-                    jt.out("fixdlstatdiv" + idx, "Hub update failed " + code +
-                           ": " + errtxt); }}, "3sec", "replace"); },
-        suggDownType: function (val) {
-            aso.sel = val;
-            rebuildSuggestedDownloads(); },
-        toggleKWFilterActive: function () {
-            fbk.active = !fbk.active;
-            rebuildSuggestedDownloads(); },
-        keywordChange: function () {
-            fbk.keyword = fbk.kwds[jt.byId("dwnkwd").selectedIndex].kw;
-            rebuildSuggestedDownloads(); },
+                dat:app.util.authdata({songs:JSON.stringify(absongs)}),
+                contf: function (updsongs) {  //restart from scratch
+                    jt.out("sudstatdiv" + idx, "DiggerHub updated.");
+                    removeHubSongsAndRedisplay(updsongs); },
+                errf: function (code, errtxt) {
+                    jt.out("sudstatdiv" + idx, "Update failed " + code +
+                           ": " + errtxt); }}, "asap", "replace"); },
+        toggleUseFiltSetting: function (/*event*/) {
+            const cs = carrystate();
+            if(cs.fetchType === "unfiltered") {
+                cs.fetchType = "filtered"; }
+            else {
+                cs.fetchType = "unfiltered"; }
+            displaySuggestedDownloads(); },
         showAlbum: function (encpath) {
             const path = jt.dec(encpath);
-            const sd = app.deck.dispatch("sdt", "getSongsDict");
+            const sd = app.pdat.songsDict();
             const song = sd[path];
             app.deck.dispatch("alb", "setSongToStartWith", song);
             app.deck.dispatch("gen", "dispMode", "alb"); },
@@ -2520,14 +2522,13 @@ app.top = (function () {
             jt.out(tddi, jt.tac2html(
                 ["div", {id:"carryrptdiv"},
                  [["div", {id:"crttlsdiv"}, carryReportTotalsHTML()],
-                  ["div", {id:"crprmcrydiv"}, permCollOrCarryHTML()],
                   ["div", {id:"offloadsdiv"}, suggestedOffloadsHTML()],
                   ["div", {id:"dwnloadsdiv"}, suggestedDownloadsHTML()],
                   ["div", {cla:"dlgbuttonsdiv", id:"crbdiv"},
                    ["button", {type:"button", id:"crbcloseb",
                                onclick:mdfs("gen.togtopdlg", "", "close")},
                     "Close"]]]]));
-            rebuildSuggestedDownloads(); }
+            displaySuggestedDownloads(); }
     };  //end of mgrs.lcm returned functions
     }());
 
