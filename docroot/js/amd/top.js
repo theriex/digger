@@ -189,7 +189,7 @@ app.top = (function () {
             mgrs.hcq.queueRequest(nextCall.dets); }
         function verifyEndpoint (endpoint) {
             const ves = ["newacct", "acctok", "updacc", "mailpwr", "deleteme",
-                         "suggdown", "nosugg", /bd\d\d\d\S\S\S/,
+                         "suggdown", "savesongs", /bd\d\d\d\S\S\S/,
                          mgrs.srs.hubSyncAPIEndpointRegex(),
                          "fanmsg", "fancollab", "fangrpact"];
             if(ves.some((e) => endpoint.match(e))) {
@@ -2330,7 +2330,8 @@ app.top = (function () {
         ////download support functions
         function filtMatchParamsObj () {
             var hubfilt = {};
-            if(app.deck.dispatch("gen", "getSongSeqMgrName") === "csa") {
+            if(app.deck.dispatch("gen", "getSongSeqMgrName") === "csa" &&
+               carrystate().fetchType === "filtered") {
                 const filtsum = app.filter.summary();
                 hubfilt = {poskws:filtsum.poskws,
                            negkws:filtsum.negkws,
@@ -2401,7 +2402,7 @@ app.top = (function () {
                 ags[albkey] = ags.albkey || {
                     ar:s.ar.trim(), ab:s.ab.trim(), songs:[]};
                 ags[albkey].songs.push(s); });
-            wv.ags = Object.values(ags);
+            wv.ags = Object.values(ags).slice(0, maxsugg);
             if(!wv.ags.length) {
                 jt.out("crdsuggsdiv", jt.tac2html(
                     ["div", {id:"suggdowndiv"},
@@ -2473,37 +2474,44 @@ app.top = (function () {
             div.style.display = "block";
             const alb = wv.ags[idx];
             div.innerHTML = jt.tac2html(
-                [["span", {cla:"sudoldspan"}, alb.songs.length + " old"],
-                 ["span", {cla:"sudlpspan"}, alb.songs[0].lp.slice(0, 10)],
-                 ["select", {id:"fqmsel" + idx, title:"Playback Eligibility",
-                             onchange:mdfs("lcm.confirmAlbFreqChange", idx)},
-                  wv.afqs.map((afq) =>
-                      ["option", {value:afq.fq}, afq.txt])],
-                 ["div", {id:"sudstatdiv" + idx}]]); },
-        confirmAlbFreqChange: function (idx) {
-            const afq = wv.afqs[jt.byId("fqmsel" + idx).selectedIndex];
-            if(!afq) {  //clear confirmation dialog if "P", no mod.
-                jt.out("sudstatdiv" + idx, ""); }
+                ["table", {id:"dlabsongstable"},
+                 [alb.songs.map((s, si) =>
+                     ["tr", 
+                      [["td", s.ti],
+                       ["td", 
+                        [["select", {id:"fqmsel" + idx + si,
+                                     title:"Hub Song Playback Eligibility",
+                                     onchange:mdfs("lcm.confirmHubFreqChange",
+                                                   idx, si)},
+                          wv.afqs.map((afq) =>
+                              ["option", {value:afq.fq}, afq.txt])],
+                         ["span", {id:"hubupdconfspan" + idx + si,
+                                   cla:"hubupdconfspan"}]]]]])]]); },
+        confirmHubFreqChange: function (idx, si) {
+            const sel = jt.byId("fqmsel" + idx + si);
+            const span = jt.byId("hubupdconfspan" + idx + si);
+            if(!sel.selectedIndex) {  //clear confirmation dialog if "P"
+                span.innerHTML = ""; }
             else {
-                jt.out("sudstatdiv" + idx, jt.tac2html(
-                    ["If you update, known songs with this artist and album will no longer be suggested on any platform.",
-                     ["button", {type:"button", id:"sudupdb" + idx,
-                                 onclick:mdfs("lcm.updateAlbumFrequency", 
-                                              idx, afq.fq)},
-                      "Update"]])); } },
-        updateAlbumFrequency: function (idx, abfq) {
-            jt.out("sudstatdiv" + idx, "Updating...");
-            const absongs = wv.ags[idx].songs;
-            absongs.forEach(function (s) { s.fq = abfq; });
+                span.innerHTML = jt.tac2html(
+                    ["button", {type:"button", id:"sudupdb" + idx + si,
+                                onclick:mdfs("lcm.updateHubSongFrequency", 
+                                              idx, si, sel.value)},
+                      "Update DiggerHub"]); } },
+        updateHubSongFrequency: function (idx, si, fq) {
+            const span = jt.byId("hubupdconfspan" + idx + si);
+            span.innerHTML = "Updating DiggerHub...";
+            const song = wv.ags[idx].songs[si];
+            song.fq = fq;
             mgrs.hcu.queueHubCall("savesongs", {
                 verb:"POST",
-                dat:app.util.authdata({songs:JSON.stringify(absongs)}),
+                dat:app.util.authdata({songs:JSON.stringify([song])}),
                 contf: function (updsongs) {  //restart from scratch
-                    jt.out("sudstatdiv" + idx, "DiggerHub updated.");
+                    span.innerHTML = "DiggerHub updated.";
                     removeHubSongsAndRedisplay(updsongs); },
                 errf: function (code, errtxt) {
-                    jt.out("sudstatdiv" + idx, "Update failed " + code +
-                           ": " + errtxt); }}, "asap", "replace"); },
+                    span.innerHTML = "Update failed " + code + ": " +
+                        errtxt; }}, "asap", "replace"); },
         toggleUseFiltSetting: function (/*event*/) {
             const cs = carrystate();
             if(cs.fetchType === "unfiltered") {

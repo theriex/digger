@@ -631,8 +631,8 @@ app.filter = (function () {
             return prefix + csv.csvarray().join(sep + prefix); }
     return {
         summarizeFiltering: function () {
-            return {almin:ctrls.al.rgfoc.min, almax:ctrls.al.rgfoc.max,
-                    elmin:ctrls.el.rgfoc.min, elmax:ctrls.el.rgfoc.max,
+            return {almin:ctrls.al.stat.mnrv, almax:ctrls.al.stat.mxrv,
+                    elmin:ctrls.el.stat.mnrv, elmax:ctrls.el.stat.mxrv,
                     poskws:buttonsCSV("pos"), negkws:buttonsCSV("neg"),
                     minrat:mgrs.mruc.minrat(),
                     tagfidx:mgrs.mruc.tagf(),
