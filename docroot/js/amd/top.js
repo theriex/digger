@@ -2410,7 +2410,8 @@ app.top = (function () {
                       ["No download suggestions",
                        ["div", {id:"recslinkdiv"},
                         ["a", {href:"#getrecommendation",
-                               onclick:mdfs("gen.togtopdlg", "am")},
+                               onclick:mdfs("gen.togtopdlg", "am",
+                                            "groups", 2)},
                          "Get recommendations"]]]]]));
                 return; }
             displayAlbumGroupedSongs(); }
@@ -3148,17 +3149,19 @@ app.top = (function () {
                                                   checkMessagesAndPrivacy);
             app.pdat.addApresDataNotificationTask("syncToHub",
                                                   mgrs.srs.syncSetup); },
-        togtopdlg: function (mode, cmd) {
+        togtopdlg: function (mode, cmd, afgidx) {
             var dlgdiv = jt.byId(tddi);
             if(cmd === "close" || (!cmd && dlgdiv.dataset.mode === mode)) {
                 dlgdiv.dataset.mode = "empty";
                 dlgdiv.innerHTML = ""; }
-            else {
+            else {  //not toggling closed
                 dlgdiv.dataset.mode = mode;
                 if(mode === "am") {  //account management
                     dlgdiv.style.display = "block";
                     dlgdiv.style.margin = "0px";
-                    mgrs.afg.accountFanGroup(); }
+                    const acctActionsDispMode = cmd || "groups";
+                    afgidx = afgidx || 0;
+                    mgrs.afg.accountFanGroup(acctActionsDispMode, afgidx); }
                 else { //"la" - library actions
                     dlgdiv.style.display = "table";
                     dlgdiv.style.margin = "auto";
