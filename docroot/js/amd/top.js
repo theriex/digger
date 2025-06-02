@@ -1664,19 +1664,19 @@ app.top = (function () {
             return acct; }
         function verifyModeAndIndex (acct, dispmode, midx) {
             midx = midx || 0;
-            if(dispmode) {
-                mode = dispmode; }
-            else { //use default display
-                if(!acct) {
-                    mode = "offline"; }
-                else {
+            if(!acct) {  //all hub account actions require being signed in
+                mode = "offline"; }
+            else {
+                if(dispmode) {
+                    mode = dispmode; }
+                else { //use default display
                     mode = "groups";
                     const msgs = mgrs.fma.messages();
-                    if(msgs && msgs.length) {
-                        midx = 2; } } }
-            if(haveProfileIssue(acct)) {
-                mode = "personal";
-                midx = 0; }
+                    if(msgs && msgs.length) {  //have new messages so
+                        midx = 2; } }          //display those first
+                if(haveProfileIssue(acct)) {   //if problem with account
+                    mode = "personal";         //fixing that takes precedence
+                    midx = 0; } }
             return midx; }
     return {
         runOutsideApp: function (divid, postSignInCallbackFunc) {
@@ -3151,7 +3151,8 @@ app.top = (function () {
                                                   mgrs.srs.syncSetup); },
         togtopdlg: function (mode, cmd, afgidx) {
             var dlgdiv = jt.byId(tddi);
-            if(cmd === "close" || (!cmd && dlgdiv.dataset.mode === mode)) {
+            if(cmd === "close" || (!cmd && dlgdiv && dlgdiv.dataset &&
+                                   dlgdiv.dataset.mode === mode)) {
                 dlgdiv.dataset.mode = "empty";
                 dlgdiv.innerHTML = ""; }
             else {  //not toggling closed
