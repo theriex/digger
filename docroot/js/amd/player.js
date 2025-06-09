@@ -428,6 +428,9 @@ app.player = (function () {
             const button = jt.byId("kwdtog" + idx);
             if(button.className === "kwdtogoff") {
                 button.className = "kwdtogon";
+                //removing first does no harm if not found, and protects against
+                //doubling if an interleaved data update already added the kw
+                cto.kws = cto.kws.csvremove(button.innerHTML);
                 cto.kws = cto.kws.csvappend(button.innerHTML); }
             else {
                 button.className = "kwdtogoff";

@@ -276,6 +276,14 @@ app.top = (function () {
             app.pdat.writeDigDat(callerstr); },
         isHubCallQueued: function (matchf) {
             return comms.callq.find((qe) => matchf(qe.dets.endpoint)); },
+        clearScheduledHubCalls: function (regex) {
+            var removed = [];
+            comms.callq = comms.callq.filter(function (qe) {
+                if(qe.dets.endpoint.match(regex)) {
+                    removed.push(qe);
+                    return false; }  //remove from callq
+                return true; });  //other endpoint
+            return removed; },
         queueHubCall: function (endpoint, dets, prio, override) {
             const logpre = "queueHubCall ";
             if(!verifyEndpoint(endpoint) || !verifyHubCallDetails(endpoint,
@@ -331,10 +339,11 @@ app.top = (function () {
         function updateCommState (us, msg) {
             us = us || initialCommState;
             const ps = commstate();  //persistent state
+            //clear any extra data from a previous state
             const optionalKeys = ["provdat", "syncts"];
             optionalKeys.forEach(function (optkey) {
                 delete ps[optkey]; });
-            Object.keys(us).forEach(function (key) {
+            Object.keys(us).forEach(function (key) {  //save current data
                 ps[key] = us[key]; });
             logCommState(msg); }
         function isUploadableSong (s) {
@@ -468,9 +477,16 @@ app.top = (function () {
                     syt.resched = false;
                     mgrs.srs.syncToHub("resched"); } }
             updateHubSyncStatusDisplay("completed"); }
+        function clearStaleSyncTasksAndReschedule () {
+            const srx = mgrs.srs.hubSyncAPIEndpointRegex();
+            const cleared = mgrs.hcu.clearScheduledHubCalls(srx);
+            if(cleared.length) {
+                mgrs.srs.syncToHub("rcvresched"); }
+            return cleared; }
         function processHubSyncResult (resarray) {  //an array of strings
             const logpre = "srs.processHubSyncResult ";
             updateCommState(JSON.parse(resarray[0]), logpre + "save hsct");
+            clearStaleSyncTasksAndReschedule();
             switch(commstate().action) {
             case "started":
                 commstate().action = "pull";
