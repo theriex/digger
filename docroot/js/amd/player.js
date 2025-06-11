@@ -27,40 +27,61 @@ app.player = (function () {
     //position won't overload peristence processing even if it causes
     //numerous writeDigDat calls.
     mgrs.scm = (function () {
-        function digDatUpdated (digdat) {
+        const savesrcidstr = "player.saveSongRatingChange";
+        function digDatUpdated (digdat, source) {
             //app write timestamp >= most recent song change notice timestamp
             if(!pmso.expecting && pmso.song && digdat.awts >= pmso.mrscnts) {
                 pmso.song = digdat.songs[pmso.song.path];
-                if(!pmso.smq || !pmso.smq.length) {  //no pending updates
-                    mgrs.uiu.updateSongDisplay("digDatUpdated"); } } }
-        function songChangeWritten (psqf, digdat) {
+                mgrs.uiu.updateSongDisplay("digDatUpdated");
+                setTimeout(function () {  //let listener callbacks finish
+                    if(source === savesrcidstr) {
+                        clearICVSTimeout("CompletedWrite"); }
+                    else {  //write was from some other operation
+                        clearICVSTimeout("OtherSave"); } }, 100); } }
+        function clearICVSTimeout (reason) {
+            const logpre = "clearICVSTimeout " + reason + " ";
             jt.out("modindspan", "");
-            const updobj = pmso.smq.shift();
-            const updsong = updobj.songcopy;
-            if(digdat) {  //save was successful, have updated data
-                if(pmso.song && pmso.song.path === updsong.path) { //now playing
-                    pmso.song = digdat.songs[updsong.path];
-                    mgrs.uiu.updateSongDisplay(updobj.source); }
-                app.top.dispatch("srs", "syncToHub"); }
-            if(pmso.smq.length) {  //more updates to write
-                setTimeout(psqf, 50); }
-            return updsong; }
-        function processSaveQueue () {
+            if(!pmso.icvs || !pmso.icvs.tmo) { return; }
+            if(pmso.icvs.tmo) {
+                clearTimeout(pmso.icvs.tmo);
+                pmso.icvs.tmo = null; }
+            //The previously pending write should not go ahead if the song
+            //has changed because it's better to drop last second click
+            //adjustments than have (possibly erroneuous) post-play changes
+            //to a song rating that is no longer visible.  If the last write
+            //was from some source other than the controls (e.g. hubsync),
+            //then the display needs to show the restored song, then any
+            //rating adjusments can be redone if needed.
+            if(reason === "SongChanged" || reason === "OtherSave") {
+                jt.log(logpre + "prev pending save dropped " +  pmso.icvs.cid);
+                pmso.icvs = null; }
+            else { //"Expired" or "CompletedWrite" means continue next save
+                if(pmso.icvs.svcpy) {  //have pending save waiting
+                    jt.log(logpre + "handle pending save " + pmso.icvs.cid);
+                    app.util.copyUpdatedSongData(pmso.song, pmso.icvs.svcpy);
+                    pmso.icvs.svcpy = null;
+                    saveSongRatingChange(pmso.icvs.cid); }
+                else {
+                    jt.log(logpre + "no pending save"); } } }
+        function saveSongRatingChange (cid) {
+            const logpre = "saveSongRatingChange " + cid + " ";
             jt.out("modindspan", "mod");
-            pmso.song = app.pdat.songsDict()[pmso.song.path];  //verify ref
-            app.util.copyUpdatedSongData(pmso.song, pmso.smq[0].songcopy);
-            app.pdat.writeDigDat("player.processSaveQueue", {songs:[pmso.song]},
-                function (digdat) {
-                    songChangeWritten(processSaveQueue, digdat); },
-                function (code, errtxt) {
-                    const usg = songChangeWritten(processSaveQueue, null);
-                    jt.log("player.processSaveQueue failed " + code + ": " +
-                           errtxt + ", song: " + JSON.stringify(usg)); }); }
+            pmso.icvs = pmso.icvs || {};  //impression control values save
+            if(pmso.icvs.tmo) {  //still waiting for previous save
+                pmso.icvs.svcpy = JSON.parse(JSON.stringify(pmso.song));
+                pmso.icvs.cid = cid;  //just for debug confirmation of source
+                jt.log(logpre + "save pending ongoing write");
+                return; }
+            jt.log(logpre + "writing song");
+            pmso.icvs.tmo = setTimeout(function () {
+                clearICVSTimeout("Expired"); }, 10*1000);
+            app.pdat.writeDigDat(savesrcidstr); }
     return {
         initialize: function () {
             app.pdat.addDigDatListener("player.scm", digDatUpdated); },
         changeCurrentlyPlayingSong: function (song, state) {
             pmso.song = app.pdat.songsDict()[song.path];
+            clearICVSTimeout("SongChange");
             pmso.state = state || "";
             mgrs.uiu.updateSongDisplay("scm.changeCurrentlyPlayingSong");
             mgrs.slp.notePlayerStateChange();
@@ -71,15 +92,7 @@ app.player = (function () {
             //song.lp/pc already updated when song played, but an interim hub
             //sync could leave modified > lp preventing resync.  Refresh lp.
             pmso.song.lp = new Date().toISOString();
-            pmso.smq = pmso.smq || [];
-            const qob = {source:cid,
-                         songcopy:JSON.parse(JSON.stringify(pmso.song))};
-            if(pmso.smq.length > 1 &&  //already have a pending call queued
-               pmso.smq[pmso.smq.length - 1].source === cid) {  //repeat call
-                pmso.smq[pmso.smq.length - 1] = qob; }  //replace with latest
-            else {  //queue for processing
-                pmso.smq.push(qob); }
-            processSaveQueue(); }
+            saveSongRatingChange(cid); }
     };  //end mgrs.scm returned functions
     }());
 

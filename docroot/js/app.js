@@ -815,7 +815,7 @@ var app = (function () {
             rtdat[type].listeners.forEach(function (listener) {
                 if(listener.pwsid !== pwsid) {  //don't loop back to writer
                     try {  //continue if any one listener fails
-                        listener.cbf(rtdat[type].datobj);
+                        listener.cbf(rtdat[type].datobj, pwsid);
                     } catch(e) {
                         jt.log("notifyUpdateListeners " + type + " from " +
                                pwsid + " continuing after listener failure " +
