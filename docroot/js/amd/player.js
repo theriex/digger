@@ -31,8 +31,12 @@ app.player = (function () {
         function digDatUpdated (digdat, source) {
             //app write timestamp >= most recent song change notice timestamp
             if(!pmso.expecting && pmso.song && digdat.awts >= pmso.mrscnts) {
-                pmso.song = digdat.songs[pmso.song.path];
-                mgrs.uiu.updateSongDisplay("digDatUpdated");
+                const ddsong = digdat.songs[pmso.song.path];
+                //If UI displayed song is more recently modified, don't revert
+                if(pmso.song.lp <= ddsong.lp) {
+                    pmso.song = ddsong;
+                    mgrs.uiu.updateSongDisplay("digDatUpdated"); }
+                //note write completed
                 setTimeout(function () {  //let listener callbacks finish
                     if(source === savesrcidstr) {
                         clearICVSTimeout("CompletedWrite"); }
@@ -48,18 +52,22 @@ app.player = (function () {
             //The previously pending write should not go ahead if the song
             //has changed because it's better to drop last second click
             //adjustments than have (possibly erroneuous) post-play changes
-            //to a song rating that is no longer visible.  If the last write
-            //was from some source other than the controls (e.g. hubsync),
-            //then the display needs to show the restored song, then any
-            //rating adjusments can be redone if needed.
-            if(reason === "SongChanged" || reason === "OtherSave") {
+            //to a song rating that is no longer visible.
+            if(reason === "SongChanged") {
                 jt.log(logpre + "prev pending save dropped " +  pmso.icvs.cid);
                 pmso.icvs = null; }
-            else { //"Expired" or "CompletedWrite" means continue next save
+            //OtherSave is pretty much from hubsync. It is better UX to save
+            //what is in the UI rather than reverting it to what was pulled
+            //from the hub.  If the song is unrated, then hubsync will have
+            //already updated the local display, and no pending save since
+            //no control adjustment.  "Expired" or "CompletedWrite" means
+            //continue with the next pending save.
+            else {
                 if(pmso.icvs.svcpy) {  //have pending save waiting
                     jt.log(logpre + "handle pending save " + pmso.icvs.cid);
                     app.util.copyUpdatedSongData(pmso.song, pmso.icvs.svcpy);
                     pmso.icvs.svcpy = null;
+                    pmso.song.lp = new Date().toISOString();
                     saveSongRatingChange(pmso.icvs.cid); }
                 else {
                     jt.log(logpre + "no pending save"); } } }
@@ -67,9 +75,9 @@ app.player = (function () {
             const logpre = "saveSongRatingChange " + cid + " ";
             jt.out("modindspan", "mod");
             pmso.icvs = pmso.icvs || {};  //impression control values save
+            pmso.icvs.cid = cid;  //debug confirmation of latest save source
             if(pmso.icvs.tmo) {  //still waiting for previous save
                 pmso.icvs.svcpy = JSON.parse(JSON.stringify(pmso.song));
-                pmso.icvs.cid = cid;  //just for debug confirmation of source
                 jt.log(logpre + "save pending ongoing write");
                 return; }
             jt.log(logpre + "writing song");

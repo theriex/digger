@@ -256,6 +256,7 @@ app.top = (function () {
                         destAcct[key] = srcAcct[key]; } } });
             removeUnusedLegacyFields(destAcct); },
         saveSongUpdatesFromHub: function (callerstr, songs, forceWriteDigdat) {
+            var songsUpdated = 0;
             if(!songs) { return; }
             if(!Array.isArray(songs)) { songs = [songs]; }
             if(!songs.length && !forceWriteDigdat) { return; }
@@ -267,12 +268,13 @@ app.top = (function () {
                 else { //update all matching songs
                     upds = app.pdat.tiarabLookup(hsg); }
                 upds.forEach(function (lsg) {  //walk each matching local song
-                    var mrlp = hsg.lp;    //most recent last playback
-                    if(lsg.lp > mrlp) {   //if local more recent than hub,
-                        mrlp = lsg.lp; }  //keep the local lp value
-                    app.util.copyUpdatedSongData(lsg, hsg);
-                    lsg.lp = mrlp;
+                    //if the local song was more recently played, it may have
+                    //updated rating information that should not be reverted.
+                    if(lsq.lp <= hsq.lp) {  //local copy is older
+                        app.util.copyUpdatedSongData(lsg, hsg);
+                        songsUpdated += 1; }
                     updateLastSyncPlayback(hsg.lp); }); });
+            if(!songsUpdated && !forceWriteDigdat) { return; }
             app.pdat.writeDigDat(callerstr); },
         isHubCallQueued: function (matchf) {
             return comms.callq.find((qe) => matchf(qe.dets.endpoint)); },
