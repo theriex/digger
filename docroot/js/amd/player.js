@@ -610,7 +610,8 @@ app.player = (function () {
                 (imp.lab + ": " + imp.val)).join("\n");
             const acct = app.top.dispatch("aaa", "getAccount");
             if(acct && acct.digname) {
-                txt += "\nFind me on DiggerHub: " + acct.digname + "\n"; }
+                txt += "\nhttps://diggerhub.com/listener/" + acct.digname + 
+                    "\n"; }
             return txt; }
         function prevPlayAndDupesHTML () {
             var pp = ""; var ddct = ""; var dupesongshtml = "";
