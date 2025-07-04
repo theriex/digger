@@ -270,7 +270,7 @@ app.top = (function () {
                 upds.forEach(function (lsg) {  //walk each matching local song
                     //if the local song was more recently played, it may have
                     //updated rating information that should not be reverted.
-                    if(lsq.lp <= hsq.lp) {  //local copy is older
+                    if(lsg.lp <= hsg.lp) {  //local copy is older
                         app.util.copyUpdatedSongData(lsg, hsg);
                         songsUpdated += 1; }
                     updateLastSyncPlayback(hsg.lp); }); });
