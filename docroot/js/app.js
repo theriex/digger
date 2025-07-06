@@ -201,6 +201,14 @@ var app = (function () {
                     jt.log("nextApresModulesInitTask " + task.name);
                     task.tf();
                     nextApresModulesInitTask(); } }, 50); }
+        function platformAdjustContentPosition () {
+            const topInset = app.svc.plat("topInset");
+            if(topInset) {
+                jt.log("platformAdjustContentPosition topInset:" + topInset);
+                jt.byId("contentframingdiv").style.paddingTop = topInset + "px";
+                const aod = jt.byId("appoverlaydiv");
+                //aod css not applied yet, so can't reference that value
+                aod.style.top = (topInset + 12) + "px"; } }
     return {
         addApresModulesInitTask: function (taskname, taskfunction) {
             amits.push({name:taskname, tf:taskfunction}); },
@@ -234,6 +242,7 @@ var app = (function () {
                         ["div", {cla:"paneldiv", id:"panplaydiv"}],
                         ["div", {cla:"paneldiv", id:"pandeckdiv"}],
                         ["div", {id:"appoverlaydiv"}]]]]]));
+                platformAdjustContentPosition();
                 if(app.startPath === "/digger") {  //web startup needs auth info
                     app.login.init(false); }  //calls initDiggerModules
                 else {
