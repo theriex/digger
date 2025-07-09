@@ -1854,8 +1854,8 @@ app.top = (function () {
                 mode = "dark"; }
             else {
                 mode = "light"; }
-            mgrs.aaa.reflectDarkMode(mode);
             app.pdat.configObj().darkmode = mode;
+            mgrs.aaa.reflectDarkMode(mode);
             app.pdat.writeConfig("top.aaa.toggleDarkMode"); },
         getCollectionStyle: function () {
             var dbpt = app.pdat.configObj().dbPersistence;
