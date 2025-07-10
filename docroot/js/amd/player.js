@@ -1573,25 +1573,25 @@ app.player = (function () {
                     jt.log(logpre + "ignoring non-change call");
                     return; } }
             mgrs.scm.changeCurrentlyPlayingSong(song, state); },
-        skip: function (rapidok) {
+        skip: function () {
             if(!pmso.song) { return jt.log("No skip since no song"); }
-            if(!rapidok) {  //not handling a playback error or similar
-                //On mobiles, the skip button can be unresponsive for several
-                //seconds if the music playback service is still setting up.
-                //Avoid accidental double skip with an extensive debounce.
-                const wms = 4000;  //wait milliseconds for debounce
-                const st = Date.now();
-                if(pmso.skiptime && ((st - pmso.skiptime) < wms)) {
-                    return; }  //debounce UI ignore call
-                pmso.skiptime = st;
-                pmso.song = app.pdat.songsDict()[pmso.song.path];
-                mgrs.cmt.bumpCurrentIfTired();  //bump fq value if tired
-                pmso.song.pd = "skipped";
-                mgrs.uiu.illuminateAndFade("nextsongdiv", wms); }
+            //On mobiles, the skip button can be unresponsive for several
+            //seconds if the music playback service is still setting up.
+            //Avoid accidental double skip with an extensive debounce.
+            const wms = 4000;  //wait milliseconds for debounce
+            const st = Date.now();
+            if(pmso.skiptime && ((st - pmso.skiptime) < wms)) {
+                return; }  //debounce UI ignore call
+            pmso.skiptime = st;
+            mgrs.uiu.illuminateAndFade("nextsongdiv", wms);
             setTimeout(function () {  //show button press before processing
                 jt.log("Skipping " + pmso.song.path + " " + pmso.song.ti);
-                mgrs.plui.rezeroPlaybackPosition();
-                app.deck.playNextSong(); }, 50); },
+                app.pdat.reloadDigDat(false, function () {
+                    pmso.song = app.pdat.songsDict()[pmso.song.path];
+                    mgrs.cmt.bumpCurrentIfTired();  //bump fq value if tired
+                    pmso.song.pd = "skipped";
+                    mgrs.plui.rezeroPlaybackPosition();
+                    app.deck.playNextSong(); }); }, 50); },
         logCurrentlyPlaying: function (prefix) {
             //mobile player updates when playing new song, no separate call.
             prefix = prefix || "";

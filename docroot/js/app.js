@@ -1000,18 +1000,22 @@ var app = (function () {
                     function (code, errtxt) {
                         jt.err(logpre + "readConfig error " + code + ": " +
                                errtxt); }); }, 50); },
-        reloadDigDat: function (force) {
+        reloadDigDat: function (force, contf) {
             const logpre = "pdat.reloadDigDat ";
             if(!force && rtdat.digdat.qcs.length) {
                 return jt.log(logpre + "ignored since write pending."); }
             jt.log(logpre + "setting timeout");
             setTimeout(function () {
+                jt.log(logpre + "timeout triggered, processing...");
                 if(!force && rtdat.digdat.qcs.length) {
                     return jt.log(logpre + "skipped, write now pending."); }
                 app.svc.readDigDat(
                     function (digdat) {
                         jt.log(logpre + "digdat reloaded. Notifying.");
-                        setDigDatAndNotify("reloadDigDat", digdat); },
+                        setDigDatAndNotify("reloadDigDat", digdat);
+                        if(contf) {  //data integrity listeners completed
+                            jt.log(logpre + "calling back to contf.");
+                            contf(digdat); } },
                     function (code, errtxt) {
                         jt.err(logpre + "failed " + code + ": " +
                                errtxt); }); }, 50); },

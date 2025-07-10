@@ -165,21 +165,23 @@ app.deck = (function () {
         execQSO: function (action, mgrnm, idx) {
             //options overlay already cleared from event percolation..
             //mgrs.util.togQSOpts(mgrnm, idx);  //remove actions overlay
-            const ds = mgrs[mgrnm].songByIndex(idx);
-            const song = app.pdat.songsDict()[ds.path];
-            switch(action) {
-            case "playnow":   //either from csa or hst display
-                mgrs.csa.playGivenSong(song);
-                break;
-            case "snooze": 
-                if(song.fq === "N") { song.fq = "P"; }  //played
-                app.player.dispatch("cmt", "bumpTired", song);
-                song.lp = new Date().toISOString();
-                song.pc = (song.pc || 0) + 1;
-                song.pd = "snoozed";
-                mgrs.csa.exciseSongByIndex(idx);
-                break;
-            default: jt.log("execQSO unknown action " + action); } },
+            const path = mgrs[mgrnm].songByIndex(idx).path;
+            //current working data may be stale, especially on mobile platforms
+            app.pdat.reloadDigDat(false, function () {
+                const song = app.pdat.songsDict()[path];
+                switch(action) {
+                case "playnow":   //either from csa or hst display
+                    mgrs.csa.playGivenSong(song);
+                    break;
+                case "snooze": 
+                    if(song.fq === "N") { song.fq = "P"; }  //played
+                    app.player.dispatch("cmt", "bumpTired", song);
+                    song.lp = new Date().toISOString();
+                    song.pc = (song.pc || 0) + 1;
+                    song.pd = "snoozed";
+                    mgrs.csa.exciseSongByIndex(idx);
+                    break;
+                default: jt.log("execQSO unknown action " + action); } }); },
         togQSOpts: function  (mgrnm, idx) {
             const optdivid = "da" + mgrnm + idx;
             const optlinkid = "dsl" + mgrnm + idx;
