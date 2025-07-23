@@ -1000,8 +1000,9 @@ var app = (function () {
                     function (code, errtxt) {
                         jt.err(logpre + "readConfig error " + code + ": " +
                                errtxt); }); }, 50); },
-        reloadDigDat: function (force, contf) {
+        reloadDigDat: function (whowhy, force, contf) {
             const logpre = "pdat.reloadDigDat ";
+            jt.log(logpre + whowhy + " force:" + Boolean(force));
             if(!force && rtdat.digdat.qcs.length) {
                 return jt.log(logpre + "ignored since write pending."); }
             jt.log(logpre + "setting timeout");

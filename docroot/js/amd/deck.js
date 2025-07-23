@@ -167,7 +167,8 @@ app.deck = (function () {
             //mgrs.util.togQSOpts(mgrnm, idx);  //remove actions overlay
             const path = mgrs[mgrnm].songByIndex(idx).path;
             //current working data may be stale, especially on mobile platforms
-            app.pdat.reloadDigDat(false, function () {
+            const ww = "execQSO " + action + " " + mgrnm;
+            app.pdat.reloadDigDat(ww, false, function () {
                 const song = app.pdat.songsDict()[path];
                 switch(action) {
                 case "playnow":   //either from csa or hst display
@@ -343,10 +344,10 @@ app.deck = (function () {
                 const elems = ["resq[" + idx + "]", qe.lp || "nolpval",
                                jt.ellipsis(resq[idx].ti, 30), "-",
                                jt.ellipsis(resq[idx].ar, 30)];
-                return "<br/>&nbsp;&nbsp;" + elems.join(" "); };
+                return " " + elems.join(" "); };
             if(resq.length) {
                 jt.log("sqb most recent artist: " + resq[resq.length - 1].ar); }
-            jt.log("sqb result: " + resq.length + " songs" +
+            jt.log("sqb result: " + resq.length + " songs," +
                    resq.slice(0, 3).map((s, i) => qed(s, i)));
             resq = resq.slice(0, app.player.playQueueMax); }
         function prependPlayFirstSongIfSpecified () {
@@ -376,6 +377,13 @@ app.deck = (function () {
     mgrs.csa = (function () {
         const toggleButtons = {};
         var asq = null;  //reference to deckset.asq
+        function asqTitles (idx, len) {
+            idx = idx || 0;
+            len = len || 5;
+            const sd = app.pdat.songsDict();
+            const songs = asq.paths.slice(idx, len).map((p) => sd[p]);
+            return songs.map((s, i) => (idx + i) + ":" + 
+                             jt.ellipsis(s.ti, 30)); }
         function redrawPlaylistDisplay () {
             const sd = app.pdat.songsDict();
             //asq.idx is currently playing song, display rest
@@ -503,7 +511,8 @@ app.deck = (function () {
             if(staleDataOrInvalidPlayback(sdc, dbo, np)) {
                 if(sdc.err) {
                     jt.log(logpre + sdc.err); }
-                return app.pdat.reloadDigDat("forceIgnoreStaleDataUpd"); }
+                const ww = logpre + "staleDataOrInvalidPlayback";
+                return app.pdat.reloadDigDat(ww, true); }
             //have np, and dbo data is up to date
             if(sdc.qpi.err) {  //queue sequence was not followed
                 //keep the currently playing song on rebuild
@@ -541,6 +550,7 @@ app.deck = (function () {
             toggleButtons.toginfob(false); },
         playNextSong: function () {
             if(asq.idx >= 0 && asq.idx < asq.paths.length - 1) {
+                jt.log("csa.playNextSong: " + asqTitles(asq.idx, 3));
                 asq.idx += 1;
                 playQueueFromIndex(); }
             else {
