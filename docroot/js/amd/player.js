@@ -936,15 +936,15 @@ app.player = (function () {
             else { //"paused", "ended", ""
                 ppb.img = "img/play.png"; }
             jt.byId("pluibimg").src = ppb.img; }
-        function logScheduling (/*txt*/) {
+        function logScheduling (txt) {
             //Can be helpful to see "float tick" or "full status request"
             //log messages, but hard to collapse repetitive polling messages
             //in filter.dcm so not active.
             //jt.log("scheduleTransportStateRecheck " + txt);
-            return false; }
+            return txt; }
         function clearTicker (requireFullStatus) {
             if(prog.tmo) {  //clear previously scheduled tick in case active
-                clearTimeout(prog.ticker); }
+                clearTimeout(prog.tmo); }
             prog.tmo = null;  //for debugging state clarity
             if(requireFullStatus) {
                 prog.rt = 0; } } //disable floating tick
@@ -968,7 +968,7 @@ app.player = (function () {
                     stsr.nofloat = "Over max allowed float"; }
                 else if(prog.pos < prog.fb * 1000) {
                     stsr.nofloat = "Within " + prog.fb + " secs of beginning"; }
-                else if(prog.pos > (prog.dur - prog.fb) * 1000) {
+                else if(prog.pos > prog.dur - (prog.fb * 1000)) {
                     stsr.nofloat = "Within " + prog.fb + " secs of end"; }
                 if(!stsr.nofloat) {
                     stsr.dispo = "Float tick to minimize plat resource use";
@@ -1055,11 +1055,13 @@ app.player = (function () {
             pbco.seek(ms); },
         recheckStatus: function () {
             if(pbco) {  //initialized
+                clearTicker(true);
                 scheduleTransportStateRecheck(); } },
-        pollingMode: function (statestr) {
+        pollingMode: function (statestr, caller) {
             prog.mode = statestr;
-            jt.log("plui.pollingMode " + prog.mode);
+            jt.log("plui.pollingMode " + prog.mode + " " + (caller || ""));
             if(prog.mode === "active") {
+                clearTicker(true);
                 scheduleTransportStateRecheck(); }
             else {
                 clearTicker(); } },
@@ -1146,18 +1148,21 @@ app.player = (function () {
                                    onclick:mdfs("slp.ackSleepProcDone")},
                         "Ok"]]]]); });
             //Playback may have started up again on app UI reforeground
-            setTimeout(function () { mgrs.plui.pause(); }, 5000); }
+            setTimeout(function () { mgrs.plui.pause(); }, 50); }
         function sleepQueueEndSongType (sst) {
             if(pmso.song.path === sst.lspbs) { return "lastsong"; }
             if(pmso.song.path === sst.nppsa) { return "firstsong"; }
             return ""; }
-        function recognizedEndState (state) {
-            if(state === "ended") { return "ended"; }
-            if(state === "paused") {
+        function recognizedEndState () {
+            if(pmso.state === "ended") { return "ended"; }
+            if(pmso.state === "paused") {
                 const ls = pmso.lrcvpb;
                 if(ls) {
                     if(ls.pos === 0) { return "rtzpause"; }
                     if(ls.dur - ls.pos < 2000) { return "endpause"; } } }
+            if(pmso.lrcvpb && pmso.lrcvpb.corstate === "paused" &&
+               pmso.lrcvpb.rptcnt > 1) {
+                return "midstop"; }
             return ""; }
         function remainingPathsToPlay (sst) {
             const sd = app.pdat.songsDict();
@@ -1186,13 +1191,13 @@ app.player = (function () {
                         jt.log("sleep reset. no sst.cnt and unrecognized song");
                         turnSleepOff("uindb");
                         updateSleepMainButtonDisplay();
-                        mgrs.plui.pollingMode("active");
+                        mgrs.plui.pollingMode("active", "slp deactivated");
                         runst.res = "off"; }
                     else {  //known last song type
-                        runst.endState = recognizedEndState(pmso.state);
+                        runst.endState = recognizedEndState();
                         if(runst.endState) {  //known ending state
                             runst.res = "ended";
-                            mgrs.plui.pollingMode("inactive"); }
+                            mgrs.plui.pollingMode("inactive", "slp ended"); }
                         else {
                             runst.res = "waiting"; } } } }
             jt.log("slp.updateState " + JSON.stringify(runst)); }
@@ -1234,7 +1239,7 @@ app.player = (function () {
             app.pdat.reloadDigDat("ackSleepProcDone", false, function () {
                 jt.log("ackSleepProcDone resuming playback");
                 clearSleepDialog();  //might have reactivated from state restore
-                mgrs.plui.pollingMode("active");
+                mgrs.plui.pollingMode("active", "ackSleepProcDone");
                 app.deck.playNextSong(); }); },
         updateSleepState: function (src, overrideUIControls) {
             turnSleepOff("dbonly");  //clear any previous activation settings
@@ -1320,17 +1325,26 @@ app.player = (function () {
                                      pmso.song, nosongtext)]]])); }
         function logPBHandlerState (src, drsm, pbsh) {
             jt.log(src + " " + drsm + " " + JSON.stringify(pbsh)); }
+        function trackAgainstLastReceivedPlayback (pbsh) {
+            const curr = {tresp:pbsh.tresp, path:pbsh.path, state:pbsh.state,
+                          pos:pbsh.pos, dur:pbsh.dur};
+            const prev = pmso.lrcvpb;
+            if(prev) {
+                if(prev.state === "playing" && curr.state === "playing" &&
+                   prev.path === curr.path && prev.dur === curr.dur &&
+                   prev.pos === curr.pos) {  //unchanged pos is "paused"
+                    curr.corstate = "paused";
+                    pbsh.state = "paused"; }  //pb state handler sees "paused"
+                if(prev.state === curr.state && prev.path === curr.path &&
+                   prev.dur === curr.dur && prev.pos === curr.pos &&
+                   prev.corstate === curr.corstate) {  //no change since last
+                    curr.rptcnt = prev.rptcnt || 0;
+                    curr.rptcnt += 1; } }
+            pmso.lrcvpb = curr; }
         function noteUpdatedSongStatus (drsm, pbsh) {
-            logPBHandlerState("uiu.noteUpdatedSongStatus", drsm, pbsh);
             pmso.drsm = drsm;
-            if(pmso.lrcvpb && pmso.lrcvpb.state === "playing" &&
-               pmso.lrcvpb.path === pbsh.path &&
-               pmso.lrcvpb.state === pbsh.state &&  //"playing"
-               pmso.lrcvpb.pos === pbsh.pos &&
-               pmso.lrcvpb.dur === pbsh.dur) {
-                pbsh.state = "paused"; }  //unchanged position means paused
-            pmso.lrcvpb = {tresp:pbsh.tresp, path:pbsh.path, state:pbsh.state,
-                           pos:pbsh.pos, dur:pbsh.dur};
+            trackAgainstLastReceivedPlayback(pbsh);
+            logPBHandlerState("uiu.noteUpdatedSongStatus", drsm, pbsh);
             if(!pbsh.path) {
                 pmso.resetPlaceholderControlObject();
                 pmso.song = null; }
@@ -1372,6 +1386,7 @@ app.player = (function () {
                         //pending write won't matter, so no force.
                         app.pdat.reloadDigDat(ww, false, function () {
                             pmso.lrcvpb = null;  //don't re-ref crufty pb state
+                            mgrs.plui.pollingMode("active", "stale stat rcv");
                             jt.log(logpre + "stale data reload complete"); });
                         return; } }
                 //either no lrcvpb or reasonably up to date pbsh
@@ -1623,6 +1638,7 @@ app.player = (function () {
                 return mgrs.scm.changeCurrentlyPlayingSong(song, state); }
             //regardless if song changed or not, verify hubsync scheduled
             app.top.dispatch("srs", "syncToHub");
+            mgrs.plui.pollingMode("active", "notifySongChanged");
             //take appropriate action depending on current player update state
             if(pmso.song && pmso.song.path === dbsg.path) {
                 mgrs.uiu.updateSongDisplay("gen.notifySongChanged");

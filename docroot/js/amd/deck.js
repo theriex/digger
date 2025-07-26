@@ -1147,14 +1147,16 @@ app.deck = (function () {
 
     //general manager is main interface for the module
     mgrs.gen = (function () {
-        var mdms = [   //major display modes
+        const mdms = [   //major display modes
             {mgr:"csa", name:"Continuous", img:"deck.png"},
             {mgr:"alb", name:"Album", img:"album.png"},
             {mgr:"srch", name:"Search", img:"search.png"}];
         const dfltSeqMgrName = "alb";
+        var runset = {};  //runtime data has precedence, uips is for restore
         function validSeqMgrName (name) {
             return (name === "csa" || name === "alb"); }
         function ssmn () {
+            if(runset.seqmgr) { return runset.seqmgr; }
             if(app.pdat.dbObj()) {  //app data loaded
                 const deckset = app.pdat.uips("deck");
                 return deckset.seqmgr || dfltSeqMgrName; }
@@ -1163,8 +1165,9 @@ app.deck = (function () {
         getSongSeqMgrName: ssmn,
         setSongSeqMgrName: function (mgr, srcstr) {
             jt.log("deck.gen.setSongSeqMgrName " + mgr + " " + srcstr);
+            runset.seqmgr = mgr;
             const deckset = app.pdat.uips("deck");
-            deckset.seqmgr = mgr; },
+            deckset.seqmgr = mgr; },  //caller write persists seqmgr setting
         dispMode: function (mgrname, activation) {
             mdms.forEach(function (dm) {
                 jt.byId(dm.mgr + "mdmbdiv").className = "mdmbdiv";
