@@ -1034,6 +1034,8 @@ app.player = (function () {
             mgrs.plui.updateTransportControls(
                 {state:"playing", pos:0, dur:0}); },
         togglePlaybackState: function () {
+            const logid = "plui.togglePlaybackState";
+            jt.log(logid + " from " + ppb.st);
             //update UI image first, then call pbco and get updated status
             clearTicker(true);
             if(ppb.st === "paused") {
@@ -1043,7 +1045,11 @@ app.player = (function () {
             else {  //playing
                 updatePlaybackControlImage("paused");
                 ppb.wrk = "pausing";
-                pbco.pause(); } },
+                pbco.pause(); }
+            //listen for playback status to confirm playback state change
+            mgrs.uiu.requestPlaybackStatus(logid, function (status) {
+                jt.log(logid + " req cbf updating ctrls " + status.state);
+                mgrs.plui.updateTransportControls(status); }); },
         seek: function (event) {
             var clickrect = event.target.getBoundingClientRect();
             var x = event.clientX - clickrect.left;
@@ -1097,7 +1103,8 @@ app.player = (function () {
             Object.keys(pssdvs).forEach(function (key) {
                 sst[key] = sst[key] || pssdvs[key]; });
             return sst; }
-        function turnSleepOff (scope) {
+        function turnSleepOff (scope, reason) {
+            jt.log("turnSleepOff " + scope + " " + reason);
             const sst = sleepstate();
             Object.keys(pssdvs).forEach(function (key) {
                 sst[key] = pssdvs[key]; });
@@ -1116,7 +1123,7 @@ app.player = (function () {
         function clearSleepDialog () {
             mgrs.cmt.toggleOtherDisplay("off");
             jt.out("sleepmsgdispdiv", "");  //clear dlg message content if avail
-            turnSleepOff("uindb");  //update values for sleep display refresh
+            turnSleepOff("uindb", "clearSleepDialog");
             updateSleepMainButtonDisplay(); }
         function showParameterControls (sst) {  //rebuild from current state
             const svos = [0, 1, 2, 3, 4, 5, 6, 7, 8];
@@ -1188,8 +1195,7 @@ app.player = (function () {
                 else {  //have pmso.song
                     runst.endSongType = sleepQueueEndSongType(sst);
                     if(!runst.endSongType) {  //no context left to monitor
-                        jt.log("sleep reset. no sst.cnt and unrecognized song");
-                        turnSleepOff("uindb");
+                        turnSleepOff("uindb", "unrecognized last song");
                         updateSleepMainButtonDisplay();
                         mgrs.plui.pollingMode("active", "slp deactivated");
                         runst.res = "off"; }
@@ -1242,7 +1248,7 @@ app.player = (function () {
                 mgrs.plui.pollingMode("active", "ackSleepProcDone");
                 app.deck.playNextSong(); }); },
         updateSleepState: function (src, overrideUIControls) {
-            turnSleepOff("dbonly");  //clear any previous activation settings
+            turnSleepOff("dbonly", "updateSleepState clear before set");
             const sst = sleepstate();
             if(overrideUIControls) {
                 sst.act = "active";
@@ -1277,15 +1283,17 @@ app.player = (function () {
                 mgrs.slp.updateSleepState("toggleSleepOn",
                                           "overrideUIControls"); } },
         maxAllowedQueueLength: function (songs) {  //songs[0] lp update pending
+            var obvr = "";   //obviation reason
             const sst = sleepstate();
             if(!sst.act) {  //not activated, and not resuming from sleep
                 return app.player.playQueueMax; }  //return standard max limit
-            if((songs.length < sst.cnt + 1) ||  //playback will end before sleep
-               (sst.lspbs && (sst.lspbs !==            //lspbs previously set
-                              songs[sst.cnt].path))) { //and not the same now
-                turnSleepOff("uindb");  //writeDigDat call pending with play
+            if(songs.length < sst.cnt + 1) {
+                obvr = "playback will end before sleep"; }
+            if(sst.lspbs && sst.lspbs !== songs[sst.cnt].path) {
+                obvr = "last song before sleep changed"; }
+            if(obvr) {
+                turnSleepOff("uindb", "slp.maxAQL " + obvr);
                 updateSleepMainButtonDisplay();
-                //call to writeDigdat already
                 return app.player.playQueueMax; }  //return standard max limit
             sst.nppsa = songs[0].path;
             sst.lspbs = songs[sst.cnt].path;
