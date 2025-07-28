@@ -1058,6 +1058,7 @@ app.player = (function () {
             prog.pos = ms;         //update pos now, seek call not instant
             updatePosIndicator();
             clearTicker(true);
+            scheduleTransportStateRecheck();  //waits one second
             pbco.seek(ms); },
         recheckStatus: function () {
             if(pbco) {  //initialized

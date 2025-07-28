@@ -440,58 +440,52 @@ app.deck = (function () {
                         ["span", {cla:"dinfrectspan"}, fc.fnm + ": "]],
                        ["td",
                         ["span", {cla:"dinfrecnspan"}, String(fc.sc)]]]])])); }
-        function playbackQueuePositionInfo (song) {
-            var i; const qpi = {idx:-1, spi:-1, err:"no playback queue"};
-            if(asq.paths.length) {
-                qpi.err = "";
-                const sd = app.pdat.songsDict();
-                const songs = asq.paths.map((p) => sd[p]);
-                for(i = 0; i < songs.length; i += 1) {
-                    if(songs[i].path === song.path) {
-                        qpi.idx = i; break; }  //song found
-                    //songs[i].lp may not be defined so test accordingly...
-                    if(i && !(songs[i].lp > songs[i - 1].lp)) {
-                        qpi.err = "non-sequential playback"; break; }
-                    qpi.spi = i; } //update sequential playback index
-                if(!qpi.err) {
-                    if(qpi.idx < 0) {
-                        qpi.err = "song not found in queue"; }
-                    else if(qpi.idx === asq.paths.length - 1) {
-                        qpi.err = "no songs left in queue"; } }
-                if(!qpi.err) {  //no issues in queue so far, verify remaining
-                    const rem = songs.slice(qpi.idx + 1);
-                    const fbf = mgrs.util.filterByFilters(rem);
-                    const diff = rem.length - fbf.passed.length;
-                    if(diff) {
-                        qpi.err = String(diff) + " songs invalidated"; } } }
-            return qpi; }
-        function staleDataOrInvalidPlayback (sdc, dbo, np) {
-            const logpre = "staleDataOrInvalidPlayback ";
+        function checkDataStaleError (dbo, np) {
             if(!dbo.uilp) {  //no timestamp recorded from last playSongQueue
-                sdc.err = "no dbo.uilp, current queue not valid";
-                return true; }
-            if(!np.lp || np.lp < dbo.uilp) {  //lazy lp update or stale
-                if(jt.elapsedSince(dbo.arts, "seconds") > 42) {
-                    //the app data was loaded a while ago, and np.lp should
-                    //have been updated by now so reload.
-                    sdc.err = "invalid np.lp value, probably stale data";
-                    return true; }
-                //on some platforms, np.lp may not update until N seconds
-                //after the song has started playing.  If what's playing is
-                //what should be be playing according to the queue, then 
-                //fix the runtime and continue.
-                sdc.qpi = playbackQueuePositionInfo(np);
-                const qpi = sdc.qpi;
-                //if np is within queue, and not at the end, and it's been
-                //sequential playback through the previous song
-                if(qpi.idx >= 0 && (qpi.idx < asq.paths.length - 1 &&
-                                    qpi.idx - qpi.spi <= 1)) {
-                    jt.log(logpre + "fixing lazy np.lp timestamp update");
-                    np.lp = new Date().toISOString();
-                    dbo.uilp = np.lp;
-                    qpi.err = ""; } }
-            sdc.qpi = sdc.qpi || playbackQueuePositionInfo(np);
-            return false; }  //data seems ok
+                return "no dbo.uilp, current queue not valid"; }
+            if((!np.lp || np.lp < dbo.uilp) &&  //lazy lp update or stale
+               jt.elapsedSince(dbo.arts, "seconds") > 42) {
+                //the app data was loaded a while ago, and np.lp should
+                //have been updated by now.
+                return "invalid np.lp value, likely stale data"; }
+            return ""; }
+        function verifyPlaybackQueue (np, dbo) {
+            const logpre = "verifyPlaybackQueue ";
+            const vpq = {mrpi:-1, npi:-1, oop:[], err:"no playback queueu"};
+            if(!asq.paths.length) { return vpq; }
+            const sd = app.pdat.songsDict();
+            const songs = asq.paths.map((p) => sd[p]);
+            songs.forEach(function (song, qidx) {
+                if(song.path === np.path) {
+                    vpq.npi = qidx; }   //note now playing song index
+                if(song.lp && (qidx === 0 ||
+                               (vpq.npi >= 0 && song.lp >= songs[vpq.npi].lp &&
+                                songs[qidx - 1].lp <= song.lp))) {
+                    vpq.mrpi = qidx; }  //update most recently played index
+                if(vpq.npi >= 0 &&  //caught up to now playing song
+                   qidx > vpq.mrpi &&  //gone past most recently played song
+                   song.lp > songs[vpq.mrpi].lp) {  //played before queue pos
+                    vpq.oop.push(song); } }); //note out of order playback
+            vpq.err = "";
+            if(vpq.npi < 0) {
+                vpq.err("now playing song not in queue"); }
+            if(!vpq.err && vpq.npi === vpq.mrpi + 1) {
+                //on iOS, np.lp may not update until N seconds after the song
+                //has started playing.  Update runtime lp if needed,
+                jt.log(logpre + "fixing lazy np.lp timestamp update");
+                np.lp = new Date().toISOString();
+                dbo.uilp = np.lp;
+                vpq.mrpi = vpq.npi; }
+            if(!vpq.err && vpq.mrpi < vpq.npi) {
+                vpq.err = "non-sequential playback"; }
+            if(!vpq.err && vpq.oop.length) {
+                const ds = vpq.oop.slice(0, 4).map((s) =>
+                    ({path:s.path, ti:jt.ellipsis(s.ti, 30)}));
+                jt.log(logpre + "invalidated " + JSON.stringify(ds));
+                vpq.err = vpq.oop.length + " queued songs invalidated"; }
+            if(!vpq.err && vpq.npi === songs.length - 1) {
+                vpq.err = "no songs left in queue"; }
+            return vpq; }
         function verifyQueuedPlayback (npStatusVerified) {
             const logpre = "verifyQueuedPlayback ";
             const dbo = app.pdat.dbObj();
@@ -506,18 +500,18 @@ app.deck = (function () {
                 jt.log(logpre + "verifying now playing song");
                 return app.player.reqUpdatedPlaybackStat(function (/*stat*/) {
                     verifyQueuedPlayback(true); }); }
-            //have valid np
-            const sdc = {err:"", qpi:null};  //stale data check
-            if(staleDataOrInvalidPlayback(sdc, dbo, np)) {
-                if(sdc.err) {
-                    jt.log(logpre + sdc.err); }
-                const ww = logpre + "staleDataOrInvalidPlayback";
-                return app.pdat.reloadDigDat(ww, true); }
-            //have np, and dbo data is up to date
-            if(sdc.qpi.err) {  //queue sequence was not followed
-                //keep the currently playing song on rebuild
-                return rebuildPlaybackQueue(np, "vqp " + sdc.qpi.err); }
-            asq.idx = sdc.qpi.idx;  //update actual index to match
+            //have dbo, asq.paths, np
+            const staleDataError = checkDataStaleError(dbo, np);
+            if(staleDataError) {
+                return app.pdat.reloadDigDat(logpre + staleDataError, true); }
+            const vpq = verifyPlaybackQueue(np, dbo);
+            if(vpq.err) {
+                const keepsg = ((vpq.mrpi > vpq.npi)? null : np);
+                return rebuildPlaybackQueue(keepsg, "vpq " + vpq.err); }
+            jt.log(logpre + "npi:" + vpq.npi + ", mrpi:" + vpq.mrpi +
+                   ", " + (asq.paths.length - vpq.mrpi + 1) +
+                   " songs remaining in queue");
+            asq.idx = vpq.mrpi;  //update queue index to match most recent play
             redrawPlaylistDisplay(); }
         function digDatUpdated (/*digdat*/) {
             restoreAutoplaySelectionQueueSettings();
