@@ -380,8 +380,9 @@ app.deck = (function () {
         function asqTitles (idx, len) {
             idx = idx || 0;
             len = len || 5;
+            const end = idx + len;
             const sd = app.pdat.songsDict();
-            const songs = asq.paths.slice(idx, len).map((p) => sd[p]);
+            const songs = asq.paths.slice(idx, end).map((p) => sd[p]);
             return songs.map((s, i) => (idx + i) + ":" + 
                              jt.ellipsis(s.ti, 30)); }
         function redrawPlaylistDisplay () {
@@ -451,7 +452,7 @@ app.deck = (function () {
             return ""; }
         function verifyPlaybackQueue (np, dbo) {
             const logpre = "verifyPlaybackQueue ";
-            const vpq = {mrpi:-1, npi:-1, oop:[], err:"no playback queueu"};
+            const vpq = {mrpi:-1, npi:-1, oop:[], err:"no playback queue"};
             if(!asq.paths.length) { return vpq; }
             const sd = app.pdat.songsDict();
             const songs = asq.paths.map((p) => sd[p]);
@@ -509,7 +510,7 @@ app.deck = (function () {
                 const keepsg = ((vpq.mrpi > vpq.npi)? null : np);
                 return rebuildPlaybackQueue(keepsg, "vpq " + vpq.err); }
             jt.log(logpre + "npi:" + vpq.npi + ", mrpi:" + vpq.mrpi +
-                   ", " + (asq.paths.length - vpq.mrpi + 1) +
+                   ", " + (asq.paths.length - (vpq.mrpi + 1)) +
                    " songs remaining in queue");
             asq.idx = vpq.mrpi;  //update queue index to match most recent play
             redrawPlaylistDisplay(); }

@@ -8,7 +8,8 @@ app.player = (function () {
         state:"",     //"playing", "paused", "ended"
         song:null,    //currently playing song object
         drsm:"",      //data receive state mode 
-        lrcvpb:null,  //last received playback status
+        prevst:null,  //previously received playback status
+        currst:null,  //current received playback status
         mrscnts:""};  //most recent song change notice timestamp
     var ctrls = {};   //module level container for UI control elements
     const mgrs = {};  //general container for managers
@@ -1058,6 +1059,7 @@ app.player = (function () {
             prog.pos = ms;         //update pos now, seek call not instant
             updatePosIndicator();
             clearTicker(true);
+            pmso.prevst = null;    //do not trigger stale data reload
             scheduleTransportStateRecheck();  //waits one second
             pbco.seek(ms); },
         recheckStatus: function () {
@@ -1072,6 +1074,8 @@ app.player = (function () {
                 scheduleTransportStateRecheck(); }
             else {
                 clearTicker(); } },
+        pollingStatusInfo: function () {
+            return {mode:prog.mode, freqms:(prog.mf + 1) * 1000}; },
         pause: function () {
             if(pbco) {
                 pbco.pause(); } }
@@ -1093,7 +1097,7 @@ app.player = (function () {
         const pssdvs = {  //persistent sleep state default values
             act: "",  //UI. Not active.  Otherwise "active" or "sleeping".
             cnt: 0,   //UI. How many songs after now playing before sleep.
-            rempaths: [],  //song paths left to play
+            rempaths: [],  //{lp,ti,path} of song paths left to play
             rempts: new Date(0).toISOString(), //when rempaths last updated
             nppsa: "",   //now playing path when sleep activated
             lspbs: ""};  //last song path to play before sleeping
@@ -1127,7 +1131,7 @@ app.player = (function () {
             turnSleepOff("uindb", "clearSleepDialog");
             updateSleepMainButtonDisplay(); }
         function showParameterControls (sst) {  //rebuild from current state
-            const svos = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+            const svos = [0, 1, 2, 3, 4, 5];
             jt.out("sleepdiv", jt.tac2html(
                 [["a", {href:"#close",
                         onclick:mdfs("slp.toggleSleepDisplay", "close")},
@@ -1162,26 +1166,24 @@ app.player = (function () {
             if(pmso.song.path === sst.nppsa) { return "firstsong"; }
             return ""; }
         function recognizedEndState () {
-            if(pmso.state === "ended") { return "ended"; }
-            if(pmso.state === "paused") {
-                const ls = pmso.lrcvpb;
-                if(ls) {
-                    if(ls.pos === 0) { return "rtzpause"; }
-                    if(ls.dur - ls.pos < 2000) { return "endpause"; } } }
-            if(pmso.lrcvpb && pmso.lrcvpb.corstate === "paused" &&
-               pmso.lrcvpb.rptcnt > 1) {
-                return "midstop"; }
+            const cs = pmso.currst;
+            if(cs) {
+                if(cs.state === "ended") { return "ended"; }
+                if(cs.state === "paused") {
+                    if(cs.pos === 0) { return "rtzpause"; }
+                    if(cs.dur - cs.pos < 2000) { return "endpause"; } } }
             return ""; }
+        function rempathsFromSongs (songs) {
+            return songs.map((s) => ({lp:s.lp, ti:jt.ellipsis(s.ti, 30),
+                                      path:s.path})); }
         function remainingPathsToPlay (sst) {
             const sd = app.pdat.songsDict();
-            const songs = sst.rempaths.map((p) => sd[p]);
+            const songs = sst.rempaths.map((p) => sd[p.path]);
             const npy = songs.filter((s) => !s.lp || s.lp < sst.rempts);
-            if(npy.length) {  //log remaining not played yet for countdown info
-                const dbgq = npy.map(function (s) {
-                    return {lp:s.lp, path:s.path, ti:jt.ellipsis(s.ti, 30)}; });
-                jt.log("slp.remainingPathsToPlay " + sst.rempts + ": " +
-                       JSON.stringify(dbgq)); }
-            return npy.map((s) => s.path); }
+            const res = rempathsFromSongs(npy);
+            jt.log("slp.remainingPathsToPlay " + sst.rempts + ": " +
+                   JSON.stringify(res));
+            return res; }
         function updateState (sst) {
             sst.rempaths = remainingPathsToPlay(sst);
             sst.cnt = sst.rempaths.length;
@@ -1299,7 +1301,7 @@ app.player = (function () {
             sst.nppsa = songs[0].path;
             sst.lspbs = songs[sst.cnt].path;
             sst.rempts = new Date().toISOString();
-            sst.rempaths = songs.slice(1, sst.cnt + 1).map((s) => s.path);
+            sst.rempaths = rempathsFromSongs(songs.slice(1, sst.cnt + 1));
             jt.log("slp.maxAQL " + JSON.stringify(sst));
             return sst.cnt + 1; }   //include now playing song in return len
     };  //end mgrs.slp returned functions
@@ -1334,25 +1336,8 @@ app.player = (function () {
                                      pmso.song, nosongtext)]]])); }
         function logPBHandlerState (src, drsm, pbsh) {
             jt.log(src + " " + drsm + " " + JSON.stringify(pbsh)); }
-        function trackAgainstLastReceivedPlayback (pbsh) {
-            const curr = {tresp:pbsh.tresp, path:pbsh.path, state:pbsh.state,
-                          pos:pbsh.pos, dur:pbsh.dur};
-            const prev = pmso.lrcvpb;
-            if(prev) {
-                if(prev.state === "playing" && curr.state === "playing" &&
-                   prev.path === curr.path && prev.dur === curr.dur &&
-                   prev.pos === curr.pos) {  //unchanged pos is "paused"
-                    curr.corstate = "paused";
-                    pbsh.state = "paused"; }  //pb state handler sees "paused"
-                if(prev.state === curr.state && prev.path === curr.path &&
-                   prev.dur === curr.dur && prev.pos === curr.pos &&
-                   prev.corstate === curr.corstate) {  //no change since last
-                    curr.rptcnt = prev.rptcnt || 0;
-                    curr.rptcnt += 1; } }
-            pmso.lrcvpb = curr; }
         function noteUpdatedSongStatus (drsm, pbsh) {
             pmso.drsm = drsm;
-            trackAgainstLastReceivedPlayback(pbsh);
             logPBHandlerState("uiu.noteUpdatedSongStatus", drsm, pbsh);
             if(!pbsh.path) {
                 pmso.resetPlaceholderControlObject();
@@ -1371,6 +1356,47 @@ app.player = (function () {
             pbsh.state = "";
             pbsh.pos = 0;
             pbsh.dur = 0; }
+        function potentiallyStaleLocalData () {
+            const logpre = "potentiallyStaleLocalData ";
+            if(!pmso.prevst) { return false; }  //no prev state to check against
+            const psi = mgrs.plui.pollingStatusInfo();
+            if(psi.mode !== "active") { return false; }  //not tracking status
+            const pst = pmso.prevst;
+            const cst = pmso.currst;
+            if(!pst.state && !cst.state) { return false; }  //still no info
+            if(!pst.state && (cst.state === "playing" ||
+                              cst.state === "paused")) {
+                return false; }  //real playback state just established
+            //transitioning to state "ended", or to "" from playing/paused
+            //always merits a reload.
+            if(pst.state === "playing" && cst.state === "playing") {
+                if(cst.pos >= pst.pos) {  //moved forward
+                    const maxfloat = pst.dur - pst.pos;     //not out of touch
+                    if(cst.tresp - pst.tresp < maxfloat) {  //for too long
+                        return false; } } }  //should be ok.
+            if(pst.state === "playing" && cst.state === "paused") {
+                if(cst.pos >= pst.pos &&  //haven't gone backwards
+                   cst.pos >= psi.freqms &&  //not near beginning
+                   cst.pos <= cst.dur - psi.freqms) {  //not near end
+                    return false; } }  //should be ok
+            if(pst.state === "paused" && cst.state === "paused") {
+                if(cst.pos === pst.pos) {
+                    return false; } }  //staying paused is ok
+            if(pst.state === "paused" && cst.state === "playing") {
+                if(cst.pos <= pst.pos + psi.freqms) {
+                    return false; } }  //normal unpause
+            jt.log(logpre + "unexpected data or safe time boundary exceeded." +
+                   " pst:" + JSON.stringify(pst) +
+                   " cst:" + JSON.stringify(cst));
+            return true; }
+        function reloadUpdatedData (reason) {
+            var force = true;  //avoid doing anything with old data
+            pmso.prevst = null;  //don't re-ref during data reload (or after)
+            const mrr = app.pdat.dbObj().arts;  //most recent app data read
+            if(mrr && Date.now() - jt.isoString2Time(mrr).getTime() < 6500) {
+                jt.log("reloadUpdatedData not forcing reload over recent read");
+                force = false; }
+            app.pdat.reloadDigDat(reason, force); }
         function reflectUpdatedStatusInfo (pbsh) {  //playback status handler
             const logpre = "uiu.reflectUpdatedStatusInfo ";
             if(!app.pdat.dbObj()) {  //status is meaningless since no lookup
@@ -1385,28 +1411,15 @@ app.player = (function () {
                 return mgrs.gen.notifySongChanged(pmso.song, pbsh.state); }
             //have pmso.song
             if(pmso.song.path === pbsh.path) {  //same song playing
-                if(pmso.lrcvpb) {  //have last received playback status
-                    const elapsed = pbsh.tresp - pmso.lrcvpb.tresp;
-                    if(elapsed > pbsh.dur) {  //definitely stale
-                        jt.log(logpre + (Math.round(elapsed / 1000)) +
-                               " seconds since last status call. reloading.");
-                        const ww = logpre + "stale data";
-                        //Any data refresh will help.  A reload after a
-                        //pending write won't matter, so no force.
-                        app.pdat.reloadDigDat(ww, false, function () {
-                            pmso.lrcvpb = null;  //don't re-ref crufty pb state
-                            mgrs.plui.pollingMode("active", "stale stat rcv");
-                            jt.log(logpre + "stale data reload complete"); });
-                        return; } }
-                //either no lrcvpb or reasonably up to date pbsh
-                noteUpdatedSongStatus("npupd", pbsh); }
+                noteUpdatedSongStatus("npupd", pbsh);
+                if(potentiallyStaleLocalData()) {
+                    reloadUpdatedData(logpre + "potentially stale"); } }
             else {  //currently playing song path has changed
                 jt.log(logpre + "pmso.song has changed");
                 noteUpdatedSongStatus("songchg", pbsh);   //update the UI
                 const npsg = app.pdat.songsDict()[pbsh.path];
                 mgrs.gen.notifySongChanged(npsg, pbsh.state);
-                const ww2 = logpre + "plat changed song";
-                app.pdat.reloadDigDat(ww2, true); } }  //get updated lp vals
+                reloadUpdatedData(logpre + "plat changed song"); } }
         function corruptedStatusData (status) {
             //playback queue finished: status path:"", state:"ended".
             if(!status || typeof status !== "object") {
@@ -1495,6 +1508,8 @@ app.player = (function () {
         receivePlaybackStatus: function (status) {
             var reflected = false;
             if(corruptedStatusData(status)) {
+                jt.log("receivePlaybackStatus rechecking corrupted status " +
+                       JSON.stringify(status));
                 mgrs.plui.recheckStatus();
                 return; }
             //When the Digger interface initializes on a mobile platform,
@@ -1505,11 +1520,13 @@ app.player = (function () {
                 jt.log("uiu.receivePlaybackStatus ignoring unrequested " +
                        JSON.stringify(status));
                 return; }
+            status.tresp = Date.now();
+            pmso.currst = status;
             Object.keys(reqsrcs).forEach(function (key) {
                 const pbsh = reqsrcs[key];
                 if(pbsh) {  //have pending request to process
                     //jt.log("uiu.receivePlaybackStatus " + key);
-                    pbsh.tresp = Date.now();
+                    pbsh.tresp = status.tresp;
                     pbsh.path = status.path || "";
                     pbsh.state = status.state;   //may be "" if no song
                     pbsh.pos = status.pos;
@@ -1519,7 +1536,8 @@ app.player = (function () {
                         reflected = true; }
                     if(pbsh.contf) {
                         pbsh.contf(pbsh); }
-                    reqsrcs[key] = null; } }); } //end request
+                    reqsrcs[key] = null; } });  //end request
+            pmso.prevst = pmso.currst; }  //note for next receive processing
     };  //end mgrs.uiu returned interface
     }());
 
@@ -1708,7 +1726,7 @@ return {
     nowPlayingSong: function () { return pmso.song; },
     currentPlaybackState: function () { return pmso.state; },
     setPlaybackState: function (state) { pmso.state = state; },
-    lastReceivedPlaybackState: function () { return pmso.lrcvpb; },
+    previousReceivedPlaybackStatus: function () { return pmso.prevst; },
     reqUpdatedPlaybackStat: mgrs.gen.reqUpdatedPlaybackStat,
     notifySongChanged: mgrs.gen.notifySongChanged,
     skip: mgrs.gen.skip,

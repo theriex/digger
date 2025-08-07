@@ -811,6 +811,7 @@ var app = (function () {
             //phase: ready|calling|callbacks
             config:{datobj:null, qcs:[], listeners:[]},   //.digger_config.json
             digdat:{datobj:null, qcs:[], listeners:[]}};  //digdat.json
+        var pndhs = [];  //pre-notification data hooks
         var adnts = [];  //apres data notification tasks
         var tiarab = null;  //alt dict for song lookup by Title Artist Album
         function nextApresDataTask () {
@@ -821,6 +822,10 @@ var app = (function () {
                     task.tf();
                     nextApresDataTask(); } }, 50); }
         function notifyUpdateListeners (pwsid, type) {
+            while(type === "digdat" && pndhs.length) {
+                const hook = pndhs.shift();
+                jt.log("pre-notification data hook: " + hook.name);
+                hook.tf(); }
             rtdat[type].listeners.forEach(function (listener) {
                 if(listener.pwsid !== pwsid) {  //don't loop back to writer
                     try {  //continue if any one listener fails
@@ -973,6 +978,10 @@ var app = (function () {
             scheduleWrite("digdat", {call:callerstr, opt:optobj,
                                      cbf:contf, ef:errf}); },
         ////data coordination work management
+        addPreNotificationDataHook: function (taskname, taskfunction) {
+            pndhs.push({name:taskname, tf:taskfunction}); },
+        clearPreNotificationDataHook: function (taskname) {
+            pndhs = pndhs.filter((t) => t.name !== taskname); },
         addApresDataNotificationTask: function (taskname, taskfunction) {
             adnts.push({name:taskname, tf:taskfunction}); },
         clearApresDataNotificationTask: function (taskname) {
