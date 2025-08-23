@@ -558,8 +558,16 @@ app.deck = (function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
                 if(asq.paths.length < 7) {  //worth a rebuild to try find more
                     rebuildPlaybackQueue(null, "filtersChanged and < 7 left"); }
-                else {
-                    verifyQueuedPlayback(); } } },
+                else {  //rebuild if any songs should no longer be queued
+                    const sd = app.pdat.songsDict();
+                    const songs = asq.paths.map((p) => sd[p]);
+                    const fbf = mgrs.util.filterByFilters(songs);
+                    if(fbf.failed.length > 0) {
+                        rebuildPlaybackQueue(null, "filtersChanged " +
+                            fbf.failed.length + " songs invalidated."); } } } },
+        forceRebuild: function () {
+            if(mgrs.gen.getSongSeqMgrName() === "csa") {
+                rebuildPlaybackQueue(null, "forceRebuild"); } },
         isCurrentOrNextSong: function (song) {
             function test (i) {
                 return (i >= 0 && i < asq.paths.length && song &&
@@ -593,7 +601,8 @@ app.deck = (function () {
                 msgs.push(jt.tac2html(
                     ["Add songs, verify app access permission, ",
                      ["a", {href:"#reread",
-                            onclick:(app.util.dfs("svc", "loc.loadLibrary"))},
+                            onclick:(app.util.dfs("app", "pdat.reloadDigDat",
+                                                  "No songs on deck", "true"))},
                       "retry"]])); }
             return jt.tac2html([msgs.join(". ") + ".",
                                 ["div", {id:"nomusicstatdiv"}]]); },
@@ -1219,6 +1228,7 @@ return {
                 jt.log("initializing deck." + name);
                 mgr.initialize(); } }); },
     filtersChanged: mgrs.csa.filtersChanged,
+    forceRebuild: mgrs.csa.forceRebuild,
     currentlyPlayingSongChanged: mgrs.gen.currentlyPlayingSongChanged,
     playNextSong: mgrs.gen.playNextSong,  //player skip
     replayQueue: mgrs.gen.replayQueue,    //player sleep activation

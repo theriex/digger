@@ -617,6 +617,7 @@ app.top = (function () {
                     app.pdat.writeDigDat("restoreFromBackup", null,
                         function (/*digdat*/) {
                             updateHubSyncStatusDisplay("restored.");
+                            app.deck.forceRebuild();
                             bdrdone(); },
                         function (code, errtxt) {
                             updateHubSyncStatusDisplay("restore save error");

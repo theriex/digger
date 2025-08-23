@@ -197,9 +197,7 @@ app.filter = (function () {
             updateStatValues(x, y, cid);
             setCurtainWidths(x, y, cid);
             setCtrlSurfaceValues(x, y, cid);
-            mgrs.stg.filterValueChanged();
-            if(ctrls.filtersReady) {
-                app.deck.filtersChanged("range"); } }
+            mgrs.stg.filterValueChanged("range"); }
         function pcnts2Coords (pc) {
             const tc = {x:pc.x, y:pc.y};
             tc.y = 100 - tc.y;   //re-invert so top of rect is zero
@@ -336,15 +334,16 @@ app.filter = (function () {
             ctrls.kts[idx].tog = tog;  //note the value for filtering
             jt.byId("kwtbimg" + idx).src = "img/kwtog" + tog + ".png";
             if(changed) {
-                mgrs.stg.filterValueChanged();  //save updated kwtog value
-                app.deck.filtersChanged("keyword filter"); } },
+                mgrs.stg.filterValueChanged("kwdf " + ctrls.kts[idx].pn); } },
         togClick: function (idx) {
             const kt = ctrls.kts[idx];
+            const prevstat = kt.tog;
             switch(kt.tog) {
                 case "off": kt.tog = "pos"; break;
                 case "pos": kt.tog = "neg"; break;
                 case "neg": kt.tog = "off"; break;
                 default: jt.log("Bad state tog " + idx + ": " + kt.tog); }
+            jt.log("kft.togClick " + prevstat + " -> " + kt.tog);
             mgrs.kft.setValue(idx, kt.tog, "changed"); },
         openKeywordSelectDialog: function () {
             app.top.dispatch("kwd", "chooseKeywords"); },
@@ -447,8 +446,7 @@ app.filter = (function () {
                 button.innerHTML = tdef.vs[tdef.idx].tx;
                 button.title = tdef.vs[tdef.idx].ti;
                 if(ctrls.filtersReady) {
-                    mgrs.stg.filterValueChanged();  //save upd tag filt value
-                    app.deck.filtersChanged("pull filter " + dn); } } },
+                    mgrs.stg.filterValueChanged("pull filter " + dn); } } },
         makeFilter: function () {
             ctrls.rat.settings = function () {
                 return {tp:"minrat", u:tgds.tgf.idx,
@@ -523,8 +521,7 @@ app.filter = (function () {
                 button.title = "Song play frequency filtering disabled.";
                 button.style.background = "transparent"; }
             if(ctrls.filtersReady) {
-                mgrs.stg.filterValueChanged();  //save updated freq filter value
-                app.deck.filtersChanged("freq filter"); } },
+                mgrs.stg.filterValueChanged("freq filter"); } },
         makeFilter: function () {
             ctrls.fq.settings = function () {
                 return {tp:"fqb", v:fqb}; };
@@ -561,13 +558,14 @@ app.filter = (function () {
             if(rc.stat) {
                 rc.sumname += " (" + rc.stat.mnrv + ":" + rc.stat.mxrv + ")"; }
             return rc; }
+        function updateSettings () {
+            mgrs.stg.settings().ctrls = mgrs.stg.arrayOfAllFilters()
+                .map((filt) => filt.settings()); }
         function saveSettings () {
             if(tmosave) {
                 clearTimeout(tmosave); }
             tmosave = setTimeout(function () {
                 tmosave = null;
-                mgrs.stg.settings().ctrls = mgrs.stg.arrayOfAllFilters()
-                    .map((filt) => filt.settings());
                 app.pdat.writeDigDat("filter.stg.saveSettings"); },
                                  5000); }  //enough time to avoid disk churn
     return {
@@ -582,15 +580,17 @@ app.filter = (function () {
                 rts.ctrlsBeforeState = true;
                 return null; }
             return app.pdat.uips("filter"); },
-        filterValueChanged: function () {  //waits until controls stop moving
+        filterValueChanged: function (source) {
             if(!ctrls.filtersReady) { //ignore spurious startup events
                 return; }
-            if(tmofilt) {  //reset the filtering timer if currently waiting
+            const debouncewait = 700;  //avoid spewing interim control updates
+            if(tmofilt) {  //reset the debounce timer if currently waiting
                 clearTimeout(tmofilt); }
             tmofilt = setTimeout(function () {
                 tmofilt = null;
-                saveSettings(); },
-                                 700); },  //enough time to avoid notice churn
+                updateSettings();
+                app.deck.filtersChanged(source);
+                saveSettings(); }, debouncewait); },
         arrayOfAllFilters: function (mode) {
             var filts = [];
             filts.push(summarizeRangeControl(ctrls.al));
