@@ -408,6 +408,8 @@ app.top = (function () {
                     //jt.log("restoring " + bs.ti);
                     if(bs.lp > dbo.lastSyncPlayback) {
                         dbo.lastSyncPlayback = bs.lp; }
+                    if(ds.lp > bs.lp) {  //song has played since backup
+                        bs.lp = ds.lp; } //keep latest lp
                     app.util.copyUpdatedSongData(ds, bs); }); });
             dbo.restoredFromBackup = new Date().toISOString();
             jt.log(logpre + restored + " songs restored"); }
@@ -433,17 +435,21 @@ app.top = (function () {
             jt.log("mergeCSVSongs merged " + songs.length + " songs");
             syt[direction] += songs.length; }
         function handleSyncError (code, errtxt) {
+            var handled = "";
             updateCommState(null, "handleSyncError reset");
             syt.errcode = code;
             syt.errtxt = errtxt;
             jt.log("srs.handleSyncError " + code + ": " + errtxt);
             if(errtxt.toLowerCase().indexOf("hsct mismatch")) {
+                handled = "renewing hub sync token";
                 mgrs.srs.syncToHub("renewHubSyncToken"); }
             if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
+                handled = "invalid credentials";
                 //Credentials are no longer valid, so this is old account info
                 //and should not be attempting to sync.  To fix, the user will
                 //need to sign in again.  Sign them out to start the process.
-                mgrs.asu.processSignOut(); } }
+                mgrs.asu.processSignOut(); }
+            return handled; }
         function updateHubSyncStatusDisplay (value) {
             if(!jt.byId("hsistatspan")) { return; }  //display not visible
             if(syt.errcode) {  //error conditions highest prio for display
@@ -527,8 +533,14 @@ app.top = (function () {
                               processHubSyncResult(resarray);
                               hubSyncFinished(); },
                           errf:function (code, errtxt) {
-                              handleSyncError(code, errtxt);
-                              hubSyncFinished(); }};
+                              const knownerr = handleSyncError(code, errtxt);
+                              if(knownerr) {
+                                  jt.log("Known hub sync error: " + knownerr);
+                                  hubSyncFinished(); }
+                              else {  //network issue, wait before retry
+                                  const dms = 90 * 1000;
+                                  jt.log("Delaying hubSyncFinished " + dms);
+                                  setTimeout(hubSyncFinished, dms); } }};
             mgrs.hcu.queueHubCall(endpoint, dets, sched.prio, sched.override);
             updateHubSyncStatusDisplay(); }
         function getSyncTaskPriority () {

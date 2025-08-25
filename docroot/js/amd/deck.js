@@ -450,7 +450,17 @@ app.deck = (function () {
                 //have been updated by now.
                 return "invalid np.lp value, likely stale data"; }
             return ""; }
-        function verifyPlaybackQueue (np, dbo) {
+        function verifyNowPlayingLastPlayed (song) {
+            var pos = 0;
+            const currst = app.player.currentPlaybackStatus();
+            if(currst) {  //have full player status
+                pos = currst.pos; }
+            const minlp = new Date(Date.now() - pos).toISOString();
+            if(song.lp < minlp) {
+                jt.log("verifyNowPlayingLastPlayed updating song.lp from " +
+                       song.lp + " to " + minlp);
+                song.lp = minlp; } }
+        function verifyPlaybackQueue (np) {
             const logpre = "verifyPlaybackQueue ";
             const vpq = {mrpi:-1, npi:-1, oop:[], err:"no playback queue"};
             if(!asq.paths.length) { return vpq; }
@@ -458,6 +468,7 @@ app.deck = (function () {
             const songs = asq.paths.map((p) => sd[p]);
             songs.forEach(function (song, qidx) {
                 if(song.path === np.path) {
+                    verifyNowPlayingLastPlayed(song);
                     vpq.npi = qidx; }   //note now playing song index
                 if(song.lp && (qidx === 0 ||
                                (vpq.npi >= 0 && song.lp >= songs[vpq.npi].lp &&
@@ -470,13 +481,6 @@ app.deck = (function () {
             vpq.err = "";
             if(vpq.npi < 0) {
                 vpq.err("now playing song not in queue"); }
-            if(!vpq.err && vpq.npi === vpq.mrpi + 1) {
-                //on iOS, np.lp may not update until N seconds after the song
-                //has started playing.  Update runtime lp if needed,
-                jt.log(logpre + "fixing lazy np.lp timestamp update");
-                np.lp = new Date().toISOString();
-                dbo.uilp = np.lp;
-                vpq.mrpi = vpq.npi; }
             if(!vpq.err && vpq.mrpi < vpq.npi) {
                 vpq.err = "non-sequential playback"; }
             if(!vpq.err && vpq.oop.length) {
@@ -505,7 +509,7 @@ app.deck = (function () {
             const staleDataError = checkDataStaleError(dbo, np);
             if(staleDataError) {
                 return app.pdat.reloadDigDat(logpre + staleDataError, true); }
-            const vpq = verifyPlaybackQueue(np, dbo);
+            const vpq = verifyPlaybackQueue(np);
             if(vpq.err) {
                 const keepsg = ((vpq.mrpi > vpq.npi)? null : np);
                 return rebuildPlaybackQueue(keepsg, "vpq " + vpq.err); }
@@ -599,11 +603,16 @@ app.deck = (function () {
             //add more local playable songs and allow access to them
             else {
                 msgs.push(jt.tac2html(
-                    ["Add songs, verify app access permission, ",
-                     ["a", {href:"#reread",
+                    ["Add songs, ",
+                     ["a", {href:"#reload",
                             onclick:(app.util.dfs("app", "pdat.reloadDigDat",
-                                                  "No songs on deck", "true"))},
-                      "retry"]])); }
+                                                  ["No songs on deck",
+                                                   "true"]))},
+                      "reload"],
+                     " verify app access permission, ",
+                     ["a", {href:"#rebuild",
+                            onclick:mdfs("csa.forceRebuild")},
+                      "rebuild"]])); }
             return jt.tac2html([msgs.join(". ") + ".",
                                 ["div", {id:"nomusicstatdiv"}]]); },
         initDisplay: function () {

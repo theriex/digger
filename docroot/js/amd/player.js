@@ -1726,6 +1726,7 @@ return {
     nowPlayingSong: function () { return pmso.song; },
     currentPlaybackState: function () { return pmso.state; },
     setPlaybackState: function (state) { pmso.state = state; },
+    currentPlaybackStatus: function () { return pmso.currst; },
     previousReceivedPlaybackStatus: function () { return pmso.prevst; },
     reqUpdatedPlaybackStat: mgrs.gen.reqUpdatedPlaybackStat,
     notifySongChanged: mgrs.gen.notifySongChanged,
