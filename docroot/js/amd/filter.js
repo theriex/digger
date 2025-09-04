@@ -684,29 +684,35 @@ app.filter = (function () {
         //            c:N  //repeated entry count (starts at 1)
         //            m:"log message text"
         const testlogsamples = [  //samples for testing log collapse
-            {name:"droidStatusPolling", expectedLength:3,
+            {name:"droidStatusPolling", expectedLength:4,
              logEntries:[
 {t:"07:54:09", c:1, m:"svc.mp.queueCommand 263: status"},
+{t:"07:54:09", c:1, m:"uiu.receivePlaybackStatus {\"state\":\"\",\"pos\":0,\"dur\":0,\"path\":\"\"}"},
 {t:"07:54:09", c:1, m:"uiu.noteUpdatedSongStatus {\"contf\":null,\"tcall\":1735840449381,\"tresp\":1735840449397,\"path\":\"\",\"state\":\"\",\"pos\":0,\"dur\":0}"},
 {t:"07:54:09", c:1, m:"svc.mp.commandCompleted finished 263: status"},
 {t:"07:54:10", c:1, m:"svc.mp.queueCommand 264: status"},
+{t:"07:54:10", c:1, m:"uiu.receivePlaybackStatus {\"state\":\"\",\"pos\":0,\"dur\":0,\"path\":\"\"}"},
 {t:"07:54:10", c:1, m:"uiu.noteUpdatedSongStatus {\"contf\":null,\"tcall\":1735840450415,\"tresp\":1735840450429,\"path\":\"\",\"state\":\"\",\"pos\":0,\"dur\":0}"},
 {t:"07:54:10", c:1, m:"svc.mp.commandCompleted finished 264: status"}]},
-            {name:"iosStatusPolling", expectedLength:3,
+            {name:"iosStatusPolling", expectedLength:4,
              logEntries:[
 {t:"18:03:54", c:1, m:"callIOS:main:71:statusSync:"},
 {t:"18:03:54", c:1, m:"ios.retv:main:71:statusSync:{\"state\":\"playing\",\"pos\":36433,\"dur\":297769,\"path\":\"ipod-library://item/item.mp3?id=5402204423896092283\",\"ti\":\"Bristol and Miami\"}"},
+{t:"18:03:54", c:1, m:"uiu.receivePlaybackStatus {\"state\":\"playing\",\"pos\":36433,\"dur\":297769,\"path\":\"ipod-library://item/item.mp3?id=5402204423896092283\"}"},
 {t:"18:03:54", c:1, m:"uiu.noteUpdatedSongStatus npupd {\"contf\":null,\"tcall\":1753481034952,\"tresp\":1753481034962,\"path\":\"ipod-library://item/item.mp3?id=5402204423896092283\",\"state\":\"playing\",\"pos\":36433,\"dur\":297769}"},
 {t:"18:04:00", c:1, m:"callIOS:main:72:statusSync:"},
 {t:"18:04:00", c:1, m:"ios.retv:main:72:statusSync:{\"state\":\"playing\",\"pos\":41486,\"dur\":297769,\"path\":\"ipod-library://item/item.mp3?id=5402204423896092283\",\"ti\":\"Bristol and Miami\"}"},
+{t:"18:04:00", c:1, m:"uiu.receivePlaybackStatus {\"state\":\"playing\",\"pos\":41486,\"dur\":297769,\"path\":\"ipod-library://item/item.mp3?id=5402204423896092283\"}"},
 {t:"18:04:00", c:1, m:"uiu.noteUpdatedSongStatus npupd {\"contf\":null,\"tcall\":1753481040004,\"tresp\":1753481040019,\"path\":\"ipod-library://item/item.mp3?id=5402204423896092283\",\"state\":\"playing\",\"pos\":41486,\"dur\":297769}"}]},
-            {name:"iosDegenerateStatusPolling", expectedLength:3,
+            {name:"iosDegenerateStatusPolling", expectedLength:4,
              logEntries:[
 {t:"11:56:21", c:1, m:"callIOS:main:117:statusSync:"},
 {t:"11:56:21", c:1, m:"ios.retv:main:117:statusSync:"},
+{t:"11:56:21", c:1, m:"uiu.receivePlaybackStatus {\"state\":\"paused\",\"pos\":0,\"dur\":0,\"path\":\"\"}"},
 {t:"11:56:21", c:1, m:"uiu.noteUpdatedSongStatus pbsh: {\"contf\":null,\"tcall\":1739984181500,\"tresp\":1739984181512,\"path\":\"\",\"state\":\"paused\",\"pos\":0,\"dur\":0}"},
 {t:"11:56:22", c:1, m:"callIOS:main:118:statusSync:"},
 {t:"11:56:22", c:1, m:"ios.retv:main:118:statusSync:"},
+{t:"11:56:22", c:1, m:"uiu.receivePlaybackStatus {\"state\":\"paused\",\"pos\":0,\"dur\":0,\"path\":\"\"}"},
 {t:"11:56:22", c:1, m:"uiu.noteUpdatedSongStatus pbsh: {\"contf\":null,\"tcall\":1739984182517,\"tresp\":1739984182528,\"path\":\"\",\"state\":\"paused\",\"pos\":0,\"dur\":0}"}]}];
         //Polling collapse listens for a log line matching the last of the
         //given match regular expressions, then works backwards testing
@@ -719,6 +725,7 @@ app.filter = (function () {
             {name:"droidPlaybackStatusPolling",
              mrxs:[  //match regular expressions for log lines
                  {id:"request", rx:/svc.mp.queueCommand (?<callnum>\d+): (?<command>\S+)/},
+                 {id:"platres", rx:/uiu.receivePlaybackStatus.*"state":"(?<state>[a-z]*)",.*"path":"(?<path>[^"]*)"/},
                  {id:"response", rx:/uiu.noteUpdatedSongStatus.*"path":"(?<path>[^"]*)","state":"(?<state>[a-z]*)/},
                  {id:"completion", rx:/svc.mp.commandCompleted finished (?<callnum>\d+): (?<command>\S+)/}], 
              gcvs:[  //group consistency validations
@@ -732,6 +739,7 @@ app.filter = (function () {
                  {id:"request", rx:/callIOS:main:(?<callnum>\d+):(?<command>\S+):/},
                  {id:"completion", rx:/ios.retv:main:(?<callnum>\d+):(?<command>\S+):((.*"state":"(?<state>[a-z]*)",.*"path":"(?<path>[^"]*)")|$)/m,  //lint m
                   fill:{state:"paused", path:""}},
+                 {id:"platres", rx:/uiu.receivePlaybackStatus.*"state":"(?<state>[a-z]*)",.*"path":"(?<path>[^"]*)"/},
                  {id:"response", rx:/uiu.noteUpdatedSongStatus.*"path":"(?<path>[^"]*)","state":"(?<state>[a-z]*)/}],
              gcvs:[  //group consistency validations
                  {fld:"callnum", linids:["request", "completion"]},

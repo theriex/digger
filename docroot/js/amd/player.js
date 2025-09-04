@@ -1507,6 +1507,8 @@ app.player = (function () {
             app.svc.requestPlaybackStatus(); },
         receivePlaybackStatus: function (status) {
             var reflected = false;
+            //platform returned status may contain supplemental call details
+            jt.log("uiu.receivePlaybackStatus " + JSON.stringify(status));
             if(corruptedStatusData(status)) {
                 jt.log("receivePlaybackStatus rechecking corrupted status " +
                        JSON.stringify(status));
