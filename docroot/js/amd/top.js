@@ -1558,18 +1558,15 @@ app.top = (function () {
             else {  //use selected day
                 const sel = jt.byId("wkactdaysel");
                 dow = sel.value; }
-            const acct = mgrs.aaa.getAccount();
-            acct.settings.sumact = acct.settings.sumact || {};
-            acct.settings.sumact.sendon = dow;
+            const dat = {settings:mgrs.aaa.getAccount().settings || {}};
+            dat.settings.sumact = dat.settings.sumact || {};
+            dat.settings.sumact.sendon = dow;
+            dat.settings = JSON.stringify(dat.settings);
+            addAuthDataFields(dat);
             jt.out("afgstatdiv", "Saving...");
             jt.byId("afgbtsdiv").style.display = "none";
-            mgrs.aaa.updateCurrAcct(
-                acct, acct.token,
-                function () {
-                    mgrs.asu.settingsForm("Saved."); },
-                function (code, errtxt) {
-                    jt.out("afgstatdiv", "Save failed " + code + ": " + errtxt);
-                    jt.byId("afgbtsdiv").style.display = "block"; }); },
+            hubThenLocal("saveb", "POST", "updacc", dat, function () {
+                mgrs.asu.settingsForm("Saved."); }); },
         profileForm: function (acct) {
             acct = acct || mgrs.aaa.getAccount();
             accountFieldsForm(
