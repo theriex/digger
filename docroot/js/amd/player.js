@@ -601,7 +601,7 @@ app.player = (function () {
             if(ost.song.el <= 40) { imps[2].val = "Chill"; }
             if(ost.song.el >= 65) { imps[2].val = "Amped"; }
             return imps; }
-        function clipboardSongDescription(s) {
+        function clipboardSongDescription (s) {
             var txt = s.ti + "\nby: " + s.ar + "\n";
             if(s.ab !== "Singles") {
                 txt += "album: " + s.ab; }
@@ -741,6 +741,12 @@ app.player = (function () {
             if(txt) {
                 txt = txt.replace(/Amazon.com Song ID: \d+/, "").trim();
                 txt = txt.replace(/copyright \d\d\d\d .*/ig, "").trim(); }
+            return txt; },
+        clipboardTextForSong: function (s) {  //called from hub profile
+            const temp = ost.song;
+            ost.song = s;
+            const txt = clipboardSongDescription(s);
+            ost.song = temp;
             return txt; },
         closeOverlay: function (event) {
             if(!allowablePercolatingEvent(event)) {
