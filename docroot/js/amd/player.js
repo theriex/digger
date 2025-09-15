@@ -593,14 +593,10 @@ app.player = (function () {
             songval = songval.slice(0, 1);  //e.g treat "DP" as Deleted
             return isSubcatValue(radval, songval); }
         function impressionSummary () {
-            const imps = [{lab:"Keywords", val:ost.song.kws || "none"},
-                          {lab:"Approachability", val:"Medium"},
-                          {lab:"Energy Level", val:"Medium"}];
-            if(ost.song.al <= 40) { imps[1].val = "Easy"; }
-            if(ost.song.al >= 65) { imps[1].val = "Hard"; }
-            if(ost.song.el <= 40) { imps[2].val = "Chill"; }
-            if(ost.song.el >= 65) { imps[2].val = "Amped"; }
-            return imps; }
+            const eavs = mgrs.cmt.elal2txtvals(ost.song);
+            return [{lab:"Keywords", val:ost.song.kws || "none"},
+                    {lab:eavs.el.pn, val:eavs.el.val},
+                    {lab:eavs.al.pn, val:eavs.al.val}]; }
         function clipboardSongDescription (s) {
             var txt = s.ti + "\nby: " + s.ar + "\n";
             if(s.ab !== "Singles") {
@@ -742,6 +738,15 @@ app.player = (function () {
                 txt = txt.replace(/Amazon.com Song ID: \d+/, "").trim();
                 txt = txt.replace(/copyright \d\d\d\d .*/ig, "").trim(); }
             return txt; },
+        elal2txtvals: function (s) {
+            const vals = {
+                el:{pn:"Energy Level", val:"Nominal"},
+                al:{pn:"Approachability", val:"Nominal"}};
+            if(s.el <= 45) { vals.el.val = "Chill"; }
+            if(s.el >= 65) { vals.el.val = "Amped"; }
+            if(s.al <= 40) { vals.al.val = "Easy"; }
+            if(s.al >= 72) { vals.al.val = "Hard"; }
+            return vals; },
         clipboardTextForSong: function (s) {  //called from hub profile
             const temp = ost.song;
             ost.song = s;
