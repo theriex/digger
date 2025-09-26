@@ -1482,14 +1482,14 @@ app.player = (function () {
                     elem.classList.remove("bgtransitionfade"); }, ms + 750); },
                        100); },
         updateSongDisplay: function (callerstr) {
-            const cto = pmso.cto();
+            const cto = pmso.cto();  //=== pmso.song but easier to read
             jt.log("uiu.updateSongDisplay " + callerstr + " " + pmso.state +
-                   " " + cto.ti + " (" + cto.path + ")  rv:" + cto.rv +
-                   " kws:" + cto.kws);
+                   " " + cto.ti + " (" + cto.path + ") al:" + cto.al + " el:" +
+                   cto.el + " rv:" + cto.rv + " kws:" + cto.kws);
             updateSongTitleDisplay();
-            mgrs.pan.updateControl("al", pmso.song.al);
-            mgrs.pan.updateControl("el", pmso.song.el);
-            mgrs.rat.adjustPositionFromRating(pmso.song.rv);
+            mgrs.pan.updateControl("al", cto.al);
+            mgrs.pan.updateControl("el", cto.el);
+            mgrs.rat.adjustPositionFromRating(cto.rv);
             mgrs.kwd.rebuildToggles();
             mgrs.cmt.updateIndicators(); },
         assertValidSong: function (song) {

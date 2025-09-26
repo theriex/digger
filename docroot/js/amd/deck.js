@@ -522,6 +522,7 @@ app.deck = (function () {
             restoreAutoplaySelectionQueueSettings();
             if(mgrs.gen.getSongSeqMgrName() === "csa" &&
                app.filter.filtersReady()) {  //else wait for filtersChanged
+                app.filter.squareSettingsWithUI();
                 verifyQueuedPlayback(); } }
     return {
         initialize: function () {

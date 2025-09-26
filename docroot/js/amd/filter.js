@@ -318,7 +318,7 @@ app.filter = (function () {
     return {
         rebuildControls: function () {
             rcids.forEach(function (cid) {
-                if(!jt.byId(cid + "vnd")) {  //no range control displayed yet
+                if(!jt.byId(cid + "mousediv")) {  //not displayed yet
                     createRangeControl(cid); }
                 else {
                     initRangeSetting(cid); } }); }
@@ -343,7 +343,8 @@ app.filter = (function () {
                 case "pos": kt.tog = "neg"; break;
                 case "neg": kt.tog = "off"; break;
                 default: jt.log("Bad state tog " + idx + ": " + kt.tog); }
-            jt.log("kft.togClick " + prevstat + " -> " + kt.tog);
+            jt.log("kft.togClick " + ctrls.kts[idx].pn + " " + prevstat +
+                   " -> " + kt.tog);
             mgrs.kft.setValue(idx, kt.tog, "changed"); },
         openKeywordSelectDialog: function () {
             app.top.dispatch("kwd", "chooseKeywords"); },
@@ -430,11 +431,6 @@ app.filter = (function () {
             while(idx < tgds.mrf.vs.length && rv > tgds.mrf.vs[idx].v) {
                 idx += 1; }
             return idx; },
-        setFromSettings: function () {
-            const dfltset = {tp:"minrat", u:0, m:4};
-            const sts = findSetting({tp:"minrat"}) || {};
-            mgrs.mruc.toggle("mrf", mgrs.mruc.minrat2idx(sts.m || dfltset.m));
-            mgrs.mruc.toggle("tgf", sts.u || dfltset.u); },
         toggle: function (dn, idx) {
             const tdef = tgds[dn];
             if(idx >= 0) {  //use specified idx
@@ -445,8 +441,7 @@ app.filter = (function () {
             if(button) {
                 button.innerHTML = tdef.vs[tdef.idx].tx;
                 button.title = tdef.vs[tdef.idx].ti;
-                if(ctrls.filtersReady) {
-                    mgrs.stg.filterValueChanged("pull filter " + dn); } } },
+                mgrs.stg.filterValueChanged("pull filter " + dn); } },
         makeFilter: function () {
             ctrls.rat.settings = function () {
                 return {tp:"minrat", u:tgds.tgf.idx,
@@ -464,7 +459,10 @@ app.filter = (function () {
         tagf: function () { return tgds.tgf.idx; },
         init: function (divid) {
             writeHTML(divid);
-            mgrs.mruc.setFromSettings();
+            const dfltset = {tp:"minrat", u:0, m:4};
+            const sts = findSetting({tp:"minrat"}) || {};
+            mgrs.mruc.toggle("mrf", mgrs.mruc.minrat2idx(sts.m || dfltset.m));
+            mgrs.mruc.toggle("tgf", sts.u || dfltset.u);
             mgrs.mruc.makeFilter();
             mgrs.fq.init("fqftogdiv"); }
     };  //end of mgrs.mruc returned functions
@@ -520,8 +518,7 @@ app.filter = (function () {
             else {
                 button.title = "Song play frequency filtering disabled.";
                 button.style.background = "transparent"; }
-            if(ctrls.filtersReady) {
-                mgrs.stg.filterValueChanged("freq filter"); } },
+            mgrs.stg.filterValueChanged("freq filter"); },
         makeFilter: function () {
             ctrls.fq.settings = function () {
                 return {tp:"fqb", v:fqb}; };
@@ -529,16 +526,14 @@ app.filter = (function () {
                 if(fqb === "off") {
                     return true; }
                 return mgrs.fq.isPlaybackEligible(song); }; },
-        setFrequencyFiltering: function (fqsetting) {
-            fqsetting = fqsetting || {tp:"fqb", v:"on"};
-            mgrs.fq.toggleFreqFiltering(fqsetting.v); },
         getFrequencyFiltering: function () {
             return fqb; },
         init: function (divid) {
             mgrs.fq.initWaitDays();
             mgrs.fq.writeHTML(divid);
             mgrs.fq.makeFilter();
-            mgrs.fq.setFrequencyFiltering(findSetting({tp:"fqb"})); }
+            const fqset = findSetting({tp:"fqb"}) || {tp:"fqb", v:"on"};
+            mgrs.fq.toggleFreqFiltering(fqset.v);  }
     };  //end of mgrs.fq returned functions
     }());
 
@@ -550,7 +545,9 @@ app.filter = (function () {
     //are available), then spurious control notifications are generated that
     //should not be passed on until the filters are all ready for use.
     mgrs.stg = (function () {
-        const rts = {ctrlsBeforeState:false, settingsAvailable:false};
+        const rts = {ctrlsBeforeState:false, settingsAvailable:false,
+                     lastSettingsUpdate:"1970-01-01T00:00:00Z",
+                     changeNoticesEnabled:true};
         var tmofilt = null;
         var tmosave = null;
         function summarizeRangeControl (rc) {
@@ -559,6 +556,7 @@ app.filter = (function () {
                 rc.sumname += " (" + rc.stat.mnrv + ":" + rc.stat.mxrv + ")"; }
             return rc; }
         function updateSettings () {
+            rts.lastSettingsUpdate = new Date().toISOString();
             mgrs.stg.settings().ctrls = mgrs.stg.arrayOfAllFilters()
                 .map((filt) => filt.settings()); }
         function saveSettings () {
@@ -582,6 +580,8 @@ app.filter = (function () {
             return app.pdat.uips("filter"); },
         filterValueChanged: function (source) {
             if(!ctrls.filtersReady) { //ignore spurious startup events
+                return; }
+            if(!rts.changeNoticesEnabled) {
                 return; }
             const debouncewait = 700;  //avoid spewing interim control updates
             if(tmofilt) {  //reset the debounce timer if currently waiting
@@ -615,8 +615,23 @@ app.filter = (function () {
             if(!ctrls.filtersReady && rts.settingsAvailable) {
                 rts.ctrlsBeforeState = false;
                 ctrls.filtersReady = true; }  //just rebuilt from settings
-            if(ctrls.filtersReady) {
-                app.deck.filtersChanged("filters rebuilt"); } }
+            if(ctrls.filtersReady && rts.changeNoticesEnabled) {
+                app.deck.filtersChanged("filters rebuilt"); } },
+        squareSettingsWithUI: function () {
+            const logpre = "filter.stg.squareSettingsWithUI ";
+            const dbo = app.pdat.dbObj();
+            if(dbo && dbo.awts < rts.lastSettingsUpdate) {
+                jt.log(logpre + "keeping current UI settings");
+                updateSettings(); }
+            else {
+                jt.log(logpre + "reflecting saved settings in UI");
+                rts.changeNoticesEnabled = false;
+                if(tmosave) {  //state saved already, no need to write again
+                    clearTimeout(tmosave);
+                    tmosave = null; }
+                //reflect, but do not call deck with a filter change notice
+                mgrs.stg.rebuildAllControls();
+                rts.changeNoticesEnabled = true; } }
     };  //end of mgrs.stg returned functions
     }());
 
@@ -926,6 +941,7 @@ return {
     initializeInterface: function () { mgrs.gen.initializeInterface(); },
     filtersReady: function () { return ctrls.filtersReady; },
     filters: function (mode) { return mgrs.stg.arrayOfAllFilters(mode); },
+    squareSettingsWithUI: mgrs.stg.squareSettingsWithUI,
     summary: function () { return mgrs.dsc.summarizeFiltering(); },
     filteringPanelState: function () { return mgrs.dsc.filteringPanelState(); },
     gradient: function () { return ranger.gradient; },
