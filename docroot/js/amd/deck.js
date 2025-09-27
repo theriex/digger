@@ -376,26 +376,32 @@ app.deck = (function () {
     //info and access to history.
     mgrs.csa = (function () {
         const toggleButtons = {};
-        var asq = null;  //reference to deckset.asq
+        function dasq () {  //deck autoplay song queue
+            const deckset = app.pdat.uips("deck");
+            deckset.asq = deckset.asq || {};
+            return deckset.asq; }
         function asqTitles (idx, len) {
             idx = idx || 0;
             len = len || 5;
             const end = idx + len;
             const sd = app.pdat.songsDict();
-            const songs = asq.paths.slice(idx, end).map((p) => sd[p]);
+            const songs = dasq().paths.slice(idx, end).map((p) => sd[p]);
             return songs.map((s, i) => (idx + i) + ":" + 
                              jt.ellipsis(s.ti, 30)); }
         function redrawPlaylistDisplay () {
+            const asq = dasq();
             const sd = app.pdat.songsDict();
             //asq.idx is currently playing song, display rest
             const songs = asq.paths.slice(asq.idx + 1).map((p) => sd[p]);
             mgrs.util.displayQueuedSongs("csa", "csaqueuediv", songs); }
         function playQueueFromIndex () {
+            const asq = dasq();
             const sd = app.pdat.songsDict();
             const songs = asq.paths.slice(asq.idx).map((p) => sd[p]);
             redrawPlaylistDisplay();
             app.player.playSongQueue("deck.csa", songs); }
         function setAndPlayQueue (songs) {
+            const asq = dasq();
             asq.paths = songs.map((s) => s.path);
             asq.ts = new Date().toISOString();
             asq.idx = 0;
@@ -419,9 +425,7 @@ app.deck = (function () {
             setTimeout(function () {
                 setAndPlayQueue(mgrs.sqb.makeSelectionQueue(pfsg)); }, 50); }
         function restoreAutoplaySelectionQueueSettings () {
-            const deckset = app.pdat.uips("deck");
-            deckset.asq = deckset.asq || {};
-            asq = deckset.asq;
+            const asq = dasq();
             asq.paths = asq.paths || [];
             asq.ts = asq.ts || new Date().toISOString();
             if(!(asq.idx >= 0)) {  //undefined or non-numeric value
@@ -430,6 +434,7 @@ app.deck = (function () {
             var dfcs = JSON.parse(JSON.stringify(mgrs.sqb.getFilterCounts()));
             if(!dfcs.length) {
                 return jt.out("deckfresdiv", jt.tac2html("Info unavailable")); }
+            const asq = dasq();
             const offset = ((asq.idx >= 0)? asq.idx : 0);
             const lastfc = dfcs[dfcs.length - 1];
             lastfc.sc -= offset;  //decrement frequency eligible count by offset
@@ -463,6 +468,7 @@ app.deck = (function () {
         function verifyPlaybackQueue (np) {
             const logpre = "verifyPlaybackQueue ";
             const vpq = {mrpi:-1, npi:-1, oop:[], err:"no playback queue"};
+            const asq = dasq();
             if(!asq.paths.length) { return vpq; }
             const sd = app.pdat.songsDict();
             const songs = asq.paths.map((p) => sd[p]);
@@ -496,6 +502,7 @@ app.deck = (function () {
             const dbo = app.pdat.dbObj();
             if(!dbo) {
                 return jt.log(logpre + "quit, no dbo yet"); }
+            const asq = dasq();
             if(!asq.paths.length) {
                 return rebuildPlaybackQueue(null, "no songs in asq.paths"); }
             const np = app.player.nowPlayingSong();
@@ -549,6 +556,7 @@ app.deck = (function () {
                     jt.byId("deckfresdiv").style.display = disp; }});
             toggleButtons.toginfob(false); },
         playNextSong: function () {
+            const asq = dasq();
             if(asq.idx >= 0 && asq.idx < asq.paths.length - 1) {
                 jt.log("csa.playNextSong: " + asqTitles(asq.idx, 3));
                 asq.idx += 1;
@@ -561,6 +569,7 @@ app.deck = (function () {
             rebuildPlaybackQueue(song, "playGivenSong"); },
         filtersChanged: function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
+                const asq = dasq();
                 if(asq.paths.length < 7) {  //worth a rebuild to try find more
                     rebuildPlaybackQueue(null, "filtersChanged and < 7 left"); }
                 else {  //rebuild if any songs should no longer be queued
@@ -574,19 +583,19 @@ app.deck = (function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
                 rebuildPlaybackQueue(null, "forceRebuild"); } },
         isCurrentOrNextSong: function (song) {
+            const asq = dasq();
             function test (i) {
                 return (i >= 0 && i < asq.paths.length && song &&
                         song.path === asq.paths[i]); }
             return (test(asq.idx) || test(asq.idx + 1)); },
         songByIndex: function (idx) {  //index of song in visible queue
             //asq[idx] references now playing song. +1 is first song in queue
+            const asq = dasq();
             const pathidx = asq.idx + 1 + idx;
             return app.pdat.songsDict()[asq.paths[pathidx]]; },
         exciseSongByIndex: function (idx) {
+            const asq = dasq();
             idx += asq.idx + 1;  //adjust for queue pos and now playing song
-            const deckset = app.pdat.uips("deck");
-            deckset.asq = deckset.asq || {};
-            asq = deckset.asq;  //verify referencing the latest
             if(!asq.paths || asq.paths.length < idx) {
                 return jt.log("exciseSongByIndex invalid idx: " + idx); }
             asq.paths.splice(idx, 1);   //remove from queue.

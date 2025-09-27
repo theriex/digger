@@ -333,6 +333,9 @@ app.filter = (function () {
         setValue: function (idx, tog, changed) {
             ctrls.kts[idx].tog = tog;  //note the value for filtering
             jt.byId("kwtbimg" + idx).src = "img/kwtog" + tog + ".png";
+            const setting = findSetting({tp:"kwbt", k:ctrls.kts[idx].pn});
+            if(setting) {  //might not be found if just starting up
+                setting.v = tog; }
             if(changed) {
                 mgrs.stg.filterValueChanged("kwdf " + ctrls.kts[idx].pn); } },
         togClick: function (idx) {
@@ -560,6 +563,10 @@ app.filter = (function () {
             mgrs.stg.settings().ctrls = mgrs.stg.arrayOfAllFilters()
                 .map((filt) => filt.settings()); }
         function saveSettings () {
+            const logpre = "filter.stg.saveSettings tmo:" + tmosave + " ";
+            if(!rts.changeNoticesEnabled) {
+                return jt.log(logpre + " no action"); }
+            jt.log(logpre + " scheduling write");
             if(tmosave) {
                 clearTimeout(tmosave); }
             tmosave = setTimeout(function () {
@@ -619,6 +626,7 @@ app.filter = (function () {
                 app.deck.filtersChanged("filters rebuilt"); } },
         squareSettingsWithUI: function () {
             const logpre = "filter.stg.squareSettingsWithUI ";
+            //jt.log(logpre + JSON.stringify(mgrs.stg.settings().ctrls));
             const dbo = app.pdat.dbObj();
             if(dbo && dbo.awts < rts.lastSettingsUpdate) {
                 jt.log(logpre + "keeping current UI settings");
@@ -627,6 +635,7 @@ app.filter = (function () {
                 jt.log(logpre + "reflecting saved settings in UI");
                 rts.changeNoticesEnabled = false;
                 if(tmosave) {  //state saved already, no need to write again
+                    jt.log(logpre + "clearing filter.stg.saveSettings tmo");
                     clearTimeout(tmosave);
                     tmosave = null; }
                 //reflect, but do not call deck with a filter change notice
