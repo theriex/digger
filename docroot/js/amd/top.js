@@ -275,7 +275,19 @@ app.top = (function () {
                         songsUpdated += 1; }
                     updateLastSyncPlayback(hsg.lp); }); });
             if(!songsUpdated && !forceWriteDigdat) { return; }
-            app.pdat.writeDigDat(callerstr); },
+            app.pdat.writeDigDat(
+                callerstr, null,
+                function () {
+                    if(forceWriteDigdat) {  //have pull merge songs
+                        //need to reverity song frequency filtering is still
+                        //valid from updated data.  After all callback notices
+                        //have settled down.
+                        setTimeout(function () {
+                            app.deck.filtersChanged("hubsync pull recheck"); },
+                                   200); }},
+                function (code, errtxt) {
+                    jt.log("saveSongUpdatesFromHub writeDigDat failed " + code +
+                           ": " + errtxt); }); },
         isHubCallQueued: function (matchf) {
             return comms.callq.find((qe) => matchf(qe.dets.endpoint)); },
         clearScheduledHubCalls: function (regex) {
