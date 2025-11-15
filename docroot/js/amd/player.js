@@ -1237,7 +1237,8 @@ app.player = (function () {
         function checkIfSleeping (caller) {
             const logpre = caller + " checkIfSleeping ";
             const sst = sleepstate();
-            if(!sst.act) { return; }  //sleep inactive is normal, no log msg.
+            if(!sst.act && pmso.state !== "ended") {
+                return; } //sleep inactive is normal, no general log msg.
             updateState(sst);
             if(sleepDialogDisplayed() || runst.res === "ended") {
                 displaySleepDialog(logpre); }
