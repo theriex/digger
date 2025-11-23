@@ -452,7 +452,7 @@ app.top = (function () {
             syt.errcode = code;
             syt.errtxt = errtxt;
             jt.log("srs.handleSyncError " + code + ": " + errtxt);
-            if(errtxt.toLowerCase().indexOf("hsct mismatch")) {
+            if(errtxt.toLowerCase().indexOf("hsct mismatch") >= 0) {
                 handled = "renewing hub sync token";
                 mgrs.srs.syncToHub("renewHubSyncToken"); }
             if(errtxt.toLowerCase().indexOf("wrong password") >= 0) {
