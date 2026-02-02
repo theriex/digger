@@ -905,8 +905,9 @@ app.top = (function () {
     mgrs.fsc = (function () {
         const fas = [  //fan actions
             {a:"deleteFan", n:"Delete", d:"Delete $FAN from your group"},
-            {a:"getDefaultRatings", n:"Ratings", m:5,
-             d:"Fill default song ratings from $FAN"},
+            //Using other people's ratings seems counterproductive over time
+            // {a:"getDefaultRatings", n:"Ratings", m:5,
+            //  d:"Fill default song ratings from $FAN"},
             {a:"recomputeFanCounts", n:"Recount", m:20,
              d:"Recompute collection common/received/sent"}];
         var mfps = {}; //music fan processing status
