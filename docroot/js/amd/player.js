@@ -55,7 +55,9 @@ app.player = (function () {
             //has changed because it's better to drop last second click
             //adjustments than have (possibly erroneuous) post-play changes
             //to a song rating that is no longer visible.
-            if(reason === "SongChanged") {
+            if(reason === "SongChanged" ||
+                   (pmso.song && pmso.icvs.svcpy &&
+                    pmso.song.path !== pmso.icvs.svcpy.path)) {
                 jt.log(logpre + "prev pending save dropped " +  pmso.icvs.cid);
                 pmso.icvs = null; }
             //OtherSave is pretty much from hubsync. It is better UX to save
