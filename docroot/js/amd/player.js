@@ -1327,6 +1327,7 @@ app.player = (function () {
         const pbstates = ["playing", "paused", "ended"];  //"" if unknown
         const reqsrcs = {};  //playback status handling
         var nosongtext = "Starting";
+        var lastPSReq = 0;  //most recent playback status request ms
         function adjustFramingBackgroundHeight () {  //match height of panels
             const oh = jt.byId("contentdiv").offsetHeight;  //dflt 736px
             const cmdiv = jt.byId("contentmargindiv");
@@ -1447,6 +1448,12 @@ app.player = (function () {
                 jt.log("rcvPBStat ignoring empty status, expecting " +
                        pmso.expecting.path);
                 return "expecting"; }
+            //serious lag between call and return means app was backgrounded
+            //and may be processing a previously received callback that is no
+            //longer accurate.
+            if(Date.now() - lastPSReq > 10*1000) {
+                jt.log("rcvPBStat ignoring outdated status");
+                return "outdated"; }
             //path without state is used for start/ack status polling.
             //Warn if bad status.state val to help with svc integration dev
             if(status.state && pbstates.indexOf(status.state) < 0) {
@@ -1514,9 +1521,10 @@ app.player = (function () {
         //on player polling to catch up.
         requestPlaybackStatus: function (srcid, callbackf) {
             //jt.log("uiu.requestPlaybackStatus " + srcid);
+            lastPSReq = Date.now();
             reqsrcs[srcid] = {
                 contf:callbackf || null,
-                tcall:Date.now(), tresp:0,
+                tcall:lastPSReq, tresp:0,
                 path:"", state:"", pos:0, dur:0};
             app.svc.requestPlaybackStatus(); },
         receivePlaybackStatus: function (status) {
