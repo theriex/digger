@@ -1245,6 +1245,13 @@ app.player = (function () {
             if(sleepDialogDisplayed() || runst.res === "ended") {
                 displaySleepDialog(logpre); }
             updateSleepMainButtonDisplay(); } //reflect updated state
+        function wakeupAndPlay () {
+            jt.log("wakeupAndPlay resuming playback");
+            clearTimeout(runst.waptmo);  //in case scheduled
+            runst.waptmo = null;
+            clearSleepDialog();  //might have reactivated from state restore
+            mgrs.plui.pollingMode("active", "ackSleepProcDone");
+            app.deck.playNextSong(); }
         function digDatUpdated (/*digdat*/) {
             checkIfSleeping("digDatUpdated"); }
     return {
@@ -1258,12 +1265,11 @@ app.player = (function () {
                 displaySleepDialog("waitingOnSleepDialog "); }
             return sdd; },
         ackSleepProcDone: function () {
-            clearSleepDialog();
+            clearSleepDialog();  //update UI, then verify latest data
+            runst.waptmo = setTimeout(wakeupAndPlay,  //fallback retry in case
+                                      2400);          //ongoing write/read
             app.pdat.reloadDigDat("ackSleepProcDone", false, function () {
-                jt.log("ackSleepProcDone resuming playback");
-                clearSleepDialog();  //might have reactivated from state restore
-                mgrs.plui.pollingMode("active", "ackSleepProcDone");
-                app.deck.playNextSong(); }); },
+                wakeupAndPlay(); }); },
         updateSleepState: function (src, overrideUIControls) {
             turnSleepOff("dbonly", "updateSleepState clear before set");
             const sst = sleepstate();
