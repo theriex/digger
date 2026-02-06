@@ -1019,8 +1019,12 @@ var app = (function () {
                 jt.log(logpre + "timeout triggered, processing...");
                 if(!force && rtdat.digdat.qcs.length) {
                     return jt.log(logpre + "skipped, write now pending."); }
+                const calltms = Date.now();
                 app.svc.readDigDat(
                     function (digdat) {
+                        if(Date.now() - calltms > 6 * 1000) {
+                            return jt.log("reloadDigDat excessive lag. " +
+                                          "No stale data callback."); }
                         jt.log(logpre + "digdat reloaded. Notifying.");
                         setDigDatAndNotify("reloadDigDat", digdat);
                         if(contf) {  //data integrity listeners completed
