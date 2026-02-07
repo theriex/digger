@@ -462,6 +462,17 @@ app.top = (function () {
                 //need to sign in again.  Sign them out to start the process.
                 mgrs.asu.processSignOut(); }
             return handled; }
+        function scheduledValue (action, sched) {
+            var value = action + " scheduled";
+            if(sched.wtms < 3200) {  //call is going or about to go
+                value = "calling " + action; }
+            else {  //call is waiting
+                if(action === "upload") {
+                    value = jt.tac2html(
+                        ["a", {href:"#uploadnow",
+                               onclick:mdfs("srs.uploadNow")},
+                         value]); } }
+            return value; }
         function updateHubSyncStatusDisplay (value) {
             if(!jt.byId("hsistatspan")) { return; }  //display not visible
             if(syt.errcode) {  //error conditions highest prio for display
@@ -474,7 +485,7 @@ app.top = (function () {
                     const scheduled = mgrs.hcu.isHubCallQueued(
                         mgrs.srs.isHubSyncEndpoint);
                     if(scheduled) {
-                        value = commstate().action + " scheduled"; }
+                        value = scheduledValue(commstate().action, scheduled); }
                     else {
                         value = "not scheduled"; } } }
             jt.out("hsistatspan", value);
@@ -575,7 +586,7 @@ app.top = (function () {
                 return {prio:"asap", override:"replace"}; }
             //otherwise continue work in a quick but server respectful way
             return {prio:"3sec", override:"replace"}; }
-        function hubSyncStart () { //see ../../docs/hubsyncNotes.txt
+        function hubSyncStart (prio) { //see ../../docs/hubsyncNotes.txt
             var acct; var ucs;  //case variables
             syt.tmo = null;  //we've been called now, clear for next status
             const logpre = "hubSyncStart ";
@@ -607,7 +618,7 @@ app.top = (function () {
                 return scheduleHubSyncCall(
                     {syncdata:[JSON.stringify({action:"upload"}), ...ucs],
                      hsct:commstate().hsct},
-                    getSyncTaskPriority());
+                    prio || getSyncTaskPriority());
             default: jt.log(logpre + "unrecognized commstate.action: " +
                             commstate().action); } }
     return {
@@ -667,6 +678,11 @@ app.top = (function () {
             if(!syt.pending || syt.pending < serverMaxUploadSongs) {
                 return 0; }  //not backlogged, will handle in next call
             return syt.pending; },
+        uploadNow: function () {
+            updateHubSyncStatusDisplay("uploading now...");
+            clearTimeout(syt.tmo);  //in case waiting
+            syt.tmo = setTimeout(function () {  //yield to let UI update
+                hubSyncStart({prio:"asap", override:"replace"}); }, 50); },
         syncToHub: function (context) {
             if(syt.stat === "restoring") {
                 return jt.log("top.srs.syncToHub no sync while restoring"); }
