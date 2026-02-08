@@ -775,6 +775,8 @@ app.deck = (function () {
                 if(apq.idx < 0) {  //playing a different album now
                     jt.log(logpre + "playing a different album");
                     pst.abchg = true;
+                    //alb suggs may be up from initial app install state.
+                    mgrs.sas.togSuggestAlbums(false);  //Outdated in any case.
                     setPathsAndIndexFromSong(np); }
                 redrawAlbumDisplay();
                 if(pst.abchg) {  //no prev queue or iOS gone off somewhere
