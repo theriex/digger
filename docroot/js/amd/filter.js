@@ -590,7 +590,7 @@ app.filter = (function () {
             if(!ctrls.filtersReady) { //ignore spurious startup events
                 return jt.log(logpre + "filters not ready"); }
             if(!rts.changeNoticesEnabled) {
-                return jt.log(logpre + "change notices not enabled"); }
+                return; }  //repeated log messages from each control is noisy
             const debouncewait = 700;  //avoid spewing interim control updates
             if(tmofilt) {  //reset the debounce timer if currently waiting
                 clearTimeout(tmofilt); }
@@ -633,8 +633,7 @@ app.filter = (function () {
                 jt.log(logpre + "keeping current UI settings");
                 updateSettings(); }
             else {
-                jt.log(logpre + "reflecting saved settings in UI");
-                jt.log(logpre + "changeNoticesEnabled = false;");
+                jt.log(logpre + "reflecting saved settings, no change notices");
                 rts.changeNoticesEnabled = false;
                 if(tmosave) {  //state saved already, no need to write again
                     jt.log(logpre + "clearing filter.stg.saveSettings tmo");
@@ -642,7 +641,6 @@ app.filter = (function () {
                     tmosave = null; }
                 //reflect, but do not call deck with a filter change notice
                 mgrs.stg.rebuildAllControls();
-                jt.log(logpre + "changeNoticesEnabled = true;");
                 rts.changeNoticesEnabled = true; } }
     };  //end of mgrs.stg returned functions
     }());
