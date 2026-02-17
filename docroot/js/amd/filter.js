@@ -558,10 +558,12 @@ app.filter = (function () {
             if(rc.stat) {
                 rc.sumname += " (" + rc.stat.mnrv + ":" + rc.stat.mxrv + ")"; }
             return rc; }
-        function updateSettings () {
-            rts.lastSettingsUpdate = new Date().toISOString();
+        function persistFilterSettings () {
             mgrs.stg.settings().ctrls = mgrs.stg.arrayOfAllFilters()
                 .map((filt) => filt.settings()); }
+        function updateSettings () {
+            rts.lastSettingsUpdate = new Date().toISOString();
+            persistFilterSettings(); }
         function saveSettings () {
             const logpre = "filter.stg.saveSettings tmo:" + tmosave + " ";
             if(!rts.changeNoticesEnabled) {
@@ -571,15 +573,32 @@ app.filter = (function () {
                 clearTimeout(tmosave); }
             tmosave = setTimeout(function () {
                 tmosave = null;
-                app.pdat.writeDigDat("filter.stg.saveSettings"); },
-                                 5000); }  //enough time to avoid disk churn
+                app.pdat.writeDigDat(
+                    "filter.stg.saveSettings", null,
+                    function (/*digdat*/) {
+                        app.util.activeBg("filtpanelcontdiv", false); },
+                    function (code, errtxt) {
+                        jt.log(logpre, "writeDigDat " + code + ": " + errtxt);
+                        app.util.activeBg("filtpanelcontdiv", false); }); },
+                                 5000); }  //playback done, no disk churn
+        function digDatUpdated (digdat) {
+            if(digdat.awts < rts.lastSettingsUpdate) {
+                jt.log("filter.stg fixing potentially stale filter settings");
+                persistFilterSettings(); }
+            if(tmosave) {
+                if(digdat.awts >= rts.lastSettingsUpdate) {
+                    clearTimeout(tmosave);  //latest settings already written
+                    app.util.activeBg("filtpanelcontdiv", false); }
+                else {  //might have another interim update, reset wait time
+                    saveSettings(); } } }
     return {
         initialize: function () {
             app.pdat.addApresDataNotificationTask("filter.stg", function () {
                 rts.settingsAvailable = true;
                 if(rts.ctrlsBeforeState) {  //rebuild with saved state
                     jt.log("filter.stg ctrlsBeforeState rebuilding controls");
-                    mgrs.stg.rebuildAllControls(); } }); },
+                    mgrs.stg.rebuildAllControls(); } });
+            app.pdat.addDigDatListener("filter.stg", digDatUpdated); },
         settings: function () {  //used by general findSetting func
             if(!rts.settingsAvailable) {
                 rts.ctrlsBeforeState = true;
@@ -591,6 +610,7 @@ app.filter = (function () {
                 return jt.log(logpre + "filters not ready"); }
             if(!rts.changeNoticesEnabled) {
                 return; }  //repeated log messages from each control is noisy
+            app.util.activeBg("filtpanelcontdiv", true);
             const debouncewait = 700;  //avoid spewing interim control updates
             if(tmofilt) {  //reset the debounce timer if currently waiting
                 clearTimeout(tmofilt); }

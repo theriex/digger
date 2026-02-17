@@ -279,7 +279,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=260209"); }
+                              mgrs.boot.initAppModules, "?v=260214"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -306,6 +306,15 @@ var app = (function () {
             if(pstr !== ",event") {  //don't return false from event hooks
                 fstr = jt.fs(fstr); }
             return fstr; },
+        //set or unset the element background color to indicate activity
+        activeBg: function (elemid, activate) {
+            const elem = jt.byId(elemid);
+            if(!elem) {
+                return jt.log("activeBg " + elemid + " not found."); }
+            if(activate) {
+                elem.style.backgroundColor = "rgb(from #ffab00 r g b / 0.28)"; }
+            else {
+                elem.style.backgroundColor = "transparent"; } },
         //make a cache busted url out of the endpoint and params
         cb: function (endpoint, params, toklev) {
             var url = endpoint + "?";
@@ -1082,7 +1091,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=260209";  //updated as part of release process
+        return "v=260214";  //updated as part of release process
     }
 };  //end returned functions
 }());
