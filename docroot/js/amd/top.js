@@ -342,16 +342,16 @@ app.top = (function () {
         const syt = {tmo:null, stat:"", resched:false, up:0, down:0};
         const serverMaxUploadSongs = 20;
         const hsepn = {prefixes:{start:"s", pull:"p", upload:"u"}, mid:"a"};
-        const initialCommState = {action:"start", hsct:""};
+        function initialCommState () { return {action:"start", hsct:""}; }
         function commstate () {
             const topset = app.pdat.uips("top");
-            topset.commstate = topset.commstate || initialCommState;
+            topset.commstate = topset.commstate || initialCommState();
             return topset.commstate; }
         function logCommState (msg) {
             jt.log("srs.commstate: " + JSON.stringify(commstate()) +
                    " (" + msg + ")"); }
         function updateCommState (us, msg) {
-            us = us || initialCommState;
+            us = us || initialCommState();
             const ps = commstate();  //persistent state
             //clear any extra data from a previous state
             const optionalKeys = ["provdat", "syncts"];
