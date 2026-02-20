@@ -290,6 +290,26 @@ app.deck = (function () {
             lras = null;
             sbas = [];
             resq = []; }
+        function shuffleArray (arr, startidx, endidx) {  //Fisher-Yates shuffle
+            var i; var j; var temp;
+            startidx = startidx || 0;
+            endidx = endidx || arr.length - 1;
+            for(i = endidx; i >= startidx; i -= 1) {
+                j = Math.floor(Math.random() * i);
+                temp = arr[i];
+                if(!temp) {  //should never happen, complain loudly
+                    throw("arr index " + i + " was undefined"); }
+                arr[i] = arr[j];
+                arr[j] = temp; } }
+        function shuffleInitialArtistMRP () {
+            var eidx;
+            if(lras.length < 2) { return; }  //nothing to shuffle
+            eidx = lras.findIndex((a) => a.mrp !== lras[0].mrp);
+            if(eidx < 0) { eidx = lras.length; }
+            eidx = eidx - 1;  //eidx now last index of equiv mrp songs
+            if(eidx >= 1) {  //have at least 2 artists to shuffle
+                jt.log("shuffleInitialArtistMRP range 0-" + eidx);
+                shuffleArray(lras, 0, eidx); } }
         function fetchLeastRecentlyPlayedArtists () {
             const ad = {};
             getAllPlayableSongs();
@@ -301,6 +321,7 @@ app.deck = (function () {
                     ad[s.ar].mrp = s.lp; } });
             lras = Object.values(ad).sort((a, b) =>
                 a.mrp.localeCompare(b.mrp));
+            shuffleInitialArtistMRP();
             // function debuglogado (idx) {
             //     jt.log("  lras[" + idx + "] " + lras[idx].mrp + " " +
             //            lras[idx].ar); }
