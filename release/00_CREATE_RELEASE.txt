@@ -14,6 +14,7 @@
 #         "Current Project Version", "Marketing Version"
 #     TARGETS/diggerIOS(left column)|Build Settings(top tab)|Versioning(section)
 #         (Same mods, changes here are reflected in General|Identity)
+# Kill all editing buffers to make sure everything was saved.
 
 # Update the static resource cache bust flag.  Server cachev modifies app.js
 # which local will then pick up so always latest.
