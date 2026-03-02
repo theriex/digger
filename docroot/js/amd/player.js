@@ -1103,29 +1103,21 @@ app.player = (function () {
         const scms = {  //sleep completion messages
             lastpl: "Slept after song finished.",
             unexpl: "Sleep overridden by external control."};
-        const runst = {  //sleep runtime state
-            endSongType: "",
-            endState: "",
-            res: "off"};  //indeterminate, countingdown, waiting, ended
-        const pssdvs = {  //persistent sleep state default values
-            act: "",  //UI. Not active.  Otherwise "active" or "sleeping".
-            cnt: 0,   //UI. How many songs after now playing before sleep.
-            rempaths: [],  //{lp,ti,path} of song paths left to play
-            rempts: new Date(0).toISOString(), //when rempaths last updated
-            nppsa: "",   //now playing path when sleep activated
-            lspbs: ""};  //last song path to play before sleeping
-        function sleepstate () {  //fetch sleep state, initializing as needed
-            var ps = app.pdat.uips("player");  //player state
-            ps.sleep = ps.sleep || {};
-            const sst = ps.sleep;  //sleep state (persistent)
-            Object.keys(pssdvs).forEach(function (key) {
-                sst[key] = sst[key] || pssdvs[key]; });
-            return sst; }
+        function initializeSleepState () {
+            const pslp = app.pdat.prst("player.slp");
+            pslp.act = "";  //UI. Not active.  Otherwise "active" or "sleeping".
+            pslp.cnt = 0;   //UI. How many songs after now playing before sleep.
+            pslp.rempaths = [];  //{lp,ti,path} of song paths left to play
+            pslp.rempts = new Date(0).toISOString(); //rempaths last updated ts
+            pslp.nppsa = "";   //now playing path when sleep activated
+            pslp.lspbs = "";  //last song path to play before sleeping
+            pslp.endSongType = "";  //"lastsong", "firstsong"
+            pslp.endState = "";  //"ended", "rtzpause", "endpause"
+            pslp.res = "off";  //indeterminate; countingdown; waiting, ended
+            app.pdat.prst("player.slp", "updated"); }
         function turnSleepOff (scope, reason) {
             jt.log("turnSleepOff " + scope + " " + reason);
-            const sst = sleepstate();
-            Object.keys(pssdvs).forEach(function (key) {
-                sst[key] = pssdvs[key]; });
+            initializeSleepState();
             if(scope === "uindb") {
                 const scb = jt.byId("sleepactivecb");
                 if(scb) {
@@ -1134,16 +1126,17 @@ app.player = (function () {
                 if(sel) {
                     sel.value = 0; } } }
         function updateSleepMainButtonDisplay () {
-            const sst = sleepstate();
-            jt.out("sleepcntssdiv", sst.cnt || "");
-            jt.byId("togsleepimg").src = (sst.act? "img/sleepactive.png"
+            const pslp = app.pdat.prst("player.slp");
+            jt.out("sleepcntssdiv", pslp.cnt || "");
+            jt.byId("togsleepimg").src = (pslp.act? "img/sleepactive.png"
                                           : "img/sleep.png"); }
         function clearSleepDialog () {
             mgrs.cmt.toggleOtherDisplay("off");
             jt.out("sleepmsgdispdiv", "");  //clear dlg message content if avail
             turnSleepOff("uindb", "clearSleepDialog");
             updateSleepMainButtonDisplay(); }
-        function showParameterControls (sst) {  //rebuild from current state
+        function showParameterControls () {  //rebuild from current state
+            const pslp = app.pdat.prst("player.slp");
             const svos = [0, 1, 2, 3, 4, 5];
             jt.out("sleepdiv", jt.tac2html(
                 [["a", {href:"#close",
@@ -1153,7 +1146,7 @@ app.player = (function () {
                              onchange:mdfs("slp.updateSleepState",
                                            "changecount")},
                   svos.map((v) =>
-                      ["option", {value:v, selected:jt.toru(v === sst.cnt)},
+                      ["option", {value:v, selected:jt.toru(v === pslp.cnt)},
                        String(v)])],  //show "0"
                  ["a", {href:"#close",
                         onclick:mdfs("slp.toggleSleepDisplay", "close")},
@@ -1174,9 +1167,10 @@ app.player = (function () {
                         "Ok"]]]]); });
             //Playback may have started up again on app UI reforeground
             setTimeout(function () { mgrs.plui.pause(); }, 50); }
-        function sleepQueueEndSongType (sst) {
-            if(pmso.song.path === sst.lspbs) { return "lastsong"; }
-            if(pmso.song.path === sst.nppsa) { return "firstsong"; }
+        function sleepQueueEndSongType () {
+            const pslp = app.pdat.prst("player.slp");
+            if(pmso.song.path === pslp.lspbs) { return "lastsong"; }
+            if(pmso.song.path === pslp.nppsa) { return "firstsong"; }
             return ""; }
         function recognizedEndState () {
             const cs = pmso.currst;
@@ -1189,47 +1183,52 @@ app.player = (function () {
         function rempathsFromSongs (songs) {
             return songs.map((s) => ({lp:s.lp, ti:jt.ellipsis(s.ti, 30),
                                       path:s.path})); }
-        function remainingPathsToPlay (sst) {
+        function remainingPathsToPlay () {
+            const pslp = app.pdat.prst("player.slp");
             const sd = app.pdat.songsDict();
-            const songs = sst.rempaths.map((p) => sd[p.path]);
-            const npy = songs.filter((s) => !s.lp || s.lp < sst.rempts);
+            const songs = pslp.rempaths.map((p) => sd[p.path]);
+            const npy = songs.filter((s) => !s.lp || s.lp < pslp.rempts);
             const res = rempathsFromSongs(npy);
-            jt.log("slp.remainingPathsToPlay " + sst.rempts + ": " +
+            jt.log("slp.remainingPathsToPlay " + pslp.rempts + ": " +
                    JSON.stringify(res));
             return res; }
-        function updateState (sst) {
-            sst.rempaths = remainingPathsToPlay(sst);
-            sst.cnt = sst.rempaths.length;
-            runst.endSongType = "";
-            runst.endState = "";
-            runst.res = "recalculating";
-            if(sst.cnt) {
-                runst.res = "countingdown"; }
+        function updateState () {
+            const pslp = app.pdat.prst("player.slp");
+            pslp.rempaths = remainingPathsToPlay();
+            pslp.cnt = pslp.rempaths.length;
+            pslp.endSongType = "";
+            pslp.endState = "";
+            pslp.res = "recalculating";
+            if(pslp.cnt) {  //more songs to go
+                pslp.res = "countingdown"; }
             else {  //no songs left before sleep
                 if(!pmso.song) {  //most likely svc status comms hiccup
-                    runst.res = "indeterminate"; }
+                    pslp.res = "indeterminate"; }
                 else {  //have pmso.song
-                    runst.endSongType = sleepQueueEndSongType(sst);
-                    if(!runst.endSongType) {  //no context left to monitor
+                    pslp.endSongType = sleepQueueEndSongType();
+                    if(!pslp.endSongType) {  //no context left to monitor
                         turnSleepOff("uindb", "unrecognized last song");
                         updateSleepMainButtonDisplay();
                         mgrs.plui.pollingMode("active", "slp deactivated");
-                        runst.res = "off"; }
+                        pslp.res = "off"; }
                     else {  //known last song type
-                        runst.endState = recognizedEndState();
-                        if(runst.endState) {  //known ending state
-                            runst.res = "ended";
+                        pslp.endState = recognizedEndState();
+                        if(pslp.endState) {  //known ending state
+                            pslp.res = "ended";
                             mgrs.plui.pollingMode("inactive", "slp ended"); }
                         else {
-                            runst.res = "waiting"; } } } }
-            jt.log("slp.updateState " + JSON.stringify(runst)); }
+                            pslp.res = "waiting"; } } } }
+            app.pdat.prst("player.slp", "updated");
+            jt.log("slp.updateState " + pslp.res + " " + pslp.endSongType +
+                   " " + pslp.endState); }
         function sleepDialogDisplayed () {
             const smdd = jt.byId("sleepmsgdispdiv");
             return (smdd && smdd.innerHTML); }
         function displaySleepDialog (logpre) {
             if(sleepDialogDisplayed()) {
                 jt.log(logpre + "redisplaying dialog"); }
-            if(runst.res === "ended") {
+            const pslp = app.pdat.prst("player.slp");
+            if(pslp.res === "ended") {
                 jt.log(logpre + "playback ended");
                 sleepCompletionDialog(scms.lastpl); }
             else {  //playback did not end in any recognizable way
@@ -1238,17 +1237,19 @@ app.player = (function () {
                 sleepCompletionDialog(scms.unexpl); } }
         function checkIfSleeping (caller) {
             const logpre = caller + " checkIfSleeping ";
-            const sst = sleepstate();
-            if(!sst.act && pmso.state !== "ended") {
-                return; } //sleep inactive is normal, no general log msg.
-            updateState(sst);
-            if(sleepDialogDisplayed() || runst.res === "ended") {
+            const pslp = app.pdat.prst("player.slp");
+            if(!pslp.act && pmso.state !== "ended") {
+                return; } //sleep inactive is normal, no log messages
+            updateState();
+            if(sleepDialogDisplayed() || pslp.res === "ended") {
                 displaySleepDialog(logpre); }
             updateSleepMainButtonDisplay(); } //reflect updated state
         function wakeupAndPlay () {
             jt.log("wakeupAndPlay resuming playback");
-            clearTimeout(runst.waptmo);  //in case scheduled
-            runst.waptmo = null;
+            const pslp = app.pdat.prst("player.slp");
+            clearTimeout(pslp.waptmo);  //in case scheduled
+            pslp.waptmo = null;
+            app.pdat.prst("player.slp", "updated");
             clearSleepDialog();  //might have reactivated from state restore
             mgrs.plui.pollingMode("active", "ackSleepProcDone");
             app.deck.playNextSong(); }
@@ -1266,28 +1267,32 @@ app.player = (function () {
             return sdd; },
         ackSleepProcDone: function () {
             clearSleepDialog();  //update UI, then verify latest data
-            runst.waptmo = setTimeout(wakeupAndPlay,  //fallback retry in case
-                                      2400);          //ongoing write/read
+            const pslp = app.pdat.prst("player.slp");
+            pslp.waptmo = setTimeout(wakeupAndPlay,  //fallback retry in case
+                                     2400);          //ongoing write/read
+            app.pdat.prst("player.slp", "updated");
             app.pdat.reloadDigDat("ackSleepProcDone", false, function () {
                 wakeupAndPlay(); }); },
         updateSleepState: function (src, overrideUIControls) {
             turnSleepOff("dbonly", "updateSleepState clear before set");
-            const sst = sleepstate();
+            const pslp = app.pdat.prst("player.slp");
             if(overrideUIControls) {
-                sst.act = "active";
-                sst.cnt = 0; }
+                pslp.act = "active";
+                pslp.cnt = 0; }
             else {  //read control settings from UI
                 const scb = jt.byId("sleepactivecb");
                 if(src === "changecount") {  //count change implies activation
                     scb.checked = true; }
-                sst.act = (scb.checked? "active" : "");
-                if(sst.act === "active") {
-                    sst.cnt = parseInt(jt.byId("sleepcountsel").value, 10); }
+                pslp.act = (scb.checked? "active" : "");
+                if(pslp.act === "active") {
+                    pslp.cnt = parseInt(jt.byId("sleepcountsel").value, 10); }
                 else {
-                    sst.cnt = 0; }
+                    pslp.cnt = 0; }
                 mgrs.slp.toggleSleepDisplay("close"); }
+            app.pdat.prst("player.slp", "updated");
             updateSleepMainButtonDisplay();
-            jt.log("updateSleepState " + JSON.stringify(sst));
+            jt.log("updateSleepState " + (
+                pslp.act? (pslp.act + " " + pslp.cnt) : "sleep not active"));
             app.deck.replayQueue(); },  //now subject to maxAllowedQueueLength
         toggleSleepDisplay: function (close) {  //show or hide the sleep details
             const sleepdiv = jt.byId("sleepdiv");
@@ -1296,34 +1301,35 @@ app.player = (function () {
                 sleepdiv.style.display = "none";  //note closed
                 return; }
             if(!pmso.song) { return jt.log("No sleep before pmso.song avail"); }
-            const sst = sleepstate();
-            if(sst.act) {  //sleep already activated, show parameter controls
+            const pslp = app.pdat.prst("player.slp");
+            if(pslp.act) {  //sleep already activated, show parameter controls
                 jt.byId("sleepdiv").style.display = "block";
-                showParameterControls(sst); }
+                showParameterControls(); }
             else {  //sleep not active, activate without detail display
-                sst.cnt = 0;  //default sleep is after np song finishes
-                sst.act = "active";
+                pslp.cnt = 0;  //default sleep is after np song finishes
+                pslp.act = "active";
+                app.pdat.prst("player.slp", "updated");
                 mgrs.slp.updateSleepState("toggleSleepOn",
                                           "overrideUIControls"); } },
         maxAllowedQueueLength: function (songs) {  //songs[0] lp update pending
             var obvr = "";   //obviation reason
-            const sst = sleepstate();
-            if(!sst.act) {  //not activated, and not resuming from sleep
+            const pslp = app.pdat.prst("player.slp");
+            if(!pslp.act) {  //not activated, and not resuming from sleep
                 return app.player.playQueueMax; }  //return standard max limit
-            if(songs.length < sst.cnt + 1) {
+            if(songs.length < pslp.cnt + 1) {
                 obvr = "playback will end before sleep"; }
-            if(sst.lspbs && sst.lspbs !== songs[sst.cnt].path) {
+            if(pslp.lspbs && pslp.lspbs !== songs[pslp.cnt].path) {
                 obvr = "last song before sleep changed"; }
             if(obvr) {
                 turnSleepOff("uindb", "slp.maxAQL " + obvr);
                 updateSleepMainButtonDisplay();
                 return app.player.playQueueMax; }  //return standard max limit
-            sst.nppsa = songs[0].path;
-            sst.lspbs = songs[sst.cnt].path;
-            sst.rempts = new Date().toISOString();
-            sst.rempaths = rempathsFromSongs(songs.slice(1, sst.cnt + 1));
-            jt.log("slp.maxAQL " + JSON.stringify(sst));
-            return sst.cnt + 1; }   //include now playing song in return len
+            pslp.nppsa = songs[0].path;
+            pslp.lspbs = songs[pslp.cnt].path;
+            pslp.rempts = new Date().toISOString();
+            pslp.rempaths = rempathsFromSongs(songs.slice(1, pslp.cnt + 1));
+            jt.log("slp.maxAQL " + (pslp.cnt + 1));
+            return pslp.cnt + 1; }   //include now playing song in return len
     };  //end mgrs.slp returned functions
     }());
 

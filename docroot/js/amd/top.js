@@ -343,22 +343,20 @@ app.top = (function () {
         const serverMaxUploadSongs = 20;
         const hsepn = {prefixes:{start:"s", pull:"p", upload:"u"}, mid:"a"};
         function initialCommState () { return {action:"start", hsct:""}; }
-        function commstate () {
-            const topset = app.pdat.uips("top");
-            topset.commstate = topset.commstate || initialCommState();
-            return topset.commstate; }
         function logCommState (msg) {
-            jt.log("srs.commstate: " + JSON.stringify(commstate()) +
+            const cmst = app.pdat.prst("top.commstate");
+            jt.log("srs.commstate: " + JSON.stringify(cmst) +
                    " (" + msg + ")"); }
         function updateCommState (us, msg) {
             us = us || initialCommState();
-            const ps = commstate();  //persistent state
-            //clear any extra data from a previous state
+            const cmst = app.pdat.prst("top.commstate");
+            //clear possible extra data from previously saved state
             const optionalKeys = ["provdat", "syncts"];
             optionalKeys.forEach(function (optkey) {
-                delete ps[optkey]; });
+                delete cmst[optkey]; });
             Object.keys(us).forEach(function (key) {  //save current data
-                ps[key] = us[key]; });
+                cmst[key] = us[key]; });
+            app.pdat.prst("top.commstate", "update");
             logCommState(msg); }
         function isUploadableSong (s) {
             const dbo = app.pdat.dbObj();
@@ -485,7 +483,8 @@ app.top = (function () {
                     const scheduled = mgrs.hcu.isHubCallQueued(
                         mgrs.srs.isHubSyncEndpoint);
                     if(scheduled) {
-                        value = scheduledValue(commstate().action, scheduled); }
+                        const cmst = app.pdat.prst("top.commstate");
+                        value = scheduledValue(cmst.action, scheduled); }
                     else {
                         value = "not scheduled"; } } }
             jt.out("hsistatspan", value);
@@ -504,7 +503,8 @@ app.top = (function () {
             if(!syt.errcode) {  //no retry until song update or app restart
                 syt.pending = 0;  //refreshed when looking for pending uploads
                 const resched = syt.pending || syt.resched;
-                if(resched || commstate().action === "pull") {
+                const cmst = app.pdat.prst("top.commstate");
+                if(resched || cmst.action === "pull") {
                     syt.resched = false;
                     mgrs.srs.syncToHub("resched"); } }
             updateHubSyncStatusDisplay("completed"); }
@@ -518,26 +518,28 @@ app.top = (function () {
             const logpre = "srs.processHubSyncResult ";
             updateCommState(JSON.parse(resarray[0]), logpre + "save hsct");
             clearStaleSyncTasksAndReschedule();
-            switch(commstate().action) {
+            const cmst = app.pdat.prst("top.commstate");
+            switch(cmst.action) {
             case "started":
-                commstate().action = "pull";
+                cmst.action = "pull";
                 logCommState(logpre + "case \"started\"");
                 break;
             case "merge":
-                if(commstate().provdat === "partial") {  //too much to sync
+                if(cmst.provdat === "partial") {  //too much to sync
                     jt.log(logpre + "partial merge signout");
                     return mgrs.asu.processSignOut(); }
-                commstate().action = "upload"; //merge complete, ready to upload
+                cmst.action = "upload"; //merge complete, ready to upload
                 logCommState(logpre + "case \"merge\"");
                 mergeCSVSongs("down", resarray.slice(1), "forceWriteDigdat");
                 break;
             case "received":
-                commstate().action = "upload"; //uploads from here on if hsct ok
+                cmst.action = "upload"; //uploads from here on if hsct ok
                 logCommState(logpre + "case \"received\"");
                 mergeCSVSongs("up", resarray.slice(1));
                 break;
             default: jt.log(logpre + "Unknown commstate.action: " +
-                            commstate().action); } }
+                            cmst.action); }
+            app.pdat.prst("top.commstate", "updated"); }
         function scheduleHubSyncCall (callobj, sched) {
             jt.log("scheduleHubSyncCall syncdata[0]: " +
                    jt.ellipsis(callobj.syncdata[0], 60));
@@ -573,7 +575,8 @@ app.top = (function () {
                 if(restored.getTime() + 30*60*1000 > Date.now()) {
                     //recently restored from backup, no rush
                     return {prio:"5min", override:"verify"}; } }
-            if(commstate().action === "upload" && syt.pcts) {
+            const cmst = app.pdat.prst("top.commstate");
+            if(cmst.action === "upload" && syt.pcts) {
                 const prevcall = jt.isoString2Time(syt.pcts);
                 if(prevcall.getTime() + 5*60*1000 > Date.now()) {
                     //even if there are lot of udpated songs waiting,
@@ -581,8 +584,8 @@ app.top = (function () {
                     return {prio:"5min", override:"verify"}; } }
             //if prev conditions not met, it would be good to quickly get
             //started with any downloads that need to happen
-            if((commstate().action === "start") ||
-               (commstate().action === "pull")) {
+            if((cmst.action === "start") ||
+               (cmst.action === "pull")) {
                 return {prio:"asap", override:"replace"}; }
             //otherwise continue work in a quick but server respectful way
             return {prio:"3sec", override:"replace"}; }
@@ -590,7 +593,8 @@ app.top = (function () {
             var acct; var ucs;  //case variables
             syt.tmo = null;  //we've been called now, clear for next status
             const logpre = "hubSyncStart ";
-            switch(commstate().action) {
+            const cmst = app.pdat.prst("top.commstate");
+            switch(cmst.action) {
             case "start":  //initial communications state
                 acct = mgrs.aaa.getAccount();
                 if(acct.dsId === "101") {
@@ -606,7 +610,7 @@ app.top = (function () {
                     {syncdata:[JSON.stringify({
                         action:"pull",
                         syncts:app.pdat.dbObj().lastSyncPlayback})],
-                     hsct:commstate().hsct},
+                     hsct:cmst.hsct},
                     getSyncTaskPriority());
             case "upload":
                 ucs = getPendingUploadSongsCSVArray();
@@ -617,10 +621,10 @@ app.top = (function () {
                 logHubSyncSongs("upload", ucs);
                 return scheduleHubSyncCall(
                     {syncdata:[JSON.stringify({action:"upload"}), ...ucs],
-                     hsct:commstate().hsct},
+                     hsct:cmst.hsct},
                     prio || getSyncTaskPriority());
             default: jt.log(logpre + "unrecognized commstate.action: " +
-                            commstate().action); } }
+                            cmst.action); } }
     return {
         noteDataRestorationNeeded: function () { syt.stat = "restoring"; },
         restoreFromBackup: function (srcstr) {
@@ -718,8 +722,10 @@ app.top = (function () {
                                  jt.isoString2Time(lastsync).getTime());
                 if(elapsed > 8 * 60 * 60 * 1000) {  //not active for a while
                     //immediately pull any plays from a different device first
-                    if(commstate().action === "upload") {
-                        commstate().action = "pull"; } } }
+                    const cmst = app.pdat.prst("top.commstate");
+                    if(cmst.action === "upload") {
+                        cmst.action = "pull";
+                        app.pdat.prst("top.commstate", "updated"); } } }
             mgrs.srs.syncToHub(); }
     };  //end mgrs.srs returned functions
     }());
@@ -2297,20 +2303,18 @@ app.top = (function () {
     //Local Carry Manager helps with local copy download/offload suggestions
     mgrs.lcm = (function () {
         const maxsugg = 5;  //max num offload or download listings to display
-        const initialCarryState = {
-            lastFetch:"1970-01-01T00:00:00Z",
-            fetchType:"unfiltered", //or "filtered"
-            saveType:"unfiltered", //or "filtered" or "both"
-            hubfilt:"",  //filtering params from hub latest call
-            hubsongs:[]};  //hub songs fetched and merged
         const wv = {  //working variables (not persistent)
             afqs:[{fq:"P", txt:"Playable"},  //"N,P,B,Z,O"
                   {fq:"R", txt:"Never Suggest"},
                   {fq:"M", txt:"Bad Metadata"}]};
-        function carrystate () {
-            const topset = app.pdat.uips("top");
-            topset.carrystate = topset.carrystate || initialCarryState;
-            return topset.carrystate; }
+        function initializeCarryState () {
+            const carst = app.pdat.prst("top.carrystate");
+            carst.lastFetch = "1970-01-01T00:00:00Z";
+            carst.fetchType = "unfiltered";  //or "filtered"
+            carst.saveType = "unfiltered";   //or "filtered" or "both"
+            carst.hubfilt = "";  //filtering params from hub latest call
+            carst.hubsongs = [];  //hub songs fetched and merged
+            app.pdat.prst("top.carrystate", "updated"); }
         ////offload support functions
         function rebuildCarryData () {
             wv.locc = {ars:{}, abs:{}, ttlsongs:0};
@@ -2387,8 +2391,9 @@ app.top = (function () {
         ////download support functions
         function filtMatchParamsObj () {
             var hubfilt = {};
+            const carst = app.pdat.prst("top.carrystate");
             if(app.deck.dispatch("gen", "getSongSeqMgrName") === "csa" &&
-               carrystate().fetchType === "filtered") {
+               carst.fetchType === "filtered") {
                 const filtsum = app.filter.summary();
                 hubfilt = {poskws:filtsum.poskws,
                            negkws:filtsum.negkws,
@@ -2406,7 +2411,7 @@ app.top = (function () {
                 s.kws && s.kws.indexOf(kw) >= 0)) { return false; }
             return true; }
         function mergeHubSongs (songs) {
-            const cs = carrystate();
+            const cs = app.pdat.prst("top.carrystate");
             cs.hubfilt = jt.objdata(filtMatchParamsObj());
             if(cs.saveType !== cs.fetchType && cs.saveType !== "both") {
                 cs.saveType = "both"; }
@@ -2418,13 +2423,15 @@ app.top = (function () {
                 tiarab[app.pdat.tiarabKey(s)] = s; });
             songs.forEach(function (s) {
                 tiarab[app.pdat.tiarabKey(s)] = s; });
-            cs.hubsongs = Object.values(tiarab); }
+            cs.hubsongs = Object.values(tiarab);
+            app.pdat.prst("top.carrystate", "updated"); }
         function haveRecentDownloads () {
-            const cs = carrystate();
+            const cs = app.pdat.prst("top.carrystate");
             const hrsSinceFetch = jt.elapsedSince(cs.lastFetch, "hours");
             if(hrsSinceFetch > 24) {
                 cs.saveType = cs.fetchType;  //reset
                 cs.hubsongs = [];
+                app.pdat.prst("top.carrystate", "updated");
                 return false; }  //over a day old is definitely stale
             if(cs.saveType !== "both" && cs.saveType !== cs.fetchType) {
                 return false; }  //need the other kind of songs
@@ -2447,9 +2454,10 @@ app.top = (function () {
                         ["div", {id:"sdldetdiv" + idx,
                                  style:"display:none;"}]]])]])); }
         function displayFilteredSongs () {
-            var lps = carrystate().hubsongs;  //last played songs
-            var ags = {};  //album grouped songs
-            if(carrystate().fetchType === "filtered") {
+            var lps; var ags = {};  //last played songs, album grouped songs
+            const carst = app.pdat.prst("top.carrystate");
+            lps = carst.hubsongs;
+            if(carst.fetchType === "filtered") {
                 const fmp = filtMatchParamsObj();
                 lps = lps.filter((s) => songMatchesFilterVals(s, fmp)); }
             lps.sort(function (a, b) {  //all hub songs have an lp value
@@ -2472,6 +2480,10 @@ app.top = (function () {
                          "Get recommendations"]]]]]));
                 return; }
             displayAlbumGroupedSongs(); }
+        function updateCarryStateLastFetch () {
+            const carst = app.pdat.prst("top.carrystate");
+            carst.lastFetch=new Date().toISOString();
+            app.pdat.prst("top.carrystate", "updated"); }
         function displaySuggestedDownloads () {
             const acct = mgrs.aaa.getAccount();
             if(!acct || acct.dsId === "101") {
@@ -2486,21 +2498,22 @@ app.top = (function () {
                     url:app.util.cb("suggdown",
                                     app.util.authdata(filtMatchParamsObj())),
                     contf:function (songs) {
-                        carrystate().lastFetch=new Date().toISOString();
+                        updateCarryStateLastFetch();
                         jt.out("crdsuggsdiv", String(songs.length) +
                                " songs found on DiggerHub.");
                         mergeHubSongs(songs);
                         displaySuggestedDownloads(); },
                     errf:function (code, errtxt) {
-                        carrystate().lastFetch=new Date().toISOString();
+                        updateCarryStateLastFetch();
                         jt.out("crdsuggsdiv", "Call failed " + code +
                                ": " + errtxt); }}, "asap", "replace");
                 return; }
             displayFilteredSongs(); }
         function useFilterSettingsHTML () {
-            const cs = carrystate();
+            const cs = app.pdat.prst("top.carrystate");
             if(app.deck.dispatch("gen", "getSongSeqMgrName") !== "csa") {
                 cs.fetchType = "unfiltered";
+                app.pdat.prst("top.carrystate", "updated");
                 return ""; }
             return jt.tac2html(
                 [["input", {type:"checkbox", id:"usefiltcb", value:"usefilt",
@@ -2513,15 +2526,15 @@ app.top = (function () {
                  ["div", {id:"crdusefiltdiv"}, useFilterSettingsHTML()],
                  ["div", {id:"crdsuggsdiv"}, "Checking DiggerHub"]]); }
         function removeHubSongsAndRedisplay (updsongs) {
-            const cs = carrystate();
+            const cs = app.pdat.prst("top.carrystate");
             cs.hubsongs = cs.hubsongs.filter((s) =>
                 !updsongs.find((us) => us.dsId === s.dsId));
+            app.pdat.prst("top.carrystate", "updated");
             const alreadyLow = wv.ags.length < maxsugg;
             displayFilteredSongs();  //rebuilds wv.ags
             if(wv.ags.length && wv.ags.length < maxsugg && !alreadyLow) {
                 //reset and rebuild everything from scratch
-                const topset = app.pdat.uips("top");
-                topset.carrystate = initialCarryState;
+                initializeCarryState();
                 mgrs.lcm.displayLocalCarryInfo(); } }
     return {
         sdldetClick: function (idx) {
@@ -2571,11 +2584,12 @@ app.top = (function () {
                     span.innerHTML = "Update failed " + code + ": " +
                         errtxt; }}, "asap", "replace"); },
         toggleUseFiltSetting: function (/*event*/) {
-            const cs = carrystate();
+            const cs = app.pdat.prst("top.carrystate");
             if(cs.fetchType === "unfiltered") {
                 cs.fetchType = "filtered"; }
             else {
                 cs.fetchType = "unfiltered"; }
+            app.pdat.prst("top.carrystate", "updated");
             displaySuggestedDownloads(); },
         showAlbum: function (encpath) {
             const path = jt.dec(encpath);
@@ -2584,6 +2598,9 @@ app.top = (function () {
             app.deck.dispatch("alb", "setSongToStartWith", song);
             app.deck.dispatch("gen", "dispMode", "alb"); },
         displayLocalCarryInfo: function () {
+            const cs = app.pdat.prst("top.carrystate");
+            if(!cs.lastFetch) {
+                initializeCarryState(); }
             rebuildCarryData();
             jt.out(tddi, jt.tac2html(
                 ["div", {id:"carryrptdiv"},

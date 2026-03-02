@@ -279,7 +279,7 @@ var app = (function () {
             const loadfs = diggerapp.modules.map((p) => "js/amd/" + p.name);
             amdtimer.load.start = new Date();
             jt.loadAppModules(app, loadfs, app.docroot, 
-                              mgrs.boot.initAppModules, "?v=260221"); }
+                              mgrs.boot.initAppModules, "?v=260224"); }
     }; //end mgrs.boot returned access interface
     }());
 
@@ -856,6 +856,17 @@ var app = (function () {
             config = verifyBaseObject(config);
             rtdat.config.datobj = config;
             notifyUpdateListeners(pwsid, "config"); }
+        function mergeRuntimePerstState (opo, npo, fld) {  //old, new..
+            if(!opo) { return; }  //nothing to merge
+            if(!opo[fld]) { return; }  //nothing to merge
+            if(!npo[fld]) { npo[fld] = {}; }  //initialize needed state holder
+            if(opo[fld].rpsts || npo[fld].rpsts) {  //mergeable state object
+                if(opo[fld].rpsts && (!npo[fld].rpsts ||
+                                      opo[fld].rpsts > npo[fld].rpsts)) {
+                    npo[fld] = opo[fld]; } }  //keep more recent runtime values
+            else { //interim organizational object, check children
+                Object.keys(opo[fld]).forEach(function (cf) {
+                    mergeRuntimePerstState(opo[fld], npo[fld], cf); }); } }
         function setDigDatAndNotify (pwsid, digdat) {
             try {
                 digdat = verifyBaseObject(digdat);
@@ -863,6 +874,7 @@ var app = (function () {
                 if(!stat.verified) {  //note issue(s) and try continue
                     jt.log("setDigDatAndNotify verifyDatabase errors: " +
                            JSON.stringify(stat)); }
+                mergeRuntimePerstState(rtdat.digdat.datobj, digdat, "prst");
                 rtdat.digdat.datobj = digdat;
                 rtdat.digdat.datobj.arts = new Date().toISOString();  //app read
                 notifyUpdateListeners(pwsid, "digdat");
@@ -1063,16 +1075,18 @@ var app = (function () {
             if(found) {
                 result = found; }
             return result; },
-        uips: function (subcat) {  //ui persistent state
-            var datobj = rtdat.digdat.datobj;
-            if(!datobj) {  //digdat not read yet
-                jt.log("pdat.uips pre-data call returning temp placeholder");
-                datobj = {}; }
-            datobj.uips = datobj.uips || {};
-            if(subcat) {
-                datobj.uips[subcat] = datobj.uips[subcat] || {};
-                return datobj.uips[subcat]; }
-            return datobj.uips; }
+        prst: function (path, updated) {
+            var po = rtdat.digdat.datobj;
+            if(!po) {
+                jt.log("pdat.prst pre-data call returning placeholder {}");
+                return {}; }
+            path = "prst." + path;
+            path.split(".").forEach(function (ref) {
+                po[ref] = po[ref] || {};
+                po = po[ref]; });
+            if(updated || !po.rpsts) {  //rpsts field identifies mergeable state
+                po.rpsts = new Date().toISOString(); }
+            return po; }
     };  //end mgrs.pdat returned access interface
     }());
 
@@ -1091,7 +1105,7 @@ return {
         if(mgrs.pdat.dbObj()) { return mgrs.pdat.songDataVersion(); }
         return app.fileVersion(); },
     fileVersion: function () {
-        return "v=260221";  //updated as part of release process
+        return "v=260224";  //updated as part of release process
     }
 };  //end returned functions
 }());

@@ -397,16 +397,13 @@ app.deck = (function () {
     //info and access to history.
     mgrs.csa = (function () {
         const toggleButtons = {};
-        function dasq () {  //deck autoplay song queue
-            const deckset = app.pdat.uips("deck");
-            deckset.asq = deckset.asq || {};
-            return deckset.asq; }
-        function asqTitles (idx, len) {
+        function csqTitles (idx, len) {
             idx = idx || 0;
             len = len || 5;
             const end = idx + len;
+            const csq = app.pdat.prst("deck.csq");
             const sd = app.pdat.songsDict();
-            const songs = dasq().paths.slice(idx, end).map((p) => sd[p]);
+            const songs = csq.paths.slice(idx, end).map((p) => sd[p]);
             return songs.map((s, i) => (idx + i) + ":" + 
                              jt.ellipsis(s.ti, 30)); }
         function indicateDeckRebuildProcessing () {
@@ -414,22 +411,22 @@ app.deck = (function () {
             setTimeout(function () {
                 app.util.activeBg("csaqueuediv", false); }, 2700); }
         function redrawPlaylistDisplay () {
-            const asq = dasq();
+            const csq = app.pdat.prst("deck.csq");
             const sd = app.pdat.songsDict();
-            //asq.idx is currently playing song, display rest
-            const songs = asq.paths.slice(asq.idx + 1).map((p) => sd[p]);
+            //csq.idx is currently playing song, display rest
+            const songs = csq.paths.slice(csq.idx + 1).map((p) => sd[p]);
             mgrs.util.displayQueuedSongs("csa", "csaqueuediv", songs); }
         function playQueueFromIndex () {
-            const asq = dasq();
+            const csq = app.pdat.prst("deck.csq");
             const sd = app.pdat.songsDict();
-            const songs = asq.paths.slice(asq.idx).map((p) => sd[p]);
+            const songs = csq.paths.slice(csq.idx).map((p) => sd[p]);
             redrawPlaylistDisplay();
             app.player.playSongQueue("deck.csa", songs); }
         function setAndPlayQueue (songs) {
-            const asq = dasq();
-            asq.paths = songs.map((s) => s.path);
-            asq.ts = new Date().toISOString();
-            asq.idx = 0;
+            const csq = app.pdat.prst("deck.csq");
+            csq.paths = songs.map((s) => s.path);
+            csq.idx = 0;
+            app.pdat.prst("deck.csq", "updated");
             redrawPlaylistDisplay();
             if(songs.length) {
                 app.player.playSongQueue("deck.csa", songs); } }
@@ -451,17 +448,17 @@ app.deck = (function () {
             setTimeout(function () {
                 setAndPlayQueue(mgrs.sqb.makeSelectionQueue(pfsg)); }, 50); }
         function restoreAutoplaySelectionQueueSettings () {
-            const asq = dasq();
-            asq.paths = asq.paths || [];
-            asq.ts = asq.ts || new Date().toISOString();
-            if(!(asq.idx >= 0)) {  //undefined or non-numeric value
-                asq.idx = -1; } }
+            const csq = app.pdat.prst("deck.csq");
+            if(!csq.paths) {
+                csq.paths = [];
+                csq.idx = -1;
+                app.pdat.prst("deck.csq", "updated"); } }
         function updateSelectionFilteringInfoDisplay () {
             var dfcs = JSON.parse(JSON.stringify(mgrs.sqb.getFilterCounts()));
             if(!dfcs.length) {
                 return jt.out("deckfresdiv", jt.tac2html("Info unavailable")); }
-            const asq = dasq();
-            const offset = ((asq.idx >= 0)? asq.idx : 0);
+            const csq = app.pdat.prst("deck.csq");
+            const offset = ((csq.idx >= 0)? csq.idx : 0);
             const lastfc = dfcs[dfcs.length - 1];
             lastfc.sc -= offset;  //decrement frequency eligible count by offset
             jt.out("deckfresdiv", jt.tac2html(
@@ -503,10 +500,10 @@ app.deck = (function () {
         function verifyPlaybackQueue (np) {
             const logpre = "verifyPlaybackQueue ";
             const vpq = {mrpi:-1, npi:-1, oop:[], err:"no playback queue"};
-            const asq = dasq();
-            if(!asq.paths.length) { return vpq; }
+            const csq = app.pdat.prst("deck.csq");
+            if(!csq.paths.length) { return vpq; }
             const sd = app.pdat.songsDict();
-            const songs = asq.paths.map((p) => sd[p]);
+            const songs = csq.paths.map((p) => sd[p]);
             songs.forEach(function (song, qidx) {
                 if(song.path === np.path) {
                     verifyNowPlayingLastPlayed(song);
@@ -537,9 +534,9 @@ app.deck = (function () {
             const dbo = app.pdat.dbObj();
             if(!dbo) {
                 return jt.log(logpre + "quit, no dbo yet"); }
-            const asq = dasq();
-            if(!asq.paths.length) {
-                return rebuildPlaybackQueue(null, "no songs in asq.paths"); }
+            const csq = app.pdat.prst("deck.csq");
+            if(!csq.paths.length) {
+                return rebuildPlaybackQueue(null, "no songs in csq.paths"); }
             const np = app.player.nowPlayingSong();
             if(!np) {
                 if(npStatusVerified) {
@@ -547,7 +544,7 @@ app.deck = (function () {
                 jt.log(logpre + "verifying now playing song");
                 return app.player.reqUpdatedPlaybackStat(function (/*stat*/) {
                     verifyQueuedPlayback(true); }); }
-            //have dbo, asq.paths, np
+            //have dbo, csq.paths, np
             const staleDataError = checkDataStaleError(dbo, np);
             if(staleDataError) {
                 return app.pdat.reloadDigDat(logpre + staleDataError, true); }
@@ -556,9 +553,10 @@ app.deck = (function () {
                 const keepsg = ((vpq.mrpi > vpq.npi)? null : np);
                 return rebuildPlaybackQueue(keepsg, "vpq " + vpq.err); }
             jt.log(logpre + "npi:" + vpq.npi + ", mrpi:" + vpq.mrpi +
-                   ", " + (asq.paths.length - (vpq.mrpi + 1)) +
+                   ", " + (csq.paths.length - (vpq.mrpi + 1)) +
                    " songs remaining in queue");
-            asq.idx = vpq.mrpi;  //update queue index to match most recent play
+            csq.idx = vpq.mrpi;  //update queue index to match most recent play
+            app.pdat.prst("deck.csq", "updated");
             redrawPlaylistDisplay(); }
         function digDatUpdated (/*digdat*/) {
             restoreAutoplaySelectionQueueSettings();
@@ -591,10 +589,11 @@ app.deck = (function () {
                     jt.byId("deckfresdiv").style.display = disp; }});
             toggleButtons.toginfob(false); },
         playNextSong: function () {
-            const asq = dasq();
-            if(asq.idx >= 0 && asq.idx < asq.paths.length - 1) {
-                jt.log("csa.playNextSong: " + asqTitles(asq.idx, 3));
-                asq.idx += 1;
+            const csq = app.pdat.prst("deck.csq");
+            if(csq.idx >= 0 && csq.idx < csq.paths.length - 1) {
+                jt.log("csa.playNextSong: " + csqTitles(csq.idx, 3));
+                csq.idx += 1;
+                app.pdat.prst("deck.csq", "updated");
                 playQueueFromIndex(); }
             else {
                 jt.log("deck.csa.playNextSong: no songs left to play"); } },
@@ -605,12 +604,12 @@ app.deck = (function () {
         filtersChanged: function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
                 const logpre = "filtersChanged ";
-                const asq = dasq();
-                if(asq.paths.length < 7) {  //worth a rebuild to try find more
+                const csq = app.pdat.prst("deck.csq");
+                if(csq.paths.length < 7) {  //worth a rebuild to try find more
                     rebuildPlaybackQueue(app.player.nowPlayingSong(),
                                          logpre + "with < 7 left"); }
                 else {  //rebuild if any songs should no longer be queued
-                    const rems = remainingQueuedSongs(asq);
+                    const rems = remainingQueuedSongs(csq);
                     const fbf = mgrs.util.filterByFilters(rems);
                     if(fbf.failed.length > 0) {
                         rebuildPlaybackQueue(app.player.nowPlayingSong(),
@@ -620,22 +619,23 @@ app.deck = (function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
                 rebuildPlaybackQueue(null, "forceRebuild"); } },
         isCurrentOrNextSong: function (song) {
-            const asq = dasq();
+            const csq = app.pdat.prst("deck.csq");
             function test (i) {
-                return (i >= 0 && i < asq.paths.length && song &&
-                        song.path === asq.paths[i]); }
-            return (test(asq.idx) || test(asq.idx + 1)); },
+                return (i >= 0 && i < csq.paths.length && song &&
+                        song.path === csq.paths[i]); }
+            return (test(csq.idx) || test(csq.idx + 1)); },
         songByIndex: function (idx) {  //index of song in visible queue
             //asq[idx] references now playing song. +1 is first song in queue
-            const asq = dasq();
-            const pathidx = asq.idx + 1 + idx;
-            return app.pdat.songsDict()[asq.paths[pathidx]]; },
+            const csq = app.pdat.prst("deck.csq");
+            const pathidx = csq.idx + 1 + idx;
+            return app.pdat.songsDict()[csq.paths[pathidx]]; },
         exciseSongByIndex: function (idx) {
-            const asq = dasq();
-            idx += asq.idx + 1;  //adjust for queue pos and now playing song
-            if(!asq.paths || asq.paths.length < idx) {
+            const csq = app.pdat.prst("deck.csq");
+            idx += csq.idx + 1;  //adjust for queue pos and now playing song
+            if(!csq.paths || csq.paths.length < idx) {
                 return jt.log("exciseSongByIndex invalid idx: " + idx); }
-            asq.paths.splice(idx, 1);   //remove from queue.
+            csq.paths.splice(idx, 1);   //remove from queue.
+            app.pdat.prst("deck.csq", "updated");
             playQueueFromIndex(); },    //update the player and persist queue
         emptyQueueDisplay: function () {
             var msgs = ["No matching songs found"];
@@ -766,7 +766,6 @@ app.deck = (function () {
 
     //Album manager handles album display and playback.
     mgrs.alb = (function () {
-        var apq = null;  //reference to deckset.apq
         function makeAlbumSongDiv (song, idx, npi) {
             if(idx === npi) {  //index is the now playing song index
                 return [["img", {src:"img/arrow12right.png",
@@ -778,6 +777,7 @@ app.deck = (function () {
                           onclick:mdfs("alb.playAlbumTrack", idx)},
                     song.ti]; }
         function redrawAlbumDisplay () {
+            const apq = app.pdat.prst("deck.apq");
             if(!apq.paths || !apq.paths.length) {
                 return jt.out("albplaydiv", "No Album Selected"); }
             const sd = app.pdat.songsDict();
@@ -790,26 +790,29 @@ app.deck = (function () {
                  songs.map((song, idx) =>
                      makeAlbumSongDiv(song, idx, apq.idx))])); }
         function setPathsAndIndexFromSong (song) {
+            const apq = app.pdat.prst("deck.apq");
             apq.paths = Object.values(app.pdat.songsDict())
                 .filter((s) => s.ar === song.ar && s.ab === song.ab)
                 .sort(mgrs.alb.trackOrderComparator)  //sort, then dedupe
                 .filter((s, idx, arr) => !idx || s.ti !== arr[idx - 1].ti)
                 .map((s) => s.path);
-            apq.idx = apq.paths.findIndex((p) => p === song.path); }
+            apq.idx = apq.paths.findIndex((p) => p === song.path);
+            app.pdat.prst("deck.apq", "updated"); }
         function playAlbumFromIndex () {
+            const apq = app.pdat.prst("deck.apq");
             const sd = app.pdat.songsDict();
             const songs = apq.paths.map((p) => sd[p]);
             const remaining = songs.slice(apq.idx);
-            apq.ts = new Date().toISOString();
             app.player.playSongQueue("deck.alb", remaining); }
         function verifyAlbumQueuedPlayback () {
             const logpre = "alb.verifyAlbumQueuedPlayback ";
+            const apq = app.pdat.prst("deck.apq");
             const np = app.player.nowPlayingSong();
             if(np) {
                 jt.log(logpre + "np.ti " + np.ti);
                 const pst = {idx:apq.idx, abchg:false};
-                apq.idx = apq.paths.findIndex((p) => p === np.path);
-                if(apq.idx < 0) {  //playing a different album now
+                pst.idx = apq.paths.findIndex((p) => p === np.path);
+                if(pst.idx < 0) {  //playing a different album now
                     jt.log(logpre + "playing a different album");
                     pst.abchg = true;
                     //alb suggs may be up from initial app install state.
@@ -831,16 +834,14 @@ app.deck = (function () {
                     mgrs.sas.togSuggestAlbums(false);
                     redrawAlbumDisplay();
                     playAlbumFromIndex(); } } }
-        function restoreAlbumPlaybackSettings () {
-            const deckset = app.pdat.uips("deck");
-            deckset.apq = deckset.apq || {};
-            apq = deckset.apq;
-            apq.paths = apq.paths || [];
-            apq.ts = apq.ts || new Date().toISOString();
-            if(!(apq.idx >= 0)) {  //undefined or non-numeric value
-                apq.idx = -1; } }
+        function verifyRuntimeStateInitialized () {
+            const apq = app.pdat.prst("deck.apq");
+            if(!apq.paths) {  //need to initialize runtime state
+                apq.paths = [];
+                apq.idx = -1;
+                app.pdat.prst("deck.apq", "updated"); } }
         function digDatUpdated (/*digdat*/) {
-            restoreAlbumPlaybackSettings();
+            verifyRuntimeStateInitialized();
             if(mgrs.gen.getSongSeqMgrName() === "alb") {
                 //avoid potential recursive writeDigDat while handling notice
                 setTimeout(verifyAlbumQueuedPlayback, 50); } }
@@ -868,18 +869,22 @@ app.deck = (function () {
                 return mgrs.sas.togSuggestAlbums(true); }
             setPathsAndIndexFromSong(song);
             if(fromBeginning) {
-                apq.idx = 0; }
+                const apq = app.pdat.prst("deck.apq");
+                apq.idx = 0;
+                app.pdat.prst("deck.apq", "updated"); }
             mgrs.sas.togSuggestAlbums(false);
             redrawAlbumDisplay();
             playAlbumFromIndex(); },
         playAlbumTrack: function (idx) {  //queue index, not track number
-            //Calling playAlbum is long way around, but easy to follow
+            const apq = app.pdat.prst("deck.apq");
             const song = app.pdat.songsDict()[apq.paths[idx]];
             mgrs.alb.playAlbum(song); },
         playNextSong: function () {
+            const apq = app.pdat.prst("deck.apq");
             if(apq.idx >= apq.paths.length - 1) {
                 return jt.log("alb.playNextSong ignored, on last song"); }
             apq.idx += 1;
+            app.pdat.prst("deck.apq", "updated");
             redrawAlbumDisplay();
             playAlbumFromIndex(); },
         replayQueue: function () {
@@ -1214,22 +1219,22 @@ app.deck = (function () {
             {mgr:"alb", name:"Album", img:"album.png"},
             {mgr:"srch", name:"Search", img:"search.png"}];
         const dfltSeqMgrName = "alb";
-        var runset = {};  //runtime data has precedence, uips is for restore
         function validSeqMgrName (name) {
             return (name === "csa" || name === "alb"); }
         function ssmn () {
-            if(runset.seqmgr) { return runset.seqmgr; }
-            if(app.pdat.dbObj()) {  //app data loaded
-                const deckset = app.pdat.uips("deck");
-                return deckset.seqmgr || dfltSeqMgrName; }
-            return dfltSeqMgrName; }
+            if(!app.pdat.dbObj()) { return dfltSeqMgrName; }
+            const dg = app.pdat.prst("deck.gen");
+            if(!dg.seqmgr) {
+                dg.seqmgr = dfltSeqMgrName;
+                app.pdat.prst("deck.gen", "updated"); }
+            return dg.seqmgr; }
     return {
         getSongSeqMgrName: ssmn,
         setSongSeqMgrName: function (mgr, srcstr) {
             jt.log("deck.gen.setSongSeqMgrName " + mgr + " " + srcstr);
-            runset.seqmgr = mgr;
-            const deckset = app.pdat.uips("deck");
-            deckset.seqmgr = mgr; },  //caller write persists seqmgr setting
+            const dg = app.pdat.prst("deck.gen");
+            dg.seqmgr = mgr;
+            app.pdat.prst("deck.gen", "updated"); },
         dispMode: function (mgrname, activation) {
             mdms.forEach(function (dm) {
                 jt.byId(dm.mgr + "mdmbdiv").className = "mdmbdiv";
@@ -1269,12 +1274,12 @@ app.deck = (function () {
             app.pdat.addApresDataNotificationTask("deckDataInit", function () {
                 const songcount = Object.values(app.pdat.songsDict()).length;
                 app.top.dispCount(songcount, "avail");
-                const deckset = app.pdat.uips("deck");
-                if(!deckset.seqmgr || !validSeqMgrName(deckset.seqmgr)) {
-                    jt.log("deckDataInit setting default deckset.seqmgr");
+                const dg = app.pdat.prst("deck.gen");
+                if(!dg.seqmgr || !validSeqMgrName(dg.seqmgr)) {
+                    jt.log("deckDataInit setting default deck.seqmgr");
                     mgrs.gen.setSongSeqMgrName(dfltSeqMgrName,
                                                "genApresCheck"); }
-                mgrs.gen.dispMode(deckset.seqmgr, "init"); }); }
+                mgrs.gen.dispMode(dg.seqmgr, "init"); }); }
     };  //end mgrs.gen returned functions
     }());
 

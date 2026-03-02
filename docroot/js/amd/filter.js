@@ -560,7 +560,8 @@ app.filter = (function () {
             return rc; }
         function persistFilterSettings () {
             mgrs.stg.settings().ctrls = mgrs.stg.arrayOfAllFilters()
-                .map((filt) => filt.settings()); }
+                .map((filt) => filt.settings());
+            app.pdat.prst("filter", "updated"); }
         function updateSettings () {
             rts.lastSettingsUpdate = new Date().toISOString();
             persistFilterSettings(); }
@@ -603,7 +604,7 @@ app.filter = (function () {
             if(!rts.settingsAvailable) {
                 rts.ctrlsBeforeState = true;
                 return null; }
-            return app.pdat.uips("filter"); },
+            return app.pdat.prst("filter"); },
         filterValueChanged: function (source) {
             const logpre = "stg.filterValueChanged ";
             if(!ctrls.filtersReady) { //ignore spurious startup events
