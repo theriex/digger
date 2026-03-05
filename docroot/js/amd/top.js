@@ -326,8 +326,7 @@ app.top = (function () {
                 verstat.loc = curracct.diggerVersion;
                 if(!verstat.notice && verstat.hub > verstat.loc) {
                     verstat.notice = true;
-                    const indvplats = ["IOS", "Android"];
-                    if(!indvplats.contains(app.svc.plat("audsrc"))) {
+                    if(app.svc.plat("audsrc") === "Browser") {
                         mgrs.gen.togtopdlg("la"); } }
                 else {
                     verstat.notice = false; } } },
