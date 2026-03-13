@@ -932,6 +932,10 @@ app.deck = (function () {
             //This total may differ from the countspan total in the upper
             //right of the app if there are ignore folders.  That's ok.
             counts.sc += 1; }
+        function songMatch (song, field, srx) {
+            return (song[field] && (song[field].match(srx) ||
+                                    (field === "genrejson" && song.kws &&
+                                     song.kws.match(srx)))); }
         function searchSongs () {
             if(!songs) {
                 songs = Object.values(app.pdat.songsDict())
@@ -943,7 +947,7 @@ app.deck = (function () {
             rslt = {};  //reset search results
             counts = {abs:{}, sc:0};
             songs.forEach(function (s, idx) {
-                const mf = sfs.find((fd) => s[fd.f] && s[fd.f].match(srx));
+                const mf = sfs.find((fd) => songMatch(s, fd.f, srx));
                 if(mf) {  //one of the fields matched, verify rslt entry
                     rslt[s.ar] = rslt[s.ar] ||
                         {matched:(mf.f === "ar"),
