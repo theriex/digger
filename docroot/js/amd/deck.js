@@ -811,18 +811,18 @@ app.deck = (function () {
             if(np) {
                 jt.log(logpre + "np.ti " + np.ti);
                 const pst = {idx:apq.idx, abchg:false};
-                pst.idx = apq.paths.findIndex((p) => p === np.path);
-                if(pst.idx < 0) {  //playing a different album now
+                apq.idx = apq.paths.findIndex((p) => p === np.path);
+                if(apq.idx < 0) {  //playing a different album now
                     jt.log(logpre + "playing a different album");
                     pst.abchg = true;
                     //alb suggs may be up from initial app install state.
                     mgrs.sas.togSuggestAlbums(false);  //Outdated in any case.
                     setPathsAndIndexFromSong(np); }
-                redrawAlbumDisplay();
+                redrawAlbumDisplay();  //with updated apq.idx
                 if(pst.abchg) {  //no prev queue or iOS gone off somewhere
                     jt.log(logpre + "taking over queued playback");
                     playAlbumFromIndex(); }
-                else if(pst.idx !== apq.idx) {
+                else if(pst.idx !== apq.idx) {  //now playing song idx updated
                     jt.log(logpre + "saving updated album state");
                     app.pdat.writeDigDat("deck.alb"); } }
             else {  //nothing currrently playing
