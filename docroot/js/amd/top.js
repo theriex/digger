@@ -358,11 +358,11 @@ app.top = (function () {
             app.pdat.prst("top.commstate", "update");
             logCommState(msg); }
         function isUploadableSong (s) {
+            //unrated songs are uploaded to retrieve cross device ratings
             const dbo = app.pdat.dbObj();
             return (s.lp && s.lp > dbo.lastSyncPlayback &&
                     (!s.fq || !(s.fq.startsWith("D") ||
-                                s.fq.startsWith("U"))) &&
-                    !app.deck.isUnrated(s)); }
+                                s.fq.startsWith("U")))); }
         function uploadableSongs () {
             const uploadsongs = Object.values(app.pdat.songsDict())
                   .filter((s) => isUploadableSong(s))
