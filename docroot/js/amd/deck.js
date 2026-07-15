@@ -783,19 +783,26 @@ app.deck = (function () {
             const sd = app.pdat.songsDict();
             const songs = apq.paths.map((p) => sd[p]);
             jt.out("albplaydiv", jt.tac2html(
-                [["div", {cla:"albumtitlediv"},
-                  [["span", {cla:"dsabspan"}, songs[0].ab],
-                   " - ",
-                   ["span", {cla:"dsarspan"}, songs[0].ar]]],
+                [["div", {id:"albumtitlediv"},
+                  [["div", {id:"abardispdiv"}, songs[apq.idx].ar],
+                   ["div", {id:"abtidispdiv"}, songs[apq.idx].ab]]],
                  songs.map((song, idx) =>
                      makeAlbumSongDiv(song, idx, apq.idx))])); }
+        function ambiguousAlbumArtist (apq) {
+            return (apq.paths && apq.paths.length > 1 &&
+                    apq.paths.find((s) => s.mdtn > 0) &&  //have track numbers
+                    apq.paths[0].mdtn === apq.paths[1].mdtn &&  //both track#1
+                    apq.paths[0].ar !== apq.paths[1].ar); }     //diff artists
         function setPathsAndIndexFromSong (song) {
             const apq = app.pdat.prst("deck.apq");
-            apq.paths = Object.values(app.pdat.songsDict())
-                .filter((s) => s.ar === song.ar && s.ab === song.ab)
-                .sort(mgrs.alb.trackOrderComparator)  //sort, then dedupe
-                .filter((s, idx, arr) => !idx || s.ti !== arr[idx - 1].ti)
-                .map((s) => s.path);
+            apq.paths = Object.values(app.pdat.songsDict());
+            apq.paths = apq.paths.filter((s) => s.ab === song.ab);
+            apq.paths = apq.paths.sort(mgrs.alb.trackOrderComparator);
+            if(ambiguousAlbumArtist(apq)) {  //limit to song artist
+                apq.paths = apq.paths.filter((s) => s.ar === song.ar); }
+            apq.paths = apq.paths.filter((s, idx, arr) =>  //same song from
+                !idx || s.ti !== arr[idx - 1].ti);         //different locations
+            apq.paths = apq.paths.map((s) => s.path);  //songs->paths
             apq.idx = apq.paths.findIndex((p) => p === song.path);
             app.pdat.prst("deck.apq", "updated"); }
         function playAlbumFromIndex () {

@@ -816,10 +816,12 @@ app.player = (function () {
                         [["div", {id:"prevplaydupesdiv"},
                           prevPlayAndDupesHTML()],
                          ["div", {id:"playcountdiv"},
-                          "Digger plays: " + pmso.song.pc],
+                          ["Digger plays: ",
+                           ["span", pmso.song.pc]]],
                          ["div", {id:"genresdiv"}, genreDispHTML()],
                          ["div", {id:"songurldiv"},
-                          "Source: " + pmso.song.path],
+                          ["Source: ",
+                           ["span", pmso.song.path]]],
                          ["div", {id:"albtireddiv"}]]]]]]);
                 setTimeout(showTiredAlbumButton, 500);
                 return html; }); },

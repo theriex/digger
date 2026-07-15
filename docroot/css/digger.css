@@ -185,6 +185,8 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .tunactimg { max-height:22px; }
 #tunedetdiv { margin-top:8px; position:relative; }
 #prevplaydiv, #songurldiv, #playcountdiv, #genresdiv { font-size:x-small; }
+#playcountdiv span { font-weight:bold; }
+#songurldiv span { font-size:small; }
 #dupesdispdiv { padding-left:32px; }
 #albtireddiv { position:absolute; top:-70px; left:0px; text-align:center;
   width:300px; }
@@ -404,6 +406,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   border-radius:5px; }
 #albsuggstitlediv { font-size:small; text-align:center; margin-bottom:2px; }
 #albplaydiv { overflow:scroll; }
+#albumtitlediv { text-align:center; background: rgba(200, 200, 200, 0.6);
+  display:table; margin:0px auto; padding:5px 10px; border-radius: 12px; }
+#abardispdiv { font-style:normal; }
+#abtidispdiv { font-style:italic; padding:4px 0px 0px 0px; }
 .sgalbdiv { padding:8px 5px; }
 .sgalbarspan { font-style:italic; }
 .albumsonglink { display:block; font-size:smaller; padding:0px 0px 2px 15px; }
