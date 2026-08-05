@@ -34,20 +34,24 @@ app.player = (function () {
             //app write timestamp >= most recent song change notice timestamp
             if(!pmso.expecting && pmso.song && digdat.awts >= pmso.mrscnts) {
                 const ddsong = digdat.songs[pmso.song.path];
-                //If UI displayed song is more recently modified, don't revert
-                if(pmso.song.lp <= ddsong.lp) {
-                    pmso.song = ddsong;
-                    mgrs.uiu.updateSongDisplay("digDatUpdated"); }
+                const nssgr = pmso.song;  //now stale pmso.song ref
+                pmso.song = ddsong;
+                mgrs.uiu.updateSongDisplay("digDatUpdated");
                 //note write completed
                 setTimeout(function () {  //let listener callbacks finish
                     if(source === savesrcidstr) {
-                        clearICVSTimeout("CompletedWrite"); }
+                        clearICVSTimeout("CompletedWrite", nssgr); }
                     else {  //write was from some other operation
-                        clearICVSTimeout("OtherSave"); } }, 100); } }
-        function clearICVSTimeout (reason) {
+                        clearICVSTimeout("OtherSave", nssgr); } }, 100); } }
+        function clearICVSTimeout (reason, nssgr) {
             const logpre = "clearICVSTimeout " + reason + " ";
             jt.out("modindspan", "");
-            if(!pmso.icvs || !pmso.icvs.tmo) { return; }
+            if(!pmso.icvs || !pmso.icvs.tmo) {
+                if(nssgr && nssgr.lp > pmso.song.lp) {
+                    jt.log(logpre + "local data newer " + pmso.icvs.cid);
+                    app.util.copyUpdatedSongData(pmso.song, pmso.icvs.svcpy);
+                    saveSongRatingChange("locnewer"); }
+                return; }
             if(pmso.icvs.tmo) {
                 clearTimeout(pmso.icvs.tmo);
                 pmso.icvs.tmo = null; }
