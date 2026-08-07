@@ -600,6 +600,7 @@ app.deck = (function () {
         replayQueue: function () {
             playQueueFromIndex(); },
         playGivenSong: function (song) {
+            toggleButtons.toghistb(false);  //close history display if open
             rebuildPlaybackQueue(song, "playGivenSong"); },
         filtersChanged: function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
@@ -800,8 +801,8 @@ app.deck = (function () {
             apq.paths = apq.paths.sort(mgrs.alb.trackOrderComparator);
             if(ambiguousAlbumArtist(apq)) {  //limit to song artist
                 apq.paths = apq.paths.filter((s) => s.ar === song.ar); }
-            apq.paths = apq.paths.filter((s, idx, arr) =>  //same song from
-                !idx || s.ti !== arr[idx - 1].ti);         //different locations
+            apq.paths = apq.paths.filter((s, idx, arr) =>  //skip diff loc dupe
+                s.path === song.path || !idx || s.ti !== arr[idx - 1].ti);
             apq.paths = apq.paths.map((s) => s.path);  //songs->paths
             apq.idx = apq.paths.findIndex((p) => p === song.path);
             app.pdat.prst("deck.apq", "updated"); }
@@ -1265,6 +1266,8 @@ app.deck = (function () {
             mgrs[ssmn()].playNextSong(); },
         replayQueue: function () {
             mgrs[ssmn()].replayQueue(); },
+        songStatusUpdated: function () {
+            mgrs[ssmn()].activateDisplay(); },
         initDisplay: function () {
             jt.out("pandeckdiv", jt.tac2html(
                 [["div", {id:"deckheaderdiv"},
@@ -1306,6 +1309,7 @@ return {
     currentlyPlayingSongChanged: mgrs.gen.currentlyPlayingSongChanged,
     playNextSong: mgrs.gen.playNextSong,  //player skip
     replayQueue: mgrs.gen.replayQueue,    //player sleep activation
+    songStatusUpdated: mgrs.gen.songStatusUpdated,
     isUnrated: function (s) {  //matches appdat.py is_unrated_song
         return (!s.kws && s.el === 49 && s.al === 49); },
     isSearchable: function (s) {  //not Deleted or Ignore folder.

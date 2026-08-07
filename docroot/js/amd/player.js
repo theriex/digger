@@ -1382,6 +1382,7 @@ app.player = (function () {
             pmso.state = pbsh.state;
             updateSongTitleDisplay();
             mgrs.plui.updateTransportControls(pbsh);
+            app.deck.songStatusUpdated();
             mgrs.slp.notePlayerStateChange(); }
         function clearPBHandlerStateDat (drsm, pbsh) {
             logPBHandlerState("uiu.clearPBHandlerStateDat", drsm, pbsh);
