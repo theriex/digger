@@ -210,7 +210,6 @@ app.deck = (function () {
             if(a.lp && !b.lp) { return -1; }
             if(!a.lp && b.lp) { return 1; } },
         findIndexByLastPlayedTimestamp: function (paths) {
-            var idx;
             if(!paths || !paths.length) {
                 jt.log("deck.util.fIBLPT no paths given to check against");
                 return -1; }
@@ -225,10 +224,9 @@ app.deck = (function () {
             // for(idx = 0; idx < played.length && idx < 6; idx += 1) {
             //     jt.log("  " + idx + " p:" + paths[idx].slice(-20) + ", m:" +
             //            played[idx].path.slice(-20)); }
-            for(idx = 0; idx < played.length; idx += 1) {
-                if(played[idx].path !== paths[idx]) {
-                    jt.log("deck.util.fIBLPT playback order differs");
-                    return -1; } }
+            if(played.some((s, i) => s.path !== paths[i])) {
+                jt.log("deck.util.fIBLPT playback order differs");
+                return -1; }
             return played.length - 1; },
         displayQueuedSongs: function (mgrnm, divid, songs) {
             if(!songs.length) {
@@ -397,6 +395,11 @@ app.deck = (function () {
     //info and access to history.
     mgrs.csa = (function () {
         const toggleButtons = {};
+        const rpqtd = {  //rebuild playback queue call thrashing damper
+            tmo:null,           //timeout identifier
+            lc:new Date(0),     //last call
+            maxf:3200,          //max call frequency
+            mint:50};           //minimum timeout
         function csqTitles (idx, len) {
             idx = idx || 0;
             len = len || 5;
@@ -443,10 +446,20 @@ app.deck = (function () {
                 if(nps && app.player.currentPlaybackState() === "playing") {
                     pfsg = nps; } }
             //Calls may be in response to digdat being updated, so yield
-            //to notice processing before rebuilding.
+            //to ongoing notice processing before rebuilding.
+            rpqtd.diff = Date.now() - rpqtd.lc.getTime();
+            if(rpqtd.diff > rpqtd.maxf) {    //past the damping window
+                rpqtd.wait = rpqtd.mint; }   //use minimium timeout wait
+            else {
+                rpqtd.wait = rpqtd.maxf; }   //use maximum timeout wait
+            if(rpqtd.tmo) {  //already waiting to run, don't schedule another
+                return jt.log("pbq requild already scheduled"); }
             indicateDeckRebuildProcessing();
-            setTimeout(function () {
-                setAndPlayQueue(mgrs.sqb.makeSelectionQueue(pfsg)); }, 50); }
+            rpqtd.lc = new Date();
+            rpqtd.tmo = setTimeout(function () {
+                rpqtd.tmo = null;
+                setAndPlayQueue(mgrs.sqb.makeSelectionQueue(pfsg)); },
+                                   rpqtd.wait); }
         function restoreAutoplaySelectionQueueSettings () {
             const csq = app.pdat.prst("deck.csq");
             if(!csq.paths) {
