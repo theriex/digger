@@ -379,7 +379,7 @@ app.deck = (function () {
         //regardless whether it matches or is play-eligible.
         makeSelectionQueue: function (playFirstSong) {
             jt.log("sqb.makeSelectionQueue " +
-                   (playFirstSong? playFirstSong.path : ""));
+                   (playFirstSong? playFirstSong.path : "No first song"));
             resetWorkspace(playFirstSong);
             fetchLeastRecentlyPlayedArtists();
             distributeLRPSongsAcrossArtists();
@@ -617,6 +617,8 @@ app.deck = (function () {
             rebuildPlaybackQueue(song, "playGivenSong"); },
         filtersChanged: function () {
             if(mgrs.gen.getSongSeqMgrName() === "csa") {
+                if(!mgrs.gen.dataReady()) {
+                    return jt.log("csa.filtersChanged before dataReady"); }
                 const logpre = "filtersChanged ";
                 const csq = app.pdat.prst("deck.csq");
                 if(csq.paths.length < 7) {  //worth a rebuild to try find more
@@ -1243,18 +1245,23 @@ app.deck = (function () {
             {mgr:"csa", name:"Continuous", img:"deck.png"},
             {mgr:"alb", name:"Album", img:"album.png"},
             {mgr:"srch", name:"Search", img:"search.png"}];
-        const dfltSeqMgrName = "alb";
+        const gsi = {  //general state information
+            datr:"init",  //data readiness "ready"
+            dfltSeqMgrName:"alb"};
         function validSeqMgrName (name) {
             return (name === "csa" || name === "alb"); }
         function ssmn () {
-            if(!app.pdat.dbObj()) { return dfltSeqMgrName; }
+            if(!app.pdat.dbObj()) { return gsi.dfltSeqMgrName; }
             const dg = app.pdat.prst("deck.gen");
             if(!dg.seqmgr) {
-                dg.seqmgr = dfltSeqMgrName;
+                dg.seqmgr = gsi.dfltSeqMgrName;
                 app.pdat.prst("deck.gen", "updated"); }
             return dg.seqmgr; }
+        function checkDataReady () {
+            return gsi.datr === "ready"; }
     return {
         getSongSeqMgrName: ssmn,
+        dataReady: checkDataReady,
         setSongSeqMgrName: function (mgr, srcstr) {
             jt.log("deck.gen.setSongSeqMgrName " + mgr + " " + srcstr);
             const dg = app.pdat.prst("deck.gen");
@@ -1304,7 +1311,7 @@ app.deck = (function () {
                 const dg = app.pdat.prst("deck.gen");
                 if(!dg.seqmgr || !validSeqMgrName(dg.seqmgr)) {
                     jt.log("deckDataInit setting default deck.seqmgr");
-                    mgrs.gen.setSongSeqMgrName(dfltSeqMgrName,
+                    mgrs.gen.setSongSeqMgrName(gsi.dfltSeqMgrName,
                                                "genApresCheck"); }
                 mgrs.gen.dispMode(dg.seqmgr, "init"); }); }
     };  //end mgrs.gen returned functions
