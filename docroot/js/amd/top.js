@@ -2303,9 +2303,9 @@ app.top = (function () {
     mgrs.lcm = (function () {
         const maxsugg = 5;  //max num offload or download listings to display
         const wv = {  //working variables (not persistent)
-            afqs:[{fq:"P", txt:"Playable"},  //"N,P,B,Z,O"
-                  {fq:"R", txt:"Never Suggest"},
-                  {fq:"M", txt:"Bad Metadata"}]};
+            afqs:[{fq:"O", txt:"Overplayed"},
+                  {fq:"R", txt:"Archived"},
+                  {fq:"M", txt:"Bad Data"}]};
         function initializeCarryState () {
             const carst = app.pdat.prst("top.carrystate");
             carst.lastFetch = "1970-01-01T00:00:00Z";
@@ -2439,21 +2439,26 @@ app.top = (function () {
                 if(cs.hubfilt !== fmp) {
                     return false; } }  //filter settings have changed
             return true; }
-        function displayAlbumGroupedSongs () {
+        function displayArtistGroupedSongs () {
             jt.out("crdsuggsdiv", jt.tac2html(
                 ["div", {id:"suggdowndiv"},
                  ["ul", {cla:"suggul"},
-                  wv.ags.map((alb, idx) =>
+                  wv.ags.map((dlsg, idx) =>
                       ["li",
-                       [["span", {cla:"carryarspan"}, alb.ar],
+                       [["span", {cla:"carryarspan"}, dlsg.ar],
                         "&nbsp;-&nbsp;",
                         ["a", {href:"#sdldet",
                                onclick:mdfs("lcm.sdldetClick", idx)},
-                         ["span", {cla:"carryabspan"}, alb.ab]],
+                         ["span", {cla:"carryabspan"}, dlsg.ab]],
                         ["div", {id:"sdldetdiv" + idx,
                                  style:"display:none;"}]]])]])); }
+        function suggestedSongDownload (ags, key) {
+            const artist = key;
+            const album = Object.keys(ags[key])[0];
+            const song = ags[artist][album][0];
+            return {ar:artist, ab:album, sg:song}; }
         function displayFilteredSongs () {
-            var lps; var ags = {};  //last played songs, album grouped songs
+            var lps; var ags = {};  //last played songs, artist grouped songs
             const carst = app.pdat.prst("top.carrystate");
             lps = carst.hubsongs;
             if(carst.fetchType === "filtered") {
@@ -2461,12 +2466,14 @@ app.top = (function () {
                 lps = lps.filter((s) => songMatchesFilterVals(s, fmp)); }
             lps.sort(function (a, b) {  //all hub songs have an lp value
                 return a.lp.localeCompare(b.lp); });
-            lps.forEach(function (s) {
-                const albkey = s.ar.trim() + s.ab.trim();
-                ags[albkey] = ags.albkey || {
-                    ar:s.ar.trim(), ab:s.ab.trim(), songs:[]};
-                ags[albkey].songs.push(s); });
-            wv.ags = Object.values(ags).slice(0, maxsugg);
+            lps.forEach(function (s) {  //group by artist, albums, songs
+                ags[s.ar] = ags[s.ar] || {};
+                const artist = ags[s.ar];
+                artist[s.ab] = artist[s.ab] || [];
+                const album = artist[s.ab];
+                album.push(s); });
+            wv.ags = Object.keys(ags).slice(0, maxsugg).map((key) =>
+                suggestedSongDownload(ags, key));
             if(!wv.ags.length) {
                 jt.out("crdsuggsdiv", jt.tac2html(
                     ["div", {id:"suggdowndiv"},
@@ -2478,7 +2485,7 @@ app.top = (function () {
                                             "groups", 2)},
                          "Get recommendations"]]]]]));
                 return; }
-            displayAlbumGroupedSongs(); }
+            displayArtistGroupedSongs(); }
         function updateCarryStateLastFetch () {
             const carst = app.pdat.prst("top.carrystate");
             carst.lastFetch=new Date().toISOString();
@@ -2542,36 +2549,25 @@ app.top = (function () {
                 div.style.display = "none";
                 return; }
             div.style.display = "block";
-            const alb = wv.ags[idx];
+            const dlsg = wv.ags[idx];
             div.innerHTML = jt.tac2html(
-                ["table", {id:"dlabsongstable"},
-                 [alb.songs.map((s, si) =>
-                     ["tr", 
-                      [["td", s.ti],
-                       ["td", 
-                        [["select", {id:"fqmsel" + idx + si,
-                                     title:"Hub Song Playback Eligibility",
-                                     onchange:mdfs("lcm.confirmHubFreqChange",
-                                                   idx, si)},
-                          wv.afqs.map((afq) =>
-                              ["option", {value:afq.fq}, afq.txt])],
-                         ["span", {id:"hubupdconfspan" + idx + si,
-                                   cla:"hubupdconfspan"}]]]]])]]); },
-        confirmHubFreqChange: function (idx, si) {
-            const sel = jt.byId("fqmsel" + idx + si);
-            const span = jt.byId("hubupdconfspan" + idx + si);
-            if(!sel.selectedIndex) {  //clear confirmation dialog if "P"
-                span.innerHTML = ""; }
-            else {
-                span.innerHTML = jt.tac2html(
-                    ["button", {type:"button", id:"sudupdb" + idx + si,
-                                onclick:mdfs("lcm.updateHubSongFrequency", 
-                                              idx, si, sel.value)},
-                      "Update DiggerHub"]); } },
-        updateHubSongFrequency: function (idx, si, fq) {
-            const span = jt.byId("hubupdconfspan" + idx + si);
+                [["div", "Suggested for the song"],
+                 ["div", {cla:"sdldetsti"}, dlsg.sg.ti],
+                 ["div",
+                  ["Do not suggest ",
+                   ["select", {id:"fqmsel" + idx,
+                               title:"Bad hub suggestion reason"},
+                    wv.afqs.map((afq) =>
+                        ["option", {value:afq.fq}, afq.txt])],
+                   ["span", {id:"hubupdconfspan" + idx, cla:"hubupdconfspan"},
+                    ["button", {type:"button", id:"sudupdb" + idx,
+                                onclick:mdfs("lcm.updateHubSongFq", idx)},
+                      "Update DiggerHub"]]]]]); },
+        updateHubSongFq: function (idx) {
+            const fq = jt.byId("fqmsel" + idx).value;
+            const span = jt.byId("hubupdconfspan" + idx);
             span.innerHTML = "Updating DiggerHub...";
-            const song = wv.ags[idx].songs[si];
+            const song = wv.ags[idx].sg;
             song.fq = fq;
             mgrs.hcu.queueHubCall("savesongs", {
                 verb:"POST",
