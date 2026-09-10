@@ -1313,6 +1313,7 @@ app.deck = (function () {
                     jt.log("deckDataInit setting default deck.seqmgr");
                     mgrs.gen.setSongSeqMgrName(gsi.dfltSeqMgrName,
                                                "genApresCheck"); }
+                gsi.datr = "ready";
                 mgrs.gen.dispMode(dg.seqmgr, "init"); }); }
     };  //end mgrs.gen returned functions
     }());
