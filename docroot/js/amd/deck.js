@@ -543,7 +543,7 @@ app.deck = (function () {
                 vpq.err = "no songs left in queue"; }
             return vpq; }
         function verifyQueuedPlayback (npStatusVerified) {
-            const logpre = "verifyQueuedPlayback ";
+            var logpre = "verifyQueuedPlayback ";
             const dbo = app.pdat.dbObj();
             if(!dbo) {
                 return jt.log(logpre + "quit, no dbo yet"); }
@@ -562,11 +562,12 @@ app.deck = (function () {
             if(staleDataError) {
                 return app.pdat.reloadDigDat(logpre + staleDataError, true); }
             const vpq = verifyPlaybackQueue(np);
+            logpre += "npi:" + vpq.npi + ", mrpi:" + vpq.mrpi + ", ";
             if(vpq.err) {
+                jt.log(logpre + "err: " + vpq.err);
                 const keepsg = ((vpq.mrpi > vpq.npi)? null : np);
                 return rebuildPlaybackQueue(keepsg, "vpq " + vpq.err); }
-            jt.log(logpre + "npi:" + vpq.npi + ", mrpi:" + vpq.mrpi +
-                   ", " + (csq.paths.length - (vpq.mrpi + 1)) +
+            jt.log(logpre + (csq.paths.length - (vpq.mrpi + 1)) +
                    " songs remaining in queue");
             csq.idx = vpq.mrpi;  //update queue index to match most recent play
             app.pdat.prst("deck.csq", "updated");
