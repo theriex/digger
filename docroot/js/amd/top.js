@@ -288,6 +288,38 @@ app.top = (function () {
                 function (code, errtxt) {
                     jt.log("saveSongUpdatesFromHub writeDigDat failed " + code +
                            ": " + errtxt); }); },
+        csv2song: function (csv) {
+            const ucsv = function (str) {  //unescape csv string value
+                str = str.replace(/"/g, "");  //remove any surrounding quotes
+                str = jt.dec(str);            //embedded quotes were "%22"
+                return str; };
+            const pciv = function (str) {  //parse csv int value
+                const ival = parseInt(str, 10);
+                // if(!(ival >= 0)) {  //uncomment to force crash
+                //     throw new Error("Bad pciv str: " + str); }
+                return ival; };
+            //unpack the standard DiggerHub abbreviated song csv format
+            const csvcnv = {dsId:ucsv, ti:ucsv, ar:ucsv, ab:ucsv,
+                            el:pciv, al:pciv, kws:ucsv, rv:pciv, fq:ucsv,
+                            nt:ucsv, lp:ucsv, pd:ucsv, pc:pciv};
+            const cvals = csv.csvarray();  //break csv into its component values
+            const song = {dsType:"Song", aid:mgrs.aaa.getAccount().dsId};
+            Object.keys(csvcnv).forEach(function (key, idx) {
+                song[key] = csvcnv[key](cvals[idx]); });
+            mgrs.dbc.verifySong(song);  //bound minmax vals just in case
+            return song; },
+        song2csv: function (song, txencode) {
+            const estr = function (str) { return "\"" + jt.enc(str) + "\""; };
+            const cint = function (val) { return val; };
+            if(txencode) {
+                song = app.util.txSong(song); }
+            //pack into the standard DiggerHub abbreviated song csv format
+            const csvcnv = {dsId:estr, ti:estr, ar:estr, ab:estr,
+                            el:cint, al:cint, kws:estr, rv:cint, fq:estr,
+                            nt:estr, lp:estr, pd:estr, pc:cint};
+            const csv = Object.keys(csvcnv).map((k) => csvcnv[k](song[k]))
+                  .join(",");
+            return csv; },
         isHubCallQueued: function (matchf) {
             return comms.callq.find((qe) => matchf(qe.dets.endpoint)); },
         clearScheduledHubCalls: function (regex) {
@@ -336,6 +368,129 @@ app.top = (function () {
     }());
 
 
+    //Song rating restore from most recent available hub CSV data.
+    //First line of saved bakfnm content is ISO last fetched from hub.
+    mgrs.bak = (function () {
+        const bakfnm = "diggerbak.csv";
+        const stat = {churn:5*60*1000,  //time between calls to restore
+                      wchkt:60*60*1000, //time between calls to walk data
+                      stale:24*60*60*1000}; //time between backup data refresh
+        function resetBackupState () {
+            stat.lastChecked = new Date(0);
+            stat.ttlSongs = 0;
+            stat.ttlUnrated = 0;
+            stat.overwrite = false;
+            stat.walked = new Date(0);
+            stat.scsv = ""; }
+        function haveUnratedSongs () {
+            stat.ttlSongs = 0;
+            stat.ttlUnrated = 0;
+            Object.values(app.pdat.dbObj().songs).forEach(function (s) {
+                stat.ttlSongs += 1;
+                if(app.deck.isUnrated(s)) {
+                    stat.ttlUnrated += 1; } });
+            return stat.ttlUnrated; }
+        function loadBackupData (contf) {
+            const logpre = "bak.loadBackupData ";
+            app.svc.readFile(bakfnm,
+                function (csv) {
+                    jt.log(logpre + bakfnm + " loaded from local");
+                    stat.scsv = csv;
+                    contf(); },
+                function (code, errtxt) {
+                    jt.log(logpre + "failed to load " + bakfnm + " " + code +
+                           ": " + errtxt);
+                    stat.scsv = new Date(0).toISOString();
+                    contf(); }); }
+        function writeBackupData (logpre, csv, contf) {
+            const fetchts = new Date().toISOString();
+            stat.scsv = fetchts + "\n" + csv;
+            app.svc.writeFile(bakfnm, stat.scsv,
+                function () {
+                    jt.log(logpre + "wrote " + bakfnm);
+                    contf(); },
+                function (code, errtxt) {
+                    jt.log(logpre + bakfnm + " write failure " +
+                           code + ": " + errtxt); }); }
+        function fetchBackupData (contf) {
+            const logpre = "bak.fetchBackupData ";
+            mgrs.srs.hubAcctSongCSV(
+                function (csv) {
+                    writeBackupData(logpre, csv, contf); },
+                function () {  //code and errtxt already logged
+                    writeBackupData(logpre, "", contf);
+                    if(stat.overwrite) { //really need the backup data
+                        jt.log(logpre + "sign in again later to retry.");
+                        mgrs.asu.processSignOut(); } }); }
+        function walkBackupData () {
+            var restored = 0; var csvlines = stat.scsv.split("\n").slice(1);
+            const logpre = "walkBackupData ";
+            if(csvlines.length === 1) {  //most likely due to encode/decode
+                jt.log(logpre + "retrying csv split with escaped newline");
+                csvlines = csvlines[0].split("\\n"); }
+            jt.log(logpre + "walking " + csvlines.length + " lines");
+            const songs = csvlines.map((c) => mgrs.hcu.csv2song(c));
+            const dbo = app.pdat.dbObj();
+            if(stat.overwrite) {
+                dbo.restoredFromBackup = new Date().toISOString();
+                dbo.lastSyncPlayback = "1970-01-01T00:00:00Z"; }
+            songs.forEach(function (bs) {  //backup song
+                const locs = app.pdat.tiarabLookup(bs);
+                locs.forEach(function (ds) {  //dictionary song
+                    if(stat.overwrite || !ds.lp || ds.lp < bs.lp) {
+                        restored += 1;
+                        //jt.log("restoring " + bs.ti);
+                        if(stat.overwrite && bs.lp > dbo.lastSyncPlayback) {
+                            dbo.lastSyncPlayback = bs.lp; }
+                        if(ds.lp > bs.lp) {  //song has played since backup
+                            bs.lp = ds.lp; } //keep latest lp
+                        app.util.copyUpdatedSongData(ds, bs); } }); });
+            jt.log(logpre + "restored " + restored + " songs");
+            stat.walked = new Date();
+            if(restored) {
+                app.pdat.writeDigDat(
+                    "walkBackupData", null,
+                    function (/*digdat*/) {
+                        app.deck.forceRebuild(); },
+                    function (code, errtxt) {
+                        jt.log(logpre + "writeDigDat " + code +
+                               ": " + errtxt); }); }
+            else {
+                mgrs.srs.syncModeNormal(); } }
+        function checkBackupData () {
+            const logpre = "bak.checkBackupData ";
+            stat.lastChecked = new Date();
+            if(!stat.overwrite && !stat.scsv) {
+                jt.log(logpre + "loading backup data");
+                return loadBackupData(checkBackupData); }
+            const lastfetch = jt.isoString2Time(stat.scsv,"Z");
+            if(Date.now() - lastfetch.getTime() > stat.stale) {
+                jt.log(logpre + "fetching backup data");
+                return fetchBackupData(checkBackupData); }
+            walkBackupData(); }
+    return {
+        verifyNoUnrestoredRatings: function () {
+            const logpre = "bak.vNUR ";
+            if(stat.lastChecked &&
+                   Date.now() - stat.lastChecked.getTime() < stat.churn) {
+                return jt.log(logpre + "Checked within past " +
+                              (stat.churn/(60*1000)) + " minutes"); }
+            if(stat.walked &&
+                   Date.now() - stat.walked.getTime() < stat.wchkt) {
+                return jt.log(logpre + "Walked backup CSV within past " +
+                              (stat.wchkt/(60*1000)) + " minutes"); }
+            if(!haveUnratedSongs()) {
+                return jt.log(logpre + "No unrated songs"); }
+            checkBackupData(); },
+        readFromBackup: function (overwrite) {
+            resetBackupState();
+            stat.overwrite = overwrite;
+            stat.scsv = new Date(0).toISOString();
+            checkBackupData(); }
+    };  //end mgrs.bak returned functions
+    }());
+
+
     //Song rating data synchronization between local app and DiggerHub
     mgrs.srs = (function () {
         const syt = {tmo:null, stat:"", resched:false, up:0, down:0};
@@ -368,66 +523,12 @@ app.top = (function () {
                   .filter((s) => isUploadableSong(s))
                   .sort((a, b) => a.lp.localeCompare(b.lp));
             return uploadsongs; }
-        function ucsv (str) {  //unescape csv string value
-            str = str.replace(/"/g, "");  //remove any surrounding quotes
-            str = jt.dec(str);            //embedded quotes were "%22"
-            return str; }
-        function pciv (str) {  //parse csv int value
-            const ival = parseInt(str, 10);
-            // if(!(ival >= 0)) {  //uncomment to force crash when testing data
-            //     throw new Error("Bad pciv str: " + str); }
-            return ival; }
-        function csv2song (csv) {
-            //unpack the standard DiggerHub abbreviated song csv format
-            const csvcnv = {dsId:ucsv, ti:ucsv, ar:ucsv, ab:ucsv,
-                            el:pciv, al:pciv, kws:ucsv, rv:pciv, fq:ucsv,
-                            nt:ucsv, lp:ucsv, pd:ucsv, pc:pciv};
-            const cvals = csv.csvarray();  //break csv into its component values
-            const song = {dsType:"Song", aid:mgrs.aaa.getAccount().dsId};
-            Object.keys(csvcnv).forEach(function (key, idx) {
-                song[key] = csvcnv[key](cvals[idx]); });
-            mgrs.dbc.verifySong(song);  //bound minmax vals just in case
-            return song; }
-        function estr (str) { return "\"" + jt.enc(str) + "\""; }
-        function cint (val) { return val; }
-        function song2csv (song, txencode) {
-            if(txencode) {
-                song = app.util.txSong(song); }
-            //pack into the standard DiggerHub abbreviated song csv format
-            const csvcnv = {dsId:estr, ti:estr, ar:estr, ab:estr,
-                            el:cint, al:cint, kws:estr, rv:cint, fq:estr,
-                            nt:estr, lp:estr, pd:estr, pc:cint};
-            const csv = Object.keys(csvcnv).map((k) => csvcnv[k](song[k]))
-                  .join(",");
-            return csv; }
-        function restoreCSVSongData (csv) {
-            var restored = 0; var csvlines = csv.split("\n");
-            const logpre = "restoreCSVSongData ";
-            if(csvlines.length < 2) {
-                jt.log(logpre + "retrying csv split with escaped newline");
-                csvlines = csv.split("\\n"); }
-            jt.log(logpre + "received " + csvlines.length + " lines");
-            const songs = csvlines.map((c) => csv2song(c));
-            const dbo = app.pdat.dbObj();
-            dbo.lastSyncPlayback = "1970-01-01T00:00:00Z";
-            songs.forEach(function (bs) {  //backup song
-                const locs = app.pdat.tiarabLookup(bs);
-                locs.forEach(function (ds) {  //dictionary song
-                    restored += 1;
-                    //jt.log("restoring " + bs.ti);
-                    if(bs.lp > dbo.lastSyncPlayback) {
-                        dbo.lastSyncPlayback = bs.lp; }
-                    if(ds.lp > bs.lp) {  //song has played since backup
-                        bs.lp = ds.lp; } //keep latest lp
-                    app.util.copyUpdatedSongData(ds, bs); }); });
-            dbo.restoredFromBackup = new Date().toISOString();
-            jt.log(logpre + restored + " songs restored"); }
         function getPendingUploadSongsCSVArray () {
             var upsgs = uploadableSongs();
             jt.log("getPendingUploadSongs: "  + upsgs.length + " songs");
             syt.pending = upsgs.length;
             upsgs = upsgs.slice(0, serverMaxUploadSongs);  //respect server
-            upsgs = upsgs.map((s) => song2csv(s, "txencode"));
+            upsgs = upsgs.map((s) => mgrs.hcu.song2csv(s, "txencode"));
             return upsgs; }
         function logHubSyncSongs (verb, songcsvs) {
             const mxsgs = 3;
@@ -438,7 +539,7 @@ app.top = (function () {
                 lls.push("... total of " + songcsvs.length + " songs"); }
             jt.log(lls.join("<br/>")); }
         function mergeCSVSongs (direction, songcsvs, forceWriteDigdat) {
-            const songs = songcsvs.map((csv) => csv2song(csv));
+            const songs = songcsvs.map((csv) => mgrs.hcu.csv2song(csv));
             mgrs.hcu.saveSongUpdatesFromHub("srs.hubsyncmerge", songs,
                                             forceWriteDigdat);
             jt.log("mergeCSVSongs merged " + songs.length + " songs");
@@ -506,7 +607,8 @@ app.top = (function () {
                 if(resched || cmst.action === "pull") {
                     syt.resched = false;
                     mgrs.srs.syncToHub("resched"); } }
-            updateHubSyncStatusDisplay("completed"); }
+            updateHubSyncStatusDisplay("completed");
+            mgrs.bak.verifyNoUnrestoredRatings(); }
         function clearStaleSyncTasksAndReschedule () {
             const srx = mgrs.srs.hubSyncAPIEndpointRegex();
             const cleared = mgrs.hcu.clearScheduledHubCalls(srx);
@@ -624,48 +726,59 @@ app.top = (function () {
                     prio || getSyncTaskPriority());
             default: jt.log(logpre + "unrecognized commstate.action: " +
                             cmst.action); } }
+        function digDatUpdated () {
+            if(syt.stat === "restoring") {  //restore done when digdat written
+                mgrs.srs.syncModeNormal(); }
+            mgrs.srs.syncToHub(); }  //verify sync scheduled
     return {
-        noteDataRestorationNeeded: function () { syt.stat = "restoring"; },
-        restoreFromBackup: function (srcstr) {
-            updateCommState(null, "restoreFromBackup");
-            const logpre = "restoreFromBackup ";
-            const btm = Date.now();
-            updateHubSyncStatusDisplay("restoring...");
-            syt.stat = "restoring";  //avoid any interim sync
-            const bdrdone = function () {  //end restore, check for updates
-                syt.stat = "";  //allow regular sync to proceed
-                mgrs.srs.syncToHub(srcstr); };
+        apresDataSetup: function () {  //called after data available
+            app.pdat.addDigDatListener("top.srs", digDatUpdated);
+            const lastsync = app.pdat.dbObj().lastSyncPlayback;
+            if(lastsync) {  //have previously readied for hubsync upload
+                const elapsed = (Date.now() -
+                                 jt.isoString2Time(lastsync).getTime());
+                if(elapsed > 8 * 60 * 60 * 1000) {  //not active for a while..
+                    const cmst = app.pdat.prst("top.commstate");
+                    if(cmst.action === "upload") {
+                        cmst.action = "pull";  //hub might have changed..
+                        app.pdat.prst("top.commstate", "updated"); } } }
+            mgrs.srs.syncToHub(); },
+        syncModeRestoreOnly: function (callerstr) {
+            jt.log("srs.mode set to restoring " + callerstr);
+            mgrs.srs.syncToHub("cancel");  //clear any waiting sync
+            syt.stat = "restoring"; },
+        syncModeNormal: function () {
+            if(syt.stat === "restoring") {
+                jt.log("srs.mode reset from restoring");
+                syt.stat = "";
+                mgrs.srs.syncToHub(); } },
+        hubAcctSongCSV: function (retf, failf) {
+            const logpre = "srs.hubAcctSongCSV ";
+            mgrs.srs.syncModeRestoreOnly("hubAcctSongCSV");
+            updateCommState(null, "hubAcctSongCSV");
             const acct = mgrs.aaa.getAccount();
             if(!acct || !acct.settings || !acct.settings.backup ||
                !acct.settings.backup.url) {
                 jt.log(logpre + "no acct.settings.backup.url");
-                return bdrdone(); }
+                mgrs.srs.syncModeNormal();
+                return retf(""); }
             const bdurl = acct.settings.backup.url;
             const callurl = "/" + app.util.cb(bdurl, app.util.authdata());
+            updateHubSyncStatusDisplay("fetching backup CSV...");
+            const btm = Date.now(); //begin call milliseconds
             mgrs.hcq.queueRequest({  //no scheduling, just restore.
                 verb:"rawGET", endpoint:bdurl, url:callurl,
                 contf:function (csv) {
                     jt.log(logpre + "csv receive ms: " + (Date.now() - btm));
+                    updateHubSyncStatusDisplay();
                     if(!csv) {
                         jt.log(logpre + "no backup data to restore.");
-                        return bdrdone(); }
-                    updateHubSyncStatusDisplay("restoring data");
-                    restoreCSVSongData(csv);
-                    jt.log(logpre + "csv process ms: " + (Date.now() - btm));
-                    app.pdat.writeDigDat("restoreFromBackup", null,
-                        function (/*digdat*/) {
-                            updateHubSyncStatusDisplay("restored.");
-                            app.deck.forceRebuild();
-                            bdrdone(); },
-                        function (code, errtxt) {
-                            updateHubSyncStatusDisplay("restore save error");
-                            jt.log(logpre + "wdigdat " + code + ": " + errtxt);
-                            bdrdone(); }); },
+                        mgrs.srs.syncModeNormal(); }
+                    retf(csv); },
                 errf:function (code, errtxt) {
-                    updateHubSyncStatusDisplay("restore failed");
+                    updateHubSyncStatusDisplay();
                     jt.log(logpre + "hub call failed " + code + ": " + errtxt);
-                    jt.log(logpre + "sign in again later to retry.");
-                    mgrs.asu.processSignOut(); } }); },
+                    failf(code, errtxt); } }); },
         hubSyncAPIEndpointRegex: function () {
             var me = String(Object.values(hsepn.prefixes));
             me = "[" + me.replace(/,/g, "") + "]" + hsepn.mid;
@@ -713,19 +826,7 @@ app.top = (function () {
                  ["span", {id:"hsitsspan", cla:"infospan"}],  //timestamp
                  ["span", {id:"hsiudspan", cla:"infospan"}],  //updown
                  ["span", {id:"hsistatspan", cla:"infospan"}]]));  //status
-            updateHubSyncStatusDisplay(); },
-        syncSetup: function () {
-            const lastsync = app.pdat.dbObj().lastSyncPlayback;
-            if(lastsync) {  //have previously readied for hubsync upload
-                const elapsed = (Date.now() -
-                                 jt.isoString2Time(lastsync).getTime());
-                if(elapsed > 8 * 60 * 60 * 1000) {  //not active for a while
-                    //immediately pull any plays from a different device first
-                    const cmst = app.pdat.prst("top.commstate");
-                    if(cmst.action === "upload") {
-                        cmst.action = "pull";
-                        app.pdat.prst("top.commstate", "updated"); } } }
-            mgrs.srs.syncToHub(); }
+            updateHubSyncStatusDisplay(); }
     };  //end mgrs.srs returned functions
     }());
 
@@ -1534,7 +1635,7 @@ app.top = (function () {
         signinProc: function (buttonid) {
             const dat = formData("s");
             if(!formError(dat, [verifyEmail, verifyPwd])) {
-                mgrs.srs.noteDataRestorationNeeded();
+                mgrs.srs.syncModeRestoreOnly("signInProc");
                 hubThenLocal(buttonid, "POST", "acctok", dat, function (acct) {
                     if(inapp) {  //running within web app
                         mgrs.gen.updateHubToggleSpan(acct);  //UI reflect name
@@ -1542,7 +1643,7 @@ app.top = (function () {
                         mgrs.igf.resetIgnoreFolders(acct.igfolds);
                         mgrs.igf.markIgnoreSongs();
                         mgrs.aaa.notifyAccountChanged();  //UI reflect settings
-                        mgrs.srs.restoreFromBackup("signin"); }
+                        mgrs.bak.readFromBackup("overwrite"); }
                     else { //standalone account management
                         app.login.dispatch("ap", "save", acct);
                         mgrs.afg.accountFanGroup("groups", 2); } }); } },
@@ -3216,8 +3317,8 @@ app.top = (function () {
             app.pdat.addConfigListener("top.gen", updateDiggerNameDisplay);
             app.pdat.addApresDataNotificationTask("checkMessagesAndPrivacy",
                                                   checkMessagesAndPrivacy);
-            app.pdat.addApresDataNotificationTask("syncToHub",
-                                                  mgrs.srs.syncSetup); },
+            app.pdat.addApresDataNotificationTask("syncInitialize",
+                                                  mgrs.srs.apresDataSetup); },
         togtopdlg: function (mode, cmd, afgidx) {
             var dlgdiv = jt.byId(tddi);
             if(cmd === "close" || (!cmd && dlgdiv && dlgdiv.dataset &&

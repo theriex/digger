@@ -109,8 +109,10 @@ db.init(function (conf) {
             const epts = {
                 "/readConfig":{v:"GET", h:db.readConfig},
                 "/readDigDat":{v:"GET", h:db.readDigDat},
+                "/readFile":{v:"GET", h:db.readFile},
                 "/writeConfig":{v:"POST", h:db.writeConfig},
                 "/writeDigDat":{v:"POST", h:db.writeDigDat},
+                "/writeFile":{v:"POST", h:db.writeFile},
                 "/cfgchg":{v:"POST", h:db.cfgchg},
                 "/version":{v:"GET", h:db.version},
                 "/readsongs":{v:"GET", h:db.readsongs},

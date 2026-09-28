@@ -48,7 +48,8 @@ app.player = (function () {
             jt.out("modindspan", "");
             if(!pmso.icvs || !pmso.icvs.tmo) {
                 if(nssgr && nssgr.lp > pmso.song.lp) {
-                    jt.log(logpre + "local data newer " + pmso.icvs.cid);
+                    jt.log(logpre + "local data newer " +
+                           (pmso.icvs? pmso.icvs.cid : "no icvs"));
                     app.util.copyUpdatedSongData(pmso.song, pmso.icvs.svcpy);
                     saveSongRatingChange("locnewer"); }
                 return; }

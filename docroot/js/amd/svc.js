@@ -224,6 +224,9 @@ app.svc = (function () {
         readDigDat: function (contf, errf) {
             jt.call("GET", app.util.cb("/readDigDat"), null,
                     contf, errf); },
+        readFile: function (filename, contf, errf) {
+            jt.request("GET", app.util.cb("/readFile", {fnm:filename}), null,
+                       contf, errf); },
         writeConfig: function (cfg, contf, errf) {
             var data = jt.objdata({cfg:JSON.stringify(cfg)});
             jt.call("POST", "/writeConfig", data, contf, errf,
@@ -232,6 +235,10 @@ app.svc = (function () {
             var data = jt.objdata({dbo:JSON.stringify(dbo)});
             jt.call("POST", "/writeDigDat", data, contf, errf,
                     jt.semaphore("svc.loc.writeDigDat")); },
+        writeFile: function (filename, text, contf, errf) {
+            var data = jt.objdata({fnm:filename, txt:text});
+            jt.request("POST", "/writeFile", data, contf, errf,
+                       jt.semaphore("svc.loc.writeFile")); },
         loadLibrary: function (procdivid, cnf, procdonef) {
             procdivid = procdivid || "toponelinestatdiv";
             if(loadproc && loadproc.stat !== "ready") {
@@ -874,10 +881,14 @@ app.svc = (function () {
             mgrs[hdm].readConfig(contf, errf); },
         readDigDat: function (contf, errf) {
             mgrs[hdm].readDigDat(contf, errf); },
+        readFile: function (filename, contf, errf) {
+            mgrs[hdm].readFile(filename, contf, errf); },
         writeConfig: function (config, ignore/*optobj*/, contf, errf) {
             mgrs[hdm].writeConfig(config, contf, errf); },
         writeDigDat: function (digdat, ignore/*optobj*/, contf, errf) {
             mgrs[hdm].writeDigDat(digdat, contf, errf); },
+        writeFile: function (filename, contf, errf) {
+            mgrs[hdm].writeFile(filename, contf, errf); },
         passthroughHubCall: function (qname, reqnum, endpoint, verb, dat) {
             mgrs[hdm].passthroughHubCall(qname, reqnum, endpoint, verb, dat); },
         docContent: function (docurl, contf) {
@@ -896,9 +907,11 @@ return {
     init: function (overhdm) { mgrs.gen.initialize(overhdm); },
     plat: function (key) { return mgrs.gen.plat(key); },
     readConfig: mgrs.gen.readConfig,
-    readDigDat: mgrs.gen.readDigDat,
     writeConfig: mgrs.gen.writeConfig,
+    readDigDat: mgrs.gen.readDigDat,
     writeDigDat: mgrs.gen.writeDigDat,
+    readFile:mgrs.gen.readFile,
+    writeFile:mgrs.gen.writeFile,
     playSongQueue: function (pwsid, sq) {
         mgrs[mgrs.gen.plat("audmgr")].playSongQueue(pwsid, sq); },
     requestPlaybackStatus: function () {

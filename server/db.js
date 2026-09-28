@@ -683,6 +683,20 @@ module.exports = (function () {
     }
 
 
+    function wwwReadFile (ignore /*req*/, res, pu) {
+        var text = "";
+        var fnm = decodeURIComponent(pu.query.fnm);
+        fnm = path.join(os.homedir(), fnm);
+        console.log("wwwReadFile reading " + fnm);
+        try {
+            text = jslf(fs, "readFileSync", fnm, "utf8");
+        } catch(e) {
+            return resError(res, e.toString()); }
+        res.writeHead(200, {"Content-Type": "text/plain; charset=UTF-8"});
+        res.end(text);
+    }
+
+
     function wwwWriteConfig (req, res) {
         const updat = new formidable.IncomingForm();
         updat.parse(req, function (err, fields) {
@@ -713,6 +727,23 @@ module.exports = (function () {
     }
 
 
+    function wwwWriteFile (req, res) {
+        var text = "";
+        var updat = new formidable.IncomingForm();
+        updat.parse(req, function (err, fields) {
+            if(err) {
+                console.log("wwwWriteFile form error: " + err); }
+            try {
+                const fnm = path.join(os.homedir(), fields.fnm);
+                text = fields.txt;
+                jslf(fs, "writeFileSync", fnm, text, "utf8");
+            } catch(e) {
+                return resError(res, e.toString()); }
+            res.writeHead(200, {"Content-Type": "text/plain; charset=UTF-8"});
+            res.end(text); });
+    }
+
+
     return {
         //server utilities
         appdir: function () { return getAppDir(); },
@@ -722,9 +753,6 @@ module.exports = (function () {
         dbo: function () { return dbo; },
         writeDatabaseObject: function () { writeDatabaseObject(); },
         fileExists: function (path) { return jslf(fs, "existsSync", path); },
-        readFile: function (path) { return jslf(fs, "readFileSync", path); },
-        writeFile: function (path, txt) {
-            return jslf(fs, "writeFileSync", path, txt, "utf8"); },
         mkdir: function (path) { return jslf(fs, "mkdirSync", path); },
         diggerVersion: function () { return diggerVersion(); },
         isMusicFile: function (fn) { return isMusicFile(fn); },
@@ -732,8 +760,10 @@ module.exports = (function () {
         //server endpoints
         readConfig: wwwReadConfig,
         readDigDat: wwwReadDigDat,
+        readFile: wwwReadFile,
         writeConfig: wwwWriteConfig,
         writeDigDat: wwwWriteDigDat,
+        writeFile: wwwWriteFile,
         readsongs: wwwReadSongFiles,
         songscount: wwwSongCount,
         plistexp: playlistExport,
