@@ -945,7 +945,7 @@ app.deck = (function () {
             {f:"ar", pn:"Artist", ck:true},
             {f:"ab", pn:"Album", ck:true},
             {f:"ti", pn:"Title", ck:true},
-            {f:"genrejson", pn:"Genre", ck:true},
+            {f:"genrejson", pn:"Genre", ck:true}, //avail on mobile plats
             {f:"nt", pn:"Notes", ck:true}];
         function updateCounts (ignore /*artist*/, album/*, title*/) {
             //A compilation with lots of artists on one album should be
@@ -956,37 +956,53 @@ app.deck = (function () {
             //This total may differ from the countspan total in the upper
             //right of the app if there are ignore folders.  That's ok.
             counts.sc += 1; }
-        function songMatch (song, field, srx) {
-            return (song[field] && (song[field].match(srx) ||
-                                    (field === "genrejson" && song.kws &&
-                                     song.kws.match(srx)))); }
+        function query2MatchExps (txt) {
+            txt = txt.replace("*", ".*");  //allow wildcards in search terms
+            const qonw = /"([^"]*)"|(\S+)/;  //quoted or non-whitespace
+            const trms = txt.split(qonw).filter((t) => t && t.trim());
+            return trms.map((t) => new RegExp(t, "i")); }
+        function fieldMatch (fldval, rgxps) {
+            return fldval && rgxps.some((re) => fldval.match(re)); }
+        function regexMatch (fldvals, rgxp) {
+            return fldvals.some((fv) => fv.match(rgxp)); }
+        function songMatch (song, flds, rgxps) {
+            var mft = "";  //match field type: ar, ab, other
+            const fldvals = flds.map((fld) => song[fld]);
+            //every regex matches at least one field in the song
+            if(rgxps.every((re) => regexMatch(fldvals, re))) {
+                if(fieldMatch(song.ar, rgxps)) { mft = "ar"; }
+                else if(fieldMatch(song.ab, rgxps)) { mft = "ab"; }
+                else { mft = "other"; } }
+            return mft; }
+        function activeSearchFields () {
+            var sfs = sfds.filter((fd) => fd.ck);
+            sfs = sfs.map((fd) => fd.f);
+            if(sfs.includes("genrejson")) {
+                sfs.push("kws"); }
+            return sfs; }
         function searchSongs () {
             if(!songs) {
                 songs = Object.values(app.pdat.songsDict())
                     .filter((s) => app.deck.isSearchable(s)); }
-            //match start after space, dquote, or start of string. Wildcard ok.
-            const rtx = "(\\s|\"|^)" + qstr.toLowerCase().replace("*", ".*");
-            const srx = new RegExp(rtx, "i");
-            const sfs = sfds.filter((fd) => fd.ck);
+            const rgxps = query2MatchExps(qstr.toLowerCase());
+            const sfs = activeSearchFields();
             rslt = {};  //reset search results
             counts = {abs:{}, sc:0};
             songs.forEach(function (s, idx) {
-                const mf = sfs.find((fd) => songMatch(s, fd.f, srx));
-                if(mf) {  //one of the fields matched, verify rslt entry
+                const mft = songMatch(s, sfs, rgxps);
+                if(mft) {  //song matched search criteria, verify rslt entry
                     rslt[s.ar] = rslt[s.ar] ||
-                        {matched:(mf.f === "ar"),
+                        {matched:(mft === "ar"),
                          t:"ar", si:idx, es:{}};
                     const artist = rslt[s.ar];  //add albums to artist
                     artist.es[s.ab] = artist.es[s.ab] ||
-                        {matched:(mf.f === "ab" || s.ab.match(srx)),
+                        {matched:(mft === "ab"),
                          t:"ab", si:idx, es:{}};
                     const album = artist.es[s.ab];  //add songs to album
                     album.es[s.ti] = album.es[s.ti] ||  //dupe possible
-                        {matched:(mf.f === "ti" || s.ti.match(srx) ||
-                                  mf === "nt" || s.ti.match(srx)),
+                        {matched:(mft === "other"),
                          t:"ti", si:idx, mddn:s.mddn, mdtn:s.mdtn,
                          path:s.path};
-                    //const title = album.es[s.ti];
                     updateCounts(s.ar, s.ab, s.ti); } }); }
         function makeResultTAC (dict, context) {
             context = context || {lev:"0"};
