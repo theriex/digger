@@ -422,14 +422,9 @@ app.top = (function () {
                     if(stat.overwrite) { //really need the backup data
                         jt.log(logpre + "sign in again later to retry.");
                         mgrs.asu.processSignOut(); } }); }
-        function walkBackupData () {
-            var restored = 0; var csvlines = stat.scsv.split("\n").slice(1);
+        function walkBackupData (songs) {
+            var restored = 0;
             const logpre = "walkBackupData ";
-            if(csvlines.length === 1) {  //most likely due to encode/decode
-                jt.log(logpre + "retrying csv split with escaped newline");
-                csvlines = csvlines[0].split("\\n"); }
-            jt.log(logpre + "walking " + csvlines.length + " lines");
-            const songs = csvlines.map((c) => mgrs.hcu.csv2song(c));
             const dbo = app.pdat.dbObj();
             if(stat.overwrite) {
                 dbo.restoredFromBackup = new Date().toISOString();
@@ -457,17 +452,41 @@ app.top = (function () {
                                ": " + errtxt); }); }
             else {
                 mgrs.srs.syncModeNormal(); } }
+        function songsFromBackupData () {
+            //stat.scsv: timestamp holds at least a timestamp
+            var csvlines = stat.scsv.split("\n").slice(1);
+            const logpre = "songsFromBackupData";
+            if(!csvlines.length || (csvlines.length === 1 && !csvlines[0])) {
+                jt.log(logpre + "no csvlines to work with");
+                return null; }  //no csv data to work with
+            if(csvlines.length === 1) {  //most likely due to encode/decode
+                jt.log(logpre + "retrying csv split with escaped newline");
+                csvlines = csvlines[0].split("\\n"); }
+            if(csvlines.length <= 1) {
+                jt.log(logpre + "only one csv line, probably bad data: " +
+                       csvlines[0].slice(0, 256));
+                return null; }
+            try {
+                const songs = csvlines.map((c) => mgrs.hcu.csv2song(c));
+                return songs;
+            } catch(e) {
+                jt.log(logpre + "csv conversion failed " + e);
+                return null; } }
         function checkBackupData () {
             const logpre = "bak.checkBackupData ";
             stat.lastChecked = new Date();
             if(!stat.overwrite && !stat.scsv) {
                 jt.log(logpre + "loading backup data");
                 return loadBackupData(checkBackupData); }
+            //stat.scsv holds at least a timestamp string now
             const lastfetch = jt.isoString2Time(stat.scsv,"Z");
             if(Date.now() - lastfetch.getTime() > stat.stale) {
                 jt.log(logpre + "fetching backup data");
                 return fetchBackupData(checkBackupData); }
-            walkBackupData(); }
+            //stat.scsv still holds at least a timestamp string
+            const songs = songsFromBackupData();
+            if(songs && songs.length > 1) {
+                walkBackupData(songs); } }
     return {
         verifyNoUnrestoredRatings: function () {
             const logpre = "bak.vNUR ";
