@@ -2,7 +2,8 @@
 /*jslint browser, white, long, unordered */
 
 var jt = {};
-var app = (function () {
+var app = null;
+app = (function () {
     "use strict";
 
     var mgrs = {};   //app implementation support modules
@@ -429,10 +430,10 @@ var app = (function () {
         var ratedSongs = false;
         //var idctr = 1001;
         const kwdefs = {Social: {pos: 1, sc: 0, ig: 0, dsc: ""},
-                        Personal: {pos: 0, sc: 0, ig: 0, dsc: ""},
-                        Office: {pos: 4, sc: 0, ig: 0, dsc: ""},
-                        Dance: {pos: 2, sc: 0, ig: 0, dsc: ""},
-                        Ambient: {pos: 3, sc: 0, ig: 0, dsc: ""},
+                        Flow: {pos: 2, sc: 0, ig: 0, dsc: ""},
+                        Audbio: {pos: 3, sc: 0, ig: 0, dsc: ""},
+                        Dance: {pos: 4, sc: 0, ig: 0, dsc: ""},
+                        Ambient: {pos: 0, sc: 0, ig: 0, dsc: ""},
                         Jazz: {pos: 0, sc: 0, ig: 0, dsc: ""},
                         Classical: {pos: 0, sc: 0, ig: 0, dsc: ""},
                         Talk: {pos: 0, sc: 0, ig: 0, dsc: ""},
@@ -441,9 +442,9 @@ var app = (function () {
         //     "ctrls": [{"tp": "range", "c": "al", "x": 27, "y": 62},
         //               {"tp": "range", "c": "el", "x": 49, "y": 47},
         //               {"tp": "kwbt", "k": "Social", "v": "pos"},
+        //               {"tp": "kwbt", "k": "Flow", "v": "off"},
+        //               {"tp": "kwbt", "k": "Autbio", "v": "off"},
         //               {"tp": "kwbt", "k": "Dance", "v": "off"},
-        //               {"tp": "kwbt", "k": "Ambient", "v": "neg"},
-        //               {"tp": "kwbt", "k": "Office", "v": "pos"},
         //               {"tp": "minrat", "u": 0, "m": 5},
         //               {"tp": "fqb", "v": "on"}],
         //     "waitcodedays": {"B": 90, "Z": 180, "O": 365}};
@@ -490,7 +491,7 @@ var app = (function () {
         const albdat = {
             "Brian Eno":{
                 "Ambient 1: Music for Airports":{
-                    kwds:"Social,Office,Ambient", songs:[
+                    kwds:"Social,Flow,Ambient", songs:[
                         "1/1",
                         "2/1",
                         "1/2",
@@ -511,7 +512,7 @@ var app = (function () {
                         "Did You Hear What They Said?"]}},
             "Kraftwerk":{
                 "Autobahn":{
-                    kwds:"Social,Office", songs:[
+                    kwds:"Social,Flow", songs:[
                         "Autobahn",
                         "Kometenmelodie 1",
                         "Kometenmelodie 2",
@@ -519,7 +520,7 @@ var app = (function () {
                         "Morgenspaziergang"]}},
             "Talking Heads":{
                 "Remain In Light":{
-                    kwds:"Social,Office", songs:[
+                    kwds:"Social,Flow", songs:[
                         "Born Under Punches (The Heat Goes On)",
                         "Crosseyed And Painless",
                         "The Great Curve",
@@ -530,7 +531,7 @@ var app = (function () {
                         "The Overload"]}},
             "Joan Armatrading":{
                 "Walk Under Ladders":{
-                    kwds:"Social,Office", songs:[
+                    kwds:"Social,Flow", songs:[
                         "I'm Lucky",
                         "When I Get It Right",
                         "Romancers",
@@ -543,7 +544,7 @@ var app = (function () {
                         "Only One"]}},
             "Miles Davis":{
                 "Star People":{
-                    kwds:"Social,Office", songs:[
+                    kwds:"Social,Flow", songs:[
                         "Come Get It",
                         "It Gets Better",
                         "Speak",
@@ -552,7 +553,7 @@ var app = (function () {
                         "Star On Cicely"]}},
             "Ozomatli":{
                 "Street Signs":{
-                    kwds:"Social,Office", songs:[
+                    kwds:"Social,Flow", songs:[
                         "Believe",
                         "Love And Hope",
                         "Street Signs",
@@ -568,7 +569,7 @@ var app = (function () {
                         "Cuando Canto"]}},
             "Pizzicato Five":{
                 "女性上位時代":{
-                    kwds:"Social,Office", songs:[
+                    kwds:"Social,Flow", songs:[
                         "女性上位時代#4",
                         "私のすべて",
                         "お早よう",
@@ -589,7 +590,7 @@ var app = (function () {
                         "女性上位時代#6"]}},
             "The KLF":{
                 "Chill Out":{
-                    kwds:"Social,Office,Ambient", songs:[
+                    kwds:"Social,Flow,Ambient", songs:[
                         "Brownsville Turnaround on the Tex-Mex Border",
                         "Pulling Out of Ricardo and the Dusk Is Falling Fast",
                         "Six Hours to Louisiana, Black Coffee Going Cold",
@@ -620,7 +621,7 @@ var app = (function () {
                         "The Morning Fog"]}},
             "Deep Forest":{
                 "Deep Forest":{
-                    kwds:"Social,Office", songs:[
+                    kwds:"Social,Flow", songs:[
                         "Deep Forest",
                         "Sweet Lullaby",
                         "Hunting",
@@ -634,7 +635,7 @@ var app = (function () {
                         "Forest Hymn"]}},
             "Cocteau Twins":{
                 "Blue Bell Knoll":{
-                    kwds:"Social,Office", songs:[
+                    kwds:"Social,Flow", songs:[
                         "Blue Bell Knoll",
                         "Athol-Brose",
                         "Carolyn's Fingers",
@@ -851,6 +852,35 @@ var app = (function () {
             if(typeof val !== "object") {
                 jt.log("pdat.verifyBaseObject resetting non-object val" + val);
                 val = {}; }
+            if(val.acctsinfo) {
+                val.acctsinfo.accts.forEach(function (acct) {
+                    if(acct.kwdefs) {
+                        const revdefs = {};
+                        const dks = app.top.dispatch(
+                            "aaa","getDefaultKeywordDefinitions");
+                        Object.entries(acct.kwdefs).forEach(function([ky, ov]) {
+                            if(ky === "Social") {
+                                revdefs.Social = ov;
+                                revdefs.Social.pos = 1;
+                                revdefs.dsc = dks.Social.dsc; }
+                            else if(ky === "Flow" || ky === "Office") {
+                                revdefs.Flow = ov;
+                                revdefs.Flow.pos = 2;
+                                revdefs.dsc = dks.Flow.dsc; }
+                            else if(ky === "Audbio" || ky === "Personal") {
+                                revdefs.Audbio = ov;
+                                revdefs.Audbio.pos = 3;
+                                revdefs.dsc = dks.Audbio.dsc; }
+                            else if(ky === "Dance") {
+                                revdefs.Dance = ov;
+                                revdefs.Dance.pos = 4;
+                                revdefs.dsc = dks.Dance.dsc; }
+                            else {  //other general keyword
+                                revdefs[ky] = ov;
+                                revdefs[ky].pos = 0;
+                                if(!revdefs[ky].dsc && dks[ky]) {
+                                    revdefs[ky].dsc = dks[ky].dsc; } } });
+                        acct.kwdefs = revdefs; } }); }
             return val; }
         function setConfigAndNotify (pwsid, config) {
             config = verifyBaseObject(config);

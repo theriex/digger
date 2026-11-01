@@ -1897,10 +1897,10 @@ app.top = (function () {
     //Update DigAcc on hub first, then reflect in local/runtime config.
     mgrs.aaa = (function () {
         const dfltkeywords = {
-            Social: {pos: 1, sc: 0, ig: 0, dsc: "Music I might select to play when other people are listening."},
-            Personal: {pos: 2, sc: 0, ig: 0, dsc: "Music I might select to play when it's just me listening."},
-            Office: {pos: 3, sc: 0, ig: 0, dsc: "Music that you can listen to while you work."},
-            Dance: {pos: 4, sc: 0, ig: 0, dsc: "Music you would dance to."},
+            Social: {pos: 1, sc: 0, ig: 0, dsc: "Music I'm comfortable playing when other people are listening."},
+            Flow: {pos: 2, sc: 0, ig: 0, dsc: "Music I can listen to while in a flow state doing something else."},
+            Audbio: {pos: 3, sc: 0, ig: 0, dsc: "Music that deeply touches who I am or was."},
+            Dance: {pos: 4, sc: 0, ig: 0, dsc: "Music I dance to."},
             Ambient: {pos: 0, sc: 0, ig: 0, dsc: "Music that can be listened to from zero to full attention, transitioning from and to silence."},
             Jazz: {pos: 0, sc: 0, ig: 0, dsc: "However you define it for your collection."},
             Classical: {pos: 0, sc: 0, ig: 0, dsc: "However you define it for your collection."},
@@ -3040,6 +3040,9 @@ app.top = (function () {
         verifySong: function (song) {
             sflds.forEach(function (fld) {
                 song[fld.fn] = song[fld.fn] || fld.dv;
+                if(fld.fn === "kws") {  //v1.7.0 migration
+                    song.kws = song.kws.replace("Office", "Flow");
+                    song.kws = song.kws.replace("Personal", "Audbio"); }
                 if(fld.min) {
                     song[fld.fn] = Math.max(song[fld.fn], fld.min); }
                 if(fld.max) {

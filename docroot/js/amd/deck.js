@@ -659,7 +659,7 @@ app.deck = (function () {
             //modify filtering
             const filts = app.filter.filters("active");
             if(filts.some((f) => f.sumname && f.sumname.match(/^[+\-]/))) {
-                //found a filter summary name like "+Office"
+                //found a filter summary name like "+Flow"
                 msgs.push("Try turning off keyword filters"); }
             else if(filts.some((f) =>
                 f.rgfoc && (f.rgfoc.max - f.rgfoc.min < 80))) {

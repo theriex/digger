@@ -1,36 +1,37 @@
 Presentation Classifications:
 ----------------------------
 
-Social: Music you might choose to play when you have company.  Since your
-music is part of who you are, this is probably most songs in your
-collection, but there's probably a few you might not choose to spin.  Very
-useful keyword to have.
+Social: Music you are comfortable playing whith other people listening. Your
+library is your music life, but some of that life might include songs or
+artists that no longer represent you well enough to play for others. Most of
+your music is probably social, but that's up to you.
 
-Personal: Music that is meaningful to you even if you might not choose to
-play it for other people.  Examples might be songs from your past that are
-not your current focus, tracks with great grooves but objectionable lyrics,
-and anything else you don't want to represent yourself with.
+Flow: Music you want to play while you're in a flow state doing whatever it
+is you do.
 
-Office: Music that you can listen to while you work.
+Audbio: Music that deeply touches who you are, or who you were. The most
+personally meaningful parts of your life soundtrack. Portmanteau of "audio"
+and "autobiographical".
 
-Dance: Music you would dance to.
+Dance: Music you want to dance to.
 
 
 Caegorical Filtering
 --------------------
 
-Jazz: There are times when I like to explore just the jazz section of my
-collection.
+Ambient: For me this is a very specific definition referring to music that
+can be listented to from zero to near full attention, while also being able
+to transition to and from silence.
 
 Classical: Usually I will mix classical music in with other music when I'm
 generally listening, but sometimes it can be a tough flow in some social
 situations so I flag it to be able to include it or not.
 
-Ambient: For me this is a very specific definition referring to music that
-can be listented to from zero to near full attention, while also being able
-to transition to and from silence.
+Jazz: There are times when I like to explore just the jazz section of my
+collection.
 
-Talk: Spoken word is ok in some social situations but not others.
+Talk: For me, spoken word is ok in some listening situations but not in
+others.
 
 
 Special occasion flags:
@@ -43,7 +44,7 @@ it is worth having a keyword to be able to grab them when the time comes.
 Obviated or conflated:
 ---------------------
 
-Morning: For me this turned out to be pretty much the same as "office" but
+Morning: For me this turned out to be pretty much the same as "Flow" but
 with a slightly lower energy level.
 
 Brunch: "Ssocial" with low to moderate energy level.
