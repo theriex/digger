@@ -1594,7 +1594,7 @@ app.top = (function () {
         function verifyKwdefs (dat) {
             if(!dat.kwdefs || dat.kwdefs === "{}") {
                 dat.kwdefs = JSON.stringify(
-                    mgrs.aaa.getDefaultKeywordDefinitions()); } }
+                    mgrs.aaa.getDfltKeywDefs()); } }
         function hubThenLocal (buttonid, pverb, endpoint, pdat, pcontf) {
             jt.byId(buttonid).disabled = true;
             jt.out("afgstatdiv", "Calling DiggerHub...");
@@ -1951,13 +1951,15 @@ app.top = (function () {
                 cfg.acctsinfo.accts.unshift(acct); } }
     return {
         initialize: function () {
+            Object.keys(dfltkeywords).forEach(function (key) {
+                dfltkeywords[key].kw = key; });
             app.pdat.addApresDataNotificationTask("checkDarkMode", function () {
                 mgrs.aaa.reflectDarkMode(mgrs.aaa.getDarkMode()); });
             app.pdat.addConfigListener("top.aaa", verifyConfig); },
         getDefaultAccount: function () {
             return app.pdat.configObj().acctsinfo.accts.find((acc) =>
                 acc.dsId === "101"); },
-        getDefaultKeywordDefinitions: function () { return dfltkeywords; },
+        getDfltKeywDefs: function () { return dfltkeywords; },
         getAccount: function () {
             const cfg = app.pdat.configObj();
             if(!cfg) { return null; }  //hub may request without pdat
@@ -2271,7 +2273,7 @@ app.top = (function () {
         verifyKeywordDefinitions: function () {
             if(!kwdefs || Object.keys(kwdefs).length < 4) {
                 kwdefs = JSON.parse(JSON.stringify(
-                    mgrs.aaa.getDefaultKeywordDefinitions())); } },
+                    mgrs.aaa.getDfltKeywDefs())); } },
         rebuildKeywords: function () {
             kwdefs = mgrs.aaa.getAccount().kwdefs;
             mgrs.kwd.verifyKeywordDefinitions();

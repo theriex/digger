@@ -238,9 +238,12 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #addkwb { user-select:none; -webkit-user-select:none; }
 .buttondlgdiv { display:inline-block; }
 .buttondlgdiv button { margin:4px; }
-#starsnbuttonsdiv { padding:10px 0px 2px 22px; position:relative;
+#starsnbuttonsdiv, #sbstopdiv { padding:8px 0px 2px 22px; position:relative;
   user-select:none; -webkit-user-select:none; }
-#rvdiv { display:inline-block; padding-left:8px; user-select:none; -webkit-user-select:none; }
+#rvdiv { display:inline-block; padding-left:8px; user-select:none; -webkit-user-select:none; vertical-align:middle; }
+#scflbsdiv { display:inline-block; }
+#scflbsdiv button { margin:0px 14px 0px 0px; }
+#sbkwdsdiv { display:inline-block; vertical-align:middle; padding-left:10px; }
 #playerbuttonsdiv { display:inline-block; vertical-align:top;
   user-select:none; -webkit-user-select:none; }
 .playerbdiv { display:inline-block; position:relative; user-select:none; -webkit-user-select:none; }

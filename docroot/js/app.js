@@ -856,25 +856,27 @@ app = (function () {
                 val.acctsinfo.accts.forEach(function (acct) {
                     if(acct.kwdefs) {
                         const revdefs = {};
-                        const dks = app.top.dispatch(
-                            "aaa","getDefaultKeywordDefinitions");
+                        const dks = app.top.dispatch("aaa","getDfltKeywDefs");
                         Object.entries(acct.kwdefs).forEach(function([ky, ov]) {
-                            if(ky === "Social") {
+                            if(typeof ov !== "object") {
+                                jt.log("verifyBaseObject removing bad kwdef: " +
+                                       ov); }
+                            else if(ky === "Social") {
                                 revdefs.Social = ov;
                                 revdefs.Social.pos = 1;
-                                revdefs.dsc = dks.Social.dsc; }
+                                revdefs.Social.dsc = dks.Social.dsc; }
                             else if(ky === "Flow" || ky === "Office") {
                                 revdefs.Flow = ov;
                                 revdefs.Flow.pos = 2;
-                                revdefs.dsc = dks.Flow.dsc; }
+                                revdefs.Flow.dsc = dks.Flow.dsc; }
                             else if(ky === "Audbio" || ky === "Personal") {
                                 revdefs.Audbio = ov;
                                 revdefs.Audbio.pos = 3;
-                                revdefs.dsc = dks.Audbio.dsc; }
+                                revdefs.Audbio.dsc = dks.Audbio.dsc; }
                             else if(ky === "Dance") {
                                 revdefs.Dance = ov;
                                 revdefs.Dance.pos = 4;
-                                revdefs.dsc = dks.Dance.dsc; }
+                                revdefs.Dance.dsc = dks.Dance.dsc; }
                             else {  //other general keyword
                                 revdefs[ky] = ov;
                                 revdefs[ky].pos = 0;
