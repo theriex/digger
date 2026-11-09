@@ -444,6 +444,12 @@ app.player = (function () {
         initialize: function () {
             app.pdat.addApresDataNotificationTask("kwdTogInit", function () {
                 mgrs.kwd.rebuildToggles(); }); },
+        hasKeywords: function (song) {
+            var retval = "";
+            if(song && song.kwds) {
+                retval = song.kwds.csvremove("Social");
+                retval = song.kwds.csvremove("Flow"); }
+            return retval; },
         makeToggleButton: function (kd, idx) {
             var tc = "kwdtogoff";
             if(pmso.song && pmso.song.kws && pmso.song.kws.csvcontains(kd.kw)) {
@@ -569,12 +575,8 @@ app.player = (function () {
     }());
 
 
-    //handle the song comment display and entry
-    mgrs.cmt = (function () {
-        const ost = {mode:"", dispf:null, odi:"panplayoverlaydiv"};
-        const modeps = {
-            share: {bids:["sg2cbb", "sg2dhb"], statd:"sharestatdiv"},
-            comment: {bids:["cancelb", "savcmtb"], statd:"cmtstatdiv"}};
+    //song frequency manager
+    mgrs.sfq = (function () {
         const sfos = [{v:"P", t:"Playable"},  //selectable frequency options
                       {v:"B", t:"Tired"},
                       {v:"R", t:"Don't Suggest"}];
@@ -595,36 +597,13 @@ app.player = (function () {
             sfo = sfo || sfos[0];
             return sfo.v; }
         function isSelVal (radval) {
-            var songval = ost.song.fq || "P";
+            var songval = pmso.song.fq || "P";
             if(songval === "0") { songval = "P"; }  //tolerate bad data init
             songval = songval.slice(0, 1);  //e.g treat "DP" as Deleted
             return isSubcatValue(radval, songval); }
-        function impressionSummary () {
-            const eavs = mgrs.cmt.elal2txtvals(ost.song);
-            return [{lab:"Keywords", val:ost.song.kws || "none"},
-                    {lab:eavs.el.pn, val:eavs.el.val},
-                    {lab:eavs.al.pn, val:eavs.al.val}]; }
-        function clipboardSongDescription (s) {
-            var txt = s.ti + "\nby: " + s.ar + "\n";
-            if(s.ab !== "Singles") {
-                txt += "album: " + s.ab; }
-            const ct = mgrs.cmt.cleanCommentText(ost.song.nt);
-            if(ct) {
-                txt += "\n" + ct + "\n"; }
-            txt += "\n";
-            txt += impressionSummary().map((imp) =>
-                (imp.lab + ": " + imp.val)).join("\n");
-            const acct = app.top.dispatch("aaa", "getAccount");
-            if(acct && acct.digname) {
-                txt += "\nhttps://diggerhub.com/listener/" + acct.digname + 
-                    "\n"; }
-            return txt; }
-        function prevPlayAndDupesHTML () {
+        function dupesHTML () {
             var pp = ""; var ddct = ""; var dupesongshtml = "";
-            if(ost.prevPlayed) {
-                pp = jt.tz2human(ost.prevPlayed);
-                pp = "Previously played " + pp; }
-            const dupes = app.deck.dispatch("sdt", "getSongDupes", ost.song);
+            const dupes = app.deck.dispatch("sdt", "getSongDupes", pmso.song);
             if(dupes && dupes.length) {
                 const dn = dupes.length;
                 ddct = jt.tac2html(
@@ -643,17 +622,98 @@ app.player = (function () {
                   ddct,
                   ["div", {id:"dupesdispdiv", style:"display:none"},
                    dupesongshtml]]]); }
-        function genreDispHTML () {
-            var html = ""; var gv;
-            if(ost.song.genrejson) {
+        function genreValue (song) {
+            var gv = "N/A";
+            if(song && song.genrejson) {
                 try {
-                    gv = JSON.parse(ost.song.genrejson);
+                    gv = JSON.parse(pmso.song.genrejson);
                     if(Array.isArray(gv)) {
                         gv = gv.map((g) => jt.escq(g)).join(", "); }
-                    html = "Genre: " + gv;
                 } catch(e) {
                     jt.log("genreDispHTML err " + e); } }
-            return html; }
+            return gv; }
+        function attrValTable (avs, id) {
+            if(!avs || !avs.length) { return ""; }
+            const tablestyle = {cla:"attrvaltable"};
+            if(id) {
+                tablestyle.id = id; }
+            return jt.tac2html(
+                ["table", tablestyle,
+                 avs.map((av) =>
+                     ["tr", [["td", av[0] + ":"], ["td", av[1]]]])]); }
+    return {
+        updateSongFrequency: function (event) {
+            var rbv = event.target.value;
+            if(!isSubcatValue(rbv, pmso.song.fq)) {  //value changed
+                pmso.song.fq = rbv;   //for updated song save
+                mgrs.scm.noteSongModified("freq"); } },
+        bumpTired: function (song) {  //general utility
+            var tfqidx = subcats.B.indexOf(pmso.cto().fq);
+            if(tfqidx < 0) {  //not currently marked as tired
+                song.fq = "B";
+                return true; }
+            if(tfqidx >= 0 && tfqidx < subcats.B.length - 1) {
+                song.fq = subcats.B[tfqidx + 1];
+                return true; }
+            return false; },
+        bumpCurrentIfTired: function () {
+            if(pmso.song &&  //check if already marked tired
+               subcats.B.findIndex((v) => v === pmso.song.fq) >= 0) {
+                if(mgrs.cmt.bumpTired(pmso.song)) {  //made tireder
+                    mgrs.scm.noteSongModified("freqbump"); } } },
+        hasFrequencyTuning: function (song) {
+            return (song.fq && tuningDisplayMode(song.fq) !== "P"); },
+        tuningDialog: function () {
+            return jt.tac2html(
+                [attrValTable([["Title", pmso.song.ti],
+                               ["Artist", pmso.song.ar],
+                               ["Album", pmso.song.ab]],
+                             "tunetiarabtable"),
+                 ["div", {id:"frequencyoptionsdiv"},
+                  sfos.map((fo) =>
+                      ["div", {cla:"tuneoptiondiv"},
+                       [["input", {type:"radio", id:"tunerad" + fo.v,
+                                   name:"tuneoption", value:fo.v,
+                                   checked:jt.toru(isSelVal(fo.v)),
+                                   onclick:mdfs("sfq.updateSongFrequency",
+                                                "event")}],
+                        ["label", {fo:"tunerad" + fo.v}, fo.t]]])],
+                 ["div", {id:"tuningdetdiv"},
+                  [attrValTable([["Genre", genreValue(pmso.song)],
+                                 ["Plays", pmso.song.pc],
+                                 ["Source", pmso.song.path]]),
+                   ["div", {id:"prevplaydupesdiv"},
+                     dupesHTML()]]]]); }
+    };  //end mgrs.sfq returned functions
+    }());
+
+
+    //handle the song comment display and entry
+    mgrs.cmt = (function () {
+        const ost = {mode:"", dispf:null, odi:"panplayoverlaydiv"};
+        const modeps = {
+            share: {bids:["sg2cbb", "sg2dhb"], statd:"sharestatdiv"},
+            comment: {bids:["cancelb", "savcmtb"], statd:"cmtstatdiv"}};
+        function impressionSummary () {
+            const eavs = mgrs.cmt.elal2txtvals(ost.song);
+            return [{lab:"Keywords", val:ost.song.kws || "none"},
+                    {lab:eavs.el.pn, val:eavs.el.val},
+                    {lab:eavs.al.pn, val:eavs.al.val}]; }
+        function clipboardSongDescription (s) {
+            var txt = s.ti + "\nby: " + s.ar + "\n";
+            if(s.ab !== "Singles") {
+                txt += "album: " + s.ab; }
+            const ct = mgrs.cmt.cleanCommentText(ost.song.nt);
+            if(ct) {
+                txt += "\n" + ct + "\n"; }
+            txt += "\n";
+            txt += impressionSummary().map((imp) =>
+                (imp.lab + ": " + imp.val)).join("\n");
+            const acct = app.top.dispatch("aaa", "getAccount");
+            if(acct && acct.digname) {
+                txt += "\nhttps://diggerhub.com/listener/" + acct.digname +
+                    "\n"; }
+            return txt; }
         function resStat(txt) {
             jt.log("player.cmt.resStat: " + txt);
             jt.out(modeps[ost.mode].statd, jt.tac2html(
@@ -662,18 +722,6 @@ app.player = (function () {
                   ["a", {href:"#done", onclick:mdfs("cmt.closeOverlay")},
                    "Ok"]]]));
             ost.btdonef(); }
-        function showTiredAlbumButton () {
-            jt.out("albtireddiv", "");
-            if(isSubcatValue("B", ost.song.fq)) {
-                jt.out("albtireddiv", jt.tac2html(
-                    ["div", {cla:"buttondlgdiv"},
-                     [["button", {type:"button",
-                                  title:"Mark all songs on this album as tired",
-                                  onclick:mdfs("cmt.snoozeAllSongsOnAlbum")},
-                       [["img", {cla:"tunactimg inv", src:"img/album.png"}],
-                        "&nbsp;<b>&#x21d2;</b>&nbsp;", //rightwards double arrow
-                        ["img", {cla:"tunactimg inv", src:"img/snzblk.png"}]]],
-                      ["div", {id:"albtiredconfdiv"}]]])); } }
         const buttons = {
             sg2cbb: {name:"Clipboard", handler:function () {
                 const txt = clipboardSongDescription(ost.song);
@@ -745,6 +793,8 @@ app.player = (function () {
                 txt = txt.replace(/Amazon.com Song ID: \d+/, "").trim();
                 txt = txt.replace(/copyright \d\d\d\d .*/ig, "").trim(); }
             return txt; },
+        hasComment: function (song) {
+            return (song && song.nt && mgrs.cmt.cleanCommentText(song.nt)); },
         elal2txtvals: function (s) {
             const vals = {
                 el:{pn:"Energy Level", val:"Nominal"},
@@ -784,11 +834,6 @@ app.player = (function () {
                         cta.focus(); } }, 150);
                 return html; }); },
         updateIndicators: function () {
-            const tuneimg = jt.byId("tuneimg");
-            if(tuneimg) {
-                tuneimg.src = "img/tunefork.png";  //reset
-                if(tuningDisplayMode(pmso.cto().fq) !== "P") {
-                    tuneimg.src = "img/tuneforkact.png"; } }
             const commentimg = jt.byId("togcommentimg");
             if(commentimg) {
                 commentimg.src = "img/comment.png";  //reset
@@ -803,48 +848,6 @@ app.player = (function () {
                                     src:"img/sharrow.png"}]],
                    ["div", {id:"shbdiv"}, buttonsHTML()]]],
                  ["div", {id:"sharestatdiv"}]]); }); },
-        toggleTuningOpts: function (togstate) {
-            togDialog(togstate, "tuning", function () {
-                const html = jt.tac2html(
-                    ["div", {id:"tunefqdispdiv", cla:"togdlgabspos"},
-                     [["div", {id:"frequencyoptionsdiv"},
-                       sfos.map((fo) =>
-                           ["div", {cla:"tuneoptiondiv"},
-                            [["input", {type:"radio", id:"tunerad" + fo.v,
-                                        name:"tuneoption", value:fo.v,
-                                        checked:jt.toru(isSelVal(fo.v)),
-                                        onclick:mdfs("cmt.updateSongFrequency",
-                                                     "event")}],
-                             ["label", {fo:"tunerad" + fo.v}, fo.t]]])],
-                      ["div", {id:"tuningdetdiv"}, 
-                       ["div", {id:"tunedetdiv"},
-                        [["div", {id:"prevplaydupesdiv"},
-                          prevPlayAndDupesHTML()],
-                         ["div", {id:"playcountdiv"},
-                          ["Digger plays: ",
-                           ["span", pmso.song.pc]]],
-                         ["div", {id:"genresdiv"}, genreDispHTML()],
-                         ["div", {id:"songurldiv"},
-                          ["Source: ",
-                           ["span", pmso.song.path]]],
-                         ["div", {id:"albtireddiv"}]]]]]]);
-                setTimeout(showTiredAlbumButton, 500);
-                return html; }); },
-        updateSongFrequency: function (event) {
-            var rbv = event.target.value;
-            if(!isSubcatValue(rbv, pmso.cto().fq)) {  //value changed
-                ost.song.fq = rbv;    //for local reference
-                pmso.cto().fq = rbv;   //for updated song save
-                showTiredAlbumButton();
-                mgrs.cmt.updateIndicators();
-                mgrs.scm.noteSongModified("freq"); } },
-        reflectChangedSongFrequency: function (ignore /*fld*/, val) {
-            const button = jt.byId("tunerad" + tuningDisplayMode(val));
-            if(button && !button.checked) {
-                //pmso.cto().fq already updated, just reflecting the value
-                showTiredAlbumButton();
-                mgrs.cmt.updateIndicators();
-                button.checked = true; } },
         snoozeAllSongsOnAlbum: function () {
             const divid = "albtiredconfdiv";
             const div = jt.byId(divid);
@@ -858,41 +861,6 @@ app.player = (function () {
                    ["button", {type:"button",
                                onclick:mdfs("cmt.snoozeAlbumSongsProc")},
                     "Mark All Songs Tired"]]]])); },
-        snoozeAlbumSongsProc: function () {
-            var updsongs = [];
-            jt.out("abactoptsdiv", "Marking...");
-            const locmod = new Date().toISOString();
-            Object.values(app.pdat.songsDict()).forEach(function (s) {
-                if(s.ab === ost.song.ab && s.ar === ost.song.ar) {
-                    if(subcats.B.indexOf(s.fq) < 0) {  //not tired at all
-                        s.fq = "B";
-                        s.locmod = locmod;
-                        updsongs.push(s); } } });
-            if(!updsongs.length) {
-                jt.out("abactoptsdiv", "All songs marked as tired.");
-                return; }
-            jt.out("abactoptsdiv", "Updating " + updsongs.length + " songs...");
-            app.pdat.writeDigDat("cmt.snoozeAlbumSongsProc", {songs:updsongs},
-                function () {
-                    jt.out("abactoptsdiv", String(updsongs.length) +
-                           " songs updated."); },
-                function (code, errtxt) {
-                    jt.out("abactoptsdiv", "Song update failed " +
-                           code + ": " + errtxt); }); },
-        bumpTired: function (song) {  //general utility
-            var tfqidx = subcats.B.indexOf(pmso.cto().fq);
-            if(tfqidx < 0) {  //not currently marked as tired
-                song.fq = "B";
-                return true; }
-            if(tfqidx >= 0 && tfqidx < subcats.B.length - 1) {
-                song.fq = subcats.B[tfqidx + 1];
-                return true; }
-            return false; },
-        bumpCurrentIfTired: function () {
-            if(pmso.song &&  //check if already marked tired
-               subcats.B.findIndex((v) => v === pmso.song.fq) >= 0) {
-                if(mgrs.cmt.bumpTired(pmso.song)) {  //made tireder
-                    mgrs.scm.noteSongModified("freqbump"); } } },
         toggleOtherDisplay: function (togstate, mode, dispf) {
             togDialog(togstate, mode, dispf); },
         buttonHandler: function (bid) {
@@ -1107,9 +1075,7 @@ app.player = (function () {
     //after N more songs.  Works as a playback queue limit with countdown
     //monitoring off the latest playback queue.
     mgrs.slp = (function () {
-        const scms = {  //sleep completion messages
-            lastpl: "Slept after song finished.",
-            unexpl: "Sleep overridden by external control."};
+        const rost = {endmsg:""};  //runtime only state
         function initializeSleepState () {
             const pslp = app.pdat.prst("player.slp");
             pslp.act = "";  //UI. Not active.  Otherwise "active" or "sleeping".
@@ -1133,47 +1099,7 @@ app.player = (function () {
                 if(sel) {
                     sel.value = 0; } } }
         function updateSleepMainButtonDisplay () {
-            const pslp = app.pdat.prst("player.slp");
-            jt.out("sleepcntssdiv", pslp.cnt || "");
-            jt.byId("togsleepimg").src = (pslp.act? "img/sleepactive.png"
-                                          : "img/sleep.png"); }
-        function clearSleepDialog () {
-            mgrs.cmt.toggleOtherDisplay("off");
-            jt.out("sleepmsgdispdiv", "");  //clear dlg message content if avail
-            turnSleepOff("uindb", "clearSleepDialog");
-            updateSleepMainButtonDisplay(); }
-        function showParameterControls () {  //rebuild from current state
-            const pslp = app.pdat.prst("player.slp");
-            const svos = [0, 1, 2, 3, 4, 5];
-            jt.out("sleepdiv", jt.tac2html(
-                [["a", {href:"#close",
-                        onclick:mdfs("slp.toggleSleepDisplay", "close")},
-                  "Sleep after "],
-                 ["select", {id:"sleepcountsel", title:"Sleep counter",
-                             onchange:mdfs("slp.updateSleepState",
-                                           "changecount")},
-                  svos.map((v) =>
-                      ["option", {value:v, selected:jt.toru(v === pslp.cnt)},
-                       String(v)])],  //show "0"
-                 ["a", {href:"#close",
-                        onclick:mdfs("slp.toggleSleepDisplay", "close")},
-                  " more "],
-                 ["input", {type:"checkbox", id:"sleepactivecb",
-                            checked:"checked",  //on if detail controls shown
-                            onclick:mdfs("slp.updateSleepState", 
-                                         "checkbox")}]])); }
-        function sleepCompletionDialog (msg) {
-            mgrs.slp.toggleSleepDisplay("close");  //deactivate controls if open
-            mgrs.cmt.toggleOtherDisplay("on", "sleep", function () {
-                return jt.tac2html(
-                    ["div", {id:"sleepmsgdispdiv", cla:"togdlgabspos"},
-                     [msg,
-                      ["div", {id:"acksleepbuttonsdiv", cla:"dlgbuttonsdiv"},
-                       ["button", {type:"button", 
-                                   onclick:mdfs("slp.ackSleepProcDone")},
-                        "Ok"]]]]); });
-            //Playback may have started up again on app UI reforeground
-            setTimeout(function () { mgrs.plui.pause(); }, 50); }
+            mgrs.sob.relightButtons(); }
         function sleepQueueEndSongType () {
             const pslp = app.pdat.prst("player.slp");
             if(pmso.song.path === pslp.lspbs) { return "lastsong"; }
@@ -1228,28 +1154,20 @@ app.player = (function () {
             app.pdat.prst("player.slp", "updated");
             jt.log("slp.updateState " + pslp.res + " " + pslp.endSongType +
                    " " + pslp.endState); }
-        function sleepDialogDisplayed () {
-            const smdd = jt.byId("sleepmsgdispdiv");
-            return (smdd && smdd.innerHTML); }
-        function displaySleepDialog (logpre) {
-            if(sleepDialogDisplayed()) {
-                jt.log(logpre + "redisplaying dialog"); }
-            const pslp = app.pdat.prst("player.slp");
-            if(pslp.res === "ended") {
-                jt.log(logpre + "playback ended");
-                sleepCompletionDialog(scms.lastpl); }
-            else {  //playback did not end in any recognizable way
-                jt.log(logpre + "playback did not end. state:" +
-                       pmso.state + ", path:" + pmso.song.path);
-                sleepCompletionDialog(scms.unexpl); } }
         function checkIfSleeping (caller) {
             const logpre = caller + " checkIfSleeping ";
             const pslp = app.pdat.prst("player.slp");
-            if(!pslp.act && pmso.state !== "ended") {
-                return; } //sleep inactive is normal, no log messages
-            updateState();
-            if(sleepDialogDisplayed() || pslp.res === "ended") {
-                displaySleepDialog(logpre); }
+            if(!pslp.act) { return; }  //sleep not active, nothing to do
+            updateState();  //figure out pslp.res or deactivate sleep
+            if(pslp.res === "ended") {
+                rost.msg = "Slept after song finished."; }
+            else if(pslp.res === "off") { //unknown ending song
+                //Diggers needs to take over playback from external, click play
+                rost.msg = "Sleep overridden by external control."; }
+            else { //some other ongoing sleep state
+                return; }
+            jt.log(logpre + rost.msg);
+            mgrs.sob.toggleOverlay("sleep", "open");  //open sleep dialog
             updateSleepMainButtonDisplay(); } //reflect updated state
         function wakeupAndPlay () {
             jt.log("wakeupAndPlay resuming playback");
@@ -1257,23 +1175,55 @@ app.player = (function () {
             clearTimeout(pslp.waptmo);  //in case scheduled
             pslp.waptmo = null;
             app.pdat.prst("player.slp", "updated");
-            clearSleepDialog();  //might have reactivated from state restore
+            mgrs.sob.toggleOverlay("close");  //state restore maybe reactivated
             mgrs.plui.pollingMode("active", "ackSleepProcDone");
             app.deck.playNextSong(); }
+        function sleepDialogContent () {
+            const dsp = {stat:"Sleep not set.", ctrl:""};
+            const pslp = app.pdat.prst("player.slp");
+            const svos = [0, 1, 2, 3, 4, 5];
+            if(pslp.res === "ended" || rost.msg) {
+                dsp.stat = rost.msg || "Sleep completed.";
+                rost.msg = "";  //reset. This previous ending is now displayed.
+                dsp.ctrl = jt.tac2html(
+                    ["a", {href:"#play", title:"Resume playback",
+                           onclick:mdfs("slp.ackSleepProcDone")},
+                     ["img", {src:"img/slpres.png"}]]); }
+            else {
+                if(pslp.act) {
+                    dsp.stat = "Sleep set."; }
+                dsp.ctrl = jt.tac2html(
+                    ["Sleep after ",
+                     ["select", {id:"sleepcountsel", title:"Sleep counter",
+                                 onchange:mdfs("slp.updateSleepState",
+                                               "changecount")},
+                      svos.map((v) =>
+                          ["option", {value:v,
+                                      selected:jt.toru(v === pslp.cnt)},
+                           String(v)])],  //show "0"
+                     " more ",
+                     ["input", {type:"checkbox", id:"sleepactivecb",
+                                checked:jt.toru(pslp.act),
+                                onclick:mdfs("slp.updateSleepState",
+                                             "checkbox")}]]); }
+            return jt.tac2html(  //this gets written to slpdlgdiv
+                [["div", {id:"slpdlgstatdiv"}, dsp.stat],
+                 ["div", {id:"slpdlgctrldiv"}, dsp.ctrl]]); }
         function digDatUpdated (/*digdat*/) {
             checkIfSleeping("digDatUpdated"); }
     return {
         initialize: function () {
+            app.boot.addApresModulesInitTask("slp.initializeSleepState",
+                                             initializeSleepState);
             app.pdat.addDigDatListener("player.slp", digDatUpdated); },
         notePlayerStateChange: function () {
             checkIfSleeping("notePlayerStateChange"); },
-        waitingOnSleepDialog: function () {
-            const sdd = sleepDialogDisplayed();
-            if(sdd) {
-                displaySleepDialog("waitingOnSleepDialog "); }
-            return sdd; },
+        isSleepActive: function () {
+            const pslp = app.pdat.prst("player.slp");
+            return (pslp && pslp.act); },
         ackSleepProcDone: function () {
-            clearSleepDialog();  //update UI, then verify latest data
+            turnSleepOff("uindb", "ackSleepProcDone");
+            updateSleepMainButtonDisplay();
             const pslp = app.pdat.prst("player.slp");
             pslp.waptmo = setTimeout(wakeupAndPlay,  //fallback retry in case
                                      2400);          //ongoing write/read
@@ -1295,29 +1245,30 @@ app.player = (function () {
                     pslp.cnt = parseInt(jt.byId("sleepcountsel").value, 10); }
                 else {
                     pslp.cnt = 0; }
-                mgrs.slp.toggleSleepDisplay("close"); }
+                mgrs.sob.toggleOverlay("close"); }
             app.pdat.prst("player.slp", "updated");
             updateSleepMainButtonDisplay();
             jt.log("updateSleepState " + (
                 pslp.act? (pslp.act + " " + pslp.cnt) : "sleep not active"));
             app.deck.replayQueue(); },  //now subject to maxAllowedQueueLength
-        toggleSleepDisplay: function (close) {  //show or hide the sleep details
-            const sleepdiv = jt.byId("sleepdiv");
-            if(close || sleepdiv.style.display !== "none") {
-                sleepdiv.innerHTML = "";  //avoid any possible elem side effects
-                sleepdiv.style.display = "none";  //note closed
-                return; }
-            if(!pmso.song) { return jt.log("No sleep before pmso.song avail"); }
+        sleepDialogHTML: function () {
             const pslp = app.pdat.prst("player.slp");
-            if(pslp.act) {  //sleep already activated, show parameter controls
-                jt.byId("sleepdiv").style.display = "block";
-                showParameterControls(); }
-            else {  //sleep not active, activate without detail display
-                pslp.cnt = 0;  //default sleep is after np song finishes
-                pslp.act = "active";
-                app.pdat.prst("player.slp", "updated");
-                mgrs.slp.updateSleepState("toggleSleepOn",
-                                          "overrideUIControls"); } },
+            if(!pslp.act && !rost.msg) {  //opening dialog to auto-set sleep
+                if(pmso.state !== "playing") {
+                    setTimeout(function () {
+                        jt.out("slpdlgctrldiv", "Not playing...");
+                        setTimeout(function () {
+                            mgrs.sob.toggleOverlay("close"); }, 1200); },
+                               750); }
+                else {
+                    setTimeout(function () {
+                        jt.out("slpdlgstatdiv", "Setting sleep...");
+                        setTimeout(function () {
+                            jt.byId("sleepactivecb").click(); },
+                                   1200); },
+                               750); } }
+            return jt.tac2html(
+                ["div", {id:"slpdlgdiv"}, sleepDialogContent()]); },
         maxAllowedQueueLength: function (songs) {  //songs[0] lp update pending
             var obvr = "";   //obviation reason
             const pslp = app.pdat.prst("player.slp");
@@ -1352,22 +1303,13 @@ app.player = (function () {
             const cmdiv = jt.byId("contentmargindiv");
             cmdiv.style.backgroundSize = "564px " + (oh + 20) + "px"; }
         function updateSongTitleDisplay () {
-            var tunesrc = "img/tunefork.png";
-            const tuneimg = jt.byId("tuneimg");
-            if(tuneimg) {  //might have been lit up, keep what's there
-                tunesrc = tuneimg.src; }
             if(pmso.song) {  //no longer starting up, verify default status text
                 nosongtext = "No song selected"; }
             jt.out("playertitle", jt.tac2html(
                 ["div", {cla:"songtitlediv"},
-                 [["div", {id:"playtitlebuttonsdiv"},
-                   [["span", {id:"modindspan"}],
-                    ["a", {href:"#tuneoptions", title:"Tune Playback Options",
-                           id:"tuneopta", onclick:mdfs("cmt.toggleTuningOpts")},
-                     ["img", {src:tunesrc, cla:"ptico inv", id:"tuneimg"}]]]],
-                  ["span", {id:"playtitletextspan"},
-                   app.deck.dispatch("util", "songIdentHTML",
-                                     pmso.song, nosongtext)]]])); }
+                 ["span", {id:"playtitletextspan"},
+                  app.deck.dispatch("util", "songIdentHTML",
+                                    pmso.song, nosongtext)]])); }
         function logPBHandlerState (src, drsm, pbsh) {
             jt.log(src + " " + drsm + " " + JSON.stringify(pbsh)); }
         function noteUpdatedSongStatus (drsm, pbsh) {
@@ -1479,24 +1421,8 @@ app.player = (function () {
             if(status.state && pbstates.indexOf(status.state) < 0) {
                 jt.log("rcvPBStat invalid status.state: " + status.state); }
             return ""; }
-        function initPlayerUIBaseElements () {
-            jt.out("mediadiv", jt.tac2html(
-                ["div", {id:"playerdiv"},
-                 [["div", {id:"playertitle"},
-                   ["div", {cla:"songtitlediv"},
-                    [["div", {id:"playtitlebuttonsdiv"},
-                      ["span", {id:"modindspan"}]],
-                     "Starting"]]],
-                  ["div", {id:"playertuningdiv"}],
-                  ["div", {id:"audioplayerdiv"},
-                   [["div", {id:"audiodiv"}],
-                    ["div", {id:"nextsongdiv", title:"Skip To Next Song",
-                             onclick:jt.fs("app.player.skip()")},
-                     ["img", {src:"img/skip.png",
-                              cla:"ptico inv"}]]]]]])); }
     return {
         initialize: function () {
-            initPlayerUIBaseElements();
             app.boot.addApresModulesInitTask("adjustFramingBackground",
                                              adjustFramingBackgroundHeight); },
         illuminateAndFade: function (divid, ms) {
@@ -1586,11 +1512,131 @@ app.player = (function () {
     }());
 
 
+    //side overlay buttons manager
+    mgrs.sob = (function () {
+        const rtd = {bact:"", mow:"325px", moh:""};
+        const btns = {
+            tune: {img:"tunefork.png", imga:"tuneforkact.png",
+                   nexto:"ppntitlediv", title:"Tuning frequency and details",
+                   litf:mgrs.sfq.hasFrequencyTuning,
+                   ovrc:mgrs.sfq.tuningDialog},
+            sleep: {img:"sleep.png", imga:"sleepactive.png",
+                    nexto:"ppnplayerdiv", title:"Sleep after song finishes",
+                    litf:mgrs.slp.isSleepActive,
+                    ovrc:mgrs.slp.sleepDialogHTML},
+            kwds: {img:"keys.png", imga:"keysact.png",
+                   nexto:"ppncontrolsdiv", title:"Keyword retrieval values",
+                   aoffs:["panpotsdiv", 7], hfrom:"sbstopdiv",
+                   litf:mgrs.kwd.hasKeywords},
+            cmt: {img:"comment.png", imga:"commentact.png",
+                  nexto:"ppncontrolsdiv", title:"Comment about this song",
+                  aoffs:["panpotsdiv", 7, "sbstopdiv"], hfrom:"sbscmtdispdiv",
+                  litf:mgrs.cmt.hasComment}};
+        function verifyMousingDivWidth () {
+            const audiodiv = jt.byId("audiodiv");
+            if(audiodiv) {
+                const adw = audiodiv.getBoundingClientRect().width;
+                if(adw > 290) {  //not using plui, expand to accommodate
+                    rtd.mow = (adw + 35) + "px";
+                    rtd.pcd = (adw + 70) + "px";
+                    style("panplaymousingdiv", {width:rtd.mow});
+                    style("panplayoverlaydiv", {width:"0px", left:rtd.mow});
+                    style("panplaycontentdiv", {width:rtd.pcd}); } } }
+        function setOverlayHeight () {
+            const mdbb = jt.byId("panplaymousingdiv").getBoundingClientRect();
+            rtd.moh = mdbb.height + "px";
+            style("panplayoverlaydiv", {height:rtd.moh}); }
+        function nmk (btn, sfx) {
+            return "sob" + btn + sfx; }
+        function elemh (elem) {
+            return elem.getBoundingClientRect().height; }
+        function style (id, styles) {
+            const elem = jt.byId(id);
+            if(!elem) { return; }
+            Object.entries(styles).forEach(function ([s, v]) {
+                elem.style[s] = v; }); }
+        function recalcButtonPositions () {
+            Object.entries(btns).forEach(function ([btn, bob]) {
+                const nt = jt.byId(bob.nexto);
+                if(nt) {  //have nexto element
+                    const al = {top:nt.offsetTop, height:elemh(nt)};
+                    if(bob.aoffs) {
+                        bob.aoffs.forEach(function (aoff) {
+                            if(typeof aoff === "string") {
+                                al.top += elemh(jt.byId(aoff)); }
+                            else {
+                                al.top += aoff; } }); }
+                    if(bob.hfrom) {
+                        al.height = elemh(jt.byId(bob.hfrom)); }
+                    const bt = al.top + ((al.height - 30) / 2);
+                    const ahbd = jt.byId(nmk(btn, "ahcdiv"));
+                    ahbd.style.top = bt + "px"; }
+                else {
+                    jt.log("sob.recalcButtonPositions no nt " + bob.nt); }}); }
+        function dimInactiveButtons () {
+            Object.keys(btns).forEach(function (btn) {
+                const bdiv = jt.byId(nmk(btn, "ahcdiv"));
+                bdiv.style.opacity = 1.0;
+                if(rtd.bact && rtd.bact !== btn) {
+                    bdiv.style.opacity = 0.3; } }); }
+    return {
+        buttonsDivContent: function () {
+            var bds = [];
+            Object.entries(btns).forEach(function ([btn, bob]) {
+                bds.push(jt.tac2html(  //adjustable height container w/button
+                    ["div", {id:nmk(btn, "ahcdiv"), cla:"sobahcdiv"},
+                     ["div", {id:nmk(btn, "btndiv"), cla:"sobbdiv"},
+                      ["a", {id:nmk(btn, "link"), href:"#toggle" + btn,
+                             title:bob.title,
+                             onclick:mdfs("sob.toggleOverlay", btn)},
+                       ["img", {id:nmk(btn, "img"), cla:"ptico inv",
+                                src:"img/" + bob.img}]]]])); });
+            return bds; },
+        updateButtonsDisplay: function () {
+            verifyMousingDivWidth();
+            setOverlayHeight();
+            recalcButtonPositions();
+            mgrs.sob.relightButtons(); },
+        relightButtons: function () {
+            const song = pmso && pmso.song;
+            Object.entries(btns).forEach(function ([btn, bob]) {
+                if(song && bob.litf(song)) {
+                    jt.byId(nmk(btn, "img")).src = "img/" + bob.imga; }
+                else {
+                    jt.byId(nmk(btn, "img")).src = "img/" + bob.img; } }); },
+        toggleOverlay: function (btn, open) {
+            if((rtd.bact !== btn && btn !== "close") || //open btn dlg
+               (rtd.bact === btn && open)) {  //leave open and redraw btn dlg
+                var html = "";
+                rtd.bact = btn;
+                if(!pmso.song) {
+                    html = jt.tac2html(
+                        ["div", {id:"sobnosongdiv"}, "No song playing."]); }
+                else {
+                    html = btns[btn].ovrc(); }
+                jt.out("panplayoverlaydiv", jt.tac2html(
+                    ["div", {id:"pplovcdiv", cla:"inv"}, html]));
+                style("panplayoverlaydiv", {left:"0px", width:rtd.mow});
+                style("pplovcdiv", {height:rtd.moh, width:rtd.mow,
+                                    left:rtd.mow});
+                setTimeout(function () {
+                    style("pplovcdiv", {left:"0px"}); }, 50); }
+            else { //toggle closed
+                rtd.bact = "";
+                setTimeout(function () {
+                    jt.out("panplayoverlaydiv", "");
+                    style("panplayoverlaydiv", {width:"0px"}); }, 500);
+                style("pplovcdiv", {left:rtd.mow}); }
+            dimInactiveButtons(); }
+    };  //end mgrs.sob returned interface
+    }());
+
+
     //general top level processing functions
     mgrs.gen = (function () {
         const uichg = [  //fields changeable in the player UI with update funcs
-            {fld:"fq", uf:function (val) {
-                mgrs.cmt.reflectChangedSongFrequency("fq", val); }},
+            {fld:"fq", uf:function () {
+                mgrs.sob.updateButtonsDisplay(); }},
             {fld:"al", uf:function (val) {
                 mgrs.pan.updateControl("al", val); }},
             {fld:"el", uf:function (val) {
@@ -1621,60 +1667,51 @@ app.player = (function () {
             if(pmso.song && pmso.song.path !== song.path) {
                 pmso.stale = pmso.song;   //avoid leftover status returns
                 pmso.expecting = song; } }  //avoid empty status returns
-        // function keywordsAndRatingsDivContent () {
-        //     const dfks = app.top.dispatch("aaa", "getDfltKeywDefs");
-        //     return ["div", {id:"songbuttonsdiv"},
-        //             [["div", {id:"sbstopdiv"},
-        //               [["div", {id:"rvdiv"}],
-        //                ["div", {id:"scflbsdiv"},
-        //                 [mgrs.kwd.makeToggleButton(dfks.Social, 0),
-        //                  mgrs.kwd.makeToggleButton(dfks.Flow, 1)]],
-        //                ["div", {id:"sbkwdsdiv"},
-        //                 ["img", {cla:"tunactimg inv", src:"img/keys.png"}]]]],
-        //              ["div", {id:"sleepdiv", style:"display:none"}]]]; }
         function keywordsAndRatingsDivContent () {
-            return [["div", {id:"kwdsdiv"}],
-                    ["div", {id:"starsnbuttonsdiv"},
-                     [["div", {id:"rvdiv"}],
-                      ["div", {id:"playerbuttonsdiv"},
-                       [["div", {cla:"playerbdiv"},
-                         ["a", {id:"togcommentlink", href:"#togglecomment",
-                                title:"Comment",
-                                onclick:mdfs("cmt.toggleCommentDisplay")},
-                          ["img", {id:"togcommentimg", cla:"plbimg inv",
-                                   src:"img/comment.png"}]]],
-                        ["div", {cla:"playerbdiv"},
-                         ["a", {id:"togsharelink", href:"#share",
-                                title:"Share",
-                                onclick:mdfs("cmt.toggleSongShare")},
-                          ["img", {id:"togshareimg", cla:"plbimg inv",
-                                   src:"img/share.png"}]]],
-                        ["div", {cla:"playerbdiv"},
-                         [["div", {id:"sleepcntssdiv"}],
-                          ["a", {id:"togsleeplink", href:"#sleepafter",
-                                 title:"Sleep",
-                                 onclick:mdfs("slp.toggleSleepDisplay")},
-                           ["img", {id:"togsleepimg", cla:"plbimg inv",
-                                    src:"img/sleep.png"}]]]]]],
-                      ["div", {id:"sleepdiv", style:"display:none"}]]]]; }
+            const dfks = app.top.dispatch("aaa", "getDfltKeywDefs");
+            return ["div", {id:"songbuttonsdiv"},
+                    [["div", {id:"sbstopdiv"},
+                      [["div", {id:"rvdiv"}],
+                       ["div", {id:"scflbsdiv"},
+                        [mgrs.kwd.makeToggleButton(dfks.Social, 0),
+                         mgrs.kwd.makeToggleButton(dfks.Flow, 1)]]]],
+                     ["div", {id:"sbscmtdispdiv"}, "your comment here"]]]; }
+        function mainPlayerControlsDivContent () {
+            return [
+                ["div", {id:"ppntitlediv", cla:"ppnlinediv"},
+                 ["div", {id:"playertitle"},
+                  ["div", {cla:"songtitlediv"},
+                   [["div", {id:"playtitlebuttonsdiv"},
+                     ["span", {id:"modindspan"}]],
+                    "Starting"]]]],
+                ["div", {id:"ppnplayerdiv", cla:"ppnlinediv"},
+                 ["div", {id:"audioplayerdiv"},
+                  [["div", {id:"audiodiv"}],
+                   ["div", {id:"nextsongdiv", title:"Skip To Next Song",
+                            onclick:jt.fs("app.player.skip()")},
+                    ["img", {src:"img/skip.png",
+                             cla:"ptico inv"}]]]]],
+                ["div", {id:"ppncontrolsdiv", cla:"ppnlinediv"},
+                 ["div", {id:"impressiondiv"},
+                  [["div", {id:"panpotsdiv"},
+                    [["div", {cla:"pandiv", id:"alpandiv"}],
+                     ["div", {cla:"pandiv", id:"elpandiv"}]]],
+                   ["div", {id:"keysratdiv"},
+                    keywordsAndRatingsDivContent()],
+                   ["div", {id:"pandragcontdiv"},
+                    [["div", {id:"alpandragdiv", cla:"pandragdiv"}],
+                     ["div", {id:"elpandragdiv", cla:"pandragdiv"}]]]]]]]; }
     return {
         initializeDisplay: function () {
             jt.log("player.gen.initializeDisplay");
             jt.out("panplaydiv", jt.tac2html(
-                [["div", {id:"panplaymousingdiv"},  //drag area
-                  [["div", {id:"mediadiv"}, "Nothing to play yet"],
-                   ["div", {id:"mediaoverlaydiv", style:"display:none"}],
-                   ["div", {id:"impressiondiv"},
-                    [["div", {id:"panpotsdiv"},
-                      [["div", {cla:"pandiv", id:"alpandiv"}],
-                       ["div", {cla:"pandiv", id:"elpandiv"}]]],
-                     ["div", {id:"keysratdiv"},
-                      keywordsAndRatingsDivContent()],
-                     ["div", {id:"pandragcontdiv"},
-                      [["div", {id:"alpandragdiv", cla:"pandragdiv"}],
-                       ["div", {id:"elpandragdiv", cla:"pandragdiv"}]]]]]]],
-                 ["div", {id:"panplayoverlaydiv", style:"display:none",
-                          onclick:mdfs("cmt.closeOverlay", "event")}]])); },
+                ["div", {id:"panplaycontentdiv"},
+                 [["div", {id:"panplaymousingdiv"},  //mouse control surface
+                   mainPlayerControlsDivContent()],
+                  ["div", {id:"panplayoverlaydiv", cla:"inv"}],
+                  ["div", {id:"panplaysidediv"},     //right side controls
+                   mgrs.sob.buttonsDivContent()]]]));
+            mgrs.sob.updateButtonsDisplay(); },
         playSongQueue: function (pwsid, songs) {
             //Set the playback queue to the given songs and start playback
             //of the first song.  If the first song is already playing,
@@ -1688,8 +1725,6 @@ app.player = (function () {
             //write is from UI, subsequent writes the UI reacts to.
             if(!songs || !songs.length) {
                 return jt.log("player.playSongQueue called without songs"); }
-            if(mgrs.slp.waitingOnSleepDialog()) {
-                return jt.log("player.playSongQueue waiting for sleep ack."); }
             songs = songs.slice(0, mgrs.slp.maxAllowedQueueLength(songs));
             jt.log("player.playSongQueue " + songs.length + " songs[0].ti: " +
                    jt.ellipsis(songs[0].ti, 30));

@@ -195,15 +195,15 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #pmsgdiv { font-size:small; font-weight:bold; }
 #abactoptsdiv { text-align:center; padding-bottom:10px; }
 #audioplayerdiv { display:flex; justify-content:left; align-items:center;
-  min-height:50px; padding-left:25px; }  /* mobile playback UI fits with pad */
+  min-height:50px; }
 #audiodiv { display:inline-block; }
-#nextsongdiv { display:inline-block; height:20px; padding:5px; margin-left:5px;
+#nextsongdiv { display:inline-block; height:20px; padding:3px; margin-left:5px;
   border: 2px solid #777; border-radius:10px;}
 .bgtransitionfade { transition:background-color 750ms; }
 
 #mediadiv { margin-bottom:4px; user-select:none; -webkit-user-select:none; }
 #impressiondiv { position:relative; user-select:none; -webkit-user-select:none; }
-#panpotsdiv { position:relative; padding-left:25px; user-select:none; -webkit-user-select:none; }
+#panpotsdiv { position:relative; user-select:none; -webkit-user-select:none; }
 .pandiv { display:inline-block; position:relative; user-select:none; -webkit-user-select:none; }
 #alpandiv { margin-right:7px; }
 .pancontdiv { width:140px; height:40px; cursor:pointer;
@@ -228,7 +228,25 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .panddecdiv { position:absolute; left:0px; top:0px; user-select:none; -webkit-user-select:none; }
 
 #panplaydiv { position:relative; }
-#panplaymousingdiv { position:relative; user-select:none; -webkit-user-select:none; }
+#panplaycontentdiv { position:relative; width:360px; margin:0px auto; }
+#panplaymousingdiv { position:relative; width:325px;
+  user-select:none; -webkit-user-select:none; }
+#panplayoverlaydiv { position:absolute; top:0px; left:325px;
+  overflow:hidden; }
+#pplovcdiv { position:absolute; top:0px; left:325px; width:325px;
+  overflow:scroll; padding:5px; transition:left 450ms;
+  background-image: url('../img/overlaybg.png');
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat; }
+#panplaysidediv { position:absolute; top:0px; right:0px; width:35px; }
+.sobahcdiv { position:absolute; top:0px; left:0px; }
+.sobbdiv { margin-left:5px; padding:3px; border: 2px solid #777;
+  border-radius:10px;}
+.ppnlinediv { user-select:none; -webkit-user-select:none; }
+.attrvaltable { font-size:medium; }
+.attrvaltable tr td:nth-child(1) { font-size:small; font-style:italic; }
+
 #mediaoverlaydiv { position:absolute; top:0px; left:2px; background:#ffab00;
   padding:8px 12px; font-size:medium; border-radius:14px; }
 #keysratdiv { margin-left:-2px; margin-top:7px; user-select:none; -webkit-user-select:none; }
@@ -238,12 +256,14 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #addkwb { user-select:none; -webkit-user-select:none; }
 .buttondlgdiv { display:inline-block; }
 .buttondlgdiv button { margin:4px; }
-#starsnbuttonsdiv, #sbstopdiv { padding:8px 0px 2px 22px; position:relative;
+#starsnbuttonsdiv, #sbstopdiv { padding:8px 0px 7px 12px; position:relative;
   user-select:none; -webkit-user-select:none; }
 #rvdiv { display:inline-block; padding-left:8px; user-select:none; -webkit-user-select:none; vertical-align:middle; }
 #scflbsdiv { display:inline-block; }
 #scflbsdiv button { margin:0px 14px 0px 0px; }
-#sbkwdsdiv { display:inline-block; vertical-align:middle; padding-left:10px; }
+#sbkwdsdiv, #sbcmtdiv { display:inline-block; vertical-align:middle;
+  padding-left:10px; }
+#sbscmtdispdiv { padding:0px 5px; height:22px; overflow:hidden; }
 #playerbuttonsdiv { display:inline-block; vertical-align:top;
   user-select:none; -webkit-user-select:none; }
 .playerbdiv { display:inline-block; position:relative; user-select:none; -webkit-user-select:none; }
@@ -261,9 +281,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #sleepdiv { position:absolute; top:11px; left:105px; width:200px;
   background:rgba(255, 171, 0, 0.9); padding:0px 8px; border-radius:5px;
   text-align:right; font-size:medium; user-select:none; -webkit-user-select:none; }
+#slpdlgdiv { padding:10px; }
+#slpdlgstatdiv { font-size:large; font-weight:bold; text-align:center; }
+#slpdlgctrldiv { font-size:medium; text-align:center; margin:10px; }
 
-#panplayoverlaydiv { position:absolute; top:0px; left:0px; user-select:none; -webkit-user-select:none;
-  background:rgba(255, 171, 0, 0.7);}
 #ppocontdiv { background:rgba(200, 200, 200, 0.9); position:relative;
   border-radius:20px; margin:5px; height:160px; width:345px; }
 #pposidiv { position:absolute; top:5px; left:5px; }
@@ -405,8 +426,11 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #albdispdiv { position:relative; padding:0px 0px 0px 10px; }
 #albsuggtogdiv { position:absolute; top:0px; right:10px; }
 #albsuggsframediv { position:absolute; top:0px; left:10px; }
-#albsuggsdiv { padding:8px; background:#ffce69; color:#666; font-size:medium;
-  border-radius:5px; }
+#albsuggsdiv { padding:8px; border-radius:5px; font-size:medium; color:#666;
+  background-image: url('../img/overlaybg.png');
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat; }
 #albsuggstitlediv { font-size:small; text-align:center; margin-bottom:2px; }
 #albplaydiv { overflow:scroll; }
 #albumtitlediv { text-align:center; background: rgba(200, 200, 200, 0.6);

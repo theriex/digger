@@ -176,7 +176,7 @@ app.deck = (function () {
                     break;
                 case "snooze": 
                     if(song.fq === "N") { song.fq = "P"; }  //played
-                    app.player.dispatch("cmt", "bumpTired", song);
+                    app.player.dispatch("sfq", "bumpTired", song);
                     song.lp = new Date().toISOString();
                     song.pc = (song.pc || 0) + 1;
                     song.pd = "snoozed";
@@ -916,7 +916,7 @@ app.deck = (function () {
         initDisplay: function () {
             jt.out("albdispdiv", jt.tac2html(
                 [["div", {id:"albsuggsframediv"},
-                  ["div", {id:"albsuggsdiv", style:"display:none"}]],
+                  ["div", {id:"albsuggsdiv", cla:"inv", style:"display:none"}]],
                  ["div", {id:"albsuggtogdiv"},
                   ["div", {id:"togsuggb"}]],
                  ["div", {id:"albplaydiv"}]]));

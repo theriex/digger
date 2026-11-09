@@ -92,7 +92,8 @@ app.svc = (function () {
                     jt.on("playeraudio", "play", apePlay);
                     jt.on("playeraudio", "seeked", apeSeeked);
                     jt.on("playeraudio", "ended", apeEnded); }
-                bumpPlayerLeftIfOverhang(); }); },
+                bumpPlayerLeftIfOverhang();
+                app.player.dispatch("sob", "updateButtonsDisplay"); }); },
         playSongQueue: function (pwsid, songs) {
             if(np && np.path === songs[0].path) {  //already playing first song
                 np = app.pdat.songsDict()[songs[0].path];

@@ -182,6 +182,8 @@ app.top = (function () {
                     .join(indentline)));
             comms.tmo = setTimeout(nextQueuedHubCall, nextTime); }
         function nextQueuedHubCall () {
+            if(!comms.callq || !comms.callq.length) {
+                return; } //nothing to do
             const nextCall = comms.callq.shift();
             comms.callq.forEach(function (qe) {
                 qe.wtms = Math.max(qe.wtms - nextCall.wtms, prios.asap); });
