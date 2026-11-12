@@ -1899,10 +1899,10 @@ app.top = (function () {
     //Update DigAcc on hub first, then reflect in local/runtime config.
     mgrs.aaa = (function () {
         const dfltkeywords = {
-            Social: {pos: 1, sc: 0, ig: 0, dsc: "Music I'm comfortable playing when other people are listening."},
-            Flow: {pos: 2, sc: 0, ig: 0, dsc: "Music I can listen to while in a flow state doing something else."},
-            Audbio: {pos: 3, sc: 0, ig: 0, dsc: "Music that deeply touches who I am or was."},
-            Dance: {pos: 4, sc: 0, ig: 0, dsc: "Music I dance to."},
+            Social: {pos: 1, sc: 0, ig: 0, dsc: "Music you are comfortable playing when other people are listening."},
+            Flow: {pos: 2, sc: 0, ig: 0, dsc: "Music you can listen to while in a flow state doing something else."},
+            Audbio: {pos: 3, sc: 0, ig: 0, dsc: "Music that deeply touches who you are or were in the past."},
+            Dance: {pos: 4, sc: 0, ig: 0, dsc: "Music you dance to."},
             Ambient: {pos: 0, sc: 0, ig: 0, dsc: "Music that can be listened to from zero to full attention, transitioning from and to silence."},
             Jazz: {pos: 0, sc: 0, ig: 0, dsc: "However you define it for your collection."},
             Classical: {pos: 0, sc: 0, ig: 0, dsc: "However you define it for your collection."},
@@ -1961,7 +1961,10 @@ app.top = (function () {
         getDefaultAccount: function () {
             return app.pdat.configObj().acctsinfo.accts.find((acc) =>
                 acc.dsId === "101"); },
-        getDfltKeywDefs: function () { return dfltkeywords; },
+        getDfltKeywDefs: function () {
+            Object.entries(dfltkeywords).forEach(function ([kw, def]) {
+                def.name = kw; });  //add name field for ease of reference
+            return dfltkeywords; },
         getAccount: function () {
             const cfg = app.pdat.configObj();
             if(!cfg) { return null; }  //hub may request without pdat
@@ -1991,7 +1994,6 @@ app.top = (function () {
             //factored method for those acct changes that require UI updates
             if(!context || context === "keywords") {
                 mgrs.kwd.rebuildKeywords();
-                app.player.dispatch("kwd", "rebuildToggles");
                 app.filter.dispatch("kft", "rebuildControls"); }
             if(!context || context === "igfolders") {
                 mgrs.igf.redrawIgnoreFolders(); } },
@@ -2396,21 +2398,6 @@ app.top = (function () {
                     jt.out("kwupdstatdiv", String(code) + ": " + errtxt); }); },
         same: function (kwa, kwb) {  //localeCompare base not yet on mobile
             return kwa.toLowerCase() === kwb.toLowerCase(); },
-        addKeyword: function (kwd) {  //called from player
-            var kd;
-            uka = uka || mgrs.kwd.defsArray();
-            kd = uka.find((kd) => mgrs.kwd.same(kd.kw, kwd));
-            if(kd) {  //already exists and not previously deleted, bump count
-                kd.sc += 1; }
-            else {  //not in current working set
-                kd = kwdefs[kwd];
-                if(kd) {  //previously existed, add adjusted copy
-                    kd = {kw:kwd, pos:0, sc:kd.sc + 1, ig:0}; }
-                else {  //brand new keyword
-                    kd = {kw:kwd, pos:0, sc:1, ig:0}; }
-                uka.push(kd); }
-            mgrs.gen.togtopdlg("", "close");  //in case open
-            mgrs.kwd.saveKeywordDefs(); },
         swapFilterKeyword: function (kwd, pos) {  //called from filter
             uka = uka || mgrs.kwd.defsArray();
             const prevkd = uka.find((kd) => kd.pos === pos);

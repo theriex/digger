@@ -276,6 +276,23 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .kwdtogon { color:#ffab00; box-shadow:1px 1px 1px #666; }
 #kwdexpb, #addkwb { background:transparent; padding:0px 2px; margin:0px 5px; }
 #addkwb { margin-left:0px; }
+#pkwcontentdiv {}
+#kwdselbuttonsdiv { padding-top:8px; }
+#kwdsettingsbdiv { text-align:right; padding:12px 36px 10px 0px; }
+#settingsbimg { max-height:30px; }
+#kwdsettingsdiv { position:absolute; left:0px; top:0px;
+  overflow:scroll; padding:5px;
+  background-image: url('../img/overlaybg.png');
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat; }
+.kwdelimg { vertical-align:middle; max-height:24px; padding-right:2px; }
+.kweditnamespan { font-weight:bold; }
+.kweditdscdiv { display:inline-block; font-size:medium; }
+#kweditbackplusdiv { text-align:center; padding:2px 0px 8px 0px; }
+.kweditbpimg { max-height:24px; padding-right:56px; }
+#newkwentrydiv input { margin:2px 0px; }
+#newkwerrdiv { font-size:small; }
 #commentdispdiv { position:absolute; top:48px; left:10px; }
 #commentta { padding:3px 5px; background:#f3dfb6; border:1px solid #333; }
 #sleepdiv { position:absolute; top:11px; left:105px; width:200px;

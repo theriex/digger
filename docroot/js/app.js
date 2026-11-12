@@ -316,6 +316,15 @@ app = (function () {
                 elem.style.backgroundColor = "rgb(from #ffab00 r g b / 0.28)"; }
             else {
                 elem.style.backgroundColor = "transparent"; } },
+        //button disable/enable with fading
+        bdf: function (buttonid, disabled) {
+            const button = jt.byId(buttonid);
+            if(disabled || state === "disabled") {
+                button.disabled = true;
+                button.style.opacity = 0.3; }
+            else {
+                button.disabled = false;
+                button.style.opacity = 1.0; } },
         //make a cache busted url out of the endpoint and params
         cb: function (endpoint, params, toklev) {
             var url = endpoint + "?";

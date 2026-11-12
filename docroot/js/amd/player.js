@@ -425,39 +425,189 @@ app.player = (function () {
 
     //handle the selected keywords display and entry
     mgrs.kwd = (function () {
-        var kwdefs = null;
-        function kwds2albHTML () {
-            return jt.tac2html(
-                ["div", {cla:"buttondlgdiv"},
-                 [["button", {
-                     type:"button",
-                     title:"Add selected keywords to all Album songs",
-                     onclick:mdfs("kwd.togkwds2alb")},
-                   [["img", {cla:"tunactimg inv", src:"img/keys.png"}],
-                    "&nbsp;<b>&#x21d2;</b>&nbsp;", //rightwards double arrow
-                    ["img", {cla:"tunactimg inv", src:"img/album.png"}]]],
-                  ["div", {id:"kwds2albconfdiv"}]]]); }
-        function humanReadKwds (kwdcsv) {
-            const qks = kwdcsv.csvarray().map((kwd) => "\"" + kwd + "\"");
-            return qks.join(", "); }
+        const resKwds = "Social,Flow";
+        const autores = {};
+        function isReservedKeyword (kwd) {
+            return resKwds.toLowerCase().csvcontains(kwd.toLowerCase()); }
+        function verifyAccountKeywords (acct) {
+            if(!acct.kwdefs) {
+                const dfks = app.top.dispatch("aaa", "getDfltKeywDefs");
+                acct.kwdefs = JSON.parse(JSON.stringify(dfks)); }
+            const raw = acct.kwdefs;
+            acct.kwdefs = {};
+            Object.entries(raw).forEach(function ([kwd, def]) {
+                if(!isReservedKeyword(kwd) && typeof def === "object") {
+                    def.pos = def.pos || 0; //maybe used for 1-based disp order
+                    def.sc = def.sc || 0;   //computed from local data
+                    def.ig = def.ig || "";  //ignored (deleted) if value
+                    def.dsc = def.dsc || "No description";
+                    acct.kwdefs[kwd] = def; }
+                else {
+                    jt.log("kwd.verifyAccountKeywords skipped bad kwdef: " +
+                           kwd); } }); }
+        function sortedKwdefs () {
+            var skds = [];
+            const acct = app.top.dispatch("aaa", "getAccount");
+            verifyAccountKeywords(acct);
+            Object.entries(acct.kwdefs).forEach(function ([kwd, def]) {
+                if(!def.ig) {
+                    skds.push({name:kwd, pos:def.pos, sc:def.sc,
+                               dsc:def.dsc}); } });
+            skds.sort((a, b) => a.name.localeCompare(b.name));
+            return skds; }
+        function keywordsCSV () {
+            return sortedKwdefs().map((kd) => kd.name).join(","); }
     return {
-        initialize: function () {
-            app.pdat.addApresDataNotificationTask("kwdTogInit", function () {
-                mgrs.kwd.rebuildToggles(); }); },
         hasKeywords: function (song) {
             var retval = "";
             if(song && song.kwds) {
-                retval = song.kwds.csvremove("Social");
-                retval = song.kwds.csvremove("Flow"); }
+                retval = song.kwds.csvarray()
+                    .filter((k) => k && !isReservedKeyword(k))
+                    .join(","); }
             return retval; },
+        keywordsDialogHTML: function () {
+            const kwds = sortedKwdefs();
+            return jt.tac2html(
+                ["div", {id:"pkwcontentdiv"},
+                 [["div", {id:"kwdselbuttonsdiv"},
+                   kwds.map((kwd, i) =>
+                       mgrs.kwd.makeToggleButton(kwd, i))],
+                  ["div", {id:"kwdsettingsbdiv"},
+                   ["a", {href:"#settings", onclick:mdfs("kwd.settingsDlg")},
+                    ["img", {id:"settingsbimg",
+                             src:"img/settings.png"}]]]]]); },
+        settingsDlg: function () {
+            const kwds = sortedKwdefs();
+            jt.out("pkwcontentdiv", jt.tac2html(
+                [["div", {id:"kweditremovediv"},
+                  ["table", {id:"kwdsettable"},
+                   kwds.map((kwd, i) =>
+                       ["tr",
+                        [["td", ["a", {href:"#delete",
+                                       onclick:mdfs("kwd.deleteKeyword", i)},
+                                 ["img", {src:"img/trash.png",
+                                          cla:"kwdelimg"}]]],
+                         ["td", ["span", {cla:"kweditnamespan"}, kwd.name]],
+                         ["td", [["div", {cla:"kweditdscdiv",
+                                          id:"kweditdscdiv" + i,
+                                          contenteditable:"plaintext-only",
+                                          onfocus:mdfs("kwd.dscupdb", i)},
+                                  kwd.dsc],
+                                 ["div", {cla:"kweditdscconfdiv",
+                                          id:"kweditdscconfdiv" + i}]]]]])]],
+                 ["div", {id:"kweditbackplusdiv"},
+                  [["a", {id:"kweditreturnlink", href:"#return",
+                          onclick:mdfs("sob.toggleOverlay", "kwds", "open")},
+                    ["img", {cla:"kweditbpimg", src:"img/retleft.png"}]],
+                   ["a", {id:"kweditaddkwlink", href:"#addkeyword",
+                          onclick:mdfs("kwd.addKeyword")},
+                    ["img", {cla:"kweditbpimg", src:"img/plus.png"}]]]]])); },
+        dscupdb: function (idx, savebc) {
+            if(!savebc) {
+                jt.out("kweditdscconfdiv" + idx, jt.tac2html(
+                    ["button", {type:"button", cla:"kweditupdb",
+                                id:"kweditupdb" + idx,
+                                onclick:mdfs("kwd.dscupdb", idx, "save")},
+                     "Save"]));
+                return; }
+            const kwds = sortedKwdefs();
+            const name = kwds[idx].name;
+            const dsc = jt.dec(jt.byId("kweditdscdiv" + idx).innerHTML)
+                  .replaceAll("&nbsp;", "").trim();
+            const acct = app.top.dispatch("aaa", "getAccount");
+            if(acct.kwdefs[name].dsc.trim() === dsc.trim()) {
+                jt.out("kweditdscdiv" + idx, acct.kwdefs[name].dsc);
+                jt.out("kweditdscconfdiv" + idx, "");
+                return; }
+            app.util.bdf("kweditupdb" + idx, "disabled");
+            acct.kwdefs[name].dsc = dsc;
+            app.top.dispatch("aaa", "updateCurrAcct", acct, null,
+                function () {
+                    mgrs.kwd.settingsDlg(); },
+                function (code, errtxt) {
+                    jt.out("kweditdscconfdiv" + idx, "Save fail " + code +
+                           ": " + errtxt); }); },
+        addKeyword: function (fromform) {
+            if(!fromform) { //display form
+                jt.out("pkwcontentdiv", jt.tac2html(
+                    [["div", {id:"newkwerrdiv"}],
+                     ["div", {id:"newkwentrydiv"},
+                      [["input", {type:"text", id:"kwdin", size:10, value:"",
+                                  placeholder:"new keyword"}],
+                       ["input", {type:"text", id:"nkwdsc", size:30, value:"",
+                                  placeholder:"description"}]]],
+                     ["div", {id:"newkwformbuttons", cla:"dlgbuttonsdiv"},
+                      [["button", {type:"button", id:"nkwcancelb",
+                                   onclick:mdfs("kwd.settingsDlg")},
+                        "Cancel"],
+                       ["button", {type:"button", id:"nkwaddb",
+                                   onclick:mdfs("kwd.addKeyword", "fromform")},
+                        "Add"]]]])); }
+            else { //fromform
+                const nkw = jt.byId("kwdin").value;
+                const ndsc = jt.byId("nkwdsc").value;
+                if(!nkw.match(/^[a-zA-Z]+[a-zA-Z0-9]*$/)) {
+                    return jt.out("newkwerrdiv",
+                                  "Keyword: Letter + Alphanumerics..."); }
+                if(keywordsCSV().toLowerCase().csvcontains(nkw.toLowerCase())) {
+                    return jt.out("newkwerrdiv", nkw + " already in use."); }
+                if(resKwds.toLowerCase().csvcontains(nkw.toLowerCase())) {
+                    return jt.out("newkwerrdiv", nkw + " is reserved."); }
+                if(nkw.length > 12) {
+                    return jt.out("newkwerrdiv",
+                                  "Keywords must be 12 characters or less"); }
+                jt.out("newkwerrdiv", "Adding " + nkw + "...");
+                app.util.bdf("nkwcancelb", "disabled");
+                app.util.bdf("nkwaddb", "disabled");
+                const acct = app.top.dispatch("aaa", "getAccount");
+                acct.kwdefs[nkw] = {pos:0, sc:0, ig:"", dsc:ndsc};
+                app.top.dispatch("aaa", "updateCurrAcct", acct, null,
+                    function () {
+                        mgrs.sob.toggleOverlay("kwds", "open"); },
+                    function (code, errtxt) {
+                        jt.out("newkwerrdiv", "Add failed " + code + ": " +
+                               errtxt);
+                        app.util.bdf("nkwcancelb", "enabled");
+                        app.util.bdf("nkwaddb", "enabled"); }); } },
+        deleteKeyword: function (idx, confirmed) {
+            const delkw = sortedKwdefs()[idx];
+            if(!confirmed) {
+                jt.out("pkwcontentdiv", jt.tac2html(
+                    [["div", {id:"kwdelconfdiv"},
+                      "Delete " + delkw.name + "?"],
+                     ["div", {id:"delkwerrdiv"}],
+                     ["div", {id:"delkwformbuttons", cla:"dlgbuttonsdiv"},
+                      [["button", {type:"button", id:"delkwcancelb",
+                                   onclick:mdfs("kwd.settingsDlg")},
+                        "Cancel"],
+                       ["button", {type:"button", id:"delkwdelb",
+                                   onclick:mdfs("kwd.deleteKeyword",
+                                                idx, "confirmed")},
+                        "Delete"]]]])); }
+            else {  //confirmed
+                jt.out("kwdelconfdiv", "");
+                jt.out("delkwerrdiv", "Deleting " + delkw.name + "...");
+                app.util.bdf("delkwcancelb", "disabled");
+                app.util.bdf("delkwdelb", "disabled");
+                const acct = app.top.dispatch("aaa", "getAccount");
+                delete acct.kwdefs[delkw.name];
+                app.top.dispatch("aaa", "updateCurrAcct", acct, null,
+                    function () {
+                        mgrs.sob.toggleOverlay("kwds", "open"); },
+                    function (code, errtxt) {
+                        jt.out("delkwerrdiv", "Delete failed " + code +
+                               ": " + errtxt);
+                        app.util.bdf("delkwcancelb", "enabled");
+                        app.util.bdf("delkwdelb", "enabled"); }); } },
         makeToggleButton: function (kd, idx) {
             var tc = "kwdtogoff";
-            if(pmso.song && pmso.song.kws && pmso.song.kws.csvcontains(kd.kw)) {
+            if(pmso.song && pmso.song.kws &&
+                   pmso.song.kws.csvcontains(kd.name)) {
                 tc = "kwdtogon"; }
             return ["button", {type:"button", cla:tc, id:"kwdtog" + idx,
                                title:kd.dsc || "",
                                onclick:mdfs("kwd.toggleKeyword", idx)},
-                    kd.kw]; },
+                    kd.name]; },
         toggleKeyword: function (idx) {
             const cto = pmso.cto();
             cto.kws = cto.kws || "";
@@ -473,104 +623,24 @@ app.player = (function () {
                 cto.kws = cto.kws.csvremove(button.innerHTML); }
             jt.log("toggleKeyword " + button.className.slice(6) + ": " +
                    button.innerHTML + " kws:" + cto.kws + " p:" + cto.path);
-            mgrs.kwd.togkwds2alb("off");
             app.top.dispatch("gen", "togtopdlg", "", "close");  //sc changed
             mgrs.scm.noteSongModified("kwd"); },
-        rebuildToggles: function (context) {
-            kwdefs = app.top.dispatch("kwd", "defsArray", true);
-            jt.out("kwdsdiv", jt.tac2html(
-                [["button", {type:"button", id:"kwdexpb",
-                             onclick:mdfs("kwd.toggleExpansion")},
-                  "+"],
-                 ["span", {id:"newkwspan"}],
-                 ...kwdefs.filter((kd) => kd.pos > 0).map((kd, idx) =>
-                     mgrs.kwd.makeToggleButton(kd, idx)),
-                 ["span", {id:"extrakwspan"}]]));
-            if(context === "playeradd") {
-                mgrs.kwd.toggleExpansion(); } },
-        toggleExpansion: function (togstate) {
-            var togb = jt.byId("kwdexpb");
-            if(!togb) { return; }  //ignore any spurious UI setup calls
-            if(togb.innerHTML === "+" && togstate !== "off") {
-                jt.out("newkwspan", jt.tac2html(
-                    [["input", {type:"text", id:"kwdin", size:10, value:"",
-                                placeholder:"new keyword"}],
-                     ["button", {type:"button", id:"addkwb",
-                                 onclick:mdfs("kwd.addNewKeyword")}, "+"]]));
-                jt.out("extrakwspan", jt.tac2html(
-                    kwdefs.filter((kd) => kd.pos <= 0).map((kd, i) =>
-                        mgrs.kwd.makeToggleButton(kd, i + 4))
-                        .concat(kwds2albHTML())));
-                togb.innerHTML = "-"; }
-            else {
-                jt.out("newkwspan", "");
-                jt.out("extrakwspan", "");
-                togb.innerHTML = "+"; } },
-        addNewKeyword: function () {
-            var kwd = jt.byId("kwdin").value;
-            if(!kwd || !kwd.trim()) { return; }
-            kwd = kwd.replace(/\s/, "");  //no spaces
-            kwd = kwd.capitalize();       //capitalized
-            kwd = kwd.slice(0, 10);       //max 10 chars
-            if(kwdefs.find((kd) => kd.kw === kwd)) {
-                jt.byId("kwdin").value = "";  //clear duplicate value
-                return; }
-            jt.byId("addkwb").disabled = true;
-            jt.out("extrakwspan", "Adding " + kwd + "...");
-            if(!pmso.cto().kws.csvcontains(kwd)) {
-                pmso.cto().kws = pmso.cto().kws.csvappend(kwd);
-                mgrs.scm.noteSongModified("kwdadd"); }
-            app.top.dispatch("kwd", "addKeyword", kwd, "playeradd"); },
-        togkwds2alb: function (togstate) {
-            //Not worth extending to remove all keywords. Use a marker kw.
-            const divid = "kwds2albconfdiv";
-            const div = jt.byId(divid);
-            if(div && div.innerHTML) { div.innerHTML = ""; }  //clear old
-            if(togstate === "off") { return; }  //toggled off
-            const wasoa = " with all songs on \"" + pmso.cto().ab + "\"";
-            if(!pmso.cto().kws) {
-                div.innerHTML = "Select keywords to associate" + wasoa;
-                return; }
-            const ropts = [{v:"overwrite", t:"Overwrite"},
-                           {v:"addifmiss", t:"Add if not already set",
-                            c:"checked"}];
-            jt.out(divid, jt.tac2html(
-                ["Associate " + humanReadKwds(pmso.cto().kws) + wasoa + "?",
-                 ["div", {id:"abactoptsdiv"},
-                  [ropts.map((ao) =>
-                      ["div", {cla:"tuneoptiondiv"},
-                       [["input", {type:"radio", id:"assocrad" + ao.v,
-                                   name:"assocoption", value:ao.v,
-                                   checked:jt.toru(ao.c)}],
-                        ["label", {fo:"assocrad" + ao.v}, ao.t]]]),
-                   ["button", {type:"button",
-                               onclick:mdfs("kwd.assocKwdProc", "ab")},
-                    "Update Songs"]]]])); },
-        assocKwdProc: function (fld) {
-            var updsongs = [];
-            var merge = jt.byId("assocradaddifmiss");
-            if(merge) {
-                merge = merge.checked; }
-            jt.out("abactoptsdiv", "Marking...");
-            const locmod = new Date().toISOString();
-            Object.values(app.pdat.songsDict()).forEach(function (s) {
-                if(s[fld] === pmso.cto()[fld] && s.ar === pmso.cto().ar) {
-                    if(merge) {
-                        pmso.cto().kws.csvarray().forEach(function (kw) {
-                            s.kws = s.kws.csvremove(kw);
-                            s.kws = s.kws.csvappend(kw); }); }
-                    else {
-                        s.kws = pmso.cto().kws; }
-                    s.locmod = locmod;
-                    updsongs.push(s); } });
-            jt.out("abactoptsdiv", "Updating " + updsongs.length + " songs...");
-            app.pdat.writeDigDat("cmt.assocKwdProc", {songs:updsongs},
-                function () {
-                    jt.out("abactoptsdiv", String(updsongs.length) +
-                           " songs updated."); },
-                function (code, errtxt) {
-                    jt.out("abactoptsdiv", "Song update failed " +
-                           code + ": " + errtxt); }); }
+        updateReservedKeywordsDisplay: function (kws) {
+            resKwds.csvarray().forEach(function (rkw) {
+                const button = jt.byId("kwdtog" + rkw);
+                if(kws.toLowerCase().csvcontains(rkw.toLowerCase())) {
+                    button.className = "kwdtogon"; }
+                else {
+                    button.className = "kwdtogoff"; } });
+            if(pmso.song && app.deck.isUnrated(pmso.song) &&
+                   (!pmso.song.pc || pmso.song.pc < 2)) {
+                const tk = app.pdat.tiarabKey(pmso.song);
+                if(!autores[tk]) {
+                    autores[tk] = setTimeout(function () {
+                        autores[tk] = new Date().toISOString();
+                        if(!pmso.song.kws) { //still nothing toggled on
+                            mgrs.kwd.toggleKeyword("Social");
+                            mgrs.kwd.toggleKeyword("Flow"); } }, 3000); } } }
     };  //end mgrs.kwd returned functions
     }());
 
@@ -1446,7 +1516,7 @@ app.player = (function () {
             mgrs.pan.updateControl("al", cto.al);
             mgrs.pan.updateControl("el", cto.el);
             mgrs.rat.adjustPositionFromRating(cto.rv);
-            mgrs.kwd.rebuildToggles();
+            mgrs.kwd.updateReservedKeywordsDisplay(cto.kws);
             mgrs.cmt.updateIndicators(); },
         assertValidSong: function (song) {
             const epre = "assertValidSong: ";
@@ -1527,7 +1597,8 @@ app.player = (function () {
             kwds: {img:"keys.png", imga:"keysact.png",
                    nexto:"ppncontrolsdiv", title:"Keyword retrieval values",
                    aoffs:["panpotsdiv", 7], hfrom:"sbstopdiv",
-                   litf:mgrs.kwd.hasKeywords},
+                   litf:mgrs.kwd.hasKeywords,
+                   ovrc:mgrs.kwd.keywordsDialogHTML},
             cmt: {img:"comment.png", imga:"commentact.png",
                   nexto:"ppncontrolsdiv", title:"Comment about this song",
                   aoffs:["panpotsdiv", 7, "sbstopdiv"], hfrom:"sbscmtdispdiv",
@@ -1643,7 +1714,7 @@ app.player = (function () {
                 mgrs.pan.updateControl("el", val); }},
             {fld:"kws", uf:function (val) {
                 pmso.cto().kws = val;
-                mgrs.kwd.rebuildToggles(); }},
+                mgrs.kwd.updateReservedKeywordsDisplay(val); }},
             {fld:"rv", uf:mgrs.rat.adjustPositionFromRating},
             {fld:"nt", uf:function (val) {
                 pmso.cto().nt = val;
@@ -1673,8 +1744,8 @@ app.player = (function () {
                     [["div", {id:"sbstopdiv"},
                       [["div", {id:"rvdiv"}],
                        ["div", {id:"scflbsdiv"},
-                        [mgrs.kwd.makeToggleButton(dfks.Social, 0),
-                         mgrs.kwd.makeToggleButton(dfks.Flow, 1)]]]],
+                        [mgrs.kwd.makeToggleButton(dfks.Social, "Social"),
+                         mgrs.kwd.makeToggleButton(dfks.Flow, "Flow")]]]],
                      ["div", {id:"sbscmtdispdiv"}, "your comment here"]]]; }
         function mainPlayerControlsDivContent () {
             return [
