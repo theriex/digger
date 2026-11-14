@@ -263,7 +263,26 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #scflbsdiv button { margin:0px 14px 0px 0px; }
 #sbkwdsdiv, #sbcmtdiv { display:inline-block; vertical-align:middle;
   padding-left:10px; }
-#sbscmtdispdiv { padding:0px 5px; height:22px; overflow:hidden; }
+#sbscmtdispdiv { padding:10px 5px; line-height:1; overflow:hidden;
+  text-align:center; font-size:medium; }
+#cmtdlgcontentdiv { overflow:scroll; }
+#cmttidiv { font-weight:bold; font-size:medium; }
+#cmtardiv { font-style:italic; font-size:small; }
+#cmteditdiv { height:80px; margin-right:5px; background:bisque;
+  border:1px solid #333; font-size:medium; padding:5px; overflow:scroll; }
+#cmtsharebuttondiv { text-align:right; padding-right:56px; }
+#sharebimg { max-height:40px; }
+#sharesrcimg { max-height:24px; }
+#shrbtnsdiv div { display:inline-block; }
+#sharefmtspan { font-size:small; }
+#sbrbtnsrcdiv { margin-right:5px; }
+#sharrowdiv { padding-bottom:12px; }
+#shbdiv { position:relative; max-width:150px; height:58px;
+  vertical-align:middle; }
+#shbdiv button { margin:0px; white-space:nowrap; }
+#sharedetdiv { padding-bottom:12px; }
+#song2clipb { position:absolute; top:0px; left:0px; }
+#hubShareSongb { position:absolute; top:42px; left:0px; }
 #playerbuttonsdiv { display:inline-block; vertical-align:top;
   user-select:none; -webkit-user-select:none; }
 .playerbdiv { display:inline-block; position:relative; user-select:none; -webkit-user-select:none; }
@@ -309,7 +328,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   /* match ppocontdiv height: */ height:140px; padding-top:20px; }
 #sharedispdiv div { display:flex; flex-direction:column;
   justify-content:space-around; height:90px; }
-#sharedispdiv #shbdiv { justify-content:space-between; }
+#sharedispdiv { justify-content:space-between; }
 #sharesrcimg {height:44px; margin-right:4px; }
 #sharrowimg { height:58px; }
 #sharestatdiv { position:absolute; top:60px; left:20px; }

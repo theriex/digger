@@ -729,7 +729,7 @@ app.player = (function () {
         bumpCurrentIfTired: function () {
             if(pmso.song &&  //check if already marked tired
                subcats.B.findIndex((v) => v === pmso.song.fq) >= 0) {
-                if(mgrs.cmt.bumpTired(pmso.song)) {  //made tireder
+                if(mgrs.sfq.bumpTired(pmso.song)) {  //made tireder
                     mgrs.scm.noteSongModified("freqbump"); } } },
         hasFrequencyTuning: function (song) {
             return (song.fq && tuningDisplayMode(song.fq) !== "P"); },
@@ -760,187 +760,141 @@ app.player = (function () {
 
     //handle the song comment display and entry
     mgrs.cmt = (function () {
-        const ost = {mode:"", dispf:null, odi:"panplayoverlaydiv"};
-        const modeps = {
-            share: {bids:["sg2cbb", "sg2dhb"], statd:"sharestatdiv"},
-            comment: {bids:["cancelb", "savcmtb"], statd:"cmtstatdiv"}};
-        function impressionSummary () {
-            const eavs = mgrs.cmt.elal2txtvals(ost.song);
-            return [{lab:"Keywords", val:ost.song.kws || "none"},
-                    {lab:eavs.el.pn, val:eavs.el.val},
-                    {lab:eavs.al.pn, val:eavs.al.val}]; }
-        function clipboardSongDescription (s) {
-            var txt = s.ti + "\nby: " + s.ar + "\n";
-            if(s.ab !== "Singles") {
-                txt += "album: " + s.ab; }
-            const ct = mgrs.cmt.cleanCommentText(ost.song.nt);
-            if(ct) {
-                txt += "\n" + ct + "\n"; }
-            txt += "\n";
-            txt += impressionSummary().map((imp) =>
-                (imp.lab + ": " + imp.val)).join("\n");
-            const acct = app.top.dispatch("aaa", "getAccount");
-            if(acct && acct.digname) {
-                txt += "\nhttps://diggerhub.com/listener/" + acct.digname +
-                    "\n"; }
-            return txt; }
-        function resStat(txt) {
-            jt.log("player.cmt.resStat: " + txt);
-            jt.out(modeps[ost.mode].statd, jt.tac2html(
-                ["div", {id:"resstatcontdiv"},
-                 [["div", {id:"pdlgstattxtdiv"}, txt],
-                  ["a", {href:"#done", onclick:mdfs("cmt.closeOverlay")},
-                   "Ok"]]]));
-            ost.btdonef(); }
-        const buttons = {
-            sg2cbb: {name:"Clipboard", handler:function () {
-                const txt = clipboardSongDescription(ost.song);
-                app.svc.copyToClipboard(txt,
-                    function () {
-                        resStat("Details copied to clipboard."); },
-                    function () {  //no helpful error info, and none returned
-                        resStat("Clipboard copy failed."); }); }},
-            sg2dhb: {name:"DiggerHub", handler:function () {
-                if(!app.util.haveHubCredentials()) {
-                    return resStat("Sign in to share songs."); }
-                if(!mgrs.cmt.cleanCommentText(ost.song.nt)) {
-                    return resStat("Write a comment to share"); }
-                const start = new Date(Date.now() - 2000).toISOString();
-                app.svc.fanMessage(
-                    app.util.authdata({action:"share", idcsv:ost.song.dsId}),
-                    function (msgs) {
-                        if(!msgs.length) {
-                            resStat("No confirmation, try again later."); }
-                        else if(msgs[0].created > start) {
-                            resStat("Song shared with your listeners."); }
-                        else {
-                            resStat("Song already shared."); } },
-                    function (code, errtxt) {
-                        resStat(code + ": " + errtxt); }); }},
-            cancelb: {name:"Cancel", handler:function () {
-                mgrs.cmt.closeOverlay(); }},
-            savcmtb: {name:"Ok", handler:function () {
-                ost.song.nt = jt.byId("commentta").value;
-                ost.song.lp = new Date().toISOString();
-                mgrs.cmt.closeOverlay();
-                mgrs.cmt.updateIndicators();
-                mgrs.scm.noteSongModified("cmt"); }}};
-        function buttonsHTML () {
-            return jt.tac2html(modeps[ost.mode].bids.map((bid) =>
-                ["button", {type:"button", id:bid,
-                            onclick:mdfs("cmt.buttonHandler", bid)},
-                 buttons[bid].name])); }
-        function togDialog (togstate, mode, dispf) {
-            ost.song = null;
-            ost.mode = mode || "";
-            const odiv = jt.byId(ost.odi);
-            if(togstate === "off" || (odiv.style.display !== "none" &&
-                                      togstate !== "on")) {
-                odiv.style.display = "none";
-                return; }
-            mgrs.kwd.toggleExpansion("off");
-            if(!pmso.song) { return jt.log("togDialog: no song playing"); }
-            ost.song = pmso.song;  //dialog update reference
-            const ppmdiv = jt.byId("panplaydiv");
-            odiv.style.display = "block";
-            odiv.style.height = (ppmdiv.offsetHeight - 5) + "px";
-            odiv.style.width = (ppmdiv.offsetWidth - 5) + "px";
-            odiv.innerHTML = jt.tac2html(
-                ["div", {id:"ppocontdiv",
-                         onclick:mdfs("cmt.ignoreClick", "event")},
-                 [["div", {id:"pposidiv"}, 
-                   app.deck.dispatch("util", "songIdentHTML", ost.song)],
-                  dispf()]]); }
-        function allowablePercolatingEvent (event) {
-            return (event && event.target && event.target.id &&
-                    event.target.id.startsWith("tunerad")); }
-            
-    return {
-        getMode: function () { return ost.mode; },
-        cleanCommentText: function (txt) {
+        function commentDlgContentHTML () {
+            return jt.tac2html(
+                 [["div", {id:"cmttidiv"}, pmso.song.ti],
+                  ["div", {id:"cmtardiv"}, pmso.song.ar],
+                  ["div", {id:"cmteditdiv", contenteditable:"plaintext-only",
+                           onfocus:mdfs("cmt.commentEditDivFocus")},
+                   cleanCommentText(pmso.song.nt)],
+                  ["div", {id:"cmtsavecanceldiv", cla:"dlgbuttonsdiv"}],
+                  ["div", {id:"cmtsharebuttondiv"},
+                   ["a", {href:"#share", onclick:mdfs("cmt.shareDlg")},
+                    ["img", {id:"sharebimg",
+                             src:"img/share.png"}]]]]); }
+        function cleanCommentText (txt) {
             txt = txt || "";
             if(txt) {
                 txt = txt.replace(/Amazon.com Song ID: \d+/, "").trim();
                 txt = txt.replace(/copyright \d\d\d\d .*/ig, "").trim(); }
-            return txt; },
+            return txt; }
+        function dialsSummaryText (s) {
+            var txt = jt.tac2html(["i", "Approachability"]) + ": ";
+            if(s.al <= 40) {
+                txt += "Easy"; }
+            else if(s.al >= 72) {
+                txt += "Hard"; }
+            else {
+                txt += "Nominal"; }
+            txt += ", " + jt.tac2html(["i", "Energy Level"]) + ": ";
+            if(s.el <= 45) {
+                txt += "Chill"; }
+            if(s.el >= 65) {
+                txt += "Amped"; }
+            else {
+                txt += "Nominal"; }
+            return txt; }
+        function shareContentSimpleHTML (s) {
+            var lines = [];
+            lines.push(["b", s.ti]);
+            lines.push("by: " + jt.tac2html(["i", s.ar]));
+            lines.push("from: " + s.ab);
+            lines.push(jt.tac2html(["b", cleanCommentText(pmso.song.nt)]));
+            if(s.kws) {
+                lines.push(jt.tac2html(["span", {style:"font-size:medium"},
+                                        s.kws])); }
+            lines.push(jt.tac2html(["span", {style:"font-size:small"},
+                                    dialsSummaryText(s)]));
+            const acct = app.top.dispatch("aaa", "getAccount");
+            if(acct && acct.digname) {
+                lines.push("https://diggerhub.com/listener/" + acct.digname); }
+            lines = lines.map((line) => jt.tac2html(line) + "<br/>\n");
+            return jt.tac2html(lines); }
+    return {
         hasComment: function (song) {
-            return (song && song.nt && mgrs.cmt.cleanCommentText(song.nt)); },
-        elal2txtvals: function (s) {
-            const vals = {
-                el:{pn:"Energy Level", val:"Nominal"},
-                al:{pn:"Approachability", val:"Nominal"}};
-            if(s.el <= 45) { vals.el.val = "Chill"; }
-            if(s.el >= 65) { vals.el.val = "Amped"; }
-            if(s.al <= 40) { vals.al.val = "Easy"; }
-            if(s.al >= 72) { vals.al.val = "Hard"; }
-            return vals; },
-        clipboardTextForSong: function (s) {  //called from hub profile
-            const temp = ost.song;
-            ost.song = s;
-            const txt = clipboardSongDescription(s);
-            ost.song = temp;
-            return txt; },
-        closeOverlay: function (event) {
-            if(!allowablePercolatingEvent(event)) {
-                togDialog("off"); } },
-        ignoreClick: function (event) {
-            if(!allowablePercolatingEvent(event)) {
-                jt.evtend(event); } },
-        toggleCommentDisplay: function (togstate) {
-            togDialog(togstate, "comment", function () {
-                const html = jt.tac2html(
-                    ["div", {id:"commentdispdiv"},
-                     [["textarea", {id:"commentta", name:"commentta", 
-                                    rows:4, cols:40,
-                                    //comments vary a lot. placeholder text
-                                    //can interrupt the writing process.
-                                    placeholder:""},
-                       ost.song.nt || ""],
-                      ["div", {cla:"dlgbuttonsdiv"}, buttonsHTML()],
-                      ["div", {id:"cmtstatdiv"}]]]);
-                setTimeout(function () {
-                    const cta = jt.byId("commentta");
-                    if(cta) {
-                        cta.focus(); } }, 150);
-                return html; }); },
-        updateIndicators: function () {
-            const commentimg = jt.byId("togcommentimg");
-            if(commentimg) {
-                commentimg.src = "img/comment.png";  //reset
-                if(mgrs.cmt.cleanCommentText(pmso.cto().nt)) {
-                    commentimg.src = "img/commentact.png"; } } },
-        toggleSongShare: function (togstate) {
-            togDialog(togstate, "share", function () { return jt.tac2html(
-                [["div", {id:"sharedispdiv"},
-                  [["div", ["img", {id:"sharesrcimg",
-                                    src:"img/diggerbutton.png"}]],
-                   ["div", ["img", {id:"sharrowimg",
-                                    src:"img/sharrow.png"}]],
-                   ["div", {id:"shbdiv"}, buttonsHTML()]]],
-                 ["div", {id:"sharestatdiv"}]]); }); },
-        snoozeAllSongsOnAlbum: function () {
-            const divid = "albtiredconfdiv";
-            const div = jt.byId(divid);
-            if(div.innerHTML) {  //already displayed, toggle off
-                div.innerHTML = "";
-                return; }
-            jt.out(divid, jt.tac2html(
-                ["div", {id:"albtiredconfcontdiv"},
-                 ["Mark all songs tired on \"" + ost.song.ab + "\"?",
-                  ["div", {id:"abactoptsdiv"},
-                   ["button", {type:"button",
-                               onclick:mdfs("cmt.snoozeAlbumSongsProc")},
-                    "Mark All Songs Tired"]]]])); },
-        toggleOtherDisplay: function (togstate, mode, dispf) {
-            togDialog(togstate, mode, dispf); },
-        buttonHandler: function (bid) {
-            jt.byId(bid).disabled = true;
-            ost.btdonef = function () { jt.byId(bid).disabled = false; };
-            buttons[bid].handler(); },
-        resetDisplay: function (caller) {
-            jt.log("cmt.resetDisplay called from " + (caller || "Unknown"));
-            togDialog("off");
-            mgrs.cmt.updateIndicators(); }
+            return (song && cleanCommentText(song.nt)); },
+        commentDialogHTML: function () {
+            return jt.tac2html(
+                ["div", {id:"cmtdlgcontentdiv"}, commentDlgContentHTML()]); },
+        resetDialogContent: function () {
+            jt.out("cmtdlgcontentdiv", commentDlgContentHTML()); },
+        commentEditDivFocus: function () {
+            jt.out("cmtsharebuttondiv", "");  //disable share while editing
+            jt.out("cmtsavecanceldiv", jt.tac2html(
+                [["button", {type:"button", id:"cmtcancelb",
+                             onclick:mdfs("cmt.resetDialogContent")},
+                  "Cancel"],
+                 ["button", {type:"button", id:"cmtsaveb",
+                             onclick:mdfs("cmt.saveComment")},
+                  "Save"]])); },
+        saveComment: function () {
+            const cmt = jt.byId("cmteditdiv").innerHTML.trim();
+            if(cmt === pmso.song.nt) {
+                return mgrs.cmt.resetDialogContent(); }
+            pmso.song.nt = cmt;
+            mgrs.scm.noteSongModified("commentsave");
+            mgrs.cmt.resetDialogContent(); },
+        shareDlg: function () {
+            jt.out("cmtdlgcontentdiv", jt.tac2html(
+                [["div", {id:"shrstatdiv"}],
+                 ["div", {id:"shrbtnsdiv"},
+                  [["div", {id:"sbrbtnsrcdiv"},
+                    [["img", {id:"sharesrcimg", src:"img/deck.png"}],
+                     ["a", {href:"#format", onclick:mdfs("cmt.togShareFmt")},
+                      ["span", {id:"sharefmtspan"}, "HTML"]]]],
+                   ["div", {id:"sharrowdiv"},
+                    ["img", {id:"sharrowimg", src:"img/sharrow.png"}]],
+                   ["div", {id:"shbdiv"},
+                    [["button", {type:"button", id:"song2clipb",
+                                 onclick:mdfs("cmt.song2Clipboard")},
+                      "Copy to Clipboard"],
+                     ["button", {type:"button", id:"hubShareSongb",
+                                 onclick:mdfs("cmt.hubShareSong")},
+                      "Share on DiggerHub"]]]]],
+                 ["div", {id:"sharedetdiv"},
+                  shareContentSimpleHTML(pmso.song)]])); },
+        togShareFmt: function () {
+            if(jt.byId("sharefmtspan").innerHTML === "HTML") {
+                jt.out("sharefmtspan", "plaintext"); }
+            else {
+                jt.out("sharefmtspan", "HTML"); } },
+        song2Clipboard: function () {
+            var text = jt.byId("sharedetdiv").innerHTML;
+            if(jt.byId("sharefmtspan").innerHTML !== "HTML") {
+                text = jt.byId("sharedetdiv").textContent; }
+            jt.out("shrstatdiv", "Copying to Clipboard...");
+            app.svc.copyToClipboard(text,
+                function () {
+                    jt.out("shrstatdiv", "Details copied to clipboard."); },
+                function () {  //no helpful error info, and none returned
+                    jt.out("shrstatdiv", "Clipboard copy failed."); }); },
+        hubShareSong: function () {
+            if(!app.util.haveHubCredentials()) {
+                return jt.out("shrstatdiv", "Sign in to share songs."); }
+            if(!cleanCommentText(pmso.song.nt)) {
+                return jt.out("shrstatdiv", "Write a comment to share"); }
+            app.svc.fanMessage(
+                app.util.authdata({action:"share", idcsv:pmso.song.dsId}),
+                function (msgs) {
+                    if(!msgs.length) {
+                        jt.out("shrstatdiv",
+                               "No confirmation, try again later."); }
+                    else {
+                        jt.out("shrstatdiv",
+                               "Song shared with your listeners. " +
+                               jt.isoString2Time(msgs[0].created)); } },
+                function (code, errtxt) {
+                    jt.out("shrstatdiv", "Share call " + code + ": " +
+                           errtxt); }); },
+        updateCommentDisplay: function (nt) {
+            nt = jt.ellipsis(cleanCommentText(nt), 40);
+            if(!nt) {
+                nt = jt.tac2html(
+                    ["span", {id:"nocmtspan"}, "Add Comment"]); }
+            jt.out("sbscmtdispdiv", jt.tac2html(
+                ["a", {href:"#comment",
+                       onclick:mdfs("sob.toggleOverlay", "cmt", "open")},
+                 nt])); }
     };  //end mgrs.cmt returned functions
     }());
 
@@ -1517,7 +1471,7 @@ app.player = (function () {
             mgrs.pan.updateControl("el", cto.el);
             mgrs.rat.adjustPositionFromRating(cto.rv);
             mgrs.kwd.updateReservedKeywordsDisplay(cto.kws);
-            mgrs.cmt.updateIndicators(); },
+            mgrs.cmt.updateCommentDisplay(cto.nt); },
         assertValidSong: function (song) {
             const epre = "assertValidSong: ";
             if(!song) {
@@ -1601,8 +1555,9 @@ app.player = (function () {
                    ovrc:mgrs.kwd.keywordsDialogHTML},
             cmt: {img:"comment.png", imga:"commentact.png",
                   nexto:"ppncontrolsdiv", title:"Comment about this song",
-                  aoffs:["panpotsdiv", 7, "sbstopdiv"], hfrom:"sbscmtdispdiv",
-                  litf:mgrs.cmt.hasComment}};
+                  aoffs:["panpotsdiv", 10, "sbstopdiv"], hfrom:"sbscmtdispdiv",
+                  litf:mgrs.cmt.hasComment,
+                  ovrc:mgrs.cmt.commentDialogHTML}};
         function verifyMousingDivWidth () {
             const audiodiv = jt.byId("audiodiv");
             if(audiodiv) {
@@ -1615,7 +1570,8 @@ app.player = (function () {
                     style("panplaycontentdiv", {width:rtd.pcd}); } } }
         function setOverlayHeight () {
             const mdbb = jt.byId("panplaymousingdiv").getBoundingClientRect();
-            rtd.moh = mdbb.height + "px";
+            const clin = jt.byId("sbscmtdispdiv").getBoundingClientRect();
+            rtd.moh = mdbb.height + clin.height + "px";
             style("panplayoverlaydiv", {height:rtd.moh}); }
         function nmk (btn, sfx) {
             return "sob" + btn + sfx; }
@@ -1718,7 +1674,7 @@ app.player = (function () {
             {fld:"rv", uf:mgrs.rat.adjustPositionFromRating},
             {fld:"nt", uf:function (val) {
                 pmso.cto().nt = val;
-                mgrs.cmt.resetDisplay("gen.uichg"); }}];
+                mgrs.cmt.updateCommentDisplay(); }}];
         function previewSongDisplay (song, state) {
             //The currently playing song and the playback state do not
             //change until the platform player says so.  In the meantime,
@@ -1746,7 +1702,7 @@ app.player = (function () {
                        ["div", {id:"scflbsdiv"},
                         [mgrs.kwd.makeToggleButton(dfks.Social, "Social"),
                          mgrs.kwd.makeToggleButton(dfks.Flow, "Flow")]]]],
-                     ["div", {id:"sbscmtdispdiv"}, "your comment here"]]]; }
+                     ["div", {id:"sbscmtdispdiv"}]]]; }
         function mainPlayerControlsDivContent () {
             return [
                 ["div", {id:"ppntitlediv", cla:"ppnlinediv"},
@@ -1854,7 +1810,7 @@ app.player = (function () {
                 const ww = "skip proc avoid writing stale data";
                 app.pdat.reloadDigDat(ww, false, function () {
                     pmso.song = app.pdat.songsDict()[pmso.song.path];
-                    mgrs.cmt.bumpCurrentIfTired();  //bump fq value if tired
+                    mgrs.sfq.bumpCurrentIfTired();  //bump fq value if tired
                     pmso.song.pd = "skipped";
                     mgrs.plui.rezeroPlaybackPosition();
                     app.deck.playNextSong(); }); }, 50); },

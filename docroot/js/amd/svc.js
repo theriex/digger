@@ -449,9 +449,6 @@ app.svc = (function () {
         spotifyTrackDetails: function () {
             return pbi.det || {title:"", artist:"", album:""}; },
         switchToSpotifyTrack: function (/*wpso*/) {
-            mgrs.cmt.toggleTuningOpts("off");
-            mgrs.cmt.toggleCommentDisplay("off");
-            mgrs.cmt.toggleSongShare("off");
             // const st = wpso.track_window.current_track;
             // const tid = "z:" + st.id;
             // pmso.song = {dsId:"spotify" + tid, ti:st.name,
