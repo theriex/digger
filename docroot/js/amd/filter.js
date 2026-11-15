@@ -328,15 +328,96 @@ app.filter = (function () {
 
     //Keyword filter toggle manager handles 3-way keyword filtering controls
     mgrs.kft = (function () {
-        var kwdefs = null;
+        var fkds = [];  //filterable keyword definitions
+        function resetFilterableKeywordDefinitions () {
+            fkds = [];
+            fkds.push({pn:"Social", tog:"off"});
+            fkds.push({pn:"Flow", tog:"off"});
+            fkds.push({pn:"UnMrkd", tog:"off"});
+            const kds = app.player.dispatch("kwd", "getCurrKeywordDefs");
+            kds.forEach(function (kd) {
+                fkds.push({pn:kd.name, tog:"off"}); }); }
+        function addKWTSettingsFunc (idx) {
+            var kt = ctrls.kts[idx];
+            kt.settings = function () {
+                return {tp:"kwbt", k:kt.pn, v:kt.tog}; }; }
+        function addKWTSongMatchFunc (idx) {
+            var kt = ctrls.kts[idx];
+            if(kt.pn === "UnMrkd") {
+                kt.match = function (song) {
+                    if(kt.tog === "neg" &&  //not unrated: rated only
+                       app.deck.isUnrated(song)) {
+                        return false; }
+                    if(kt.tog === "pos" &&  //must be unrated
+                       !app.deck.isUnrated(song)) {
+                        return false; }
+                    return true; }; }
+            else {
+                kt.match = function (song) {
+                    if(kt.tog === "neg" &&
+                       song.kws && (song.kws.indexOf(kt.pn) >= 0)) {
+                        return false; }
+                    if(kt.tog === "pos" &&
+                       (!song.kws || (song.kws.indexOf(kt.pn) < 0))) {
+                        return false; }
+                    return true; }; }}
+        function makeControl (kwdef, idx) {
+            jt.out("kwtdiv" + idx, jt.tac2html(
+                ["div", {cla:"kwtcontdiv",
+                         onclick:mdfs("kft.togClick", idx)},
+                 [["div", {cla:"kwtoglabel"}, kwdef.pn],
+                  ["div", {cla:"kwtbdiv"},
+                   ["img", {cla:"kwtbimg", id:"kwtbimg" + idx,
+                            src:"img/kwtogoff.png"}]]]])); }
+        function createAndInitControls () {
+            ctrls.kts.forEach(function (kt, idx) {
+                makeControl(kt, idx);
+                const dfltset = {v:"off"};
+                const setting = findSetting({tp:"kwbt", k:kt.pn}) || dfltset;
+                mgrs.kft.setValue(idx, setting.v || dfltset.v); }); }
+        function makeToggleDivs (fkdefs, offset) {
+            var kwtdivs = [];
+            offset = offset || 0;
+            fkdefs.forEach(function (kwd, idx) {
+                ctrls.kts.push({pn:kwd.pn, tog:kwd.tog});
+                addKWTSettingsFunc(idx + offset);
+                addKWTSongMatchFunc(idx + offset);
+                kwtdivs.push(["div", {cla:"kwtogdiv",
+                                      id:"kwtdiv" + (idx + offset)}]); });
+            return kwtdivs; }
+        function makeFiltersAndDivs () {
+            var kwtdivs = makeToggleDivs(fkds.slice(0, 3));
+            kwtdivs.push(["div", {cla:"kwtogdiv", id:"kwovrtog"},
+                          ["a", {href:"#allkwds",
+                                 onclick:mdfs("kft.toggleOverlay")},
+                           ["img", {id:"fkwovrimg", src:"img/keys.png"}]]]);
+            kwtdivs.push(["div", {id:"kwovrdiv"}]);
+            jt.out("kwtogsdiv", jt.tac2html(kwtdivs));
+            kwtdivs = makeToggleDivs(fkds.slice(3), 3);
+            kwtdivs.unshift(["div", {style:"display:inline-block;float:left;"},
+                             ["a", {href:"#close",
+                                    onclick:mdfs("kft.toggleOverlay")},
+                              ["img", {src:"img/rollupclose.png"}]]]);
+            kwtdivs.unshift(["div", {style:"display:inline-block;float:right;"},
+                             ["a", {href:"#close",
+                                    onclick:mdfs("kft.toggleOverlay")},
+                              ["img", {src:"img/rollupclose.png"}]]]);
+            jt.out("kwovrdiv", jt.tac2html(kwtdivs)); }
+        function updateKeywordFilteringIndicator () {
+            if(fkds.slice(3).find((kd) => kd.tog !== "off")) {
+                jt.byId("fkwovrimg").src = "img/keysact.png"; }
+            else {
+                jt.byId("fkwovrimg").src = "img/keys.png"; } }
     return {
         setValue: function (idx, tog, changed) {
+            fkds[idx].tog = tog;  //update local def values for reference
             ctrls.kts[idx].tog = tog;  //note the value for filtering
             jt.byId("kwtbimg" + idx).src = "img/kwtog" + tog + ".png";
             const setting = findSetting({tp:"kwbt", k:ctrls.kts[idx].pn});
             if(setting) {  //might not be found if just starting up
                 setting.v = tog; }
             if(changed) {
+                updateKeywordFilteringIndicator();
                 mgrs.stg.filterValueChanged("kwdf " + ctrls.kts[idx].pn); } },
         togClick: function (idx) {
             const kt = ctrls.kts[idx];
@@ -349,54 +430,19 @@ app.filter = (function () {
             jt.log("kft.togClick " + ctrls.kts[idx].pn + " " + prevstat +
                    " -> " + kt.tog);
             mgrs.kft.setValue(idx, kt.tog, "changed"); },
-        openKeywordSelectDialog: function () {
-            app.top.dispatch("kwd", "chooseKeywords"); },
-        makeControl: function (kwdef, idx) {
-            jt.out("kwtdiv" + idx, jt.tac2html(
-                ["div", {cla:"kwtcontdiv",
-                         onclick:mdfs("kft.togClick", idx)},
-                 [["div", {cla:"kwtoglabel"}, kwdef.pn],
-                  ["div", {cla:"kwtbdiv"},
-                   ["img", {cla:"kwtbimg", id:"kwtbimg" + idx,
-                            src:"img/kwtogoff.png"}]]]])); },
-        addKWTSettingsFunc: function (idx) {
-            var kt = ctrls.kts[idx];
-            kt.settings = function () {
-                return {tp:"kwbt", k:kt.pn, v:kt.tog}; }; },
-        addKWTSongMatchFunc: function (idx) {
-            var kt = ctrls.kts[idx];
-            kt.match = function (song) {
-                if(kt.tog === "neg" &&
-                   song.kws && (song.kws.indexOf(kt.pn) >= 0)) {
-                    return false; }
-                if(kt.tog === "pos" &&
-                   (!song.kws || (song.kws.indexOf(kt.pn) < 0))) {
-                    return false; }
-                return true; }; },
-        makeFiltersAndDivs: function () {
-            var kwtdivs = [];
-            kwdefs.slice(0, 4).map((kd) => kd.kw).forEach(function (kwd, idx) {
-                ctrls.kts.push({pn:kwd, tog:"off"});
-                mgrs.kft.addKWTSettingsFunc(idx);
-                mgrs.kft.addKWTSongMatchFunc(idx);
-                kwtdivs.push(["div", {cla:"kwtogdiv", id:"kwtdiv" + idx}]); });
-            jt.out("kwtogsdiv", jt.tac2html(
-                [["div", {id:"kwdseltogdiv"},
-                  ["a", {href:"#selectkwds", title:"Select active keywords",
-                         onclick:mdfs("kft.openKeywordSelectDialog")},
-                   ["img", {cla:"tunactimg inv", src:"img/keys.png"}]]],
-                 kwtdivs])); },
-        createAndInitControls: function () {
-            ctrls.kts.forEach(function (kt, idx) {
-                mgrs.kft.makeControl(kt, idx);
-                const dfltset = {v:"off"};
-                const setting = findSetting({tp:"kwbt", k:kt.pn}) || dfltset;
-                mgrs.kft.setValue(idx, setting.v || dfltset.v); }); },
+        toggleOverlay: function () {
+            const ovrdiv = jt.byId("kwovrdiv");
+            if(!ovrdiv.offsetHeight) {  //0
+                ovrdiv.style.height = "64px"; }
+            else {
+                ovrdiv.style.height = "0px"; }
+                updateKeywordFilteringIndicator(); },
         rebuildControls: function () {
-            kwdefs = app.top.dispatch("kwd", "defsArray", true);
-            ctrls.kts = [];
-            mgrs.kft.makeFiltersAndDivs();
-            mgrs.kft.createAndInitControls(); }
+            resetFilterableKeywordDefinitions();
+            ctrls.kts = [];  //reset filtering keywords
+            makeFiltersAndDivs();  //rebuild main panel
+            createAndInitControls();
+            updateKeywordFilteringIndicator(); }
     };  //end mgrs.kft returned functions
     }());
 

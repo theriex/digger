@@ -428,7 +428,8 @@ app.player = (function () {
         const resKwds = "Social,Flow";
         const autores = {};
         function isReservedKeyword (kwd) {
-            return resKwds.toLowerCase().csvcontains(kwd.toLowerCase()); }
+            return (resKwds.toLowerCase().csvcontains(kwd.toLowerCase()) ||
+                    "UnMrkd".toLowerCase() === kwd.toLowerCase()); }
         function verifyAccountKeywords (acct) {
             if(!acct.kwdefs) {
                 const dfks = app.top.dispatch("aaa", "getDfltKeywDefs");
@@ -448,6 +449,8 @@ app.player = (function () {
         function sortedKwdefs () {
             var skds = [];
             const acct = app.top.dispatch("aaa", "getAccount");
+            if(!acct) {          //return empty rather than default keywords,
+                return skds; }   //caller can retry after data ready.
             verifyAccountKeywords(acct);
             Object.entries(acct.kwdefs).forEach(function ([kwd, def]) {
                 if(!def.ig) {
@@ -458,10 +461,11 @@ app.player = (function () {
         function keywordsCSV () {
             return sortedKwdefs().map((kd) => kd.name).join(","); }
     return {
+        getCurrKeywordDefs: sortedKwdefs,
         hasKeywords: function (song) {
             var retval = "";
-            if(song && song.kwds) {
-                retval = song.kwds.csvarray()
+            if(song && song.kws) {
+                retval = song.kws.csvarray()
                     .filter((k) => k && !isReservedKeyword(k))
                     .join(","); }
             return retval; },
@@ -551,7 +555,7 @@ app.player = (function () {
                                   "Keyword: Letter + Alphanumerics..."); }
                 if(keywordsCSV().toLowerCase().csvcontains(nkw.toLowerCase())) {
                     return jt.out("newkwerrdiv", nkw + " already in use."); }
-                if(resKwds.toLowerCase().csvcontains(nkw.toLowerCase())) {
+                if(isReservedKeyword(nkw)) {
                     return jt.out("newkwerrdiv", nkw + " is reserved."); }
                 if(nkw.length > 12) {
                     return jt.out("newkwerrdiv",
@@ -624,6 +628,7 @@ app.player = (function () {
             jt.log("toggleKeyword " + button.className.slice(6) + ": " +
                    button.innerHTML + " kws:" + cto.kws + " p:" + cto.path);
             app.top.dispatch("gen", "togtopdlg", "", "close");  //sc changed
+            mgrs.sob.relightButtons();
             mgrs.scm.noteSongModified("kwd"); },
         updateReservedKeywordsDisplay: function (kws) {
             resKwds.csvarray().forEach(function (rkw) {
@@ -716,6 +721,7 @@ app.player = (function () {
             var rbv = event.target.value;
             if(!isSubcatValue(rbv, pmso.song.fq)) {  //value changed
                 pmso.song.fq = rbv;   //for updated song save
+                mgrs.sob.relightButtons();
                 mgrs.scm.noteSongModified("freq"); } },
         bumpTired: function (song) {  //general utility
             var tfqidx = subcats.B.indexOf(pmso.cto().fq);
@@ -832,6 +838,7 @@ app.player = (function () {
             if(cmt === pmso.song.nt) {
                 return mgrs.cmt.resetDialogContent(); }
             pmso.song.nt = cmt;
+            mgrs.sob.relightButtons();
             mgrs.scm.noteSongModified("commentsave");
             mgrs.cmt.resetDialogContent(); },
         shareDlg: function () {
@@ -1782,6 +1789,8 @@ app.player = (function () {
             if(!dbsg) {  //use foreign song instance for display
                 jt.log(logpre + "song not found: " + song.path);
                 return mgrs.scm.changeCurrentlyPlayingSong(song, state); }
+            mgrs.sob.toggleOverlay("close");  //in case open with old info
+            mgrs.sob.relightButtons();
             //regardless if song changed or not, verify hubsync scheduled
             app.top.dispatch("srs", "syncToHub");
             mgrs.plui.pollingMode("active", "notifySongChanged");

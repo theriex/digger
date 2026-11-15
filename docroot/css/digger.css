@@ -379,7 +379,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 .mouseareadiv { position:absolute; top:0px; left:0px; cursor:pointer;
   user-select:none; -webkit-user-select:none; }
 #kwtogsdiv { text-align:center; overflow:hidden; margin-top:-6px;
-  user-select:none; -webkit-user-select:none; }
+  user-select:none; -webkit-user-select:none; position:relative; }
 .kwtogdiv { display:inline-block; font-size:medium; padding:0px 0px 5px 0px;
   user-select:none; -webkit-user-select:none; }
 .kwtcontdiv { cursor:pointer; position:relative; width:72px; user-select:none; -webkit-user-select:none; }
@@ -392,6 +392,19 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   user-select:none; -webkit-user-select:none; }
 #kwdseltogdiv a { user-select:none; -webkit-user-select:none; }
 #kwdseltogdiv a img { user-select:none; -webkit-user-select:none; }
+#kwovrtog { overflow:hidden; width:72px; height:58px; vertical-align:middle;
+  background-image: url('../img/kwfiltbg.png');
+  background-size: auto 90%;
+  background-position: center;
+  background-repeat: no-repeat; }
+#fkwovrimg { max-height:42px; margin-top:7px;
+  user-select:none; -webkit-user-select:none; }
+#kwovrdiv { position:absolute; top:0px; left:0px; overflow:scroll;
+  height:0px; transition:height 450ms;
+  background-image: url('../img/overlaybg.png');
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat; }
 
 #ratdiv { margin:0px 5px 0px 0px; text-align:center; user-select:none; -webkit-user-select:none; }
 #toginfob, #toghistb, #pullscopeb, #incluntb, #fqftogdiv { user-select:none; -webkit-user-select:none; }

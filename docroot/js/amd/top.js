@@ -1993,7 +1993,6 @@ app.top = (function () {
         notifyAccountChanged: function (context) {
             //factored method for those acct changes that require UI updates
             if(!context || context === "keywords") {
-                mgrs.kwd.rebuildKeywords();
                 app.filter.dispatch("kft", "rebuildControls"); }
             if(!context || context === "igfolders") {
                 mgrs.igf.redrawIgnoreFolders(); } },
@@ -2253,160 +2252,6 @@ app.top = (function () {
         resetIgnoreFolders: function (folderNamesArray) {
             igfolds = folderNamesArray; }
     };  //end of mgrs.igf returned functions
-    }());
-
-
-    //Keyword manager handles keywords in use for the library.
-    mgrs.kwd = (function () {
-        var kwdefs = null;  //curracct kwdefs
-        var uka = null;  //update keywords array (UI form data)
-        var vizuka = null;  //ignored keywords filtered out
-    return {
-        initialize: function () {
-            app.pdat.addConfigListener("top.kwd", mgrs.kwd.rebuildKeywords);
-            app.pdat.addDigDatListener("top.kwd", mgrs.kwd.rebuildKeywords); },
-        countSongKeywords: function () {
-            if(!app.pdat.dbObj()) { return; }  //nothing to count yet
-            Object.values(kwdefs).forEach(function (kd) { kd.sc = 0; });
-            Object.values(app.pdat.songsDict()).forEach(function (song) {
-                song.kws = song.kws || "";
-                song.kws.csvarray().forEach(function (kw) {
-                    if(!kwdefs[kw]) {
-                        kwdefs[kw] = {pos:0, sc:0, ig:0}; }
-                    kwdefs[kw].sc += 1; }); }); },
-        verifyKeywordDefinitions: function () {
-            if(!kwdefs || Object.keys(kwdefs).length < 4) {
-                kwdefs = JSON.parse(JSON.stringify(
-                    mgrs.aaa.getDfltKeywDefs())); } },
-        rebuildKeywords: function () {
-            kwdefs = mgrs.aaa.getAccount().kwdefs;
-            mgrs.kwd.verifyKeywordDefinitions();
-            mgrs.kwd.countSongKeywords(); },
-        defsArray: function (actfirst) {
-            mgrs.kwd.verifyKeywordDefinitions();
-            const kds = Object.entries(kwdefs).map(function ([k, d]) {
-                return {pos:d.pos, sc:d.sc, ig:d.ig, kw:k, dsc:d.dsc}; });
-            const aks = kds.filter((kd) => !kd.ig);
-            aks.sort(function (a, b) {
-                if(actfirst) {
-                    if(a.pos && b.pos) { return a.pos - b.pos; }
-                    if(a.pos && !b.pos) { return -1; }
-                    if(!a.pos && b.pos) { return 1; } }
-                return a.kw.localeCompare(b.kw); });
-            return aks; },
-        makePosSel: function (kw, pos) {
-            var pivs = ["-", "1", "2", "3", "4"];  //position indicator values
-            var ofs = 0;
-            if(vizuka.length <= 4) {
-                pivs = pivs.slice(1);
-                ofs = 1; }
-            return jt.tac2html(
-                ["select", {id:"posel" + kw, title:"UI position of " + kw,
-                            onchange:mdfs("kwd.posChange", kw)},
-                 pivs.map((opt, i) => 
-                     ["option", {value:i + ofs, 
-                                 selected:jt.toru(pos === i + ofs)},
-                      opt])]); },
-        posChange: function (kw) {
-            var ukd = uka.find((kd) => kd.kw === kw);
-            var upv = Number(jt.byId("posel" + kw).value);
-            var pkd = uka.find((kd) => kd.pos === upv);
-            pkd.pos = ukd.pos;
-            ukd.pos = upv;
-            mgrs.kwd.redrawUpdateForm(); },
-        makeTrash: function (kw, pos) {
-            var html = ["img", {cla:"rowbuttonimg", src:"img/trashdis.png"}];
-            if(!pos) {  //not currently selected as a display keyword
-                html = ["a", {href:"#Ignore_" + kw,
-                              onclick:mdfs("kwd.trashKeyword", kw)},
-                        ["img", {cla:"rowbuttonimg", src:"img/trash.png"}]]; }
-            return jt.tac2html(html); },
-        trashKeyword: function (kw) {
-            var ukd = uka.find((kd) => kd.kw === kw);
-            ukd.ig = 1;
-            mgrs.kwd.redrawUpdateForm(); },
-        togKwdDesc: function (kw) {
-            var kdd = jt.byId(kw + "descrdiv");
-            if(kdd) {
-                if(kdd.style.display === "none") {
-                    kdd.style.display = "block"; }
-                else {
-                    kdd.style.display = "none"; } } },
-        redrawUpdateForm: function () {
-            vizuka = uka.filter((kd) => !kd.ig);
-            jt.out("kwupdtablediv", jt.tac2html(
-                ["table", {id:"kwdseltable"},
-                 vizuka.map((kwd) =>
-                     [["tr", {cla:"kwdtr"},
-                       [["td", mgrs.kwd.makePosSel(kwd.kw, kwd.pos)],
-                        ["td", ["a", {href:"#Describe" + kwd.kw,
-                                      onclick:mdfs("kwd.togKwdDesc", kwd.kw)},
-                                kwd.kw]],
-                        ["td", kwd.sc],
-                        ["td", mgrs.kwd.makeTrash(kwd.kw, kwd.pos)]]],
-                      ["tr", {cla:"kwdesctr"},
-                       [["td"],
-                        ["td", {colspan:3},
-                         ["div", {id:kwd.kw + "descrdiv", cla:"kddescrdiv",
-                                  style:"display:none", contentEditable:true},
-                          kwd.dsc || ""]]]]])])); },
-        chooseKeywords: function () {
-            mgrs.kwd.countSongKeywords();  //recount in case keyword was toggled
-            uka = mgrs.kwd.defsArray();
-            jt.out(tddi, jt.tac2html(
-                ["div", {id:"kwupdiv"},
-                 [["div", {id:"kwupdtablediv"}],
-                  ["div", {id:"kwupdstatdiv"}],
-                  ["div", {cla:"dlgbuttonsdiv", id:"kwdefbdiv"},
-                   ["button", {type:"button", id:"kwdefupdb",
-                               onclick:mdfs("kwd.saveKeywordDefs")},
-                    "Update"]]]]));
-            mgrs.kwd.redrawUpdateForm(); },
-        keywordDefsError: function () {
-            //UI should not allow creating an invalid kwdefs state. Verify.
-            var errmsg = "";
-            if(uka.length < 4) {
-                errmsg = "Four keywords required."; }
-            const ords = [{n:"first", v:1}, {n:"second", v:2}, {n:"third", v:3},
-                          {n:"fourth", v:4}];
-            ords.reverse().forEach(function (ord) {
-                if(!uka.find((kwd) => kwd.pos === ord.v)) {
-                    errmsg = "Missing " + ord.n + " keyword."; } });
-            if(errmsg) {
-                jt.out("kwupdstatdiv", errmsg);
-                jt.byId("kwdefupdb").disabled = false; }
-            return errmsg; },
-        saveKeywordDefs: function () {
-            //either showing the full keywords form, or swapping a kwtog ctrl
-            if(jt.byId("kwdefupdb")) {  //called from local form
-                jt.byId("kwdefupdb").disabled = true;  //debounce button
-                jt.out("kwupdstatdiv", "Saving..."); }
-            if(mgrs.kwd.keywordDefsError()) { return; }
-            const acct = mgrs.aaa.getAccount();
-            uka.forEach(function (kd) {  //update kwdefs directly
-                var def = {pos:kd.pos, sc:kd.sc, ig:kd.ig, dsc:kd.dsc || ""};
-                var descr = jt.byId(kd.kw + "descrdiv");
-                if(descr) {
-                    descr = descr.innerText || "";
-                    def.dsc = descr.trim(); }
-                acct.kwdefs[kd.kw] = def; });
-            mgrs.aaa.updateCurrAcct(acct, acct.token,
-                function () {
-                    mgrs.gen.togtopdlg("", "close");
-                    mgrs.aaa.notifyAccountChanged("keywords"); },
-                function (code, errtxt) {
-                    jt.out("kwupdstatdiv", String(code) + ": " + errtxt); }); },
-        same: function (kwa, kwb) {  //localeCompare base not yet on mobile
-            return kwa.toLowerCase() === kwb.toLowerCase(); },
-        swapFilterKeyword: function (kwd, pos) {  //called from filter
-            uka = uka || mgrs.kwd.defsArray();
-            const prevkd = uka.find((kd) => kd.pos === pos);
-            prevkd.pos = 0;
-            const currkd = uka.find((kd) => kd.kw === kwd);
-            currkd.pos = pos;
-            mgrs.gen.togtopdlg("", "close");  //in case open
-            mgrs.kwd.saveKeywordDefs("swapFilterKeyword"); }
-    };  //end of mgrs.kwd returned functions
     }());
 
 
@@ -2747,9 +2592,6 @@ app.top = (function () {
                 {ty:"btn", oc:mdfs("igf.igMusicFolders"),
                  tt:"Ignore folders when reading music files",
                  n:"Ignore Folders", id:"ignorefldrsbutton"},
-                {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
-                 tt:"Select active keywords for filtering",
-                 n:"Active Keywords", id:"choosekwdsbutton"},
                 {ty:"btn", oc:mdfs("aaa.toggleDarkMode"),
                  tt:"Toggle dark mode display",
                  dynamicName:mgrs.aaa.getDarkModeButtonDisplayName,
@@ -2881,10 +2723,7 @@ app.top = (function () {
                 {ty:"stat", lab:"Spotify song count", id:"spscval",
                  valfname:"songCount"},
                 {ty:"stat", lab:"Spotify library", id:"splibval",
-                 valfname:"splibStat"},
-                {ty:"btn", oc:mdfs("kwd.chooseKeywords"),
-                 tt:"Choose keywords to use for filtering",
-                 n:"Choose Keywords"}]; },
+                 valfname:"splibStat"}]; },
         songCount: function () {
             var scs = app.login.getAuth().settings.songcounts;
             if(!scs || scs.posschg > scs.fetched) {
@@ -3374,7 +3213,6 @@ return {
                 jt.log("initializing top." + name);
                 mgr.initialize(); } }); },
     markIgnoreSongs: function () { mgrs.igf.markIgnoreSongs(); },
-    rebuildKeywords: function () { mgrs.kwd.rebuildKeywords(); },
     dispCount: function (c, t) { mgrs.gen.dispCount(c, t); },
     dispatch: function (mgrname, fname, ...args) {
         try {
