@@ -178,7 +178,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   padding:1px; }
 .togdlgabspos { position:absolute; top:48px; left:10px; }
 #frequencyoptionsdiv { text-align:center; background:whitesmoke; width:300px;
-  border-radius:8px; }
+  border-radius:8px; padding:5px; }
 #tuneopta { margin-right:10px; }
 .tuneoptiondiv { display:inline-block; font-size:small;
   padding:0px 14px 0px 3px; }
@@ -297,6 +297,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #addkwb { margin-left:0px; }
 #pkwcontentdiv {}
 #kwdselbuttonsdiv { padding-top:8px; }
+#kwdselbuttonsdiv button { margin:12px 8px; }
 #kwdsettingsbdiv { text-align:right; padding:12px 36px 10px 0px; }
 #settingsbimg { max-height:30px; }
 #kwdsettingsdiv { position:absolute; left:0px; top:0px;
@@ -397,7 +398,7 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
   background-size: auto 90%;
   background-position: center;
   background-repeat: no-repeat; }
-#fkwovrimg { max-height:42px; margin-top:7px;
+#fkwovrimg { max-height:42px; margin-top:7px; opacity:0.7;
   user-select:none; -webkit-user-select:none; }
 #kwovrdiv { position:absolute; top:0px; left:0px; overflow:scroll;
   height:0px; transition:height 450ms;

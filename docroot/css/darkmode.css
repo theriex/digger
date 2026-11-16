@@ -10,3 +10,8 @@ button { color:white; background:#666; }
 .rangesurfdiv { background:#333; }
 #pposidiv, #tunefqdispdiv, #nowsleepingresumediv, #sleepmsgdispdiv {
   color:#333; }
+#kwovrtog { background-image:url('../img/kwfiltbginv.png'); }
+#kwovrdiv { background-image:url('../img/overlaybginv.png'); }
+#pplovcdiv { background-image:url('../img/overlaybginv.png'); }
+#frequencyoptionsdiv { background:#446; }
+#cmteditdiv { background:#325272; }

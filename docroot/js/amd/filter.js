@@ -390,18 +390,21 @@ app.filter = (function () {
             kwtdivs.push(["div", {cla:"kwtogdiv", id:"kwovrtog"},
                           ["a", {href:"#allkwds",
                                  onclick:mdfs("kft.toggleOverlay")},
-                           ["img", {id:"fkwovrimg", src:"img/keys.png"}]]]);
+                           ["img", {id:"fkwovrimg", cla:"inv",
+                                    src:"img/keys.png"}]]]);
             kwtdivs.push(["div", {id:"kwovrdiv"}]);
             jt.out("kwtogsdiv", jt.tac2html(kwtdivs));
             kwtdivs = makeToggleDivs(fkds.slice(3), 3);
             kwtdivs.unshift(["div", {style:"display:inline-block;float:left;"},
                              ["a", {href:"#close",
                                     onclick:mdfs("kft.toggleOverlay")},
-                              ["img", {src:"img/rollupclose.png"}]]]);
+                              ["img", {src:"img/rollupclose.png",
+                                       cla:"inv"}]]]);
             kwtdivs.unshift(["div", {style:"display:inline-block;float:right;"},
                              ["a", {href:"#close",
                                     onclick:mdfs("kft.toggleOverlay")},
-                              ["img", {src:"img/rollupclose.png"}]]]);
+                              ["img", {src:"img/rollupclose.png",
+                                       cla:"inv"}]]]);
             jt.out("kwovrdiv", jt.tac2html(kwtdivs)); }
         function updateKeywordFilteringIndicator () {
             if(fkds.slice(3).find((kd) => kd.tog !== "off")) {

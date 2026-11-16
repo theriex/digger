@@ -776,7 +776,7 @@ app.player = (function () {
                   ["div", {id:"cmtsavecanceldiv", cla:"dlgbuttonsdiv"}],
                   ["div", {id:"cmtsharebuttondiv"},
                    ["a", {href:"#share", onclick:mdfs("cmt.shareDlg")},
-                    ["img", {id:"sharebimg",
+                    ["img", {id:"sharebimg", cla:"inv",
                              src:"img/share.png"}]]]]); }
         function cleanCommentText (txt) {
             txt = txt || "";
@@ -813,7 +813,9 @@ app.player = (function () {
                                     dialsSummaryText(s)]));
             const acct = app.top.dispatch("aaa", "getAccount");
             if(acct && acct.digname) {
-                lines.push("https://diggerhub.com/listener/" + acct.digname); }
+                lines.push(jt.tac2html(  //mobile webview safe text URL
+                    ["span", {style:"font-size:small"},
+                     "https://diggerhub.com/listener/" + acct.digname])); }
             lines = lines.map((line) => jt.tac2html(line) + "<br/>\n");
             return jt.tac2html(lines); }
     return {
@@ -850,7 +852,8 @@ app.player = (function () {
                      ["a", {href:"#format", onclick:mdfs("cmt.togShareFmt")},
                       ["span", {id:"sharefmtspan"}, "HTML"]]]],
                    ["div", {id:"sharrowdiv"},
-                    ["img", {id:"sharrowimg", src:"img/sharrow.png"}]],
+                    ["img", {id:"sharrowimg", cla:"inv",
+                             src:"img/sharrow.png"}]],
                    ["div", {id:"shbdiv"},
                     [["button", {type:"button", id:"song2clipb",
                                  onclick:mdfs("cmt.song2Clipboard")},
@@ -879,7 +882,11 @@ app.player = (function () {
             if(!app.util.haveHubCredentials()) {
                 return jt.out("shrstatdiv", "Sign in to share songs."); }
             if(!cleanCommentText(pmso.song.nt)) {
-                return jt.out("shrstatdiv", "Write a comment to share"); }
+                return jt.out("shrstatdiv", jt.tac2html(
+                    [["a", {href:"#comment",
+                            onclick:mdfs("sob.toggleOverlay", "cmt", "open")},
+                      "Write a comment"],
+                     " to share"])); }
             app.svc.fanMessage(
                 app.util.authdata({action:"share", idcsv:pmso.song.dsId}),
                 function (msgs) {
