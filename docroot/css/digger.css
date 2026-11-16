@@ -230,7 +230,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 #panplaydiv { position:relative; }
 #panplaycontentdiv { position:relative; width:360px; margin:0px auto; }
 #panplaymousingdiv { position:relative; width:325px;
-  user-select:none; -webkit-user-select:none; }
+  user-select:none; -webkit-user-select:none;
+  background-image: url('../img/target.png');
+  background-position: left 148px top 12px;
+  background-repeat: no-repeat; }
 #panplayoverlaydiv { position:absolute; top:0px; left:325px;
   overflow:hidden; }
 #pplovcdiv { position:absolute; top:0px; left:325px; width:325px;
@@ -359,6 +362,10 @@ button { color:black; background:#ccc; cursor:pointer; font-size:small;
 /* Filter Panel */
 
 #panfiltdiv, #panfiltcontentdiv, filtpanelcontdiv { user-select:none; -webkit-user-select:none; }
+#panfiltcontentdiv {
+  background-image: url('../img/targetBlueOuter.png');
+  background-position: left 220px top -25px;
+  background-repeat: no-repeat; }
 #rangesdiv { display:flex; justify-content:space-around; user-select:none; -webkit-user-select:none; }
 .rangectrldiv { display:inline-block; position:relative; user-select:none; -webkit-user-select:none; }
 .rangetopdispdiv { position:relative; user-select:none; -webkit-user-select:none; }
