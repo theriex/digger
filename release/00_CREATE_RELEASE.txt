@@ -9,6 +9,8 @@
 #   ../package.json version
 # Verify compiled client versions are >=:
 #   ../../diggerdroid/app/build.gradle versionName (no 'v'), bump versionCode
+#   ../../diggerdroid/app/src/main/java/com/diggerhub/digger/MainActivity.kt
+#                     getAppVersion, getVersionCode.
 #   xcode, proj nav view, top diggerIOS
 #     PROJECT/diggerIOS(left column)|Build Settings(top tab)|Versioning(section)
 #         "Current Project Version", "Marketing Version"

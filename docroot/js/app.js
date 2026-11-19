@@ -498,6 +498,24 @@ app = (function () {
         //          "lastheard":"2023-02-14T18:42:48Z",
         //          "common": 8645, "dfltrcv": 986, "dfltsnd": 0}]};
         const albdat = {
+            "The Future Sound of London":{
+                "Teachings From The Electronic Brain":{
+                    kwds:"Social,Flow", songs:[
+                        "Papua New Guinea [12_ Version]",
+                        "Max",
+                        "Everyone In The World Is Doing Something Without Me",
+                        "My Kingdom",
+                        "Smokin' Japanese Babe",
+                        "Antique Toy",
+                        "Lifeforms [Radio Edit]",
+                        "Yage",
+                        "Expander (Remix)",
+                        "Glass",
+                        "Far-Out Son Of Lung And The Ramnlings Of A Madman",
+                        "The Lovers",
+                        "Moutain Goat",
+                        "Cascade [Shortform]",
+                        "We Have Explosive [7_ Edit]"]}},
             "Brian Eno":{
                 "Ambient 1: Music for Airports":{
                     kwds:"Social,Flow,Ambient", songs:[
@@ -529,7 +547,7 @@ app = (function () {
                         "Morgenspaziergang"]}},
             "Talking Heads":{
                 "Remain In Light":{
-                    kwds:"Social,Flow", songs:[
+                    kwds:"Social", songs:[
                         "Born Under Punches (The Heat Goes On)",
                         "Crosseyed And Painless",
                         "The Great Curve",
@@ -540,7 +558,7 @@ app = (function () {
                         "The Overload"]}},
             "Joan Armatrading":{
                 "Walk Under Ladders":{
-                    kwds:"Social,Flow", songs:[
+                    kwds:"Social", songs:[
                         "I'm Lucky",
                         "When I Get It Right",
                         "Romancers",
@@ -560,9 +578,34 @@ app = (function () {
                         "Star People",
                         "U'n'I",
                         "Star On Cicely"]}},
+            "Jon Hassell":{
+                "Power Spot":{
+                    kwds:"Social,Flow,Ambient", songs:[
+                        "Power Spot",
+                        "Passage D.E",
+                        "Solaire",
+                        "Miracle Steps",
+                        "Wing Melodies",
+                        "The Elephant And The Orchid",
+                        "Air"]}},
+            "Nightmares on Wax":{
+                "Carboot Soul":{
+                    kwds:"Social,Flow,Ambient", songs:[
+                        "Les Nuits",
+                        "Morse",
+                        "Ethnic Majority",
+                        "Finer",
+                        "Ease Jimi",
+                        "Argha Noah",
+                        "Fire In The Middle",
+                        "Survival",
+                        "Capumcap",
+                        "Les Nuits (DJ Spinna Mix)",
+                        "Finer (Paul Nice Mix)",
+                        "Burn Me Slo (Feat O.C)"]}},
             "Ozomatli":{
                 "Street Signs":{
-                    kwds:"Social,Flow", songs:[
+                    kwds:"Social", songs:[
                         "Believe",
                         "Love And Hope",
                         "Street Signs",
@@ -630,7 +673,7 @@ app = (function () {
                         "The Morning Fog"]}},
             "Deep Forest":{
                 "Deep Forest":{
-                    kwds:"Social,Flow", songs:[
+                    kwds:"Social,Flow,Ambient", songs:[
                         "Deep Forest",
                         "Sweet Lullaby",
                         "Hunting",
@@ -707,10 +750,12 @@ app = (function () {
             if(ratedSongs) {
                 songdat[path].al = 40;
                 songdat[path].el = 70;
+                if(kwds.csvcontains("Ambient")) {
+                    songdat[path].el = 25; }
                 songdat[path].rv = 8;
                 songdat[path].kws = kwds;
                 songdat[path].fq = "B";  //light up tuning fork
-                songdat[path].nt = "Placeholder comment to light indicator"; } }
+                songdat[path].nt = ""; } }
         function getSongData () {
             if(songdat) { return songdat; }
             jt.log("building fake song data, ratedSongs: " + ratedSongs);

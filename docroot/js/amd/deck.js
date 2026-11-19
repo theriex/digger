@@ -1264,7 +1264,7 @@ app.deck = (function () {
             {mgr:"srch", name:"Search", img:"search.png"}];
         const gsi = {  //general state information
             datr:"init",  //data readiness "ready"
-            dfltSeqMgrName:"alb"};
+            dfltSeqMgrName:"csa"};
         function validSeqMgrName (name) {
             return (name === "csa" || name === "alb"); }
         function ssmn () {
